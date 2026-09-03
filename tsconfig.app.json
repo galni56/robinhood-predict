@@ -16,10 +16,11 @@
     "noEmit": true,
     "jsx": "react-jsx",
 
-    /* Path aliases */
-    "baseUrl": ".",
+    /* Path aliases — no baseUrl: with moduleResolution "bundler", paths
+       resolve relative to this tsconfig file on their own, and baseUrl is
+       deprecated as of TS 6 (was erroring CI builds without this). */
     "paths": {
-      "@/*": ["src/*"]
+      "@/*": ["./src/*"]
     },
 
     /* Linting */
