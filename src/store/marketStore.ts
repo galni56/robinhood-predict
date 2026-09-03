@@ -42,6 +42,11 @@ interface MarketState {
   ) => { ok: true } | { ok: false; error: string }
   checkResolutions: () => void
   forceResolve: (marketId: string) => void
+  /** Seeds a fresh open (system-created) market for `symbol` if it doesn't
+   * already have one. Used both at startup and right after a market
+   * resolves, so the demo never runs dry without needing a manual re-seed
+   * or a page refresh. */
+  ensureOpenMarket: (symbol: string) => void
   oddsFor: (marketId: string) => { yesPct: number; noPct: number; totalPool: number }
   positionsForUser: (userId: string) => Position[]
   marketsForSymbol: (symbol: string) => PredictionMarket[]
@@ -85,7 +90,7 @@ export const useMarketStore = create<MarketState>()(
       positions: [],
 
       init: () => {
-        const { prices, markets } = get()
+        const { prices } = get()
         const nextPrices = { ...prices }
         const nextHistory: Record<string, PricePoint[]> = {}
         for (const t of TOKENS) {
@@ -93,22 +98,28 @@ export const useMarketStore = create<MarketState>()(
           nextHistory[t.symbol] = [{ t: Date.now(), price: nextPrices[t.symbol] }]
         }
 
-        // Demo bootstrap: seed a starter market for every token that doesn't
-        // have one yet, so the app isn't empty before any curator has
-        // created one. Tops up rather than a one-time check, so re-running
-        // this on an existing (persisted) session fills in any tokens added
-        // since — it never touches markets that already exist.
-        const nextMarkets = { ...markets }
-        const symbolsWithMarket = new Set(Object.values(nextMarkets).map((m) => m.symbol))
-        const missing = TOKENS.filter((t) => !symbolsWithMarket.has(t.symbol))
-        missing.forEach((t, i) => {
-          const preset = DURATION_PRESETS[i % DURATION_PRESETS.length]
-          const target = defaultTargetFor(t.startPrice)
-          const m = makeMarket(t.symbol, target, Date.now() + preset.ms, SYSTEM_CREATOR)
-          nextMarkets[m.id] = m
-        })
+        set({ prices: nextPrices, history: nextHistory })
 
-        set({ prices: nextPrices, history: nextHistory, markets: nextMarkets })
+        // Demo bootstrap: every token should have one open (unresolved)
+        // market at all times, so the demo never runs dry — this tops up on
+        // every load (existing open markets are left untouched) and again
+        // right after each resolution (see checkResolutions below).
+        for (const t of TOKENS) get().ensureOpenMarket(t.symbol)
+      },
+
+      ensureOpenMarket: (symbol) => {
+        const hasOpenMarket = Object.values(get().markets).some((m) => m.symbol === symbol && !m.resolved)
+        if (hasOpenMarket) return
+        const token = TOKENS.find((t) => t.symbol === symbol)
+        if (!token) return
+        const price = get().prices[symbol] ?? token.startPrice
+        const target = defaultTargetFor(price)
+        // Always the longest preset ("месяц") — the shorter ones stay
+        // available for a curator who deliberately wants a fast-resolving
+        // market, but auto-seeded ones shouldn't churn every couple minutes.
+        const preset = DURATION_PRESETS[DURATION_PRESETS.length - 1]
+        const m = makeMarket(symbol, target, Date.now() + preset.ms, SYSTEM_CREATOR)
+        set((s) => ({ markets: { ...s.markets, [m.id]: m } }))
       },
 
       tick: () => {
@@ -227,6 +238,8 @@ export const useMarketStore = create<MarketState>()(
           markets: { ...s.markets, [marketId]: { ...market, resolved: true, outcome } },
           positions: settledPositions,
         }))
+
+        get().ensureOpenMarket(market.symbol) // keep the demo alive — spawn the next one right away
       },
 
       oddsFor: (marketId) => {

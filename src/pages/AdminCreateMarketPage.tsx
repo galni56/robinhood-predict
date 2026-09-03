@@ -11,7 +11,7 @@ export function AdminCreateMarketPage() {
 
   const [symbol, setSymbol] = useState(TOKENS[0].symbol)
   const [target, setTarget] = useState('100')
-  const [durationIdx, setDurationIdx] = useState(1)
+  const [durationIdx, setDurationIdx] = useState(DURATION_PRESETS.length - 1)
   const [error, setError] = useState<string | null>(null)
 
   function onSubmit(e: FormEvent) {
