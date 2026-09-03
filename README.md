@@ -1,5 +1,7 @@
 # PredictX — mock prediction market for tokenized stocks
 
+**Live demo:** https://galni56.github.io/robinhood-predict/
+
 A fully client-side **demo/prototype**: a game-style prediction market ("will
 this tokenized stock reach $100 before the deadline — YES/NO?") wired to a
 simulated blockchain ("RHChain testnet") so every price move, bet and payout
