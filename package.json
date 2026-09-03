@@ -1,0 +1,32 @@
+{
+  "name": "robinhood-predict",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Mock prediction-market demo for tokenized stocks on a fictional chain. All data, prices, accounts and on-chain activity are simulated client-side — there is no real backend, no real blockchain and no real funds.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "oxlint",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-router-dom": "^7.1.1",
+    "zustand": "^5.0.2",
+    "recharts": "^2.15.0",
+    "clsx": "^2.1.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.0.0",
+    "@types/node": "^24.13.3",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@vitejs/plugin-react": "^6.1.0",
+    "oxlint": "^1.79.0",
+    "tailwindcss": "^4.0.0",
+    "typescript": "~6.0.2",
+    "vite": "^8.2.2"
+  }
+}

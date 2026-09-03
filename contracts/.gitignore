@@ -1,0 +1,8 @@
+# Foundry build artifacts and dependencies — fetched via `forge install`
+lib/
+out/
+cache/
+broadcast/
+
+# Secrets — never commit
+.env
