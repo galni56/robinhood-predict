@@ -11,6 +11,7 @@ const links = [
   { to: '/markets', label: 'Рынки' },
   { to: '/portfolio', label: 'Портфель' },
   { to: '/leaderboard', label: 'Лидерборд' },
+  { to: '/archive', label: 'Архив' },
   { to: '/explorer', label: 'Эксплорер' },
 ]
 
@@ -46,19 +47,17 @@ export function Navbar() {
                 {l.label}
               </NavLink>
             ))}
-            {user.role === 'admin' && (
-              <NavLink
-                to="/admin/create-market"
-                className={({ isActive }) =>
-                  clsx(
-                    'px-3 py-1.5 rounded-md transition-colors text-violet-300',
-                    isActive ? 'bg-violet-500/15' : 'hover:bg-violet-500/10',
-                  )
-                }
-              >
-                + Рынок
-              </NavLink>
-            )}
+            <NavLink
+              to="/markets/create"
+              className={({ isActive }) =>
+                clsx(
+                  'px-3 py-1.5 rounded-md transition-colors text-emerald-300',
+                  isActive ? 'bg-emerald-500/15' : 'hover:bg-emerald-500/10',
+                )
+              }
+            >
+              + Рынок
+            </NavLink>
           </nav>
         )}
 

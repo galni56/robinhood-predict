@@ -186,12 +186,12 @@ export function MarketDetailPage() {
 
                   {feedback && <p className="text-xs text-white/50">{feedback}</p>}
 
-                  {user.role === 'admin' && (
+                  {(user.role === 'admin' || user.id === market.createdBy) && (
                     <button
                       onClick={() => forceResolve(marketId)}
                       className="w-full rounded-lg border border-dashed border-white/15 text-white/40 hover:text-white/70 hover:border-white/30 py-1.5 text-xs transition-colors"
                     >
-                      ⏩ Куратор: завершить рынок сейчас
+                      ⏩ Завершить рынок сейчас (демо)
                     </button>
                   )}
                 </div>

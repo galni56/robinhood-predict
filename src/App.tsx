@@ -1,12 +1,12 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
-import { AdminRoute } from '@/components/AdminRoute'
 import { ChainEngine } from '@/components/ChainEngine'
 import { DisclaimerBanner } from '@/components/DisclaimerBanner'
 import { Navbar } from '@/components/Navbar'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { AddressDetailPage } from '@/pages/AddressDetailPage'
-import { AdminCreateMarketPage } from '@/pages/AdminCreateMarketPage'
+import { ArchivePage } from '@/pages/ArchivePage'
 import { BlockDetailPage } from '@/pages/BlockDetailPage'
+import { CreateMarketPage } from '@/pages/CreateMarketPage'
 import { ExplorerPage } from '@/pages/ExplorerPage'
 import { LeaderboardPage } from '@/pages/LeaderboardPage'
 import { LoginPage } from '@/pages/LoginPage'
@@ -49,11 +49,11 @@ export default function App() {
             }
           />
           <Route
-            path="/admin/create-market"
+            path="/markets/create"
             element={
-              <AdminRoute>
-                <AdminCreateMarketPage />
-              </AdminRoute>
+              <ProtectedRoute>
+                <CreateMarketPage />
+              </ProtectedRoute>
             }
           />
           <Route
@@ -77,6 +77,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <LeaderboardPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/archive"
+            element={
+              <ProtectedRoute>
+                <ArchivePage />
               </ProtectedRoute>
             }
           />

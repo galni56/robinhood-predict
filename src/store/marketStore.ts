@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { formatUsd } from '@/lib/format'
 import { mockAddress } from '@/lib/hash'
 import { stepPrice } from '@/market/priceEngine'
 import { TOKENS } from '@/market/tokens'
@@ -15,6 +16,9 @@ export const DURATION_PRESETS = [
   { label: 'Неделя (демо: 5 мин)', ms: 5 * 60 * 1000 },
   { label: 'Месяц (демо: 15 мин)', ms: 15 * 60 * 1000 },
 ] as const
+
+/** Business rule from the product spec: no market can target above this. */
+export const MAX_TARGET_PRICE = 500
 
 const HISTORY_LIMIT = 180
 const SEED_LIQUIDITY = 400
@@ -113,7 +117,11 @@ export const useMarketStore = create<MarketState>()(
         const token = TOKENS.find((t) => t.symbol === symbol)
         if (!token) return
         const price = get().prices[symbol] ?? token.startPrice
-        const target = defaultTargetFor(price)
+        // A token already trading above the $500 cap can't have a meaningful
+        // "will it reach $X" market under that cap — skip auto-seeding one
+        // rather than spawn something that's already trivially resolved.
+        if (price >= MAX_TARGET_PRICE) return
+        const target = Math.min(defaultTargetFor(price), MAX_TARGET_PRICE)
         // Always the longest preset ("месяц") — the shorter ones stay
         // available for a curator who deliberately wants a fast-resolving
         // market, but auto-seeded ones shouldn't churn every couple minutes.
@@ -136,10 +144,15 @@ export const useMarketStore = create<MarketState>()(
       },
 
       createMarket: (creator, symbol, targetPrice, durationMs) => {
-        if (creator.role !== 'admin') return { ok: false, error: 'Только куратор может создавать рынки' }
+        // Permissionless: any logged-in user can create a market (not just
+        // curators). `role` still matters elsewhere (e.g. force-resolving
+        // someone else's market) — just not for creation anymore.
         const token = TOKENS.find((t) => t.symbol === symbol)
         if (!token) return { ok: false, error: 'Токен не найден' }
         if (!(targetPrice > 0)) return { ok: false, error: 'Целевая цена должна быть больше нуля' }
+        if (targetPrice > MAX_TARGET_PRICE) {
+          return { ok: false, error: `Целевая цена не может быть больше ${formatUsd(MAX_TARGET_PRICE, 0)}` }
+        }
 
         const m = makeMarket(symbol, targetPrice, Date.now() + durationMs, creator.id)
         set((s) => ({ markets: { ...s.markets, [m.id]: m } }))

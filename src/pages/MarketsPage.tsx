@@ -1,24 +1,22 @@
 import { Link } from 'react-router-dom'
 import { Sparkline } from '@/components/PriceChart'
-import { AddressPill, SideBadge } from '@/components/Pills'
+import { AddressPill } from '@/components/Pills'
 import { CountdownTimer } from '@/components/CountdownTimer'
 import { formatPct, formatUsd } from '@/lib/format'
 import { TOKEN_BY_SYMBOL } from '@/market/tokens'
-import { useAuthStore } from '@/store/authStore'
 import { useMarketStore } from '@/store/marketStore'
 
 export function MarketsPage() {
-  const user = useAuthStore((s) => s.currentUser())
   const prices = useMarketStore((s) => s.prices)
   const history = useMarketStore((s) => s.history)
   const markets = useMarketStore((s) => s.markets)
   const oddsFor = useMarketStore((s) => s.oddsFor)
 
-  const list = Object.values(markets).sort((a, b) => {
-    // open markets first (soonest deadline first), then resolved (most recent first)
-    if (a.resolved !== b.resolved) return a.resolved ? 1 : -1
-    return a.resolved ? b.deadline - a.deadline : a.deadline - b.deadline
-  })
+  // Open markets only — resolved ones live in /archive so this list doesn't
+  // fill up with finished stuff over time.
+  const list = Object.values(markets)
+    .filter((m) => !m.resolved)
+    .sort((a, b) => a.deadline - b.deadline)
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
@@ -29,26 +27,24 @@ export function MarketsPage() {
             Дойдёт ли цена токена до целевой отметки к дедлайну? Ставь ЗА или ПРОТИВ — сделка уходит в мок-блокчейн.
           </p>
         </div>
-        {user?.role === 'admin' && (
-          <Link
-            to="/admin/create-market"
-            className="shrink-0 text-sm px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black font-medium transition-colors"
-          >
-            + Создать рынок
-          </Link>
-        )}
+        <Link
+          to="/markets/create"
+          className="shrink-0 text-sm px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black font-medium transition-colors"
+        >
+          + Создать рынок
+        </Link>
       </div>
 
       {list.length === 0 && (
         <div className="text-center py-16 text-white/40 text-sm">
-          Пока нет ни одного рынка.{' '}
-          {user?.role === 'admin' ? (
-            <Link to="/admin/create-market" className="text-emerald-400 hover:underline">
-              Создать первый
-            </Link>
-          ) : (
-            'Куратор ещё не создал рынки — загляните позже.'
-          )}
+          Пока нет открытых рынков.{' '}
+          <Link to="/markets/create" className="text-emerald-400 hover:underline">
+            Создать первый
+          </Link>
+          {' · '}
+          <Link to="/archive" className="text-emerald-400 hover:underline">
+            посмотреть архив
+          </Link>
         </div>
       )}
 
@@ -86,26 +82,20 @@ export function MarketsPage() {
 
               <div className="mt-3 flex items-center justify-between text-xs">
                 <AddressPill address={token.contractAddress} label="контракт" />
-                {market.resolved ? (
-                  <SideBadge side={market.outcome ?? 'NO'} />
-                ) : (
-                  <span className="text-white/40">
-                    ⏱ <CountdownTimer deadline={market.deadline} />
-                  </span>
-                )}
+                <span className="text-white/40">
+                  ⏱ <CountdownTimer deadline={market.deadline} />
+                </span>
               </div>
 
-              {!market.resolved && (
-                <div className="mt-3">
-                  <div className="h-1.5 rounded-full bg-rose-500/30 overflow-hidden">
-                    <div className="h-full bg-emerald-500" style={{ width: `${odds.yesPct * 100}%` }} />
-                  </div>
-                  <div className="flex justify-between text-[11px] text-white/40 mt-1">
-                    <span>ЗА {formatPct(odds.yesPct)}</span>
-                    <span>ПРОТИВ {formatPct(odds.noPct)}</span>
-                  </div>
+              <div className="mt-3">
+                <div className="h-1.5 rounded-full bg-rose-500/30 overflow-hidden">
+                  <div className="h-full bg-emerald-500" style={{ width: `${odds.yesPct * 100}%` }} />
                 </div>
-              )}
+                <div className="flex justify-between text-[11px] text-white/40 mt-1">
+                  <span>ЗА {formatPct(odds.yesPct)}</span>
+                  <span>ПРОТИВ {formatPct(odds.noPct)}</span>
+                </div>
+              </div>
             </Link>
           )
         })}

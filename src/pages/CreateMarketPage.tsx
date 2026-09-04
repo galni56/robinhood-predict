@@ -1,10 +1,11 @@
 import { type FormEvent, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { formatUsd } from '@/lib/format'
 import { TOKENS } from '@/market/tokens'
 import { useAuthStore } from '@/store/authStore'
-import { DURATION_PRESETS, useMarketStore } from '@/store/marketStore'
+import { DURATION_PRESETS, MAX_TARGET_PRICE, useMarketStore } from '@/store/marketStore'
 
-export function AdminCreateMarketPage() {
+export function CreateMarketPage() {
   const user = useAuthStore((s) => s.currentUser())
   const createMarket = useMarketStore((s) => s.createMarket)
   const navigate = useNavigate()
@@ -28,7 +29,10 @@ export function AdminCreateMarketPage() {
   return (
     <div className="max-w-lg mx-auto px-4 py-8">
       <h1 className="text-2xl font-semibold mb-1">Создать рынок</h1>
-      <p className="text-white/50 text-sm mb-6">Только для куратора. Рынок сразу появится в общем списке.</p>
+      <p className="text-white/50 text-sm mb-6">
+        Любой может создать рынок — он сразу появится в общем списке. Целевая цена не может быть выше{' '}
+        {formatUsd(MAX_TARGET_PRICE, 0)}.
+      </p>
 
       <form onSubmit={onSubmit} className="bg-white/[0.03] border border-white/10 rounded-xl p-6 space-y-4">
         <div>
@@ -47,10 +51,11 @@ export function AdminCreateMarketPage() {
         </div>
 
         <div>
-          <label className="block text-sm text-white/60 mb-1.5">Целевая цена, $</label>
+          <label className="block text-sm text-white/60 mb-1.5">Целевая цена, $ (макс. {formatUsd(MAX_TARGET_PRICE, 0)})</label>
           <input
             type="number"
             min={1}
+            max={MAX_TARGET_PRICE}
             step="0.01"
             value={target}
             onChange={(e) => setTarget(e.target.value)}
