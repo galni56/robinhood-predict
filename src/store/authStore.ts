@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { colorForSeed } from '@/lib/avatar'
 import { mockAddress } from '@/lib/hash'
-import { GENESIS_ADDRESS, useChainStore } from '@/store/chainStore'
+import { useChainStore } from '@/store/chainStore'
 import type { User } from '@/types'
 
 export const STARTING_BALANCE = 10_000
@@ -62,13 +62,7 @@ export const useAuthStore = create<AuthState>()(
 
         // Faucet: fund the new demo wallet. This goes through the same mock
         // chain as everything else, so it shows up in the explorer too.
-        useChainStore.getState().submitTx({
-          from: GENESIS_ADDRESS,
-          to: user.walletAddress,
-          type: 'FAUCET',
-          amount: STARTING_BALANCE,
-          memo: `Testnet faucet: welcome grant for ${user.displayName}`,
-        })
+        useChainStore.getState().faucet(user.walletAddress, STARTING_BALANCE, `Testnet faucet: welcome grant for ${user.displayName}`)
 
         return { ok: true, user }
       },

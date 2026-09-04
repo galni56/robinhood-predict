@@ -25,6 +25,10 @@ interface ChainState {
 
   ensureGenesis: () => void
   submitTx: (input: SubmitTxInput) => string
+  /** Convenience wrapper around submitTx for crediting a wallet from the
+   * genesis/faucet address — used for the signup grant and for "Пополнить
+   * баланс". Not real money; same mock chain as everything else. */
+  faucet: (to: string, amount: number, memo: string) => string
   mineBlock: () => void
   balanceOf: (address: string) => number
   txsForAddress: (address: string) => ChainTx[]
@@ -86,6 +90,9 @@ export const useChainStore = create<ChainState>()(
         }))
         return hash
       },
+
+      faucet: (to, amount, memo) =>
+        get().submitTx({ from: GENESIS_ADDRESS, to, type: 'FAUCET', amount, memo }),
 
       mineBlock: () => {
         const { mempool, blocks, txs, balances } = get()

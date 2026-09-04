@@ -105,30 +105,44 @@ docs.robinhood.com/chain if it's been a while):
 | Faucets | [Alchemy](https://www.alchemy.com/faucets/robinhood-testnet), [Chainlink](https://faucets.chain.link/robinhood-testnet), [QuickNode](https://faucet.quicknode.com/robinhood/testnet) |
 | Chainlink feeds | https://docs.chain.link/data-feeds/tokenized-equity-feeds/robinhood — **always read the current address from there, never hardcode/reuse an old one** |
 
-Steps:
+Steps — **1 and 2 are for you to run yourself**, in your own terminal, never
+through Claude: a private key printed into a chat transcript is a burned key
+forever, full stop. Steps 3+ can go through Claude via the Docker pattern in
+section 0 (`--env-file .env` passes the vars into the container without
+Claude ever reading the file).
 
 1. Generate a **fresh burner wallet** — don't reuse a personal or work
-   wallet: `cast wallet new`. Fund it from a faucet above.
-2. `cp .env.example .env`, fill in `PRIVATE_KEY` (the burner's), leave the
-   public RPC URLs as-is or swap in your own Alchemy key.
-3. Get a bet token on testnet. Either:
-   - deploy `src/mocks/MockERC20.sol` yourself and mint test balance to your
-     wallet (`forge create` or a tiny script — MockERC20 is fine for a
-     testnet demo, do not use it anywhere near mainnet), or
-   - use whatever testnet stablecoin Robinhood/Chainlink docs point to at
-     the time.
-   Put its address in `BET_TOKEN_ADDRESS`.
-4. Deploy:
+   wallet:
    ```bash
-   forge script script/Deploy.s.sol --rpc-url robinhood_testnet --broadcast
+   docker run --rm ghcr.io/foundry-rs/foundry:latest cast wallet new
+   ```
+   Copy the printed address and private key somewhere safe (a password
+   manager, not a chat).
+2. `cp .env.example .env`, fill in `PRIVATE_KEY` with that key. Fund the
+   address from a faucet above (need the testnet ETH before anything below
+   will work — deploys cost gas even on testnet).
+3. Deploy the mock bet token and mint yourself a testnet balance:
+   ```bash
+   docker run --rm -v "$PWD":/app -w /app --env-file .env --entrypoint sh \
+     ghcr.io/foundry-rs/foundry:latest \
+     -c "forge script script/DeployMockToken.s.sol --rpc-url robinhood_testnet --broadcast"
+   ```
+   Copy the printed token address into `.env` as `BET_TOKEN_ADDRESS`.
+4. Deploy PredictionMarket:
+   ```bash
+   docker run --rm -v "$PWD":/app -w /app --env-file .env --entrypoint sh \
+     ghcr.io/foundry-rs/foundry:latest \
+     -c "forge script script/Deploy.s.sol --rpc-url robinhood_testnet --broadcast"
    ```
    Copy the printed address into `.env` as `MARKET_ADDRESS`.
 5. Look up the current Chainlink feed address for the stock token you want
    (link above), pick a target price (scaled to the feed's `decimals()`,
    usually 8 — e.g. $100.00 → `10000000000`) and a deadline, fill those into
-   `.env`, then:
+   `.env` (`PRICE_FEED_ADDRESS`, `TARGET_PRICE`, `DEADLINE_UNIX`), then:
    ```bash
-   forge script script/CreateMarket.s.sol --rpc-url robinhood_testnet --broadcast
+   docker run --rm -v "$PWD":/app -w /app --env-file .env --entrypoint sh \
+     ghcr.io/foundry-rs/foundry:latest \
+     -c "forge script script/CreateMarket.s.sol --rpc-url robinhood_testnet --broadcast"
    ```
 6. Verify on the explorer if you want source shown publicly:
    ```bash

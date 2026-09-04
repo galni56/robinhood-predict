@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { Avatar } from '@/components/Avatar'
+import { DepositPanel } from '@/components/DepositPanel'
 import { AddressPill, HashPill, SideBadge } from '@/components/Pills'
 import { formatPct, formatUsd, timeAgo } from '@/lib/format'
 import { TOKEN_BY_SYMBOL } from '@/market/tokens'
@@ -58,6 +59,8 @@ export function PortfolioPage() {
         <Stat label="Чистый P&L" value={<span className={stats.netProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'}>{stats.netProfit >= 0 ? '+' : ''}{formatUsd(stats.netProfit)}</span>} />
         <Stat label="Всего ставок" value={String(stats.totalBets)} />
       </div>
+
+      <DepositPanel walletAddress={user.walletAddress} />
 
       <div className="bg-white/[0.03] border border-white/10 rounded-xl p-4">
         <h2 className="font-medium mb-3">Активные ставки ({openPositions.length})</h2>
