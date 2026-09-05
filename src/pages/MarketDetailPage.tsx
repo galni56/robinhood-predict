@@ -48,6 +48,11 @@ export function MarketDetailPage() {
 
   const myPositions = positions.filter((p) => p.marketId === marketId)
   const awaitingCounterBets = market.poolYes === 0 || market.poolNo === 0
+  // One bet per side per market — mirrors the contract's `bet()` rule.
+  const hasBetYes = myPositions.some((p) => p.side === 'YES')
+  const hasBetNo = myPositions.some((p) => p.side === 'NO')
+  const sideAlreadyBet = side === 'YES' ? hasBetYes : hasBetNo
+  const bothSidesUsed = hasBetYes && hasBetNo
 
   // Mirrors the contract's exact claim() formula:
   //   payout = userStake + userStake * losingPool * (10000 - feeBp) / (winningPool * 10000)
@@ -173,44 +178,62 @@ export function MarketDetailPage() {
 
               {user ? (
                 <div className="space-y-3">
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      onClick={() => setSide('YES')}
-                      className={`py-2 rounded-lg text-sm font-medium border transition-colors ${side === 'YES' ? 'bg-emerald-500 text-black border-emerald-500' : 'border-white/10 text-white/60 hover:border-emerald-400/50'}`}
-                    >
-                      ЗА
-                    </button>
-                    <button
-                      onClick={() => setSide('NO')}
-                      className={`py-2 rounded-lg text-sm font-medium border transition-colors ${side === 'NO' ? 'bg-rose-500 text-black border-rose-500' : 'border-white/10 text-white/60 hover:border-rose-400/50'}`}
-                    >
-                      ПРОТИВ
-                    </button>
-                  </div>
+                  {bothSidesUsed ? (
+                    <p className="text-xs text-white/40">
+                      Вы уже поставили и ЗА, и ПРОТИВ в этом рынке — по одной ставке на сторону, больше нельзя.
+                    </p>
+                  ) : (
+                    <>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          onClick={() => setSide('YES')}
+                          disabled={hasBetYes}
+                          className={`py-2 rounded-lg text-sm font-medium border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${side === 'YES' ? 'bg-emerald-500 text-black border-emerald-500' : 'border-white/10 text-white/60 hover:border-emerald-400/50'}`}
+                        >
+                          ЗА{hasBetYes ? ' ✓' : ''}
+                        </button>
+                        <button
+                          onClick={() => setSide('NO')}
+                          disabled={hasBetNo}
+                          className={`py-2 rounded-lg text-sm font-medium border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${side === 'NO' ? 'bg-rose-500 text-black border-rose-500' : 'border-white/10 text-white/60 hover:border-rose-400/50'}`}
+                        >
+                          ПРОТИВ{hasBetNo ? ' ✓' : ''}
+                        </button>
+                      </div>
 
-                  <div>
-                    <label className="block text-xs text-white/40 mb-1">Сумма, mUSD (баланс {formatUsd(balance)})</label>
-                    <input
-                      type="number"
-                      min={1}
-                      value={amount}
-                      onChange={(e) => setAmount(e.target.value)}
-                      className="w-full rounded-lg bg-black/30 border border-white/10 px-3 py-2 text-sm outline-none focus:border-emerald-400/60"
-                    />
-                  </div>
+                      {sideAlreadyBet ? (
+                        <p className="text-xs text-amber-400/80">
+                          Вы уже поставили {side === 'YES' ? 'ЗА' : 'ПРОТИВ'} в этом рынке — выберите другую сторону.
+                        </p>
+                      ) : (
+                        <>
+                          <div>
+                            <label className="block text-xs text-white/40 mb-1">Сумма, mUSD (баланс {formatUsd(balance)})</label>
+                            <input
+                              type="number"
+                              min={1}
+                              value={amount}
+                              onChange={(e) => setAmount(e.target.value)}
+                              className="w-full rounded-lg bg-black/30 border border-white/10 px-3 py-2 text-sm outline-none focus:border-emerald-400/60"
+                            />
+                          </div>
 
-                  <p className="text-xs text-white/40">
-                    Потенциальная выплата: <span className="text-white/70">{formatUsd(potentialPayout || 0)}</span> (parimutuel
-                    минус {formatPct(PROTOCOL_FEE_BP / BP_DENOMINATOR, 0)} комиссии протокола с выигранной части, зависит от
-                    итогового пула)
-                  </p>
+                          <p className="text-xs text-white/40">
+                            Потенциальная выплата: <span className="text-white/70">{formatUsd(potentialPayout || 0)}</span>{' '}
+                            (parimutuel минус {formatPct(PROTOCOL_FEE_BP / BP_DENOMINATOR, 0)} комиссии протокола с выигранной
+                            части, зависит от итогового пула)
+                          </p>
 
-                  <button
-                    onClick={onBet}
-                    className="w-full rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black font-medium py-2 text-sm transition-colors"
-                  >
-                    Поставить {side === 'YES' ? 'ЗА' : 'ПРОТИВ'}
-                  </button>
+                          <button
+                            onClick={onBet}
+                            className="w-full rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black font-medium py-2 text-sm transition-colors"
+                          >
+                            Поставить {side === 'YES' ? 'ЗА' : 'ПРОТИВ'}
+                          </button>
+                        </>
+                      )}
+                    </>
+                  )}
 
                   {feedback && <p className="text-xs text-white/50">{feedback}</p>}
 

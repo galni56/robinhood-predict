@@ -204,6 +204,12 @@ export const useMarketStore = create<MarketState>()(
         const market = get().markets[marketId]
         if (!market) return { ok: false, error: 'Рынок не найден' }
         if (market.resolved) return { ok: false, error: 'Рынок уже завершён' }
+        if (market.cancelled) return { ok: false, error: 'Рынок отменён' }
+        // One bet per side per market — mirrors the contract's `bet()` rule.
+        const alreadyBetThisSide = get().positions.some((p) => p.marketId === marketId && p.userId === user.id && p.side === side)
+        if (alreadyBetThisSide) {
+          return { ok: false, error: `Вы уже ставили ${side === 'YES' ? 'ЗА' : 'ПРОТИВ'} в этом рынке` }
+        }
         const balance = useChainStore.getState().balanceOf(user.walletAddress)
         if (balance < amount) return { ok: false, error: 'Недостаточно mUSD на кошельке' }
 

@@ -127,6 +127,29 @@ contract PredictionMarketTest is Test {
         assertEq(betToken.balanceOf(address(market)), 100e18);
     }
 
+    function test_Bet_AllowsOneBetPerSide() public {
+        uint256 id = _createMarket(block.timestamp + 1 days);
+
+        vm.prank(alice);
+        market.bet(id, PredictionMarket.Side.YES, 50e18);
+        vm.prank(alice);
+        market.bet(id, PredictionMarket.Side.NO, 30e18);
+
+        assertEq(market.stakes(id, alice, PredictionMarket.Side.YES), 50e18);
+        assertEq(market.stakes(id, alice, PredictionMarket.Side.NO), 30e18);
+    }
+
+    function test_Bet_RevertsOnSecondBetSameSide() public {
+        uint256 id = _createMarket(block.timestamp + 1 days);
+
+        vm.prank(alice);
+        market.bet(id, PredictionMarket.Side.YES, 50e18);
+
+        vm.prank(alice);
+        vm.expectRevert("already bet this side");
+        market.bet(id, PredictionMarket.Side.YES, 50e18);
+    }
+
     function test_Bet_RevertsAfterDeadline() public {
         uint256 id = _createMarket(block.timestamp + 1 hours);
         vm.warp(block.timestamp + 2 hours);

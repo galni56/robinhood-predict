@@ -203,12 +203,15 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
     }
 
     /// @notice Bet `amount` of `betToken` on `side` for market `id`. Requires prior
-    /// `betToken.approve(address(this), amount)`.
+    /// `betToken.approve(address(this), amount)`. One bet per side per market —
+    /// once you've staked on a side, a second call on that same side reverts
+    /// (you can still bet the *other* side once, if you haven't already).
     function bet(uint256 id, Side side, uint256 amount) external nonReentrant {
         Market storage m = markets[id];
         require(m.status == Status.Open, "market not open");
         require(block.timestamp < m.deadline, "betting closed");
         require(amount > 0, "amount = 0");
+        require(stakes[id][msg.sender][side] == 0, "already bet this side");
 
         betToken.safeTransferFrom(msg.sender, address(this), amount);
         stakes[id][msg.sender][side] += amount;
