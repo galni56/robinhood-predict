@@ -62,6 +62,19 @@ export function Navbar() {
         )}
 
         <div className="ml-auto flex items-center gap-3">
+          <NavLink
+            to="/onchain"
+            className={({ isActive }) =>
+              clsx(
+                'text-xs px-2.5 py-1.5 rounded-md border transition-colors',
+                isActive
+                  ? 'border-sky-400/50 bg-sky-500/15 text-sky-300'
+                  : 'border-white/10 text-white/50 hover:text-sky-300 hover:border-sky-400/30',
+              )
+            }
+          >
+            ⛓️ Реальный тестнет
+          </NavLink>
           {user ? (
             <>
               <div className="text-sm text-right hidden sm:block">

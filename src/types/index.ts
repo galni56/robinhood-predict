@@ -32,6 +32,10 @@ export interface PredictionMarket {
   createdBy: string
   deadline: number // unix ms — when the market resolves
   resolved: boolean
+  /** true when the deadline passed with a bet on only one side (or neither) —
+   * mirrors the contract's one-sided-market cancellation. Mutually exclusive
+   * with `resolved`; refunds are full, no fee. */
+  cancelled: boolean
   outcome: MarketSide | null
   poolYes: number
   poolNo: number
@@ -72,6 +76,9 @@ export interface Position {
   createdAt: number
   settled: boolean
   payout: number | null
+  /** true when `payout` is a full refund from a cancelled (one-sided) market,
+   * not winnings — kept distinct so the UI doesn't show it as a "win". */
+  refunded?: boolean
 }
 
 export type UserRole = 'admin' | 'user'

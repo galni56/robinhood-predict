@@ -11,12 +11,15 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@tanstack/react-query": "^5.102.8",
+    "clsx": "^2.1.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-router-dom": "^7.1.1",
-    "zustand": "^5.0.2",
     "recharts": "^2.15.0",
-    "clsx": "^2.1.1"
+    "viem": "^2.56.3",
+    "wagmi": "^3.7.7",
+    "zustand": "^5.0.2"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.0.0",

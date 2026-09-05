@@ -112,12 +112,14 @@ function PositionsTable({
               <span className="text-white/30 text-xs">{timeAgo(p.createdAt)}</span>
               <span className="ml-auto text-xs">
                 {p.settled ? (
-                  p.payout ? (
+                  p.refunded ? (
+                    <span className="text-white/50">возврат {formatUsd(p.payout ?? 0)}</span>
+                  ) : p.payout ? (
                     <span className="text-emerald-400">+{formatUsd(p.payout)}</span>
                   ) : (
                     <span className="text-rose-400">проигрыш</span>
                   )
-                ) : market?.resolved ? (
+                ) : market?.resolved || market?.cancelled ? (
                   <span className="text-white/40">ожидает расчёта</span>
                 ) : (
                   <span className="text-amber-400">в игре</span>

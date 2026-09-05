@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { Sparkline } from '@/components/PriceChart'
-import { AddressPill } from '@/components/Pills'
+import { AddressPill, AwaitingCounterBetsBadge } from '@/components/Pills'
 import { CountdownTimer } from '@/components/CountdownTimer'
 import { formatPct, formatUsd } from '@/lib/format'
 import { TOKEN_BY_SYMBOL } from '@/market/tokens'
@@ -12,10 +12,10 @@ export function MarketsPage() {
   const markets = useMarketStore((s) => s.markets)
   const oddsFor = useMarketStore((s) => s.oddsFor)
 
-  // Open markets only — resolved ones live in /archive so this list doesn't
-  // fill up with finished stuff over time.
+  // Open markets only — resolved/cancelled ones live in /archive so this
+  // list doesn't fill up with finished stuff over time.
   const list = Object.values(markets)
-    .filter((m) => !m.resolved)
+    .filter((m) => !m.resolved && !m.cancelled)
     .sort((a, b) => a.deadline - b.deadline)
 
   return (
@@ -56,6 +56,7 @@ export function MarketsPage() {
           const series = history[token.symbol] ?? []
           const odds = oddsFor(market.id)
           const change = series.length > 1 ? (price - series[0].price) / series[0].price : 0
+          const awaitingCounterBets = market.poolYes === 0 || market.poolNo === 0
 
           return (
             <Link
@@ -65,7 +66,10 @@ export function MarketsPage() {
             >
               <div className="flex items-start justify-between mb-2">
                 <div>
-                  <div className="font-semibold">{token.symbol}</div>
+                  <div className="font-semibold flex items-center gap-2">
+                    {token.symbol}
+                    {awaitingCounterBets && <AwaitingCounterBetsBadge />}
+                  </div>
                   <div className="text-white/40 text-xs">{token.name}</div>
                 </div>
                 <div className="text-right">
@@ -96,6 +100,12 @@ export function MarketsPage() {
                   <span>ПРОТИВ {formatPct(odds.noPct)}</span>
                 </div>
               </div>
+
+              {awaitingCounterBets && (
+                <p className="mt-2 text-[11px] text-amber-400/80">
+                  Ставка будет возвращена в 100% объёме, если напротив никто не поставит.
+                </p>
+              )}
             </Link>
           )
         })}

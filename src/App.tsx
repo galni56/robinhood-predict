@@ -13,6 +13,7 @@ import { LoginPage } from '@/pages/LoginPage'
 import { MarketDetailPage } from '@/pages/MarketDetailPage'
 import { MarketsPage } from '@/pages/MarketsPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
+import { OnchainMarketPage } from '@/pages/OnchainMarketPage'
 import { PortfolioPage } from '@/pages/PortfolioPage'
 import { PublicProfilePage } from '@/pages/PublicProfilePage'
 import { RegisterPage } from '@/pages/RegisterPage'
@@ -31,6 +32,7 @@ export default function App() {
           <Route path="/" element={<Navigate to="/markets" replace />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          <Route path="/onchain" element={<OnchainMarketPage />} />
 
           <Route
             path="/markets"

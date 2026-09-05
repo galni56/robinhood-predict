@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { SideBadge } from '@/components/Pills'
+import { CancelledBadge, SideBadge } from '@/components/Pills'
 import { formatPct, formatUsd, timeAgo } from '@/lib/format'
 import { TOKEN_BY_SYMBOL } from '@/market/tokens'
 import { useMarketStore } from '@/store/marketStore'
 import type { MarketSide } from '@/types'
 
-type OutcomeFilter = 'ALL' | MarketSide
+type OutcomeFilter = 'ALL' | MarketSide | 'CANCELLED'
 
 export function ArchivePage() {
   const markets = useMarketStore((s) => s.markets)
@@ -16,8 +16,12 @@ export function ArchivePage() {
 
   const q = query.trim().toLowerCase()
   const resolved = Object.values(markets)
-    .filter((m) => m.resolved)
-    .filter((m) => outcomeFilter === 'ALL' || m.outcome === outcomeFilter)
+    .filter((m) => m.resolved || m.cancelled)
+    .filter((m) => {
+      if (outcomeFilter === 'ALL') return true
+      if (outcomeFilter === 'CANCELLED') return m.cancelled
+      return m.outcome === outcomeFilter
+    })
     .filter((m) => !q || m.symbol.toLowerCase().includes(q) || m.question.toLowerCase().includes(q))
     .sort((a, b) => b.deadline - a.deadline)
 
@@ -36,7 +40,7 @@ export function ArchivePage() {
           className="flex-1 min-w-48 rounded-lg bg-white/[0.03] border border-white/10 px-3 py-2 text-sm outline-none focus:border-emerald-400/60"
         />
         <div className="flex gap-1">
-          {(['ALL', 'YES', 'NO'] as const).map((f) => (
+          {(['ALL', 'YES', 'NO', 'CANCELLED'] as const).map((f) => (
             <button
               key={f}
               onClick={() => setOutcomeFilter(f)}
@@ -46,7 +50,7 @@ export function ArchivePage() {
                   : 'border-white/10 text-white/50 hover:text-white hover:border-white/30'
               }`}
             >
-              {f === 'ALL' ? 'Все' : f === 'YES' ? 'ЗА выиграло' : 'ПРОТИВ выиграло'}
+              {f === 'ALL' ? 'Все' : f === 'YES' ? 'ЗА выиграло' : f === 'NO' ? 'ПРОТИВ выиграло' : 'Отменённые'}
             </button>
           ))}
         </div>
@@ -64,7 +68,7 @@ export function ArchivePage() {
             >
               <span className="font-semibold min-w-16">{token?.symbol ?? m.symbol}</span>
               <span className="text-white/50 flex-1 min-w-40">{m.question}</span>
-              <SideBadge side={m.outcome ?? 'NO'} />
+              {m.cancelled ? <CancelledBadge /> : <SideBadge side={m.outcome ?? 'NO'} />}
               <span className="text-white/40 text-xs w-28 text-right">
                 {formatPct(odds.yesPct)} / {formatPct(odds.noPct)}
               </span>

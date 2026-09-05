@@ -1,14 +1,16 @@
 import { useState } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
 import { PriceChart } from '@/components/PriceChart'
-import { AddressPill, HashPill, SideBadge, StatusBadge } from '@/components/Pills'
+import { AddressPill, AwaitingCounterBetsBadge, CancelledBadge, HashPill, SideBadge, StatusBadge } from '@/components/Pills'
 import { CountdownTimer } from '@/components/CountdownTimer'
 import { formatPct, formatUsd, timeAgo } from '@/lib/format'
 import { TOKEN_BY_SYMBOL } from '@/market/tokens'
 import { useAuthStore } from '@/store/authStore'
 import { useChainStore } from '@/store/chainStore'
-import { useMarketStore } from '@/store/marketStore'
+import { PROTOCOL_FEE_BP, useMarketStore } from '@/store/marketStore'
 import type { MarketSide, PricePoint } from '@/types'
+
+const BP_DENOMINATOR = 10_000
 
 const EMPTY_HISTORY: PricePoint[] = []
 
@@ -45,11 +47,20 @@ export function MarketDetailPage() {
   if (!market || !token) return <Navigate to="/markets" replace />
 
   const myPositions = positions.filter((p) => p.marketId === marketId)
-  const potentialPayout =
-    Number(amount) > 0
-      ? (Number(amount) / ((side === 'YES' ? odds.totalPool * odds.yesPct : odds.totalPool * odds.noPct) + Number(amount))) *
-        (odds.totalPool + Number(amount))
+  const awaitingCounterBets = market.poolYes === 0 || market.poolNo === 0
+
+  // Mirrors the contract's exact claim() formula:
+  //   payout = userStake + userStake * losingPool * (10000 - feeBp) / (winningPool * 10000)
+  // `winningPool` includes this hypothetical bet (it's added to your own side
+  // before the bet), `losingPool` is the other side's pool, unaffected by it.
+  const betAmount = Number(amount) || 0
+  const winningPoolAfterBet = (side === 'YES' ? market.poolYes : market.poolNo) + betAmount
+  const losingPoolAfterBet = side === 'YES' ? market.poolNo : market.poolYes
+  const winnings =
+    betAmount > 0 && winningPoolAfterBet > 0
+      ? (betAmount * losingPoolAfterBet * (BP_DENOMINATOR - PROTOCOL_FEE_BP)) / (winningPoolAfterBet * BP_DENOMINATOR)
       : 0
+  const potentialPayout = betAmount + winnings
 
   function onBet() {
     if (!user) return
@@ -125,7 +136,14 @@ export function MarketDetailPage() {
       <div className="space-y-6">
         <div className="bg-white/[0.03] border border-white/10 rounded-xl p-4">
           <h2 className="font-medium mb-1">{market.question}</h2>
-          {market.resolved ? (
+          {market.cancelled ? (
+            <div className="mt-3">
+              <CancelledBadge />
+              <p className="text-white/40 text-sm mt-2">
+                Рынок отменён — ставки были только с одной стороны, деньги вернулись всем полностью.
+              </p>
+            </div>
+          ) : market.resolved ? (
             <div className="mt-3">
               <SideBadge side={market.outcome ?? 'NO'} />
               <p className="text-white/40 text-sm mt-2">Рынок завершён.</p>
@@ -135,6 +153,15 @@ export function MarketDetailPage() {
               <p className="text-white/40 text-xs mb-3">
                 Дедлайн (демо-таймлайн): <CountdownTimer deadline={market.deadline} />
               </p>
+
+              {awaitingCounterBets && (
+                <div className="mb-3 flex items-start gap-2">
+                  <AwaitingCounterBetsBadge />
+                  <p className="text-[11px] text-amber-400/80">
+                    Ставка будет возвращена в 100% объёме, если напротив никто не поставит.
+                  </p>
+                </div>
+              )}
 
               <div className="h-2 rounded-full bg-rose-500/30 overflow-hidden mb-1">
                 <div className="h-full bg-emerald-500" style={{ width: `${odds.yesPct * 100}%` }} />
@@ -173,8 +200,9 @@ export function MarketDetailPage() {
                   </div>
 
                   <p className="text-xs text-white/40">
-                    Потенциальная выплата: <span className="text-white/70">{formatUsd(potentialPayout || 0)}</span> (parimutuel,
-                    зависит от итогового пула)
+                    Потенциальная выплата: <span className="text-white/70">{formatUsd(potentialPayout || 0)}</span> (parimutuel
+                    минус {formatPct(PROTOCOL_FEE_BP / BP_DENOMINATOR, 0)} комиссии протокола с выигранной части, зависит от
+                    итогового пула)
                   </p>
 
                   <button
@@ -213,7 +241,13 @@ export function MarketDetailPage() {
                   <SideBadge side={p.side} />
                   <span className="font-mono">{formatUsd(p.amount)}</span>
                   <span className="text-white/40 text-xs">
-                    {p.settled ? (p.payout ? `+${formatUsd(p.payout)}` : 'проигрыш') : 'в игре'}
+                    {p.settled
+                      ? p.refunded
+                        ? `возврат ${formatUsd(p.payout ?? 0)}`
+                        : p.payout
+                          ? `+${formatUsd(p.payout)}`
+                          : 'проигрыш'
+                      : 'в игре'}
                   </span>
                 </div>
               ))}
