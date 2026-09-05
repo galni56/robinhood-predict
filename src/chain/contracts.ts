@@ -11,6 +11,16 @@ export const PREDICTION_MARKET_ADDRESS = (import.meta.env.VITE_MARKET_ADDRESS ??
 export const BET_TOKEN_ADDRESS = (import.meta.env.VITE_BET_TOKEN_ADDRESS ??
   '0xBDc0F8045Baa2377F11A03d3c867E81dB263A93A') as Address
 
+// The only price feed the owner has allowlisted on testnet so far (mock
+// TSLA feed — see contracts/CLAUDE.md). `createMarket` is permissionless,
+// but the feed it settles against must already be owner-allowlisted, and
+// there's no on-chain way to enumerate allowlisted feeds (it's a mapping,
+// not a list) — so the create-market UI offers this one until more feeds
+// get allowlisted.
+export const DEFAULT_PRICE_FEED_ADDRESS = (import.meta.env.VITE_PRICE_FEED_ADDRESS ??
+  '0x3d8cC74a198ad948D77c65d88Ed24acFeE77Cd67') as Address
+export const DEFAULT_PRICE_FEED_LABEL = 'TSLA (тестовый фид)'
+
 export const predictionMarketAbi = [
   {
     type: 'function',
@@ -60,6 +70,19 @@ export const predictionMarketAbi = [
       { name: 'user', type: 'address' },
     ],
     outputs: [{ type: 'bool' }],
+  },
+  {
+    type: 'function',
+    name: 'createMarket',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'priceFeed', type: 'address' },
+      { name: 'targetPrice', type: 'int256' },
+      { name: 'deadline', type: 'uint256' },
+      { name: 'initialYesAmount', type: 'uint256' },
+      { name: 'initialNoAmount', type: 'uint256' },
+    ],
+    outputs: [{ name: 'id', type: 'uint256' }],
   },
   {
     type: 'function',

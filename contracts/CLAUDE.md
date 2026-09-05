@@ -108,7 +108,7 @@ at these — no extra config needed once they're installed.)
 
 ## 1. Build & test (no network, no keys, safe to run freely)
 
-Green as of 2026-09-04 (12/12 passing). If you've since changed `src/` or
+Green as of 2026-09-06 (22/22 passing). If you've since changed `src/` or
 `test/`, rerun them — bare `forge build` / `forge test -vvv` if Foundry is
 on your PATH, otherwise wrap in the `docker run ... -c "forge test -vvv"`
 pattern from section 0.
@@ -116,21 +116,45 @@ pattern from section 0.
 The test file (`test/PredictionMarket.t.sol`) covers: permissionless market
 creation gated by the feed allowlist, the $500 target cap (at and over the
 limit), the allowlist itself being owner-only, bet accounting, YES win / NO
-win payout math, the "nobody backed the winning side → void + refund" edge
-case, and stale-price rejection. If you add features, add tests for them
-here first.
+win payout math (including exact wei-precision fee math), house seed
+liquidity and its cap, one-sided-market cancellation + full refund, and
+stale-price rejection. If you add features, add tests for them here first.
 
-Worth a second look before deploying anywhere real:
+**Self-review pass, 2026-09-06** (Claude read through the contract against a
+standard vulnerability checklist — this is a code-level sanity pass, *not* a
+substitute for an independent external audit; treat it as a starting point
+for whoever does that audit, not a replacement for it):
+- Fixed: `createMarket` was missing `nonReentrant` while every other
+  fund-moving function had it — inconsistent, even though the current risk
+  was low (only exploitable via a malicious/hooked `betToken`, which is
+  owner-controlled). Added for defense-in-depth.
+- Verified solvent by construction: summed over all winners, total payout
+  for a resolved market = `winningPool + losingPool*(10000-feeBp)/10000`,
+  which is always `<= totalPool` (fee only ever reduces payout, integer
+  rounding always rounds down) — the contract can never owe more than it
+  holds for a given market, modulo the `betToken` assumption below.
+- **`betToken` must be a standard ERC20** — no fee-on-transfer, no
+  rebasing. The contract trusts that `safeTransferFrom` credits it with
+  exactly the amount it was told; a non-standard token would silently
+  under-fund the contract relative to what it believes it owes bettors.
+  Documented inline on the `betToken` declaration. Vet whatever token you
+  point this at before mainnet — the contract can't detect this on its own.
+- **Owner is a real centralization point**, more so now than at the last
+  review: owner controls the price-feed allowlist, `feeBp`, seed liquidity,
+  `voidMarket` (can cancel any open market for any reason, e.g. one about
+  to resolve against a colluding party), and fee withdrawal. A single EOA
+  is fine for a testnet MVP; before mainnet this should move to a
+  multisig (e.g. Safe), not stay a single key.
 - `MAX_PRICE_STALENESS` in `PredictionMarket.sol` is a placeholder (1 hour).
   Check the actual heartbeat of the specific Chainlink feed you'll use
   (https://docs.chain.link/data-feeds/tokenized-equity-feeds/robinhood) and
   size this against it.
 - `resolve()` is permissionless by design (anyone can trigger it once the
   deadline passes) — that's intentional (keeper-friendly), not a bug.
-- `createMarket` is permissionless but requires an owner-allowlisted price
-  feed (`setPriceFeedAllowed`); `voidMarket` and the allowlist itself stay
-  owner-only. Decide who holds that key before mainnet — a single EOA is
-  fine for a testnet MVP, not for real funds.
+- Late large bets shift parimutuel odds right up to the deadline — this is
+  inherent to how parimutuel pools work (same as horse-racing tote boards),
+  not a bug, but worth being explicit about in user-facing copy so it isn't
+  "discovered" as a surprise.
 - This has had no external security review. Don't put real (mainnet) value
   behind it until it's had one — a bug here means an irreversible loss of
   whatever's in the vault, this isn't a "redeploy and move on" situation.

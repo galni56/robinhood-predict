@@ -77,6 +77,13 @@ Added on request, beyond the original parity scope — full detail in
         $400?", fresh 24h deadline
 - [ ] Verify contract source on the Blockscout explorer
 
+**Source/deployed drift (2026-09-06):** the security self-review in
+`contracts/CLAUDE.md` §1 added `nonReentrant` to `createMarket` *after*
+this deploy — the live testnet contract above doesn't have that guard yet
+(low real risk, doesn't change the ABI, purely internal). Redeploy again
+before this is treated as the reference version if that matters for
+whatever's being tested.
+
 **Why the price feed is mock, not real Chainlink, even though the deploy
 itself is real:** confirmed 2026-09-05 that Chainlink Data Feeds
 (`AggregatorV3Interface`, what this contract reads) exist on **Robinhood
@@ -113,9 +120,28 @@ nothing in the mock flow was touched or removed. The new page:
   are implemented but not yet exercised with a real wallet in this
   session — do that next with an actual MetaMask/Phantom browser session
 
-Not done yet: this only covers market #0 (hardcoded), not market creation,
-listing multiple markets, or a mock/real mode toggle beyond "different
-route." Revisit scope once the above has been tried with a real wallet.
+**Update 2026-09-06 — multi-market support added:** `/onchain` is now three
+routes, not one hardcoded page:
+- `/onchain` — `OnchainMarketsListPage.tsx`: reads `marketCount` then
+  batch-reads every market via `useReadContracts` (not one `useReadContract`
+  per market — avoids a hook-per-dynamic-item problem), plus each unique
+  feed's `decimals()`/`latestRoundData()` for display. Shows the same
+  "Awaiting Counter-Bets" / cancelled badges as the mock list.
+- `/onchain/:id` — the original single-market page (`OnchainMarketPage.tsx`),
+  now parameterized by route instead of a hardcoded `MARKET_ID = 0n`.
+- `/onchain/create` — `OnchainCreateMarketPage.tsx`: real `createMarket` tx
+  (target price + deadline preset). Price feed isn't user-choosable — there's
+  no on-chain way to enumerate the owner's allowlist (it's a mapping, not a
+  list), so the form uses the one feed known to be allowlisted
+  (`DEFAULT_PRICE_FEED_ADDRESS` in `src/chain/contracts.ts`). Revisit if/when
+  more feeds get allowlisted.
+
+Verified in a browser (list renders market #0 with live price, detail page
+navigates correctly, create page correctly gates on wallet connection) —
+zero console errors. Still not done: an actual wallet-signed transaction
+(connect/approve/bet/claim/create) has never been exercised with a real
+MetaMask/Phantom session, only read paths are confirmed live. No mock/real
+mode toggle beyond the separate route, as before.
 
 Wallet model decided: external, not embedded. Shape:
 

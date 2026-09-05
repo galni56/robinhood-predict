@@ -65,6 +65,13 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
     uint256 public constant MAX_FEE_BP = 1000;
     uint256 private constant BP_DENOMINATOR = 10_000;
 
+    /// @dev Assumed to be a standard ERC20: no fee-on-transfer, no rebasing.
+    /// The contract's internal accounting (`stakes`, `poolYes`/`poolNo`)
+    /// trusts that `safeTransferFrom(user, address(this), amount)` credits
+    /// the contract with exactly `amount`. A fee-on-transfer or rebasing
+    /// token would silently under-fund the contract relative to what it
+    /// believes it owes bettors — vet this before ever changing it at deploy
+    /// time, this is not something the contract can detect on its own.
     IERC20 public immutable betToken;
 
     /// @notice Current protocol fee in basis points, applied to the losing
@@ -153,7 +160,7 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
         uint256 deadline,
         uint256 initialYesAmount,
         uint256 initialNoAmount
-    ) external returns (uint256 id) {
+    ) external nonReentrant returns (uint256 id) {
         require(priceFeed != address(0), "feed = zero addr");
         require(allowedPriceFeeds[priceFeed], "feed not allowlisted");
         require(deadline > block.timestamp, "deadline in the past");

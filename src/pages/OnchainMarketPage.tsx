@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { Link, useParams } from 'react-router-dom'
 import { formatUnits, parseUnits } from 'viem'
 import { useAccount, useChainId, useConnect, useDisconnect, useReadContract, useSwitchChain, useWriteContract } from 'wagmi'
 import { waitForTransactionReceipt } from 'wagmi/actions'
@@ -14,12 +15,13 @@ import {
 } from '@/chain/contracts'
 import { formatCountdown, formatUsd } from '@/lib/format'
 
-const MARKET_ID = 0n
 const BET_TOKEN_DECIMALS = 18
 
 type TxState = { label: string } | null
 
 export function OnchainMarketPage() {
+  const { id = '0' } = useParams()
+  const MARKET_ID = BigInt(id)
   const { address, isConnected } = useAccount()
   const chainId = useChainId()
   const { connectors, connect, isPending: isConnecting } = useConnect()
@@ -198,7 +200,10 @@ export function OnchainMarketPage() {
         (MetaMask/Phantom). Не мок: газ и токены здесь тестовые, но транзакции идут по-настоящему в блокчейн.
       </div>
 
-      <h1 className="text-xl font-semibold mb-4">Ончейн-рынок #{MARKET_ID.toString()}</h1>
+      <Link to="/onchain" className="text-sm text-white/40 hover:text-white/70">
+        ← Все ончейн-рынки
+      </Link>
+      <h1 className="text-xl font-semibold my-4">Ончейн-рынок #{MARKET_ID.toString()}</h1>
 
       {/* Market data is a public read — shown regardless of wallet connection. */}
       {market.isLoading ? (
