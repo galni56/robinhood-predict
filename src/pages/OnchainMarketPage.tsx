@@ -6,10 +6,13 @@ import { waitForTransactionReceipt } from 'wagmi/actions'
 import { robinhoodTestnet, wagmiConfig } from '@/chain/config'
 import {
   BET_TOKEN_ADDRESS,
+  BP_DENOMINATOR,
   MarketSideOnchain,
   MarketStatusOnchain,
   PREDICTION_MARKET_ADDRESS,
   aggregatorV3Abi,
+  bettingWindowEndSeconds,
+  currentWeightBp,
   erc20Abi,
   predictionMarketAbi,
 } from '@/chain/contracts'
@@ -115,6 +118,10 @@ export function OnchainMarketPage() {
   async function handleBet() {
     setError(null)
     try {
+      if (bettingClosed) {
+        setError('Ставки на этот рынок уже закрыты')
+        return
+      }
       if (sideAlreadyBet) {
         setError(`Вы уже ставили ${side === 'YES' ? 'ЗА' : 'ПРОТИВ'} в этом рынке`)
         return
@@ -197,6 +204,14 @@ export function OnchainMarketPage() {
   const totalPool = market.data ? market.data.poolYes + market.data.poolNo : 0n
   const yesPct = market.data && totalPool > 0n ? Number((market.data.poolYes * 10000n) / totalPool) / 100 : 50
 
+  // Betting closes before the deadline, with an early-bet weight that decays
+  // over the betting window — mirrors PredictionMarket.bettingWindowEnd()/
+  // currentWeightBp() exactly (see src/chain/contracts.ts).
+  const nowSeconds = BigInt(Math.floor(Date.now() / 1000))
+  const bettingWindowEndMs = market.data ? Number(bettingWindowEndSeconds(market.data.createdAt, market.data.deadline)) * 1000 : 0
+  const liveWeightBp = market.data ? currentWeightBp(market.data.createdAt, market.data.deadline, nowSeconds) : null
+  const bettingClosed = liveWeightBp == null
+
   // One bet per side per market — mirrors the contract's `bet()` rule.
   const hasBetYes = (myStakeYes.data ?? 0n) > 0n
   const hasBetNo = (myStakeNo.data ?? 0n) > 0n
@@ -228,7 +243,12 @@ export function OnchainMarketPage() {
           <div className="text-lg">
             Цель: {targetPriceUsd != null ? formatUsd(targetPriceUsd) : '…'} · Сейчас: {currentPriceUsd != null ? formatUsd(currentPriceUsd) : '…'}
           </div>
-          <div className="text-sm text-white/50">{status === MarketStatusOnchain.Open ? formatCountdown(deadlineMs - Date.now()) : ''}</div>
+          <div className="text-sm text-white/50">
+            {status === MarketStatusOnchain.Open &&
+              (bettingClosed
+                ? `Ставки закрыты, ждём резолва: ${formatCountdown(deadlineMs - Date.now())}`
+                : `Ставки открыты ещё: ${formatCountdown(bettingWindowEndMs - Date.now())}`)}
+          </div>
           <div className="h-2 rounded-full bg-rose-500/30 overflow-hidden">
             <div className="h-full bg-emerald-500" style={{ width: `${yesPct}%` }} />
           </div>
@@ -284,59 +304,70 @@ export function OnchainMarketPage() {
                     </button>
                   )}
 
-                  <div className="rounded-lg border border-white/10 p-4 space-y-3">
-                    <div className="text-xs text-white/50">
-                      Твой баланс: {betTokenBalance.data != null ? formatUnits(betTokenBalance.data, BET_TOKEN_DECIMALS) : '…'} mUSD
-                    </div>
-
-                    {bothSidesUsed ? (
-                      <p className="text-xs text-white/40">
-                        Вы уже поставили и ЗА, и ПРОТИВ в этом рынке — по одной ставке на сторону, больше нельзя.
-                      </p>
-                    ) : (
-                      <>
-                        <div className="grid grid-cols-2 gap-2">
-                          <button
-                            onClick={() => setSide('YES')}
-                            disabled={hasBetYes}
-                            className={`py-2 rounded-lg text-sm font-medium border disabled:opacity-40 disabled:cursor-not-allowed ${side === 'YES' ? 'bg-emerald-500 text-black border-emerald-500' : 'border-white/10 text-white/60'}`}
-                          >
-                            ЗА (YES){hasBetYes ? ' ✓' : ''}
-                          </button>
-                          <button
-                            onClick={() => setSide('NO')}
-                            disabled={hasBetNo}
-                            className={`py-2 rounded-lg text-sm font-medium border disabled:opacity-40 disabled:cursor-not-allowed ${side === 'NO' ? 'bg-rose-500 text-black border-rose-500' : 'border-white/10 text-white/60'}`}
-                          >
-                            ПРОТИВ (NO){hasBetNo ? ' ✓' : ''}
-                          </button>
-                        </div>
-
-                        {sideAlreadyBet ? (
-                          <p className="text-xs text-amber-400/80">
-                            Вы уже поставили {side === 'YES' ? 'ЗА' : 'ПРОТИВ'} в этом рынке — выберите другую сторону.
-                          </p>
-                        ) : (
-                          <>
-                            <input
-                              type="number"
-                              value={amount}
-                              onChange={(e) => setAmount(e.target.value)}
-                              className="w-full rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-sm"
-                              placeholder="Сумма в mUSD"
-                            />
-                            <button
-                              onClick={handleBet}
-                              disabled={!!tx}
-                              className="w-full rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black font-medium py-2 text-sm disabled:opacity-50"
-                            >
-                              {tx ? tx.label : 'Сделать ставку (approve + bet)'}
-                            </button>
-                          </>
+                  {bettingClosed ? (
+                    <p className="text-sm text-white/40">
+                      Ставки на этот рынок закрыты — ждём дедлайна, чтобы можно было зарезолвить.
+                    </p>
+                  ) : (
+                    <div className="rounded-lg border border-white/10 p-4 space-y-3">
+                      <div className="flex items-center justify-between text-xs text-white/50">
+                        <span>Твой баланс: {betTokenBalance.data != null ? formatUnits(betTokenBalance.data, BET_TOKEN_DECIMALS) : '…'} mUSD</span>
+                        {liveWeightBp != null && (
+                          <span className="text-emerald-400/80">
+                            Бонус за раннюю ставку: {(Number(liveWeightBp) / Number(BP_DENOMINATOR)).toFixed(2)}x
+                          </span>
                         )}
-                      </>
-                    )}
-                  </div>
+                      </div>
+
+                      {bothSidesUsed ? (
+                        <p className="text-xs text-white/40">
+                          Вы уже поставили и ЗА, и ПРОТИВ в этом рынке — по одной ставке на сторону, больше нельзя.
+                        </p>
+                      ) : (
+                        <>
+                          <div className="grid grid-cols-2 gap-2">
+                            <button
+                              onClick={() => setSide('YES')}
+                              disabled={hasBetYes}
+                              className={`py-2 rounded-lg text-sm font-medium border disabled:opacity-40 disabled:cursor-not-allowed ${side === 'YES' ? 'bg-emerald-500 text-black border-emerald-500' : 'border-white/10 text-white/60'}`}
+                            >
+                              ЗА (YES){hasBetYes ? ' ✓' : ''}
+                            </button>
+                            <button
+                              onClick={() => setSide('NO')}
+                              disabled={hasBetNo}
+                              className={`py-2 rounded-lg text-sm font-medium border disabled:opacity-40 disabled:cursor-not-allowed ${side === 'NO' ? 'bg-rose-500 text-black border-rose-500' : 'border-white/10 text-white/60'}`}
+                            >
+                              ПРОТИВ (NO){hasBetNo ? ' ✓' : ''}
+                            </button>
+                          </div>
+
+                          {sideAlreadyBet ? (
+                            <p className="text-xs text-amber-400/80">
+                              Вы уже поставили {side === 'YES' ? 'ЗА' : 'ПРОТИВ'} в этом рынке — выберите другую сторону.
+                            </p>
+                          ) : (
+                            <>
+                              <input
+                                type="number"
+                                value={amount}
+                                onChange={(e) => setAmount(e.target.value)}
+                                className="w-full rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-sm"
+                                placeholder="Сумма в mUSD"
+                              />
+                              <button
+                                onClick={handleBet}
+                                disabled={!!tx}
+                                className="w-full rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black font-medium py-2 text-sm disabled:opacity-50"
+                              >
+                                {tx ? tx.label : 'Сделать ставку (approve + bet)'}
+                              </button>
+                            </>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  )}
                 </>
               )}
 

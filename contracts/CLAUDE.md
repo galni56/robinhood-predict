@@ -2,10 +2,11 @@
 
 ## Status right now
 
-`forge build` and `forge test -vvv` are green: clean compile, **22/22
+`forge build` and `forge test -vvv` are green: clean compile, **28/28
 tests passing** (8 original + 4 added 2026-09-04 for permissionless
 creation / cap / feed-allowlist + 10 added 2026-09-05 for the liquidity
-mechanics below). `createMarket` is no longer `onlyOwner` — it's
+mechanics + 4 added 2026-09-06 for the time-weighted early-bet mechanic —
+see below for both). `createMarket` is no longer `onlyOwner` — it's
 permissionless, gated instead by an owner-maintained price-feed allowlist
 (`allowedPriceFeeds` / `setPriceFeedAllowed`) and an on-chain $500 target
 cap (`MAX_TARGET_PRICE_USD`) mirroring the frontend's `MAX_TARGET_PRICE`.
@@ -26,6 +27,26 @@ cap (`MAX_TARGET_PRICE_USD`) mirroring the frontend's `MAX_TARGET_PRICE`.
   back in full. Snapshotted into `Market.feeBp` at creation, so a later fee
   change never retroactively affects an already-open market. Collected fees
   sit in `accumulatedFees` until the owner calls `withdrawFees(to)`.
+
+**Time-weighted early-bet mechanic added 2026-09-06** (see `ROADMAP.md`
+§3.5 for the product motivation and the AMM alternative parked in §3.6):
+- **Betting window:** `bet()` now closes at `bettingWindowEnd(id)` —
+  `createdAt + (deadline-createdAt) * BETTING_WINDOW_BP/10000` (6667 = 2/3)
+  — earlier than `deadline`, which still only gates `resolve()`. A 15-minute
+  market takes bets for 10 minutes, then just waits out the last 5.
+- **Early-bet weight:** a winning bet's *share of the losing pool* (never
+  its own principal) is scaled by `currentWeightBp(id)` at the moment it was
+  placed — decays linearly from `MAX_WEIGHT_BP` (2x, betting just opened) to
+  `MIN_WEIGHT_BP` (0.5x, betting about to close). Tracked via a parallel
+  `weightedStakes` mapping and `Market.weightedPoolYes`/`weightedPoolNo`,
+  alongside the existing raw `stakes`/`poolYes`/`poolNo` (which still drive
+  principal repayment, refunds, and the one-sided-cancellation check
+  unchanged). House/system seed liquidity lands at elapsed=0 and always gets
+  `MAX_WEIGHT_BP`.
+- All 24 pre-existing tests kept their exact expected values unchanged —
+  every one of them has exactly one bettor per side, so weight cancels out
+  of the share ratio (`userWeightedStake / weightedWinningPool == 1` when
+  you're the sole winner) — confirmed by rerunning, not assumed.
 
 As of the 2026-09-04 session this ran on a machine the user confirmed is
 **not** company-managed, so Foundry was installed directly (`curl -L

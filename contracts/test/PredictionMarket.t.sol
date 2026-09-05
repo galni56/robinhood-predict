@@ -14,6 +14,7 @@ contract PredictionMarketTest is Test {
     address owner = address(this);
     address alice = address(0xA11CE);
     address bob = address(0xB0B);
+    address charlie = address(0xC4A511E);
 
     uint256 constant START_BALANCE = 10_000e18;
 
@@ -25,11 +26,14 @@ contract PredictionMarketTest is Test {
         betToken.mint(owner, START_BALANCE);
         betToken.mint(alice, START_BALANCE);
         betToken.mint(bob, START_BALANCE);
+        betToken.mint(charlie, START_BALANCE);
 
         betToken.approve(address(market), type(uint256).max);
         vm.prank(alice);
         betToken.approve(address(market), type(uint256).max);
         vm.prank(bob);
+        betToken.approve(address(market), type(uint256).max);
+        vm.prank(charlie);
         betToken.approve(address(market), type(uint256).max);
 
         market.setPriceFeedAllowed(address(feed), true);
@@ -357,5 +361,72 @@ contract PredictionMarketTest is Test {
         market.withdrawFees(owner);
         assertEq(betToken.balanceOf(owner) - balBefore, 0.4e18);
         assertEq(market.accumulatedFees(), 0);
+    }
+
+    // --- early-bet weight decay + betting window ---
+
+    function test_BettingWindowEnd_And_CurrentWeightBp_AtCreation() public {
+        uint256 deadline = block.timestamp + 15_000;
+        uint256 id = market.createMarket(address(feed), 100_00000000, deadline, 0, 0);
+
+        // 15000 * 6667 / 10000 = 10000.5 -> truncates to 10000
+        assertEq(market.bettingWindowEnd(id), block.timestamp + 10_000);
+        // elapsed = 0 at creation -> full MAX_WEIGHT_BP
+        assertEq(market.currentWeightBp(id), market.MAX_WEIGHT_BP());
+    }
+
+    function test_Bet_RevertsAfterBettingWindowCloses_ButBeforeDeadline() public {
+        uint256 deadline = block.timestamp + 15_000;
+        uint256 id = market.createMarket(address(feed), 100_00000000, deadline, 0, 0);
+
+        vm.warp(block.timestamp + 10_001); // just past the window, deadline still ~5000s away
+        assertLt(block.timestamp, deadline);
+
+        vm.prank(alice);
+        vm.expectRevert("betting closed");
+        market.bet(id, PredictionMarket.Side.YES, 10e18);
+    }
+
+    function test_Bet_EarlyBettorGetsBiggerPayoutThanLateBettor_SameStake() public {
+        uint256 deadline = block.timestamp + 15_000; // betting window closes at +10000
+        uint256 id = market.createMarket(address(feed), 100_00000000, deadline, 0, 0);
+
+        // Alice bets the instant betting opens -> max weight.
+        vm.prank(alice);
+        market.bet(id, PredictionMarket.Side.YES, 50e18);
+
+        // Bob bets the same amount, same side, but halfway through the window -> lower weight.
+        vm.warp(block.timestamp + 5_000);
+        vm.prank(bob);
+        market.bet(id, PredictionMarket.Side.YES, 50e18);
+
+        // Charlie funds the losing side so there's something to win.
+        vm.prank(charlie);
+        market.bet(id, PredictionMarket.Side.NO, 100e18);
+
+        vm.warp(deadline);
+        feed.setAnswer(101_00000000, block.timestamp);
+        market.resolve(id);
+
+        uint256 aliceBefore = betToken.balanceOf(alice);
+        vm.prank(alice);
+        market.claim(id);
+        uint256 alicePayout = betToken.balanceOf(alice) - aliceBefore;
+
+        uint256 bobBefore = betToken.balanceOf(bob);
+        vm.prank(bob);
+        market.claim(id);
+        uint256 bobPayout = betToken.balanceOf(bob) - bobBefore;
+
+        // Same stake, same side, same outcome — the only difference is when they bet.
+        assertGt(alicePayout, bobPayout);
+    }
+
+    function test_CreateMarket_SeedLiquidity_GetsMaxWeight() public {
+        uint256 id = market.createMarket(address(feed), 100_00000000, block.timestamp + 1 days, 25e18, 25e18);
+        PredictionMarket.Market memory m = market.getMarket(id);
+        uint256 expected = (25e18 * market.MAX_WEIGHT_BP()) / 10_000;
+        assertEq(m.weightedPoolYes, expected);
+        assertEq(m.weightedPoolNo, expected);
     }
 }

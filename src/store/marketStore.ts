@@ -29,6 +29,32 @@ export const MAX_SEED_LIQUIDITY = 50
 export const PROTOCOL_FEE_BP = 200
 const BP_DENOMINATOR = 10_000
 
+/** Mirrors the contract's `BETTING_WINDOW_BP`/`MAX_WEIGHT_BP`/`MIN_WEIGHT_BP`
+ * exactly (see contracts/src/PredictionMarket.sol) — betting only stays open
+ * for the first 2/3 of a market's life, and a winning bet's share of the
+ * losing pool is weighted from 2x (the instant betting opens) down to 0.5x
+ * (right as betting closes), rewarding early risk over waiting for the
+ * trend to become obvious. */
+export const BETTING_WINDOW_BP = 6667
+export const MAX_WEIGHT_BP = 20_000
+export const MIN_WEIGHT_BP = 5_000
+
+export function bettingWindowEnd(createdAt: number, deadline: number): number {
+  return createdAt + Math.floor(((deadline - createdAt) * BETTING_WINDOW_BP) / BP_DENOMINATOR)
+}
+
+/** Returns `null` once betting has closed (mirrors the contract reverting
+ * "betting closed" instead of returning a weight). */
+export function currentWeightBp(createdAt: number, deadline: number, now: number): number | null {
+  const windowEnd = bettingWindowEnd(createdAt, deadline)
+  if (now >= windowEnd) return null
+  const windowDuration = windowEnd - createdAt
+  const elapsed = now - createdAt
+  const range = MAX_WEIGHT_BP - MIN_WEIGHT_BP
+  const decay = Math.floor((range * elapsed) / windowDuration)
+  return MAX_WEIGHT_BP - decay
+}
+
 const HISTORY_LIMIT = 180
 // Demo-seeded markets are "house" markets too — capped the same as an admin's
 // own seed liquidity, split evenly so they open at 50/50 odds.
@@ -150,7 +176,23 @@ export const useMarketStore = create<MarketState>()(
         // market, but auto-seeded ones shouldn't churn every couple minutes.
         const preset = DURATION_PRESETS[DURATION_PRESETS.length - 1]
         const m = makeMarket(symbol, target, Date.now() + preset.ms, SYSTEM_CREATOR, SEED_LIQUIDITY, SEED_LIQUIDITY)
-        set((s) => ({ markets: { ...s.markets, [m.id]: m } }))
+        // House seed needs a tracked position on both sides, same as a real
+        // bet — otherwise this money is invisible to the weighted payout
+        // math in forceResolve (which sums positions, not raw pool totals).
+        // No real wallet/balance behind "system", so no chain tx here.
+        const seedPositions: Position[] = (['YES', 'NO'] as const).map((side) => ({
+          id: mockAddress(`seed-position:${m.id}:${side}`),
+          userId: SYSTEM_CREATOR,
+          marketId: m.id,
+          side,
+          amount: SEED_LIQUIDITY,
+          txHash: mockAddress(`seed-tx:${m.id}:${side}`),
+          createdAt: m.createdAt,
+          settled: false,
+          payout: null,
+          weightBp: MAX_WEIGHT_BP,
+        }))
+        set((s) => ({ markets: { ...s.markets, [m.id]: m }, positions: [...s.positions, ...seedPositions] }))
       },
 
       tick: () => {
@@ -190,12 +232,54 @@ export const useMarketStore = create<MarketState>()(
           if (seed.yes + seed.no > MAX_SEED_LIQUIDITY) {
             return { ok: false, error: `Начальная ликвидность не может превышать ${formatUsd(MAX_SEED_LIQUIDITY, 0)}` }
           }
+          const balance = useChainStore.getState().balanceOf(creator.walletAddress)
+          if (balance < seed.yes + seed.no) {
+            return { ok: false, error: 'Недостаточно mUSD на кошельке для этой seed-ликвидности' }
+          }
           poolYes = seed.yes
           poolNo = seed.no
         }
 
         const m = makeMarket(symbol, targetPrice, Date.now() + durationMs, creator.id, poolYes, poolNo)
-        set((s) => ({ markets: { ...s.markets, [m.id]: m } }))
+
+        // Seed liquidity is a real bet from the admin's own wallet — same
+        // accounting as `placeBet` (money actually leaves their balance, and
+        // it's a tracked position they can win or lose like anyone else),
+        // just placed atomically at creation instead of via a separate call.
+        // Lands at elapsed=0, so it always gets MAX_WEIGHT_BP.
+        const seedPositions: Position[] = []
+        if (poolYes > 0 || poolNo > 0) {
+          const token = TOKENS.find((t) => t.symbol === symbol)
+          for (const [side, amount] of [
+            ['YES', poolYes],
+            ['NO', poolNo],
+          ] as const) {
+            if (amount <= 0) continue
+            const txHash = useChainStore.getState().submitTx({
+              from: creator.walletAddress,
+              to: token?.contractAddress ?? creator.walletAddress,
+              type: 'BET',
+              amount,
+              marketId: m.id,
+              side,
+              memo: `Seed-ликвидность (${side === 'YES' ? 'ЗА' : 'ПРОТИВ'}): ${symbol} достигнет $${targetPrice}`,
+            })
+            seedPositions.push({
+              id: mockAddress(`position:${txHash}`),
+              userId: creator.id,
+              marketId: m.id,
+              side,
+              amount,
+              txHash,
+              createdAt: m.createdAt,
+              settled: false,
+              payout: null,
+              weightBp: MAX_WEIGHT_BP,
+            })
+          }
+        }
+
+        set((s) => ({ markets: { ...s.markets, [m.id]: m }, positions: [...s.positions, ...seedPositions] }))
         return { ok: true, id: m.id }
       },
 
@@ -210,6 +294,8 @@ export const useMarketStore = create<MarketState>()(
         if (alreadyBetThisSide) {
           return { ok: false, error: `Вы уже ставили ${side === 'YES' ? 'ЗА' : 'ПРОТИВ'} в этом рынке` }
         }
+        const weightBp = currentWeightBp(market.createdAt, market.deadline, Date.now())
+        if (weightBp == null) return { ok: false, error: 'Ставки на этот рынок уже закрыты' }
         const balance = useChainStore.getState().balanceOf(user.walletAddress)
         if (balance < amount) return { ok: false, error: 'Недостаточно mUSD на кошельке' }
 
@@ -236,6 +322,7 @@ export const useMarketStore = create<MarketState>()(
           createdAt: Date.now(),
           settled: false,
           payout: null,
+          weightBp,
         }
 
         set((s) => ({
@@ -285,10 +372,18 @@ export const useMarketStore = create<MarketState>()(
         const price = get().prices[market.symbol] ?? 0
         const outcome: MarketSide = price >= market.target ? 'YES' : 'NO'
         const token = TOKENS.find((t) => t.symbol === market.symbol)
-        const winningPool = outcome === 'YES' ? market.poolYes : market.poolNo
         const losingPool = outcome === 'YES' ? market.poolNo : market.poolYes
 
-        const myPositions = get().positions.filter((p) => p.marketId === marketId && !p.settled)
+        const allPositionsForMarket = get().positions.filter((p) => p.marketId === marketId)
+        // Weighted by each bettor's early-bet weight at the time they bet —
+        // mirrors the contract's `weightedPoolYes`/`weightedPoolNo`. Every
+        // dollar in `poolYes`/`poolNo` must be backed by a tracked position
+        // (including seed liquidity) for this sum to match the raw pool.
+        const weightedWinningPool = allPositionsForMarket
+          .filter((p) => p.side === outcome)
+          .reduce((sum, p) => sum + (p.amount * (p.weightBp ?? BP_DENOMINATOR)) / BP_DENOMINATOR, 0)
+
+        const myPositions = allPositionsForMarket.filter((p) => !p.settled)
         const settledPositions = [...get().positions]
 
         for (const pos of myPositions) {
@@ -297,7 +392,9 @@ export const useMarketStore = create<MarketState>()(
             // Parimutuel, fee taken only from the losing pool's share —
             // principal always comes back in full. Mirrors the contract's
             // `claim()` formula exactly (see contracts/src/PredictionMarket.sol).
-            const winnings = (pos.amount * losingPool * (BP_DENOMINATOR - PROTOCOL_FEE_BP)) / (winningPool * BP_DENOMINATOR)
+            const userWeightedStake = (pos.amount * (pos.weightBp ?? BP_DENOMINATOR)) / BP_DENOMINATOR
+            const losingShare = weightedWinningPool > 0 ? (userWeightedStake * losingPool) / weightedWinningPool : 0
+            const winnings = (losingShare * (BP_DENOMINATOR - PROTOCOL_FEE_BP)) / BP_DENOMINATOR
             const payout = Number((pos.amount + winnings).toFixed(2))
             const owner = useAuthStore.getState().users.find((u) => u.id === pos.userId)
             if (token && owner) {

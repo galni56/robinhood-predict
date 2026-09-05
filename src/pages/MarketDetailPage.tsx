@@ -7,7 +7,7 @@ import { formatPct, formatUsd, timeAgo } from '@/lib/format'
 import { TOKEN_BY_SYMBOL } from '@/market/tokens'
 import { useAuthStore } from '@/store/authStore'
 import { useChainStore } from '@/store/chainStore'
-import { PROTOCOL_FEE_BP, useMarketStore } from '@/store/marketStore'
+import { PROTOCOL_FEE_BP, bettingWindowEnd, currentWeightBp, useMarketStore } from '@/store/marketStore'
 import type { MarketSide, PricePoint } from '@/types'
 
 const BP_DENOMINATOR = 10_000
@@ -29,6 +29,10 @@ export function MarketDetailPage() {
   // directly) causes "Maximum update depth exceeded" / infinite re-render.
   const oddsFor = useMarketStore((s) => s.oddsFor)
   const positionsForUser = useMarketStore((s) => s.positionsForUser)
+  // Raw, stable reference from the store — filtered below in the render
+  // body, not inside the selector (a selector returning a fresh array every
+  // call causes an infinite re-render loop under zustand v5's identity check).
+  const allPositions = useMarketStore((s) => s.positions)
   const placeBet = useMarketStore((s) => s.placeBet)
   const forceResolve = useMarketStore((s) => s.forceResolve)
   const balance = useChainStore((s) => (user ? s.balanceOf(user.walletAddress) : 0))
@@ -36,6 +40,7 @@ export function MarketDetailPage() {
 
   const odds = oddsFor(marketId)
   const positions = positionsForUser(user?.id ?? '')
+  const allMarketPositions = allPositions.filter((p) => p.marketId === marketId)
   const txsForMarket = Object.values(txs)
     .filter((t) => t.marketId === marketId)
     .sort((a, b) => b.timestamp - a.timestamp)
@@ -54,21 +59,34 @@ export function MarketDetailPage() {
   const sideAlreadyBet = side === 'YES' ? hasBetYes : hasBetNo
   const bothSidesUsed = hasBetYes && hasBetNo
 
-  // Mirrors the contract's exact claim() formula:
-  //   payout = userStake + userStake * losingPool * (10000 - feeBp) / (winningPool * 10000)
-  // `winningPool` includes this hypothetical bet (it's added to your own side
-  // before the bet), `losingPool` is the other side's pool, unaffected by it.
+  // Betting closes before the deadline, with an early-bet weight that decays
+  // over the betting window — mirrors the contract exactly (see marketStore.ts).
+  const cutoffMs = bettingWindowEnd(market.createdAt, market.deadline)
+  const liveWeightBp = currentWeightBp(market.createdAt, market.deadline, Date.now())
+  const bettingClosed = liveWeightBp == null
+
+  // Mirrors the contract's exact claim() formula, including the early-bet
+  // weight applied to this hypothetical bet if placed right now:
+  //   payout = userStake + userWeightedStake * losingPool * (10000-feeBp) / (weightedWinningPool * 10000)
+  const existingWeightedPool = (targetSide: MarketSide) =>
+    allMarketPositions.filter((p) => p.side === targetSide).reduce((sum, p) => sum + (p.amount * (p.weightBp ?? BP_DENOMINATOR)) / BP_DENOMINATOR, 0)
+
   const betAmount = Number(amount) || 0
-  const winningPoolAfterBet = (side === 'YES' ? market.poolYes : market.poolNo) + betAmount
+  const weightedBetAmount = liveWeightBp != null ? (betAmount * liveWeightBp) / BP_DENOMINATOR : 0
+  const weightedWinningPoolAfterBet = existingWeightedPool(side) + weightedBetAmount
   const losingPoolAfterBet = side === 'YES' ? market.poolNo : market.poolYes
   const winnings =
-    betAmount > 0 && winningPoolAfterBet > 0
-      ? (betAmount * losingPoolAfterBet * (BP_DENOMINATOR - PROTOCOL_FEE_BP)) / (winningPoolAfterBet * BP_DENOMINATOR)
+    betAmount > 0 && weightedWinningPoolAfterBet > 0
+      ? (weightedBetAmount * losingPoolAfterBet * (BP_DENOMINATOR - PROTOCOL_FEE_BP)) / (weightedWinningPoolAfterBet * BP_DENOMINATOR)
       : 0
   const potentialPayout = betAmount + winnings
 
   function onBet() {
     if (!user) return
+    if (bettingClosed) {
+      setFeedback('Ставки на этот рынок уже закрыты')
+      return
+    }
     const result = placeBet(user, marketId, side, Number(amount))
     setFeedback(result.ok ? `Ставка на ${side === 'YES' ? 'ЗА' : 'ПРОТИВ'} отправлена в mempool ✅` : result.error)
   }
@@ -156,7 +174,15 @@ export function MarketDetailPage() {
           ) : (
             <>
               <p className="text-white/40 text-xs mb-3">
-                Дедлайн (демо-таймлайн): <CountdownTimer deadline={market.deadline} />
+                {bettingClosed ? (
+                  <>
+                    Ставки закрыты, ждём резолва: <CountdownTimer deadline={market.deadline} />
+                  </>
+                ) : (
+                  <>
+                    Ставки открыты ещё: <CountdownTimer deadline={cutoffMs} />
+                  </>
+                )}
               </p>
 
               {awaitingCounterBets && (
@@ -178,12 +204,22 @@ export function MarketDetailPage() {
 
               {user ? (
                 <div className="space-y-3">
-                  {bothSidesUsed ? (
+                  {bettingClosed ? (
+                    <p className="text-xs text-white/40">
+                      Ставки на этот рынок закрыты — ждём дедлайна, чтобы можно было зарезолвить.
+                    </p>
+                  ) : bothSidesUsed ? (
                     <p className="text-xs text-white/40">
                       Вы уже поставили и ЗА, и ПРОТИВ в этом рынке — по одной ставке на сторону, больше нельзя.
                     </p>
                   ) : (
                     <>
+                      {liveWeightBp != null && (
+                        <p className="text-[11px] text-emerald-400/80">
+                          Бонус за раннюю ставку прямо сейчас: {(liveWeightBp / BP_DENOMINATOR).toFixed(2)}x — чем раньше
+                          поставишь, тем больше.
+                        </p>
+                      )}
                       <div className="grid grid-cols-2 gap-2">
                         <button
                           onClick={() => setSide('YES')}

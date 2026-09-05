@@ -162,6 +162,72 @@ Wallet model decided: external, not embedded. Shape:
   WalletConnect (for mobile wallets) needs a free Project ID from a real
   account holder, add later if needed
 
+## 3.5. Time-weighted early-bet mechanic — done (2026-09-06)
+
+Motivation: plain parimutuel doesn't penalize waiting until a market's trend
+is obvious before betting — an "informed late bettor" gets the same odds as
+someone who took real risk early. Added on request:
+
+- [x] Betting closes at `BETTING_WINDOW_BP` (6667 = 2/3) of a market's life —
+      e.g. a 15-minute market takes bets for 10 minutes, then just waits 5
+      minutes for resolution (proportional to any market's own duration, not
+      a fixed number of minutes)
+- [x] A winning bet's *share of the losing pool* (never its own principal)
+      is weighted from `MAX_WEIGHT_BP` (2x, the instant betting opens) down
+      to `MIN_WEIGHT_BP` (0.5x, right as betting closes) — linear decay
+- [x] Applies uniformly to organic bets and house/system seed liquidity
+      (seed lands at elapsed=0, always gets max weight)
+- [x] Contract: 28/28 Foundry tests, including a live inequality check
+      (two equal stakes, same side, different bet time → early one pays more)
+- [x] Mock: mirrors the exact same math in JS (`marketStore.ts`), verified
+      live in a browser across three separate mock accounts (early/late/
+      funder) — early bettor's weight read ~1.98x right after betting,
+      ~1.26x 30s into an 80s window, confirming the decay curve end to end
+- [x] Both UIs (`/onchain` and mock `MarketDetailPage`) show a live "current
+      bonus" readout before betting, and split the single deadline countdown
+      into "betting closes in X" / "waiting for resolution in Y"
+- [x] Redeployed the testnet contract to pick this up: `PredictionMarket`
+      now at `0xE1BA3CBD9D6e5B88af2a3d283D11d7c88e4eC4a7` (bet token and
+      price feed reused as-is), market #0 recreated, `/onchain` re-verified
+      live against it with zero console errors
+
+**Known limitation, accepted for now:** the weight is purely time-based, not
+risk-based — it can't tell a genuine early risk-taker from someone who
+rushes in at t=0 on a market whose outcome was already obvious at creation.
+It nudges behavior in the right direction without fully solving the
+problem — see the AMM alternative below for the fuller fix.
+
+## 3.6. Future: AMM-style continuous pricing (not started)
+
+The industry-standard fix for the same problem the mechanic above only
+partially solves: give every market a moving price (constant-product or
+LMSR market maker, like Polymarket/Augur/Kalshi) instead of two static
+pools. Price naturally rises as one side gets bought, so betting after a
+trend is obvious costs more automatically — no hand-tuned decay curve
+needed.
+
+This is a ground-up replacement of the market mechanic, not an incremental
+change, and was deliberately deferred rather than done alongside 3.5:
+
+- New share-token model (ERC1155 or per-market ERC20 pair) instead of a
+  `stakes` mapping — shares mint on buy, burn on redeem
+- Pricing via constant-product curve or LMSR (LMSR needs a fixed-point math
+  library for `ln`/`exp` — not native to Solidity)
+- LP-liquidity subsystem (LP tokens, LP fees separate from protocol fee,
+  liquidity withdrawal) replacing today's "house seed liquidity"
+- Slippage protection on buys/sells
+- Every current mechanic tied to `stakes`/`poolYes`/`poolNo` needs
+  rethinking or dropping: one-sided cancellation, one-bet-per-side, the
+  early-bet weight above — none of these map directly onto a share-token AMM
+- Full new Foundry test suite; full `/onchain` and mock frontend rewrite
+  (swap-with-slippage UX instead of "read the pool, place a bet")
+- Meaningfully higher security bar — AMM/bonding-curve math is where most
+  real-world DeFi exploits happen (rounding errors, share-mint bugs,
+  flash-loan price manipulation on thin single-market liquidity)
+
+Realistic scope: days, not hours — treat as its own project phase with its
+own security review, not something to fit alongside other work.
+
 ## 4. Security pass
 
 - Review the contract again once permissionless creation + the feed-

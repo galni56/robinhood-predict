@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import { formatUnits } from 'viem'
 import { useReadContract, useReadContracts } from 'wagmi'
 import { AwaitingCounterBetsBadge, CancelledBadge } from '@/components/Pills'
-import { PREDICTION_MARKET_ADDRESS, aggregatorV3Abi, predictionMarketAbi, MarketStatusOnchain } from '@/chain/contracts'
+import { PREDICTION_MARKET_ADDRESS, aggregatorV3Abi, predictionMarketAbi, MarketStatusOnchain, bettingWindowEndSeconds } from '@/chain/contracts'
 import { formatCountdown, formatUsd } from '@/lib/format'
 
 export function OnchainMarketsListPage() {
@@ -112,11 +112,13 @@ export function OnchainMarketsListPage() {
                 <div className="flex justify-between text-[11px] text-white/40 mt-1">
                   <span>ЗА {yesPct.toFixed(1)}%</span>
                   <span>
-                    {m.status === MarketStatusOnchain.Open
-                      ? formatCountdown(deadlineMs - Date.now())
-                      : m.status === MarketStatusOnchain.Resolved
-                        ? 'резолвнут'
-                        : 'отменён'}
+                    {m.status === MarketStatusOnchain.Resolved
+                      ? 'резолвнут'
+                      : m.status === MarketStatusOnchain.Cancelled
+                        ? 'отменён'
+                        : Date.now() < Number(bettingWindowEndSeconds(m.createdAt, m.deadline)) * 1000
+                          ? `ставки: ${formatCountdown(Number(bettingWindowEndSeconds(m.createdAt, m.deadline)) * 1000 - Date.now())}`
+                          : `ждём резолва: ${formatCountdown(deadlineMs - Date.now())}`}
                   </span>
                   <span>ПРОТИВ {(100 - yesPct).toFixed(1)}%</span>
                 </div>

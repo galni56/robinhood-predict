@@ -3,11 +3,11 @@ import type { Address } from 'viem'
 // Addresses from the 2026-09-05 testnet deploy (see ROADMAP.md §2 and
 // contracts/CLAUDE.md). Public testnet contract addresses — not secrets.
 // Override via Vite env vars if the contracts get redeployed.
-// PREDICTION_MARKET_ADDRESS was redeployed same-day to pick up the
-// liquidity mechanics (one-sided cancel, house seed, protocol fee) —
-// BET_TOKEN_ADDRESS is unchanged and reused as-is.
+// PREDICTION_MARKET_ADDRESS has been redeployed twice as the contract grew
+// (liquidity mechanics 2026-09-05, time-weighted early-bet mechanic
+// 2026-09-06) — BET_TOKEN_ADDRESS is unchanged and reused as-is throughout.
 export const PREDICTION_MARKET_ADDRESS = (import.meta.env.VITE_MARKET_ADDRESS ??
-  '0x70E4630054F8EA42Efb32a77b1d672f5bCF0203f') as Address
+  '0xE1BA3CBD9D6e5B88af2a3d283D11d7c88e4eC4a7') as Address
 export const BET_TOKEN_ADDRESS = (import.meta.env.VITE_BET_TOKEN_ADDRESS ??
   '0xBDc0F8045Baa2377F11A03d3c867E81dB263A93A') as Address
 
@@ -40,9 +40,12 @@ export const predictionMarketAbi = [
         components: [
           { name: 'priceFeed', type: 'address' },
           { name: 'targetPrice', type: 'int256' },
+          { name: 'createdAt', type: 'uint256' },
           { name: 'deadline', type: 'uint256' },
           { name: 'poolYes', type: 'uint256' },
           { name: 'poolNo', type: 'uint256' },
+          { name: 'weightedPoolYes', type: 'uint256' },
+          { name: 'weightedPoolNo', type: 'uint256' },
           { name: 'status', type: 'uint8' },
           { name: 'outcome', type: 'uint8' },
           { name: 'feeBp', type: 'uint256' },
@@ -108,6 +111,20 @@ export const predictionMarketAbi = [
     stateMutability: 'nonpayable',
     inputs: [{ name: 'id', type: 'uint256' }],
     outputs: [],
+  },
+  {
+    type: 'function',
+    name: 'bettingWindowEnd',
+    stateMutability: 'view',
+    inputs: [{ name: 'id', type: 'uint256' }],
+    outputs: [{ type: 'uint256' }],
+  },
+  {
+    type: 'function',
+    name: 'currentWeightBp',
+    stateMutability: 'view',
+    inputs: [{ name: 'id', type: 'uint256' }],
+    outputs: [{ type: 'uint256' }],
   },
   {
     type: 'function',
@@ -183,3 +200,30 @@ export const aggregatorV3Abi = [
 
 export const MarketSideOnchain = { YES: 0, NO: 1 } as const
 export const MarketStatusOnchain = { Open: 0, Resolved: 1, Cancelled: 2 } as const
+
+// Mirrors the contract's constants of the same name — betting closes at
+// createdAt + (deadline-createdAt) * BETTING_WINDOW_BP/10000, and a bet's
+// share of the losing pool is weighted from MAX_WEIGHT_BP (right when
+// betting opens) down to MIN_WEIGHT_BP (right as betting closes).
+export const BETTING_WINDOW_BP = 6667n
+export const MAX_WEIGHT_BP = 20_000n
+export const MIN_WEIGHT_BP = 5_000n
+export const BP_DENOMINATOR = 10_000n
+
+/** Mirrors `PredictionMarket.bettingWindowEnd()` exactly (same truncating
+ * integer division) — the unix-seconds timestamp betting closes at. */
+export function bettingWindowEndSeconds(createdAt: bigint, deadline: bigint): bigint {
+  return createdAt + ((deadline - createdAt) * BETTING_WINDOW_BP) / BP_DENOMINATOR
+}
+
+/** Mirrors `PredictionMarket.currentWeightBp()` exactly. Returns `null` once
+ * betting has closed (the contract would revert "betting closed" instead). */
+export function currentWeightBp(createdAt: bigint, deadline: bigint, nowSeconds: bigint): bigint | null {
+  const windowEnd = bettingWindowEndSeconds(createdAt, deadline)
+  if (nowSeconds >= windowEnd) return null
+  const windowDuration = windowEnd - createdAt
+  const elapsed = nowSeconds - createdAt
+  const range = MAX_WEIGHT_BP - MIN_WEIGHT_BP
+  const decay = (range * elapsed) / windowDuration
+  return MAX_WEIGHT_BP - decay
+}

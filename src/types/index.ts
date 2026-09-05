@@ -76,6 +76,10 @@ export interface Position {
   createdAt: number
   settled: boolean
   payout: number | null
+  /** Early-bet weight (basis points, 10000 = 1x) at the time this bet was
+   * placed — mirrors the contract's per-bet weight snapshot. Missing on
+   * positions persisted before this feature; treat as 10000 (no bonus). */
+  weightBp?: number
   /** true when `payout` is a full refund from a cancelled (one-sided) market,
    * not winnings — kept distinct so the UI doesn't show it as a "win". */
   refunded?: boolean

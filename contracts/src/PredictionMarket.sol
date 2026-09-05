@@ -33,9 +33,16 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
     struct Market {
         address priceFeed; // Chainlink AggregatorV3Interface for the underlying stock token
         int256 targetPrice; // scaled to the feed's own `decimals()`
-        uint256 deadline; // unix timestamp — bets close here, resolution allowed after
+        uint256 createdAt; // unix timestamp at creation — anchors the betting-window/decay math below
+        uint256 deadline; // unix timestamp — resolution allowed here (betting closes earlier, see BETTING_WINDOW_BP)
         uint256 poolYes;
         uint256 poolNo;
+        // Sum of every winning-side bettor's *weighted* stake (raw stake x
+        // their early-bet weight at bet time) — used only to divide up the
+        // losing pool among winners; principal is always paid from the raw
+        // `poolYes`/`poolNo` figures above, unaffected by weight.
+        uint256 weightedPoolYes;
+        uint256 weightedPoolNo;
         Status status;
         Side outcome;
         // Snapshotted from the global `feeBp` at creation time, so a later
@@ -65,6 +72,25 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
     uint256 public constant MAX_FEE_BP = 1000;
     uint256 private constant BP_DENOMINATOR = 10_000;
 
+    /// @dev Betting only stays open for the first slice of a market's life —
+    /// closes at `createdAt + (deadline - createdAt) * BETTING_WINDOW_BP / 10000`,
+    /// well before `deadline` itself (resolution still only unlocks at
+    /// `deadline`). 6667 = 2/3, e.g. a 15-minute market takes bets for the
+    /// first 10 minutes and then just waits 5 minutes for resolution — this
+    /// mirrors any market's `deadline - createdAt` proportionally, not a
+    /// fixed number of minutes.
+    uint256 public constant BETTING_WINDOW_BP = 6667;
+
+    /// @dev A winning stake's share of the *losing* pool (not its own
+    /// principal, which always comes back in full) is scaled by a weight
+    /// that decays linearly from MAX_WEIGHT_BP at the moment betting opens
+    /// to MIN_WEIGHT_BP right as the betting window closes — rewarding
+    /// bettors who take a position early, while the outcome is still
+    /// genuinely uncertain, over those who wait for the trend to become
+    /// obvious and snipe right before betting closes.
+    uint256 public constant MAX_WEIGHT_BP = 20_000; // 2x for a bet placed the instant betting opens
+    uint256 public constant MIN_WEIGHT_BP = 5_000; // 0.5x for a bet placed right at the betting cutoff
+
     /// @dev Assumed to be a standard ERC20: no fee-on-transfer, no rebasing.
     /// The contract's internal accounting (`stakes`, `poolYes`/`poolNo`)
     /// trusts that `safeTransferFrom(user, address(this), amount)` credits
@@ -86,8 +112,11 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
 
     uint256 public marketCount;
     mapping(uint256 => Market) public markets;
-    // marketId => user => side => amount staked
+    // marketId => user => side => raw amount staked (principal — always paid back in full)
     mapping(uint256 => mapping(address => mapping(Side => uint256))) public stakes;
+    // marketId => user => side => stake x early-bet weight at the time of the bet
+    // (used only to divide up the losing pool among winners — see Market.weightedPoolYes/No)
+    mapping(uint256 => mapping(address => mapping(Side => uint256))) public weightedStakes;
     mapping(uint256 => mapping(address => bool)) public claimed;
 
     /// @dev Market creation is permissionless, but the price feed it settles
@@ -100,7 +129,7 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
     mapping(address => bool) public allowedPriceFeeds;
 
     event MarketCreated(uint256 indexed id, address indexed priceFeed, int256 targetPrice, uint256 deadline);
-    event BetPlaced(uint256 indexed id, address indexed user, Side side, uint256 amount);
+    event BetPlaced(uint256 indexed id, address indexed user, Side side, uint256 amount, uint256 weightBp);
     event MarketResolved(uint256 indexed id, Side outcome, int256 settlePrice);
     event MarketVoided(uint256 indexed id, string reason);
     event Claimed(uint256 indexed id, address indexed user, uint256 payout);
@@ -182,46 +211,91 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
         Market storage m = markets[id];
         m.priceFeed = priceFeed;
         m.targetPrice = targetPrice;
+        m.createdAt = block.timestamp;
         m.deadline = deadline;
         m.status = Status.Open;
         m.feeBp = feeBp;
 
         emit MarketCreated(id, priceFeed, targetPrice, deadline);
 
+        // Seed liquidity lands at creation time (elapsed = 0), so it always
+        // gets MAX_WEIGHT_BP — consistent with "earliest possible bet".
         if (initialYesAmount > 0) {
             betToken.safeTransferFrom(msg.sender, address(this), initialYesAmount);
             stakes[id][msg.sender][Side.YES] += initialYesAmount;
+            uint256 weighted = (initialYesAmount * MAX_WEIGHT_BP) / BP_DENOMINATOR;
+            weightedStakes[id][msg.sender][Side.YES] += weighted;
             m.poolYes = initialYesAmount;
-            emit BetPlaced(id, msg.sender, Side.YES, initialYesAmount);
+            m.weightedPoolYes = weighted;
+            emit BetPlaced(id, msg.sender, Side.YES, initialYesAmount, MAX_WEIGHT_BP);
         }
         if (initialNoAmount > 0) {
             betToken.safeTransferFrom(msg.sender, address(this), initialNoAmount);
             stakes[id][msg.sender][Side.NO] += initialNoAmount;
+            uint256 weighted = (initialNoAmount * MAX_WEIGHT_BP) / BP_DENOMINATOR;
+            weightedStakes[id][msg.sender][Side.NO] += weighted;
             m.poolNo = initialNoAmount;
-            emit BetPlaced(id, msg.sender, Side.NO, initialNoAmount);
+            m.weightedPoolNo = weighted;
+            emit BetPlaced(id, msg.sender, Side.NO, initialNoAmount, MAX_WEIGHT_BP);
         }
+    }
+
+    /// @notice Unix timestamp at which betting closes for market `id` — before
+    /// this, `bet()` is allowed; after this (but before `deadline`), the
+    /// market is just waiting for resolution. See `BETTING_WINDOW_BP`.
+    function bettingWindowEnd(uint256 id) public view returns (uint256) {
+        Market storage m = markets[id];
+        return m.createdAt + ((m.deadline - m.createdAt) * BETTING_WINDOW_BP) / BP_DENOMINATOR;
+    }
+
+    /// @notice The early-bet weight (basis points, 10000 = 1x) a bet placed
+    /// right now would get on market `id` — decays linearly from
+    /// `MAX_WEIGHT_BP` at the moment betting opened to `MIN_WEIGHT_BP` right
+    /// as the betting window closes. Reverts the same way `bet()` would if
+    /// betting is already closed, so callers can rely on a revert here to
+    /// mean "don't bother calling bet()".
+    function currentWeightBp(uint256 id) public view returns (uint256) {
+        Market storage m = markets[id];
+        uint256 windowEnd = bettingWindowEnd(id);
+        require(block.timestamp < windowEnd, "betting closed");
+
+        uint256 windowDuration = windowEnd - m.createdAt;
+        uint256 elapsed = block.timestamp - m.createdAt;
+        uint256 range = MAX_WEIGHT_BP - MIN_WEIGHT_BP;
+        uint256 decay = (range * elapsed) / windowDuration;
+        return MAX_WEIGHT_BP - decay;
     }
 
     /// @notice Bet `amount` of `betToken` on `side` for market `id`. Requires prior
     /// `betToken.approve(address(this), amount)`. One bet per side per market —
     /// once you've staked on a side, a second call on that same side reverts
     /// (you can still bet the *other* side once, if you haven't already).
+    ///
+    /// Betting closes at `bettingWindowEnd(id)`, earlier than `deadline` — see
+    /// `BETTING_WINDOW_BP`. The earlier you bet within that window, the bigger
+    /// a share of the losing pool your stake is weighted for if you win (your
+    /// principal is unaffected either way) — see `currentWeightBp`.
     function bet(uint256 id, Side side, uint256 amount) external nonReentrant {
         Market storage m = markets[id];
         require(m.status == Status.Open, "market not open");
-        require(block.timestamp < m.deadline, "betting closed");
         require(amount > 0, "amount = 0");
         require(stakes[id][msg.sender][side] == 0, "already bet this side");
 
+        uint256 weightBp = currentWeightBp(id); // reverts "betting closed" past the window
+
         betToken.safeTransferFrom(msg.sender, address(this), amount);
         stakes[id][msg.sender][side] += amount;
+        uint256 weighted = (amount * weightBp) / BP_DENOMINATOR;
+        weightedStakes[id][msg.sender][side] += weighted;
         if (side == Side.YES) {
             m.poolYes += amount;
+            m.weightedPoolYes += weighted;
         } else {
             m.poolNo += amount;
+            m.weightedPoolNo += weighted;
         }
 
-        emit BetPlaced(id, msg.sender, side, amount);
+        emit BetPlaced(id, msg.sender, side, amount, weightBp);
     }
 
     /// @notice Resolve a market once its deadline has passed, using the Chainlink feed.
@@ -256,10 +330,13 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
     /// a protocol fee taken only from the losing pool's contribution — your own
     /// stake always comes back in full:
     ///
-    ///   payout = yourStake + yourStake * losingPool * (10000 - feeBp) / (winningPool * 10000)
+    ///   payout = yourStake + yourWeightedStake * losingPool * (10000 - feeBp) / (weightedWinningPool * 10000)
     ///
-    /// `winningPool` is guaranteed non-zero here: `resolve` only reaches `Resolved`
-    /// (as opposed to `Cancelled`) when both `poolYes` and `poolNo` are non-zero.
+    /// `losingPool` is the *raw* dollar amount forfeited by the losing side —
+    /// weight never applies to it, losers just lose their stake. `weightedWinningPool`
+    /// is guaranteed non-zero here: `resolve` only reaches `Resolved` (as opposed to
+    /// `Cancelled`) when both `poolYes` and `poolNo` are non-zero, and every non-zero
+    /// stake has a non-zero weighted stake (weight is always > 0, see MIN_WEIGHT_BP).
     /// Integer division rounds down, so any rounding dust favors the contract
     /// (stays unclaimed) rather than ever over-paying.
     function claim(uint256 id) external nonReentrant {
@@ -270,13 +347,14 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
         uint256 userStake = stakes[id][msg.sender][m.outcome];
         require(userStake > 0, "no winning stake");
 
-        uint256 winningPool = m.outcome == Side.YES ? m.poolYes : m.poolNo;
         uint256 losingPool = m.outcome == Side.YES ? m.poolNo : m.poolYes;
-        assert(winningPool > 0);
+        uint256 weightedWinningPool = m.outcome == Side.YES ? m.weightedPoolYes : m.weightedPoolNo;
+        uint256 userWeightedStake = weightedStakes[id][msg.sender][m.outcome];
+        assert(weightedWinningPool > 0);
 
         claimed[id][msg.sender] = true;
 
-        uint256 losingShare = (userStake * losingPool) / winningPool;
+        uint256 losingShare = (userWeightedStake * losingPool) / weightedWinningPool;
         uint256 fee = (losingShare * m.feeBp) / BP_DENOMINATOR;
         uint256 winnings = losingShare - fee;
         uint256 payout = userStake + winnings;
