@@ -2,7 +2,6 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import { ChainEngine } from '@/components/ChainEngine'
 import { DisclaimerBanner } from '@/components/DisclaimerBanner'
 import { Navbar } from '@/components/Navbar'
-import { AuroraBackground } from '@/components/AuroraBackground'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { AddressDetailPage } from '@/pages/AddressDetailPage'
 import { ArchivePage } from '@/pages/ArchivePage'
@@ -25,8 +24,7 @@ import { TxDetailPage } from '@/pages/TxDetailPage'
 
 export default function App() {
   return (
-    <div className="min-h-screen flex flex-col relative z-10">
-      <AuroraBackground />
+    <div className="min-h-screen flex flex-col">
       <ChainEngine />
       <DisclaimerBanner />
       <Navbar />

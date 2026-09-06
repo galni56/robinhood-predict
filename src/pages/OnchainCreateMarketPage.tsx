@@ -83,7 +83,7 @@ export function OnchainCreateMarketPage() {
       ) : !onRightChain ? (
         <p className="text-amber-400 text-sm">Переключись на Robinhood Chain Testnet.</p>
       ) : (
-        <form onSubmit={onSubmit} className="bg-white/[0.03] border border-white/10 rounded-xl p-6 space-y-4">
+        <form onSubmit={onSubmit} className="bg-[#12121c]/95 border border-white/10 rounded-xl p-6 space-y-4">
           <div>
             <label className="block text-sm text-white/60 mb-1.5">Price feed</label>
             <div className="w-full rounded-lg bg-black/30 border border-white/10 px-3 py-2 text-sm text-white/70">

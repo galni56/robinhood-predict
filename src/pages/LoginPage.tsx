@@ -47,7 +47,7 @@ export function LoginPage() {
           </p>
         </div>
 
-        <form onSubmit={onSubmit} className="bg-white/[0.04] border border-white/10 rounded-2xl p-6 space-y-4">
+        <form onSubmit={onSubmit} className="bg-[#12121c]/95 border border-white/10 rounded-2xl p-6 space-y-4">
           <div>
             <label className="block text-sm text-white/60 mb-1.5">E-mail</label>
             <input

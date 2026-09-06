@@ -75,11 +75,11 @@ export function MarketDetailPage() {
           </div>
         </div>
 
-        <div className="bg-white/[0.04] border border-white/10 rounded-2xl p-4">
+        <div className="bg-[#12121c]/95 border border-white/10 rounded-2xl p-4">
           <PriceChart data={series} target={market.target} height={280} />
         </div>
 
-        <div className="bg-white/[0.04] border border-white/10 rounded-2xl p-4">
+        <div className="bg-[#12121c]/95 border border-white/10 rounded-2xl p-4">
           <h2 className="font-semibold mb-3">Транзакции этого рынка on-chain</h2>
           <div className="overflow-x-auto scrollbar-thin">
             <table className="w-full text-sm">
@@ -120,7 +120,7 @@ export function MarketDetailPage() {
       </div>
 
       <div className="space-y-6">
-        <div className="bg-white/[0.04] border border-white/10 rounded-2xl p-4">
+        <div className="bg-[#12121c]/95 border border-white/10 rounded-2xl p-4">
           <h2 className="font-semibold mb-1">{market.question}</h2>
           {market.cancelled ? (
             <div className="mt-3">
@@ -171,7 +171,7 @@ export function MarketDetailPage() {
         </div>
 
         {user && myPositions.length > 0 && (
-          <div className="bg-white/[0.04] border border-white/10 rounded-2xl p-4">
+          <div className="bg-[#12121c]/95 border border-white/10 rounded-2xl p-4">
             <h2 className="font-semibold mb-3">Ваши ставки здесь</h2>
             <div className="space-y-2">
               {myPositions.map((p) => (

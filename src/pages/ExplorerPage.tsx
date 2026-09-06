@@ -37,7 +37,7 @@ export function ExplorerPage() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Поиск по хэшу транзакции, номеру блока или адресу…"
-          className="flex-1 rounded-lg bg-white/[0.03] border border-white/10 px-3 py-2 text-sm font-mono outline-none focus:border-emerald-400/60"
+          className="flex-1 rounded-lg bg-[#12121c]/95 border border-white/10 px-3 py-2 text-sm font-mono outline-none focus:border-emerald-400/60"
         />
         <button className="px-4 rounded-lg bg-white/10 hover:bg-white/15 text-sm transition-colors">Найти</button>
       </form>
@@ -49,7 +49,7 @@ export function ExplorerPage() {
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6">
-        <div className="bg-white/[0.03] border border-white/10 rounded-xl p-4">
+        <div className="bg-[#12121c]/95 border border-white/10 rounded-xl p-4">
           <h2 className="font-medium mb-3">Последние блоки</h2>
           <div className="space-y-2 max-h-[480px] overflow-y-auto scrollbar-thin pr-1">
             {[...blocks]
@@ -68,7 +68,7 @@ export function ExplorerPage() {
           </div>
         </div>
 
-        <div className="bg-white/[0.03] border border-white/10 rounded-xl p-4">
+        <div className="bg-[#12121c]/95 border border-white/10 rounded-xl p-4">
           <h2 className="font-medium mb-3">Последние транзакции</h2>
           <div className="space-y-2 max-h-[480px] overflow-y-auto scrollbar-thin pr-1">
             {recentTxs.map((tx) => (
@@ -88,7 +88,7 @@ export function ExplorerPage() {
 
 function Stat({ label, value }: { label: string; value: number }) {
   return (
-    <div className="bg-white/[0.03] border border-white/10 rounded-xl p-4">
+    <div className="bg-[#12121c]/95 border border-white/10 rounded-xl p-4">
       <div className="text-2xl font-semibold font-mono">{value}</div>
       <div className="text-white/40 text-xs mt-1">{label}</div>
     </div>

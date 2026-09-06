@@ -92,7 +92,7 @@ export function OnchainMarketsListPage() {
               <Link
                 key={id.toString()}
                 to={`/onchain/${id}`}
-                className="block rounded-xl border border-white/10 bg-white/[0.03] hover:border-white/25 hover:bg-white/[0.05] p-4 transition-colors"
+                className="block rounded-xl border border-white/10 bg-[#12121c]/95 hover:border-white/25 hover:bg-[#181829]/95 p-4 transition-colors"
               >
                 <div className="flex items-start justify-between mb-2">
                   <div className="flex items-center gap-2">

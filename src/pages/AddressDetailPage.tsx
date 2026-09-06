@@ -29,12 +29,12 @@ export function AddressDetailPage() {
         )}
       </div>
 
-      <div className="bg-white/[0.03] border border-white/10 rounded-xl p-4">
+      <div className="bg-[#12121c]/95 border border-white/10 rounded-xl p-4">
         <div className="text-white/40 text-xs">Баланс</div>
         <div className="text-2xl font-mono font-semibold">{formatUsd(balance)}</div>
       </div>
 
-      <div className="bg-white/[0.03] border border-white/10 rounded-xl p-4">
+      <div className="bg-[#12121c]/95 border border-white/10 rounded-xl p-4">
         <h2 className="font-medium mb-3">История транзакций ({txs.length})</h2>
         <div className="space-y-2 max-h-[520px] overflow-y-auto scrollbar-thin pr-1">
           {txs.map((tx) => (

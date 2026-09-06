@@ -49,7 +49,7 @@ export function SettingsPage() {
     <div className="max-w-xl mx-auto px-4 py-8 space-y-6">
       <h1 className="text-2xl font-semibold">Настройки</h1>
 
-      <form onSubmit={onSaveProfile} className="bg-white/[0.03] border border-white/10 rounded-xl p-6 space-y-4">
+      <form onSubmit={onSaveProfile} className="bg-[#12121c]/95 border border-white/10 rounded-xl p-6 space-y-4">
         <h2 className="font-medium">Профиль</h2>
 
         <div className="flex items-center gap-4">
@@ -95,7 +95,7 @@ export function SettingsPage() {
         {profileSaved && <span className="ml-3 text-xs text-emerald-400">Сохранено ✓</span>}
       </form>
 
-      <form onSubmit={onChangePassword} className="bg-white/[0.03] border border-white/10 rounded-xl p-6 space-y-4">
+      <form onSubmit={onChangePassword} className="bg-[#12121c]/95 border border-white/10 rounded-xl p-6 space-y-4">
         <h2 className="font-medium">Смена пароля</h2>
 
         <div>

@@ -24,7 +24,7 @@ export function DepositPanel({ walletAddress }: { walletAddress: string }) {
   }
 
   return (
-    <div className="bg-white/[0.03] border border-white/10 rounded-xl p-4">
+    <div className="bg-[#12121c]/95 border border-white/10 rounded-xl p-4">
       <h2 className="font-medium mb-1">Пополнить баланс</h2>
       <p className="text-white/40 text-xs mb-3">
         Мок-faucet — не настоящие деньги, никакой реальной оплаты. Зачисляется через блокчейн-транзакцию, как и всё

@@ -62,12 +62,12 @@ export function PortfolioPage() {
 
       <DepositPanel walletAddress={user.walletAddress} />
 
-      <div className="bg-white/[0.03] border border-white/10 rounded-xl p-4">
+      <div className="bg-[#12121c]/95 border border-white/10 rounded-xl p-4">
         <h2 className="font-medium mb-3">Активные ставки ({openPositions.length})</h2>
         <PositionsTable positions={openPositions} markets={markets} empty="Нет открытых ставок — загляните на рынки" />
       </div>
 
-      <div className="bg-white/[0.03] border border-white/10 rounded-xl p-4">
+      <div className="bg-[#12121c]/95 border border-white/10 rounded-xl p-4">
         <h2 className="font-medium mb-3">История ({settledPositions.length})</h2>
         <PositionsTable positions={settledPositions} markets={markets} empty="Пока нет завершённых ставок" />
       </div>
@@ -77,7 +77,7 @@ export function PortfolioPage() {
 
 function Stat({ label, value }: { label: string; value: ReactNode }) {
   return (
-    <div className="bg-white/[0.03] border border-white/10 rounded-xl p-4">
+    <div className="bg-[#12121c]/95 border border-white/10 rounded-xl p-4">
       <div className="text-white/40 text-xs mb-1">{label}</div>
       <div className="font-mono font-medium">{value}</div>
     </div>

@@ -59,7 +59,7 @@ export function PublicProfilePage() {
         />
       </div>
 
-      <div className="bg-white/[0.03] border border-white/10 rounded-xl p-4">
+      <div className="bg-[#12121c]/95 border border-white/10 rounded-xl p-4">
         <h2 className="font-medium mb-3">Последние завершённые ставки</h2>
         <div className="space-y-2">
           {recentSettled.map((p) => {
@@ -88,7 +88,7 @@ export function PublicProfilePage() {
 
 function Stat({ label, value }: { label: string; value: ReactNode }) {
   return (
-    <div className="bg-white/[0.03] border border-white/10 rounded-xl p-4">
+    <div className="bg-[#12121c]/95 border border-white/10 rounded-xl p-4">
       <div className="text-white/40 text-xs mb-1">{label}</div>
       <div className="font-mono font-medium">{value}</div>
     </div>

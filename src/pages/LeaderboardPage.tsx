@@ -20,7 +20,7 @@ export function LeaderboardPage() {
         <p className="text-white/50 text-sm mt-1">Ранжировано по чистому P&amp;L среди тех, кто хотя бы раз ставил.</p>
       </div>
 
-      <div className="bg-white/[0.03] border border-white/10 rounded-xl p-4">
+      <div className="bg-[#12121c]/95 border border-white/10 rounded-xl p-4">
         <div className="space-y-2">
           {rows.map((r, i) => (
             <Link

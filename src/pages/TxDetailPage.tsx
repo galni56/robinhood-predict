@@ -27,7 +27,7 @@ export function TxDetailPage() {
         <StatusBadge status={tx.status} />
       </div>
 
-      <div className="bg-white/[0.03] border border-white/10 rounded-xl p-4 space-y-3 text-sm">
+      <div className="bg-[#12121c]/95 border border-white/10 rounded-xl p-4 space-y-3 text-sm">
         <Row label="Хэш" value={<span className="font-mono break-all">{tx.hash}</span>} />
         <Row label="Тип" value={TYPE_LABEL[tx.type] ?? tx.type} />
         <Row label="От" value={<AddressPill address={tx.from} to={`/explorer/address/${tx.from}`} />} />

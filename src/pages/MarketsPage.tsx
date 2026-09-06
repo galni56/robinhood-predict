@@ -88,7 +88,7 @@ export function MarketsPage() {
                 <div
                   key={market.id}
                   onClick={() => navigate(`/markets/${market.id}`)}
-                  className="group relative cursor-pointer bg-white/[0.04] border border-white/10 rounded-2xl p-4 hover:border-violet-400/30 hover:bg-white/[0.06] hover:shadow-[0_0_28px_-14px_rgba(139,92,246,0.9)] transition-all"
+                  className="group relative cursor-pointer bg-[#12121c]/95 border border-white/10 rounded-2xl p-4 hover:border-violet-400/30 hover:bg-[#181829]/95 hover:shadow-[0_0_28px_-14px_rgba(139,92,246,0.9)] transition-all"
                 >
                   <div className="flex items-start justify-between mb-2">
                     <div>

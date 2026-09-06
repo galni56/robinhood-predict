@@ -22,14 +22,14 @@ export function BlockDetailPage() {
         <p className="text-white/40 text-sm">{timeAgo(block.timestamp)}</p>
       </div>
 
-      <div className="bg-white/[0.03] border border-white/10 rounded-xl p-4 space-y-2 text-sm">
+      <div className="bg-[#12121c]/95 border border-white/10 rounded-xl p-4 space-y-2 text-sm">
         <Row label="Хэш блока" value={<HashPill hash={block.hash} />} />
         <Row label="Хэш родителя" value={block.parentHash === '0x0' ? '—' : <HashPill hash={block.parentHash} />} />
         <Row label="Валидатор" value={<span className="font-mono text-white/70">{block.validator}</span>} />
         <Row label="Транзакций" value={block.txHashes.length} />
       </div>
 
-      <div className="bg-white/[0.03] border border-white/10 rounded-xl p-4">
+      <div className="bg-[#12121c]/95 border border-white/10 rounded-xl p-4">
         <h2 className="font-medium mb-3">Транзакции</h2>
         <div className="space-y-2">
           {block.txHashes.map((hash) => {

@@ -37,7 +37,7 @@ export function ArchivePage() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Поиск по тикеру или вопросу…"
-          className="flex-1 min-w-48 rounded-lg bg-white/[0.03] border border-white/10 px-3 py-2 text-sm outline-none focus:border-emerald-400/60"
+          className="flex-1 min-w-48 rounded-lg bg-[#12121c]/95 border border-white/10 px-3 py-2 text-sm outline-none focus:border-emerald-400/60"
         />
         <div className="flex gap-1">
           {(['ALL', 'YES', 'NO', 'CANCELLED'] as const).map((f) => (
@@ -64,7 +64,7 @@ export function ArchivePage() {
             <Link
               key={m.id}
               to={`/markets/${m.id}`}
-              className="flex flex-wrap items-center gap-3 text-sm bg-white/[0.03] hover:bg-white/[0.05] border border-white/10 rounded-lg px-4 py-3 transition-colors"
+              className="flex flex-wrap items-center gap-3 text-sm bg-[#12121c]/95 hover:bg-[#181829]/95 border border-white/10 rounded-lg px-4 py-3 transition-colors"
             >
               <span className="font-semibold min-w-16">{token?.symbol ?? m.symbol}</span>
               <span className="text-white/50 flex-1 min-w-40">{m.question}</span>

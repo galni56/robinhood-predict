@@ -27,7 +27,7 @@ export function MarketsSidebar() {
 
   return (
     <div className="space-y-5">
-      <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+      <div className="rounded-2xl border border-white/10 bg-[#12121c]/95 p-4">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-bold flex items-center gap-1.5">🏆 Лидерборд</h2>
           <Link to="/leaderboard" className="text-xs text-violet-300/80 hover:text-violet-200">
@@ -54,7 +54,7 @@ export function MarketsSidebar() {
         </div>
       </div>
 
-      <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+      <div className="rounded-2xl border border-white/10 bg-[#12121c]/95 p-4">
         <h2 className="text-sm font-bold flex items-center gap-1.5 mb-3">⚡ Последние ставки</h2>
         <div className="space-y-1.5">
           {recentBets.map((tx) => (
