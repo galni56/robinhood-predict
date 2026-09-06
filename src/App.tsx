@@ -1,6 +1,7 @@
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { Route, Routes } from 'react-router-dom'
 import { ChainEngine } from '@/components/ChainEngine'
 import { DisclaimerBanner } from '@/components/DisclaimerBanner'
+import { Footer } from '@/components/Footer'
 import { Navbar } from '@/components/Navbar'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { AddressDetailPage } from '@/pages/AddressDetailPage'
@@ -8,6 +9,7 @@ import { ArchivePage } from '@/pages/ArchivePage'
 import { BlockDetailPage } from '@/pages/BlockDetailPage'
 import { CreateMarketPage } from '@/pages/CreateMarketPage'
 import { ExplorerPage } from '@/pages/ExplorerPage'
+import { LandingPage } from '@/pages/LandingPage'
 import { LeaderboardPage } from '@/pages/LeaderboardPage'
 import { LoginPage } from '@/pages/LoginPage'
 import { MarketDetailPage } from '@/pages/MarketDetailPage'
@@ -20,7 +22,9 @@ import { PortfolioPage } from '@/pages/PortfolioPage'
 import { PublicProfilePage } from '@/pages/PublicProfilePage'
 import { RegisterPage } from '@/pages/RegisterPage'
 import { SettingsPage } from '@/pages/SettingsPage'
+import { TermsPage } from '@/pages/TermsPage'
 import { TxDetailPage } from '@/pages/TxDetailPage'
+import { WhitepaperPage } from '@/pages/WhitepaperPage'
 
 export default function App() {
   return (
@@ -31,7 +35,9 @@ export default function App() {
 
       <main className="flex-1">
         <Routes>
-          <Route path="/" element={<Navigate to="/markets" replace />} />
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/whitepaper" element={<WhitepaperPage />} />
+          <Route path="/terms" element={<TermsPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/onchain" element={<OnchainMarketsListPage />} />
@@ -71,6 +77,8 @@ export default function App() {
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </main>
+
+      <Footer />
     </div>
   )
 }

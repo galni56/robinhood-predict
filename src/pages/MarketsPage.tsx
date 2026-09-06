@@ -7,7 +7,7 @@ import { AddressPill, AwaitingCounterBetsBadge } from '@/components/Pills'
 import { CountdownTimer } from '@/components/CountdownTimer'
 import { formatPct, formatUsd } from '@/lib/format'
 import { TOKEN_BY_SYMBOL } from '@/market/tokens'
-import { PROTOCOL_FEE_BP, useMarketStore } from '@/store/marketStore'
+import { useMarketStore } from '@/store/marketStore'
 import type { MarketSide } from '@/types'
 
 interface ReopenBetState {
@@ -45,30 +45,14 @@ export function MarketsPage() {
     <div className="max-w-6xl mx-auto px-4 py-8">
       <div className="mb-8 flex items-start justify-between gap-6 flex-wrap">
         <div className="max-w-2xl">
-          <p className="text-xs font-bold tracking-[0.2em] text-violet-300/80 uppercase mb-2">
-            Prediction markets for tokenized stocks
+          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">All markets</h1>
+          <p className="text-white/50 text-sm mt-1.5">
+            {list.length} open right now. Bet YES or NO before the deadline — early bets carry more weight, and a
+            market with only one side ever betting cancels and refunds in full.{' '}
+            <Link to="/whitepaper" className="text-violet-300 hover:underline">
+              How the payout math works →
+            </Link>
           </p>
-          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-balance">
-            Call the price. Get paid when you're right.
-          </h1>
-          <p className="text-white/50 text-sm sm:text-base mt-3">
-            Pick a tokenized stock, bet YES or NO on it hitting a target price before the deadline, and settle
-            parimutuel — straight to the mock chain. Bet early in the window and your share of the payout is
-            weighted up to 2x; wait too long and it decays toward 0.5x, so conviction gets rewarded over sniping the
-            close.
-          </p>
-          <div className="flex flex-wrap gap-x-6 gap-y-2 mt-5 text-xs text-white/40">
-            <span>
-              <span className="text-white font-mono font-semibold">{list.length}</span> live markets
-            </span>
-            <span>
-              <span className="text-white font-mono font-semibold">{formatPct(PROTOCOL_FEE_BP / 10_000, 0)}</span> protocol
-              fee — winnings only, never your stake
-            </span>
-            <span>
-              <span className="text-white font-mono font-semibold">2x → 0.5x</span> early-bet payout weight
-            </span>
-          </div>
         </div>
         <Link
           to="/markets/create"

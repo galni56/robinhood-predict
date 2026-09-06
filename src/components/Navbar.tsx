@@ -30,7 +30,7 @@ export function Navbar() {
   return (
     <header className="sticky top-0 z-20 border-b border-white/10 bg-[#0a0a12]/95 lg:bg-[#0a0a12]/85 lg:backdrop-blur">
       <div className="max-w-6xl mx-auto px-4 h-14 flex items-center gap-4 lg:gap-6">
-        <NavLink to="/markets" className="flex items-center gap-2 font-extrabold shrink-0">
+        <NavLink to="/" className="flex items-center gap-2 font-extrabold shrink-0">
           <span className="w-2.5 h-2.5 rounded-full bg-gradient-to-br from-violet-400 to-emerald-400 shadow-[0_0_10px_2px_rgba(139,92,246,0.55)]" />
           PredictX
           <span className="text-white/30 font-normal text-xs hidden sm:inline">on {RHCHAIN_META.name}</span>
