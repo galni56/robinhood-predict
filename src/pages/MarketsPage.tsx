@@ -7,7 +7,7 @@ import { AddressPill, AwaitingCounterBetsBadge } from '@/components/Pills'
 import { CountdownTimer } from '@/components/CountdownTimer'
 import { formatPct, formatUsd } from '@/lib/format'
 import { TOKEN_BY_SYMBOL } from '@/market/tokens'
-import { useMarketStore } from '@/store/marketStore'
+import { PROTOCOL_FEE_BP, useMarketStore } from '@/store/marketStore'
 import type { MarketSide } from '@/types'
 
 interface ReopenBetState {
@@ -43,19 +43,38 @@ export function MarketsPage() {
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
-      <div className="mb-6 flex items-start justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-extrabold tracking-tight">Prediction-рынки токенизированных акций</h1>
-          <p className="text-white/50 text-sm mt-1">
-            Дойдёт ли цена токена до целевой отметки к дедлайну? Жми ЗА или ПРОТИВ прямо здесь — сделка уходит в
-            мок-блокчейн.
+      <div className="mb-8 flex items-start justify-between gap-6 flex-wrap">
+        <div className="max-w-2xl">
+          <p className="text-xs font-bold tracking-[0.2em] text-violet-300/80 uppercase mb-2">
+            Prediction markets for tokenized stocks
           </p>
+          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-balance">
+            Call the price. Get paid when you're right.
+          </h1>
+          <p className="text-white/50 text-sm sm:text-base mt-3">
+            Pick a tokenized stock, bet YES or NO on it hitting a target price before the deadline, and settle
+            parimutuel — straight to the mock chain. Bet early in the window and your share of the payout is
+            weighted up to 2x; wait too long and it decays toward 0.5x, so conviction gets rewarded over sniping the
+            close.
+          </p>
+          <div className="flex flex-wrap gap-x-6 gap-y-2 mt-5 text-xs text-white/40">
+            <span>
+              <span className="text-white font-mono font-semibold">{list.length}</span> live markets
+            </span>
+            <span>
+              <span className="text-white font-mono font-semibold">{formatPct(PROTOCOL_FEE_BP / 10_000, 0)}</span> protocol
+              fee — winnings only, never your stake
+            </span>
+            <span>
+              <span className="text-white font-mono font-semibold">2x → 0.5x</span> early-bet payout weight
+            </span>
+          </div>
         </div>
         <Link
           to="/markets/create"
           className="shrink-0 text-sm px-4 py-2.5 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:brightness-110 text-white font-semibold transition-all shadow-[0_0_20px_-6px_rgba(217,70,239,0.7)]"
         >
-          + Создать рынок
+          + Create market
         </Link>
       </div>
 
@@ -63,13 +82,13 @@ export function MarketsPage() {
         <div className="flex-1 min-w-0">
           {list.length === 0 && (
             <div className="text-center py-16 text-white/40 text-sm">
-              Пока нет открытых рынков.{' '}
+              No open markets right now.{' '}
               <Link to="/markets/create" className="text-violet-300 hover:underline">
-                Создать первый
+                Create the first one
               </Link>
               {' · '}
               <Link to="/archive" className="text-violet-300 hover:underline">
-                посмотреть архив
+                browse the archive
               </Link>
             </div>
           )}
@@ -107,11 +126,11 @@ export function MarketsPage() {
                     </div>
                   </div>
 
-                  <p className="text-xs text-white/50 mb-2">Цель: ${market.target}</p>
+                  <p className="text-xs text-white/50 mb-2">Target: ${market.target}</p>
                   <Sparkline data={series} color={change >= 0 ? '#2dd888' : '#ff5577'} />
 
                   <div className="mt-3 flex items-center justify-between text-xs">
-                    <AddressPill address={token.contractAddress} label="контракт" />
+                    <AddressPill address={token.contractAddress} label="contract" />
                     <span className="text-white/40">
                       ⏱ <CountdownTimer deadline={market.deadline} />
                     </span>
@@ -122,14 +141,14 @@ export function MarketsPage() {
                       <div className="h-full bg-emerald-400" style={{ width: `${odds.yesPct * 100}%` }} />
                     </div>
                     <div className="flex justify-between text-[11px] text-white/40 mt-1">
-                      <span>ЗА {formatPct(odds.yesPct)}</span>
-                      <span>ПРОТИВ {formatPct(odds.noPct)}</span>
+                      <span>YES {formatPct(odds.yesPct)}</span>
+                      <span>NO {formatPct(odds.noPct)}</span>
                     </div>
                   </div>
 
                   {awaitingCounterBets && (
                     <p className="mt-2 text-[11px] text-amber-400/80">
-                      Ставка будет возвращена в 100% объёме, если напротив никто не поставит.
+                      Your bet gets refunded in full if nobody takes the other side.
                     </p>
                   )}
 
@@ -141,7 +160,7 @@ export function MarketsPage() {
                       }}
                       className="py-1.5 rounded-lg text-xs font-bold bg-emerald-400/15 text-emerald-300 border border-emerald-400/30 hover:bg-emerald-400 hover:text-black transition-colors"
                     >
-                      ЗА
+                      YES
                     </button>
                     <button
                       onClick={(e) => {
@@ -150,7 +169,7 @@ export function MarketsPage() {
                       }}
                       className="py-1.5 rounded-lg text-xs font-bold bg-rose-400/15 text-rose-300 border border-rose-400/30 hover:bg-rose-400 hover:text-black transition-colors"
                     >
-                      ПРОТИВ
+                      NO
                     </button>
                   </div>
                 </div>

@@ -35,21 +35,21 @@ export function PublicProfilePage() {
             {user.displayName}
             {user.role === 'admin' && (
               <span className="text-[11px] px-2 py-0.5 rounded-full bg-violet-500/15 text-violet-300 border border-violet-500/30">
-                куратор
+                curator
               </span>
             )}
           </h1>
-          <p className="text-white/40 text-sm">На платформе с {new Date(user.createdAt).toLocaleDateString()}</p>
+          <p className="text-white/40 text-sm">On the platform since {new Date(user.createdAt).toLocaleDateString()}</p>
           <AddressPill address={user.walletAddress} to={`/explorer/address/${user.walletAddress}`} />
         </div>
       </div>
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Stat label="Win rate" value={stats.totalBets > 0 ? formatPct(stats.winRate) : '—'} />
-        <Stat label="Стрик побед" value={stats.currentStreak > 0 ? `${stats.currentStreak} 🔥` : '—'} />
-        <Stat label="Всего ставок" value={String(stats.totalBets)} />
+        <Stat label="Win streak" value={stats.currentStreak > 0 ? `${stats.currentStreak} 🔥` : '—'} />
+        <Stat label="Total bets" value={String(stats.totalBets)} />
         <Stat
-          label="Чистый P&L"
+          label="Net P&L"
           value={
             <span className={stats.netProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'}>
               {stats.netProfit >= 0 ? '+' : ''}
@@ -60,7 +60,7 @@ export function PublicProfilePage() {
       </div>
 
       <div className="bg-[#12121c]/95 border border-white/10 rounded-xl p-4">
-        <h2 className="font-medium mb-3">Последние завершённые ставки</h2>
+        <h2 className="font-medium mb-3">Recent settled bets</h2>
         <div className="space-y-2">
           {recentSettled.map((p) => {
             const market = markets[p.marketId]
@@ -74,12 +74,12 @@ export function PublicProfilePage() {
                 <span className="font-mono">{formatUsd(p.amount)}</span>
                 <span className="text-white/30 text-xs">{timeAgo(p.createdAt)}</span>
                 <span className="ml-auto text-xs">
-                  {p.payout ? <span className="text-emerald-400">+{formatUsd(p.payout)}</span> : <span className="text-rose-400">проигрыш</span>}
+                  {p.payout ? <span className="text-emerald-400">+{formatUsd(p.payout)}</span> : <span className="text-rose-400">lost</span>}
                 </span>
               </div>
             )
           })}
-          {recentSettled.length === 0 && <p className="text-white/30 text-sm text-center py-6">Пока нет завершённых ставок</p>}
+          {recentSettled.length === 0 && <p className="text-white/30 text-sm text-center py-6">No settled bets yet</p>}
         </div>
       </div>
     </div>

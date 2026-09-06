@@ -31,16 +31,16 @@ export function RegisterPage() {
             <span className="w-2.5 h-2.5 rounded-full bg-gradient-to-br from-violet-400 to-emerald-400 shadow-[0_0_8px_2px_rgba(139,92,246,0.55)]" />
             PredictX
           </div>
-          <p className="text-white/40 text-sm">Новый демо-аккаунт на {RHCHAIN_META.name}</p>
+          <p className="text-white/40 text-sm">Create a new demo account on {RHCHAIN_META.name}</p>
         </div>
 
         <form onSubmit={onSubmit} className="bg-[#12121c]/95 border border-white/10 rounded-2xl p-6 space-y-4">
           <div>
-            <label className="block text-sm text-white/60 mb-1.5">Имя</label>
+            <label className="block text-sm text-white/60 mb-1.5">Name</label>
             <input
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
-              placeholder="Как вас называть"
+              placeholder="What should we call you"
               className="w-full rounded-lg bg-black/30 border border-white/10 px-3 py-2 text-sm outline-none focus:border-violet-400/60"
             />
           </div>
@@ -56,14 +56,14 @@ export function RegisterPage() {
             />
           </div>
           <div>
-            <label className="block text-sm text-white/60 mb-1.5">Пароль</label>
+            <label className="block text-sm text-white/60 mb-1.5">Password</label>
             <input
               type="password"
               required
               minLength={6}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Минимум 6 символов"
+              placeholder="At least 6 characters"
               className="w-full rounded-lg bg-black/30 border border-white/10 px-3 py-2 text-sm outline-none focus:border-violet-400/60"
             />
           </div>
@@ -74,20 +74,20 @@ export function RegisterPage() {
             type="submit"
             className="w-full rounded-lg bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:brightness-110 text-white font-semibold py-2 text-sm transition-all"
           >
-            Создать аккаунт
+            Create account
           </button>
 
           <p className="text-center text-sm text-white/40">
-            Уже есть аккаунт?{' '}
+            Already have an account?{' '}
             <Link to="/login" className="text-violet-300 hover:underline">
-              Войти
+              Log in
             </Link>
           </p>
         </form>
 
         <p className="text-center text-xs text-white/25 mt-6">
-          При регистрации кошелёк автоматически получает {formatUsd(STARTING_BALANCE)} {RHCHAIN_META.ticker} с
-          тестового faucet — это тоже мок-транзакция, видна в эксплорере.
+          Signing up instantly credits your wallet with {formatUsd(STARTING_BALANCE)} {RHCHAIN_META.ticker} from the test
+          faucet — also a mock transaction, visible in the explorer.
         </p>
       </div>
     </div>

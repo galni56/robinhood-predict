@@ -10,9 +10,9 @@ import { formatUsd } from '@/lib/format'
 const MAX_TARGET_PRICE_USD = 500
 
 const DURATION_PRESETS = [
-  { label: '1 час', seconds: 60 * 60 },
-  { label: '24 часа', seconds: 24 * 60 * 60 },
-  { label: '7 дней', seconds: 7 * 24 * 60 * 60 },
+  { label: '1 hour', seconds: 60 * 60 },
+  { label: '24 hours', seconds: 24 * 60 * 60 },
+  { label: '7 days', seconds: 7 * 24 * 60 * 60 },
 ] as const
 
 export function OnchainCreateMarketPage() {
@@ -40,11 +40,11 @@ export function OnchainCreateMarketPage() {
 
     const targetNum = Number(target)
     if (!(targetNum > 0) || targetNum > MAX_TARGET_PRICE_USD) {
-      setError(`Целевая цена должна быть больше 0 и не больше ${formatUsd(MAX_TARGET_PRICE_USD, 0)}`)
+      setError(`Target price must be greater than 0 and no more than ${formatUsd(MAX_TARGET_PRICE_USD, 0)}`)
       return
     }
     if (feedDecimals.data == null) {
-      setError('Не удалось прочитать decimals() фида — попробуй ещё раз')
+      setError("Couldn't read the feed's decimals() — try again")
       return
     }
 
@@ -63,7 +63,7 @@ export function OnchainCreateMarketPage() {
 
       navigate('/onchain')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Транзакция не прошла')
+      setError(err instanceof Error ? err.message : 'Transaction failed')
     } finally {
       setPending(false)
     }
@@ -71,17 +71,16 @@ export function OnchainCreateMarketPage() {
 
   return (
     <div className="max-w-lg mx-auto px-4 py-8">
-      <h1 className="text-xl font-semibold mb-1">Создать ончейн-рынок</h1>
+      <h1 className="text-xl font-semibold mb-1">Create an on-chain market</h1>
       <p className="text-white/50 text-sm mb-6">
-        Реальная транзакция на тестнете. Целевая цена не выше {formatUsd(MAX_TARGET_PRICE_USD, 0)}. Пулы ЗА/ПРОТИВ
-        стартуют с $0 — если к дедлайну ставки будут только с одной стороны, рынок отменится и деньги вернутся
-        полностью.
+        A real transaction on testnet. Target price can't exceed {formatUsd(MAX_TARGET_PRICE_USD, 0)}. YES/NO pools
+        start at $0 — if only one side has bets by the deadline, the market cancels and money is refunded in full.
       </p>
 
       {!isConnected ? (
-        <p className="text-amber-400 text-sm">Сначала подключи кошелёк на странице списка рынков.</p>
+        <p className="text-amber-400 text-sm">Connect a wallet on the markets list page first.</p>
       ) : !onRightChain ? (
-        <p className="text-amber-400 text-sm">Переключись на Robinhood Chain Testnet.</p>
+        <p className="text-amber-400 text-sm">Switch to Robinhood Chain Testnet.</p>
       ) : (
         <form onSubmit={onSubmit} className="bg-[#12121c]/95 border border-white/10 rounded-xl p-6 space-y-4">
           <div>
@@ -90,12 +89,12 @@ export function OnchainCreateMarketPage() {
               {DEFAULT_PRICE_FEED_LABEL}
             </div>
             <p className="text-[11px] text-white/30 mt-1">
-              Единственный allowlisted фид на тестнете сейчас — feed'ы добавляет только owner контракта.
+              The only allowlisted feed on testnet right now — only the contract owner can add feeds.
             </p>
           </div>
 
           <div>
-            <label className="block text-sm text-white/60 mb-1.5">Целевая цена, $ (макс. {formatUsd(MAX_TARGET_PRICE_USD, 0)})</label>
+            <label className="block text-sm text-white/60 mb-1.5">Target price, $ (max {formatUsd(MAX_TARGET_PRICE_USD, 0)})</label>
             <input
               type="number"
               min={1}
@@ -108,7 +107,7 @@ export function OnchainCreateMarketPage() {
           </div>
 
           <div>
-            <label className="block text-sm text-white/60 mb-1.5">Дедлайн</label>
+            <label className="block text-sm text-white/60 mb-1.5">Deadline</label>
             <select
               value={durationIdx}
               onChange={(e) => setDurationIdx(Number(e.target.value))}
@@ -129,7 +128,7 @@ export function OnchainCreateMarketPage() {
             disabled={pending}
             className="w-full rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black font-medium py-2 text-sm transition-colors disabled:opacity-50"
           >
-            {pending ? 'Подтверди в кошельке…' : 'Создать рынок'}
+            {pending ? 'Confirm in wallet…' : 'Create market'}
           </button>
         </form>
       )}

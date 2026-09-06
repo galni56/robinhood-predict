@@ -19,7 +19,7 @@ export const BET_TOKEN_ADDRESS = (import.meta.env.VITE_BET_TOKEN_ADDRESS ??
 // get allowlisted.
 export const DEFAULT_PRICE_FEED_ADDRESS = (import.meta.env.VITE_PRICE_FEED_ADDRESS ??
   '0x3d8cC74a198ad948D77c65d88Ed24acFeE77Cd67') as Address
-export const DEFAULT_PRICE_FEED_LABEL = 'TSLA (тестовый фид)'
+export const DEFAULT_PRICE_FEED_LABEL = 'TSLA (test feed)'
 
 export const predictionMarketAbi = [
   {

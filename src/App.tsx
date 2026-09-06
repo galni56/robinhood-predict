@@ -50,14 +50,8 @@ export default function App() {
               </ProtectedRoute>
             }
           />
-          <Route
-            path="/portfolio"
-            element={
-              <ProtectedRoute>
-                <PortfolioPage />
-              </ProtectedRoute>
-            }
-          />
+          {/* Public — shows a log-in/sign-up CTA itself when logged out. */}
+          <Route path="/portfolio" element={<PortfolioPage />} />
           <Route
             path="/settings"
             element={

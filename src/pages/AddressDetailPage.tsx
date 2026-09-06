@@ -17,37 +17,37 @@ export function AddressDetailPage() {
   return (
     <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
       <Link to="/explorer" className="text-sm text-white/40 hover:text-white/70">
-        ← Эксплорер
+        ← Explorer
       </Link>
 
       <div>
         <h1 className="text-xl font-semibold font-mono break-all">{address}</h1>
         {token && (
           <p className="text-emerald-400 text-sm mt-1">
-            Контракт токена {token.symbol} ({token.name})
+            Token contract for {token.symbol} ({token.name})
           </p>
         )}
       </div>
 
       <div className="bg-[#12121c]/95 border border-white/10 rounded-xl p-4">
-        <div className="text-white/40 text-xs">Баланс</div>
+        <div className="text-white/40 text-xs">Balance</div>
         <div className="text-2xl font-mono font-semibold">{formatUsd(balance)}</div>
       </div>
 
       <div className="bg-[#12121c]/95 border border-white/10 rounded-xl p-4">
-        <h2 className="font-medium mb-3">История транзакций ({txs.length})</h2>
+        <h2 className="font-medium mb-3">Transaction history ({txs.length})</h2>
         <div className="space-y-2 max-h-[520px] overflow-y-auto scrollbar-thin pr-1">
           {txs.map((tx) => (
             <div key={tx.hash} className="flex items-center justify-between text-sm bg-black/20 border border-white/5 rounded-lg px-3 py-2">
               <HashPill hash={tx.hash} to={`/explorer/tx/${tx.hash}`} />
-              <span className="text-white/40 text-xs">{tx.from === address ? 'исходящая' : 'входящая'}</span>
+              <span className="text-white/40 text-xs">{tx.from === address ? 'outgoing' : 'incoming'}</span>
               {tx.side ? <SideBadge side={tx.side} /> : <span className="text-white/40 text-xs">{tx.type}</span>}
               <span className="font-mono">{formatUsd(tx.amount)}</span>
               <StatusBadge status={tx.status} />
               <span className="text-white/30 text-xs">{timeAgo(tx.timestamp)}</span>
             </div>
           ))}
-          {txs.length === 0 && <p className="text-white/30 text-sm text-center py-6">Нет транзакций для этого адреса</p>}
+          {txs.length === 0 && <p className="text-white/30 text-sm text-center py-6">No transactions for this address</p>}
         </div>
       </div>
     </div>

@@ -33,7 +33,7 @@ export function BetForm({ marketId, initialSide = 'YES' }: { marketId: string; i
   if (!market) return null
 
   if (market.cancelled || market.resolved) {
-    return <p className="text-white/40 text-sm">{market.cancelled ? 'Рынок отменён — ставки закрыты.' : 'Рынок уже завершён.'}</p>
+    return <p className="text-white/40 text-sm">{market.cancelled ? 'Market cancelled — betting is closed.' : 'Market has already resolved.'}</p>
   }
 
   const positions = positionsForUser(user?.id ?? '')
@@ -65,39 +65,31 @@ export function BetForm({ marketId, initialSide = 'YES' }: { marketId: string; i
   const potentialPayout = betAmount + winnings
 
   function onBet() {
-    if (!user) return
+    if (!user) {
+      navigate('/login', { state: { from: location, reopenBet: { marketId, side } } })
+      return
+    }
     if (bettingClosed) {
-      setFeedback('Ставки на этот рынок уже закрыты')
+      setFeedback('Betting on this market is already closed')
       return
     }
     const result = placeBet(user, marketId, side, Number(amount))
-    setFeedback(result.ok ? `Ставка на ${side === 'YES' ? 'ЗА' : 'ПРОТИВ'} отправлена в mempool ✅` : result.error)
-  }
-
-  if (!user) {
-    return (
-      <button
-        onClick={() => navigate('/login', { state: { from: location, reopenBet: { marketId, side } } })}
-        className="w-full text-center text-sm font-medium text-violet-200 rounded-xl border border-violet-400/30 bg-violet-500/15 hover:bg-violet-500/25 py-2.5 transition-colors"
-      >
-        Войдите, чтобы поставить {side === 'YES' ? 'ЗА' : 'ПРОТИВ'}
-      </button>
-    )
+    setFeedback(result.ok ? `${side === 'YES' ? 'YES' : 'NO'} bet sent to mempool ✅` : result.error)
   }
 
   if (bettingClosed) {
-    return <p className="text-xs text-white/40">Ставки на этот рынок закрыты — ждём дедлайна, чтобы можно было зарезолвить.</p>
+    return <p className="text-xs text-white/40">Betting on this market is closed — waiting for the deadline so it can resolve.</p>
   }
 
   if (bothSidesUsed) {
-    return <p className="text-xs text-white/40">Вы уже поставили и ЗА, и ПРОТИВ в этом рынке — по одной ставке на сторону, больше нельзя.</p>
+    return <p className="text-xs text-white/40">You've already bet both YES and NO on this market — one bet per side, no more allowed.</p>
   }
 
   return (
     <div className="space-y-3">
       {liveWeightBp != null && (
         <p className="text-[11px] text-emerald-400/80">
-          Бонус за раннюю ставку прямо сейчас: {(liveWeightBp / BP_DENOMINATOR).toFixed(2)}x — чем раньше поставишь, тем больше.
+          Early-bet bonus right now: {(liveWeightBp / BP_DENOMINATOR).toFixed(2)}x — the earlier you bet, the bigger it gets.
         </p>
       )}
       <div className="grid grid-cols-2 gap-2">
@@ -110,7 +102,7 @@ export function BetForm({ marketId, initialSide = 'YES' }: { marketId: string; i
               : 'border-white/10 text-white/60 hover:border-emerald-400/50'
           }`}
         >
-          ЗА{hasBetYes ? ' ✓' : ''}
+          YES{hasBetYes ? ' ✓' : ''}
         </button>
         <button
           onClick={() => setSide('NO')}
@@ -121,16 +113,18 @@ export function BetForm({ marketId, initialSide = 'YES' }: { marketId: string; i
               : 'border-white/10 text-white/60 hover:border-rose-400/50'
           }`}
         >
-          ПРОТИВ{hasBetNo ? ' ✓' : ''}
+          NO{hasBetNo ? ' ✓' : ''}
         </button>
       </div>
 
       {sideAlreadyBet ? (
-        <p className="text-xs text-amber-400/80">Вы уже поставили {side === 'YES' ? 'ЗА' : 'ПРОТИВ'} в этом рынке — выберите другую сторону.</p>
+        <p className="text-xs text-amber-400/80">You've already bet {side === 'YES' ? 'YES' : 'NO'} on this market — pick the other side.</p>
       ) : (
         <>
           <div>
-            <label className="block text-xs text-white/40 mb-1">Сумма, mUSD (баланс {formatUsd(balance)})</label>
+            <label className="block text-xs text-white/40 mb-1">
+              Amount, mUSD{user ? ` (balance ${formatUsd(balance)})` : ''}
+            </label>
             <input
               type="number"
               min={1}
@@ -141,9 +135,9 @@ export function BetForm({ marketId, initialSide = 'YES' }: { marketId: string; i
           </div>
 
           <p className="text-xs text-white/40">
-            Потенциальная выплата: <span className="text-white/70">{formatUsd(potentialPayout || 0)}</span>{' '}
-            (parimutuel минус {formatPct(PROTOCOL_FEE_BP / BP_DENOMINATOR, 0)} комиссии протокола с выигранной части, зависит
-            от итогового пула)
+            Potential payout: <span className="text-white/70">{formatUsd(potentialPayout || 0)}</span>{' '}
+            (parimutuel, minus {formatPct(PROTOCOL_FEE_BP / BP_DENOMINATOR, 0)} protocol fee on winnings only — depends on
+            the final pool)
           </p>
 
           <button
@@ -152,19 +146,19 @@ export function BetForm({ marketId, initialSide = 'YES' }: { marketId: string; i
               side === 'YES' ? 'bg-emerald-400 hover:bg-emerald-300 text-black' : 'bg-rose-400 hover:bg-rose-300 text-black'
             }`}
           >
-            Поставить {side === 'YES' ? 'ЗА' : 'ПРОТИВ'}
+            {user ? `Bet ${side === 'YES' ? 'YES' : 'NO'}` : 'Log in to place this bet'}
           </button>
         </>
       )}
 
       {feedback && <p className="text-xs text-white/50">{feedback}</p>}
 
-      {(user.role === 'admin' || user.id === market.createdBy) && (
+      {user && (user.role === 'admin' || user.id === market.createdBy) && (
         <button
           onClick={() => forceResolve(marketId)}
           className="w-full rounded-lg border border-dashed border-white/15 text-white/40 hover:text-white/70 hover:border-white/30 py-1.5 text-xs transition-colors"
         >
-          ⏩ Завершить рынок сейчас (демо)
+          ⏩ Resolve market now (demo)
         </button>
       )}
     </div>

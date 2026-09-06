@@ -5,9 +5,9 @@ import { formatUsd, timeAgo } from '@/lib/format'
 import { useChainStore } from '@/store/chainStore'
 
 const TYPE_LABEL: Record<string, string> = {
-  FAUCET: 'Faucet-выдача',
-  BET: 'Ставка',
-  SETTLEMENT: 'Выплата по рынку',
+  FAUCET: 'Faucet grant',
+  BET: 'Bet',
+  SETTLEMENT: 'Market payout',
 }
 
 export function TxDetailPage() {
@@ -19,23 +19,23 @@ export function TxDetailPage() {
   return (
     <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
       <Link to="/explorer" className="text-sm text-white/40 hover:text-white/70">
-        ← Эксплорер
+        ← Explorer
       </Link>
 
       <div className="flex items-center gap-3">
-        <h1 className="text-xl font-semibold">Транзакция</h1>
+        <h1 className="text-xl font-semibold">Transaction</h1>
         <StatusBadge status={tx.status} />
       </div>
 
       <div className="bg-[#12121c]/95 border border-white/10 rounded-xl p-4 space-y-3 text-sm">
-        <Row label="Хэш" value={<span className="font-mono break-all">{tx.hash}</span>} />
-        <Row label="Тип" value={TYPE_LABEL[tx.type] ?? tx.type} />
-        <Row label="От" value={<AddressPill address={tx.from} to={`/explorer/address/${tx.from}`} />} />
-        <Row label="Кому" value={<AddressPill address={tx.to} to={`/explorer/address/${tx.to}`} />} />
-        <Row label="Сумма" value={<span className="font-mono">{formatUsd(tx.amount)}</span>} />
+        <Row label="Hash" value={<span className="font-mono break-all">{tx.hash}</span>} />
+        <Row label="Type" value={TYPE_LABEL[tx.type] ?? tx.type} />
+        <Row label="From" value={<AddressPill address={tx.from} to={`/explorer/address/${tx.from}`} />} />
+        <Row label="To" value={<AddressPill address={tx.to} to={`/explorer/address/${tx.to}`} />} />
+        <Row label="Amount" value={<span className="font-mono">{formatUsd(tx.amount)}</span>} />
         {tx.marketId && (
           <Row
-            label="Рынок"
+            label="Market"
             value={
               <Link to={`/markets/${tx.marketId}`} className="text-emerald-400 hover:underline">
                 {tx.marketId}
@@ -43,9 +43,9 @@ export function TxDetailPage() {
             }
           />
         )}
-        {tx.side && <Row label="Сторона" value={<SideBadge side={tx.side} />} />}
-        <Row label="Блок" value={tx.blockNumber != null ? <Link to={`/explorer/block/${tx.blockNumber}`} className="text-emerald-400 hover:underline">#{tx.blockNumber}</Link> : 'в mempool'} />
-        <Row label="Время" value={`${new Date(tx.timestamp).toLocaleString()} (${timeAgo(tx.timestamp)})`} />
+        {tx.side && <Row label="Side" value={<SideBadge side={tx.side} />} />}
+        <Row label="Block" value={tx.blockNumber != null ? <Link to={`/explorer/block/${tx.blockNumber}`} className="text-emerald-400 hover:underline">#{tx.blockNumber}</Link> : 'in mempool'} />
+        <Row label="Time" value={`${new Date(tx.timestamp).toLocaleString()} (${timeAgo(tx.timestamp)})`} />
         <Row label="Memo" value={<span className="text-white/60">{tx.memo}</span>} />
       </div>
     </div>

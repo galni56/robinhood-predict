@@ -61,17 +61,17 @@ export function BetModal({ marketId, initialSide, onClose }: { marketId: string;
           <div className="h-full bg-emerald-400" style={{ width: `${odds.yesPct * 100}%` }} />
         </div>
         <div className="flex justify-between text-xs text-white/50 mb-1">
-          <span>ЗА {formatPct(odds.yesPct)}</span>
-          <span>ПРОТИВ {formatPct(odds.noPct)}</span>
+          <span>YES {formatPct(odds.yesPct)}</span>
+          <span>NO {formatPct(odds.noPct)}</span>
         </div>
         <p className="text-white/40 text-xs mb-4">
           {bettingClosed ? (
             <>
-              Ставки закрыты, ждём дедлайна: <CountdownTimer deadline={market.deadline} />
+              Betting closed, waiting for the deadline: <CountdownTimer deadline={market.deadline} />
             </>
           ) : (
             <>
-              Ставки открыты ещё: <CountdownTimer deadline={cutoffMs} />
+              Betting open for: <CountdownTimer deadline={cutoffMs} />
             </>
           )}
         </p>

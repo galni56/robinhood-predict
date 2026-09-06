@@ -42,8 +42,8 @@ export function LoginPage() {
           </div>
           <p className="text-white/40 text-sm">
             {state?.reopenBet
-              ? 'Войдите, чтобы завершить ставку — вернём вас прямо туда, где остановились'
-              : `Вход в демо-аккаунт на ${RHCHAIN_META.name}`}
+              ? "Log in to finish your bet — we'll take you right back to where you left off"
+              : `Log in to your demo account on ${RHCHAIN_META.name}`}
           </p>
         </div>
 
@@ -60,7 +60,7 @@ export function LoginPage() {
             />
           </div>
           <div>
-            <label className="block text-sm text-white/60 mb-1.5">Пароль</label>
+            <label className="block text-sm text-white/60 mb-1.5">Password</label>
             <input
               type="password"
               required
@@ -77,19 +77,19 @@ export function LoginPage() {
             type="submit"
             className="w-full rounded-lg bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:brightness-110 text-white font-semibold py-2 text-sm transition-all"
           >
-            Войти
+            Log in
           </button>
 
           <p className="text-center text-sm text-white/40">
-            Нет аккаунта?{' '}
+            No account yet?{' '}
             <Link to="/register" className="text-violet-300 hover:underline">
-              Зарегистрироваться
+              Sign up
             </Link>
           </p>
         </form>
 
         <p className="text-center text-xs text-white/25 mt-6">
-          Мок-аутентификация: данные хранятся только в localStorage вашего браузера. Реальных паролей вводить не нужно.
+          Mock auth: data is stored only in your browser's localStorage. No real password needed.
         </p>
       </div>
     </div>

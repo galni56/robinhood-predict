@@ -33,13 +33,13 @@ export const useAuthStore = create<AuthState>()(
       register: (email, password, displayName) => {
         const normalized = email.trim().toLowerCase()
         if (!normalized || !normalized.includes('@')) {
-          return { ok: false, error: 'Введите корректный e-mail' }
+          return { ok: false, error: 'Enter a valid e-mail address' }
         }
         if (password.length < 6) {
-          return { ok: false, error: 'Пароль должен быть не короче 6 символов' }
+          return { ok: false, error: 'Password must be at least 6 characters' }
         }
         if (get().users.some((u) => u.email === normalized)) {
-          return { ok: false, error: 'Аккаунт с таким e-mail уже есть (это мок — попробуйте войти)' }
+          return { ok: false, error: 'An account with this e-mail already exists (this is a mock — try logging in)' }
         }
 
         const id = mockAddress(`user:${normalized}:${Date.now()}`)
@@ -62,7 +62,7 @@ export const useAuthStore = create<AuthState>()(
 
         // Faucet: fund the new demo wallet. This goes through the same mock
         // chain as everything else, so it shows up in the explorer too.
-        useChainStore.getState().faucet(user.walletAddress, STARTING_BALANCE, `Testnet faucet: welcome grant for ${user.displayName}`)
+        useChainStore.getState().faucet(user.walletAddress, STARTING_BALANCE, `Faucet: welcome grant for ${user.displayName}`)
 
         return { ok: true, user }
       },
@@ -71,7 +71,7 @@ export const useAuthStore = create<AuthState>()(
         const normalized = email.trim().toLowerCase()
         const user = get().users.find((u) => u.email === normalized)
         if (!user || user.mockPassword !== password) {
-          return { ok: false, error: 'Неверный e-mail или пароль' }
+          return { ok: false, error: 'Incorrect e-mail or password' }
         }
         set({ currentUserId: user.id })
         return { ok: true }
@@ -91,9 +91,9 @@ export const useAuthStore = create<AuthState>()(
 
       changePassword: (userId, currentPassword, newPassword) => {
         const user = get().users.find((u) => u.id === userId)
-        if (!user) return { ok: false, error: 'Пользователь не найден' }
-        if (user.mockPassword !== currentPassword) return { ok: false, error: 'Текущий пароль неверный' }
-        if (newPassword.length < 6) return { ok: false, error: 'Новый пароль должен быть не короче 6 символов' }
+        if (!user) return { ok: false, error: 'User not found' }
+        if (user.mockPassword !== currentPassword) return { ok: false, error: 'Current password is incorrect' }
+        if (newPassword.length < 6) return { ok: false, error: 'New password must be at least 6 characters' }
 
         set((s) => ({
           users: s.users.map((u) => (u.id === userId ? { ...u, mockPassword: newPassword } : u)),

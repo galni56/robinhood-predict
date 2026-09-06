@@ -8,11 +8,14 @@ import type { MarketSide } from '@/types'
 
 type OutcomeFilter = 'ALL' | MarketSide | 'CANCELLED'
 
+const PAGE_SIZE = 20
+
 export function ArchivePage() {
   const markets = useMarketStore((s) => s.markets)
   const oddsFor = useMarketStore((s) => s.oddsFor)
   const [query, setQuery] = useState('')
   const [outcomeFilter, setOutcomeFilter] = useState<OutcomeFilter>('ALL')
+  const [page, setPage] = useState(1)
 
   const q = query.trim().toLowerCase()
   const resolved = Object.values(markets)
@@ -25,39 +28,58 @@ export function ArchivePage() {
     .filter((m) => !q || m.symbol.toLowerCase().includes(q) || m.question.toLowerCase().includes(q))
     .sort((a, b) => b.deadline - a.deadline)
 
+  const totalPages = Math.max(1, Math.ceil(resolved.length / PAGE_SIZE))
+  const currentPage = Math.min(page, totalPages)
+  const pageItems = resolved.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
+
+  // A filter/search change can leave `page` past the end of the new,
+  // smaller result set — the handlers below reset it to 1 whenever either
+  // changes, rather than risk rendering an empty page.
+  function updateQuery(v: string) {
+    setQuery(v)
+    setPage(1)
+  }
+  function updateOutcomeFilter(v: OutcomeFilter) {
+    setOutcomeFilter(v)
+    setPage(1)
+  }
+
   return (
     <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">Архив завершённых рынков</h1>
-        <p className="text-white/50 text-sm mt-1">Дедлайн прошёл — рынок зарезолвился, здесь его исход и итоговые коэффициенты.</p>
+        <h1 className="text-2xl font-semibold">Archive of settled markets</h1>
+        <p className="text-white/50 text-sm mt-1">
+          Every market that's already resolved or cancelled — final outcome, odds, and pool size, open to browse
+          without an account.
+        </p>
       </div>
 
       <div className="flex flex-wrap gap-2">
         <input
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Поиск по тикеру или вопросу…"
+          onChange={(e) => updateQuery(e.target.value)}
+          placeholder="Search by ticker or question…"
           className="flex-1 min-w-48 rounded-lg bg-[#12121c]/95 border border-white/10 px-3 py-2 text-sm outline-none focus:border-emerald-400/60"
         />
         <div className="flex gap-1">
           {(['ALL', 'YES', 'NO', 'CANCELLED'] as const).map((f) => (
             <button
               key={f}
-              onClick={() => setOutcomeFilter(f)}
+              onClick={() => updateOutcomeFilter(f)}
               className={`px-3 py-2 rounded-lg text-sm border transition-colors ${
                 outcomeFilter === f
                   ? 'bg-white/10 border-white/20 text-white'
                   : 'border-white/10 text-white/50 hover:text-white hover:border-white/30'
               }`}
             >
-              {f === 'ALL' ? 'Все' : f === 'YES' ? 'ЗА выиграло' : f === 'NO' ? 'ПРОТИВ выиграло' : 'Отменённые'}
+              {f === 'ALL' ? 'All' : f === 'YES' ? 'YES won' : f === 'NO' ? 'NO won' : 'Cancelled'}
             </button>
           ))}
         </div>
       </div>
 
       <div className="space-y-2">
-        {resolved.map((m) => {
+        {pageItems.map((m) => {
           const token = TOKEN_BY_SYMBOL.get(m.symbol)
           const odds = oddsFor(m.id)
           return (
@@ -72,17 +94,41 @@ export function ArchivePage() {
               <span className="text-white/40 text-xs w-28 text-right">
                 {formatPct(odds.yesPct)} / {formatPct(odds.noPct)}
               </span>
-              <span className="text-white/40 text-xs w-24 text-right">пул {formatUsd(odds.totalPool, 0)}</span>
+              <span className="text-white/40 text-xs w-24 text-right">pool {formatUsd(odds.totalPool, 0)}</span>
               <span className="text-white/30 text-xs w-20 text-right">{timeAgo(m.deadline)}</span>
             </Link>
           )
         })}
         {resolved.length === 0 && (
           <p className="text-white/30 text-sm text-center py-12">
-            {q || outcomeFilter !== 'ALL' ? 'Ничего не найдено по этим фильтрам' : 'Пока нет завершённых рынков'}
+            {q || outcomeFilter !== 'ALL' ? 'Nothing matches these filters' : 'No settled markets yet'}
           </p>
         )}
       </div>
+
+      {resolved.length > PAGE_SIZE && (
+        <div className="flex items-center justify-between text-sm pt-2">
+          <span className="text-white/40 text-xs">
+            {resolved.length} markets · page {currentPage} of {totalPages}
+          </span>
+          <div className="flex gap-1">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="px-3 py-1.5 rounded-lg border border-white/10 text-white/60 hover:text-white hover:border-white/30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            >
+              ← Prev
+            </button>
+            <button
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className="px-3 py-1.5 rounded-lg border border-white/10 text-white/60 hover:text-white hover:border-white/30 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            >
+              Next →
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -17,11 +17,35 @@ export function PortfolioPage() {
   // Select the stable function references, call them below in the render
   // body — calling them directly inside the selector would return a new
   // array/object every time and cause an infinite re-render loop (zustand
-  // v5 compares selector results by identity).
+  // v5 compares selector results by identity.
   const positionsForUser = useMarketStore((s) => s.positionsForUser)
   const statsForUser = useMarketStore((s) => s.statsForUser)
 
-  if (!user) return null
+  if (!user) {
+    return (
+      <div className="max-w-md mx-auto px-4 py-20 text-center">
+        <h1 className="text-2xl font-semibold mb-2">Your portfolio</h1>
+        <p className="text-white/50 text-sm mb-6">
+          Log in or create a free account to track your balance, open positions, win rate, and betting history in
+          one place.
+        </p>
+        <div className="flex gap-2 justify-center">
+          <Link
+            to="/login"
+            className="text-sm px-4 py-2 rounded-lg border border-white/15 text-white/70 hover:text-white hover:border-white/30 transition-colors"
+          >
+            Log in
+          </Link>
+          <Link
+            to="/register"
+            className="text-sm px-4 py-2 rounded-lg bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:brightness-110 text-white font-semibold transition-all"
+          >
+            Sign up — it's free
+          </Link>
+        </div>
+      </div>
+    )
+  }
 
   const positions = positionsForUser(user.id)
   const stats = statsForUser(user.id)
@@ -41,35 +65,35 @@ export function PortfolioPage() {
         </div>
         <div className="flex gap-2 text-sm">
           <Link to={`/u/${user.id}`} className="px-3 py-1.5 rounded-lg border border-white/10 text-white/60 hover:text-white hover:border-white/30 transition-colors">
-            Публичный профиль
+            Public profile
           </Link>
           <Link to="/settings" className="px-3 py-1.5 rounded-lg border border-white/10 text-white/60 hover:text-white hover:border-white/30 transition-colors">
-            Настройки
+            Settings
           </Link>
         </div>
       </div>
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Stat label="Баланс" value={formatUsd(balance)} />
-        <Stat label="Кошелёк" value={<AddressPill address={user.walletAddress} to={`/explorer/address/${user.walletAddress}`} />} />
+        <Stat label="Balance" value={formatUsd(balance)} />
+        <Stat label="Wallet" value={<AddressPill address={user.walletAddress} to={`/explorer/address/${user.walletAddress}`} />} />
         <Stat label="Win rate" value={settledPositions.length > 0 ? formatPct(stats.winRate) : '—'} />
-        <Stat label="Текущий стрик" value={stats.currentStreak > 0 ? `${stats.currentStreak} 🔥` : '—'} />
-        <Stat label="Всего поставлено" value={formatUsd(stats.totalWagered)} />
-        <Stat label="Всего выиграно" value={formatUsd(stats.totalWon)} />
-        <Stat label="Чистый P&L" value={<span className={stats.netProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'}>{stats.netProfit >= 0 ? '+' : ''}{formatUsd(stats.netProfit)}</span>} />
-        <Stat label="Всего ставок" value={String(stats.totalBets)} />
+        <Stat label="Current streak" value={stats.currentStreak > 0 ? `${stats.currentStreak} 🔥` : '—'} />
+        <Stat label="Total wagered" value={formatUsd(stats.totalWagered)} />
+        <Stat label="Total won" value={formatUsd(stats.totalWon)} />
+        <Stat label="Net P&L" value={<span className={stats.netProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'}>{stats.netProfit >= 0 ? '+' : ''}{formatUsd(stats.netProfit)}</span>} />
+        <Stat label="Total bets" value={String(stats.totalBets)} />
       </div>
 
       <DepositPanel walletAddress={user.walletAddress} />
 
       <div className="bg-[#12121c]/95 border border-white/10 rounded-xl p-4">
-        <h2 className="font-medium mb-3">Активные ставки ({openPositions.length})</h2>
-        <PositionsTable positions={openPositions} markets={markets} empty="Нет открытых ставок — загляните на рынки" />
+        <h2 className="font-medium mb-3">Open bets ({openPositions.length})</h2>
+        <PositionsTable positions={openPositions} markets={markets} empty="No open bets — go check out the markets" />
       </div>
 
       <div className="bg-[#12121c]/95 border border-white/10 rounded-xl p-4">
-        <h2 className="font-medium mb-3">История ({settledPositions.length})</h2>
-        <PositionsTable positions={settledPositions} markets={markets} empty="Пока нет завершённых ставок" />
+        <h2 className="font-medium mb-3">History ({settledPositions.length})</h2>
+        <PositionsTable positions={settledPositions} markets={markets} empty="No settled bets yet" />
       </div>
     </div>
   )
@@ -113,16 +137,16 @@ function PositionsTable({
               <span className="ml-auto text-xs">
                 {p.settled ? (
                   p.refunded ? (
-                    <span className="text-white/50">возврат {formatUsd(p.payout ?? 0)}</span>
+                    <span className="text-white/50">refunded {formatUsd(p.payout ?? 0)}</span>
                   ) : p.payout ? (
                     <span className="text-emerald-400">+{formatUsd(p.payout)}</span>
                   ) : (
-                    <span className="text-rose-400">проигрыш</span>
+                    <span className="text-rose-400">lost</span>
                   )
                 ) : market?.resolved || market?.cancelled ? (
-                  <span className="text-white/40">ожидает расчёта</span>
+                  <span className="text-white/40">awaiting settlement</span>
                 ) : (
-                  <span className="text-amber-400">в игре</span>
+                  <span className="text-amber-400">in play</span>
                 )}
               </span>
             </div>

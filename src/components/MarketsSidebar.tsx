@@ -29,9 +29,9 @@ export function MarketsSidebar() {
     <div className="space-y-5">
       <div className="rounded-2xl border border-white/10 bg-[#12121c]/95 p-4">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-bold flex items-center gap-1.5">🏆 Лидерборд</h2>
+          <h2 className="text-sm font-bold flex items-center gap-1.5">🏆 Leaderboard</h2>
           <Link to="/leaderboard" className="text-xs text-violet-300/80 hover:text-violet-200">
-            все →
+            all →
           </Link>
         </div>
         <div className="space-y-1">
@@ -50,12 +50,12 @@ export function MarketsSidebar() {
               </span>
             </Link>
           ))}
-          {leaderboard.length === 0 && <p className="text-white/30 text-xs text-center py-4">Пока никто не ставил</p>}
+          {leaderboard.length === 0 && <p className="text-white/30 text-xs text-center py-4">No bets placed yet</p>}
         </div>
       </div>
 
       <div className="rounded-2xl border border-white/10 bg-[#12121c]/95 p-4">
-        <h2 className="text-sm font-bold flex items-center gap-1.5 mb-3">⚡ Последние ставки</h2>
+        <h2 className="text-sm font-bold flex items-center gap-1.5 mb-3">⚡ Recent bets</h2>
         <div className="space-y-1.5">
           {recentBets.map((tx) => (
             <div key={tx.hash} className="flex items-center justify-between gap-2 text-xs px-2 py-1.5 rounded-lg bg-black/20">
@@ -66,7 +66,7 @@ export function MarketsSidebar() {
               <span className="font-mono text-white/70 shrink-0">{formatUsd(tx.amount, 0)}</span>
             </div>
           ))}
-          {recentBets.length === 0 && <p className="text-white/30 text-xs text-center py-4">Пока нет ставок</p>}
+          {recentBets.length === 0 && <p className="text-white/30 text-xs text-center py-4">No bets yet</p>}
         </div>
       </div>
     </div>

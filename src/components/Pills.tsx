@@ -47,7 +47,7 @@ export function AwaitingCounterBetsBadge() {
 export function CancelledBadge() {
   return (
     <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-white/10 text-white/50 border border-white/20">
-      Отменён
+      Cancelled
     </span>
   )
 }
@@ -61,7 +61,7 @@ export function SideBadge({ side }: { side: 'YES' | 'NO' }) {
           : 'text-xs font-semibold px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-400 border border-rose-500/30'
       }
     >
-      {side === 'YES' ? 'ЗА · YES' : 'ПРОТИВ · NO'}
+      {side === 'YES' ? 'YES' : 'NO'}
     </span>
   )
 }

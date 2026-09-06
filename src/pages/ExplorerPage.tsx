@@ -28,29 +28,32 @@ export function ExplorerPage() {
   return (
     <div className="max-w-6xl mx-auto px-4 py-8 space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">{RHCHAIN_META.name} — эксплорер</h1>
-        <p className="text-white/50 text-sm mt-1">Все блоки и транзакции этого мок-демо, сгенерированные в вашем браузере.</p>
+        <h1 className="text-2xl font-semibold">{RHCHAIN_META.name} explorer</h1>
+        <p className="text-white/50 text-sm mt-1">
+          Every block and transaction from this mock demo, generated live in your browser — public, no account
+          needed to look up a hash, block, or wallet.
+        </p>
       </div>
 
       <form onSubmit={onSearch} className="flex gap-2">
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Поиск по хэшу транзакции, номеру блока или адресу…"
+          placeholder="Search by tx hash, block number, or address…"
           className="flex-1 rounded-lg bg-[#12121c]/95 border border-white/10 px-3 py-2 text-sm font-mono outline-none focus:border-emerald-400/60"
         />
-        <button className="px-4 rounded-lg bg-white/10 hover:bg-white/15 text-sm transition-colors">Найти</button>
+        <button className="px-4 rounded-lg bg-white/10 hover:bg-white/15 text-sm transition-colors">Search</button>
       </form>
 
       <div className="grid sm:grid-cols-3 gap-4">
-        <Stat label="Блоков" value={blocks.length} />
-        <Stat label="Транзакций" value={Object.keys(txs).length} />
-        <Stat label="В mempool" value={mempool.length} />
+        <Stat label="Blocks" value={blocks.length} />
+        <Stat label="Transactions" value={Object.keys(txs).length} />
+        <Stat label="In mempool" value={mempool.length} />
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6">
         <div className="bg-[#12121c]/95 border border-white/10 rounded-xl p-4">
-          <h2 className="font-medium mb-3">Последние блоки</h2>
+          <h2 className="font-medium mb-3">Latest blocks</h2>
           <div className="space-y-2 max-h-[480px] overflow-y-auto scrollbar-thin pr-1">
             {[...blocks]
               .sort((a, b) => b.number - a.number)
@@ -69,7 +72,7 @@ export function ExplorerPage() {
         </div>
 
         <div className="bg-[#12121c]/95 border border-white/10 rounded-xl p-4">
-          <h2 className="font-medium mb-3">Последние транзакции</h2>
+          <h2 className="font-medium mb-3">Latest transactions</h2>
           <div className="space-y-2 max-h-[480px] overflow-y-auto scrollbar-thin pr-1">
             {recentTxs.map((tx) => (
               <div key={tx.hash} className="flex items-center justify-between text-sm bg-black/20 border border-white/5 rounded-lg px-3 py-2">
@@ -78,7 +81,7 @@ export function ExplorerPage() {
                 <StatusBadge status={tx.status} />
               </div>
             ))}
-            {recentTxs.length === 0 && <p className="text-white/30 text-sm text-center py-6">Пока нет транзакций</p>}
+            {recentTxs.length === 0 && <p className="text-white/30 text-sm text-center py-6">No transactions yet</p>}
           </div>
         </div>
       </div>

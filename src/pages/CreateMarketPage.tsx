@@ -34,16 +34,16 @@ export function CreateMarketPage() {
 
   return (
     <div className="max-w-lg mx-auto px-4 py-8">
-      <h1 className="text-2xl font-semibold mb-1">Создать рынок</h1>
+      <h1 className="text-2xl font-semibold mb-1">Create a market</h1>
       <p className="text-white/50 text-sm mb-6">
-        Любой может создать рынок — он сразу появится в общем списке. Целевая цена не может быть выше{' '}
-        {formatUsd(MAX_TARGET_PRICE, 0)}. Пулы ЗА/ПРОТИВ начинаются с $0 — если к дедлайну ставки будут только с одной
-        стороны, рынок отменится и деньги вернутся полностью.
+        Anyone can create a market — it shows up in the main list right away. The target price can't exceed{' '}
+        {formatUsd(MAX_TARGET_PRICE, 0)}. YES/NO pools start at $0 — if only one side has bets by the deadline, the
+        market cancels and money is refunded in full.
       </p>
 
       <form onSubmit={onSubmit} className="bg-[#12121c]/95 border border-white/10 rounded-xl p-6 space-y-4">
         <div>
-          <label className="block text-sm text-white/60 mb-1.5">Токен</label>
+          <label className="block text-sm text-white/60 mb-1.5">Token</label>
           <select
             value={symbol}
             onChange={(e) => setSymbol(e.target.value)}
@@ -58,7 +58,7 @@ export function CreateMarketPage() {
         </div>
 
         <div>
-          <label className="block text-sm text-white/60 mb-1.5">Целевая цена, $ (макс. {formatUsd(MAX_TARGET_PRICE, 0)})</label>
+          <label className="block text-sm text-white/60 mb-1.5">Target price, $ (max {formatUsd(MAX_TARGET_PRICE, 0)})</label>
           <input
             type="number"
             min={1}
@@ -71,7 +71,7 @@ export function CreateMarketPage() {
         </div>
 
         <div>
-          <label className="block text-sm text-white/60 mb-1.5">Срок</label>
+          <label className="block text-sm text-white/60 mb-1.5">Duration</label>
           <select
             value={durationIdx}
             onChange={(e) => setDurationIdx(Number(e.target.value))}
@@ -88,15 +88,15 @@ export function CreateMarketPage() {
         {isAdmin && (
           <div className="border-t border-white/10 pt-4">
             <label className="block text-sm text-white/60 mb-1.5">
-              Initial Seed Liquidity (Max {formatUsd(MAX_SEED_LIQUIDITY, 0)})
+              Initial seed liquidity (max {formatUsd(MAX_SEED_LIQUIDITY, 0)})
             </label>
             <p className="text-xs text-white/40 mb-2">
-              Только для админа: стартовая ликвидность платформы, чтобы рынок открылся не с нулевых пулов. Обе стороны
-              вместе не могут превышать {formatUsd(MAX_SEED_LIQUIDITY, 0)}.
+              Admin only: starting platform liquidity so the market doesn't open with empty pools. Both sides
+              combined can't exceed {formatUsd(MAX_SEED_LIQUIDITY, 0)}.
             </p>
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="block text-[11px] text-white/40 mb-1">ЗА (YES), $</label>
+                <label className="block text-[11px] text-white/40 mb-1">YES, $</label>
                 <input
                   type="number"
                   min={0}
@@ -107,7 +107,7 @@ export function CreateMarketPage() {
                 />
               </div>
               <div>
-                <label className="block text-[11px] text-white/40 mb-1">ПРОТИВ (NO), $</label>
+                <label className="block text-[11px] text-white/40 mb-1">NO, $</label>
                 <input
                   type="number"
                   min={0}
@@ -119,7 +119,7 @@ export function CreateMarketPage() {
               </div>
             </div>
             <p className={`text-xs mt-1.5 ${seedTotal > MAX_SEED_LIQUIDITY ? 'text-rose-400' : 'text-white/30'}`}>
-              Итого: {formatUsd(seedTotal, 0)} / {formatUsd(MAX_SEED_LIQUIDITY, 0)}
+              Total: {formatUsd(seedTotal, 0)} / {formatUsd(MAX_SEED_LIQUIDITY, 0)}
             </p>
           </div>
         )}
@@ -130,7 +130,7 @@ export function CreateMarketPage() {
           type="submit"
           className="w-full rounded-lg bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:brightness-110 text-white font-semibold py-2 text-sm transition-all"
         >
-          Создать рынок
+          Create market
         </button>
       </form>
     </div>

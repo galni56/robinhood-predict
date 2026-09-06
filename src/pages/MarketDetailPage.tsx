@@ -61,7 +61,7 @@ export function MarketDetailPage() {
       <div className="lg:col-span-2 space-y-6">
         <div>
           <Link to="/markets" className="text-sm text-white/40 hover:text-white/70">
-            ← Все рынки
+            ← All markets
           </Link>
           <div className="flex items-baseline justify-between mt-2">
             <div>
@@ -70,7 +70,7 @@ export function MarketDetailPage() {
             </div>
             <div className="text-right">
               <div className="text-2xl font-mono font-bold">{formatUsd(price ?? token.startPrice)}</div>
-              <AddressPill address={token.contractAddress} to={`/explorer/address/${token.contractAddress}`} label="контракт" />
+              <AddressPill address={token.contractAddress} to={`/explorer/address/${token.contractAddress}`} label="contract" />
             </div>
           </div>
         </div>
@@ -80,16 +80,16 @@ export function MarketDetailPage() {
         </div>
 
         <div className="bg-[#12121c]/95 border border-white/10 rounded-2xl p-4">
-          <h2 className="font-semibold mb-3">Транзакции этого рынка on-chain</h2>
+          <h2 className="font-semibold mb-3">On-chain transactions for this market</h2>
           <div className="overflow-x-auto scrollbar-thin">
             <table className="w-full text-sm">
               <thead className="text-white/40 text-xs uppercase">
                 <tr className="text-left">
                   <th className="pb-2">Tx</th>
-                  <th className="pb-2">Тип</th>
-                  <th className="pb-2">Сумма</th>
-                  <th className="pb-2">Статус</th>
-                  <th className="pb-2">Когда</th>
+                  <th className="pb-2">Type</th>
+                  <th className="pb-2">Amount</th>
+                  <th className="pb-2">Status</th>
+                  <th className="pb-2">When</th>
                 </tr>
               </thead>
               <tbody>
@@ -109,7 +109,7 @@ export function MarketDetailPage() {
                 {txsForMarket.length === 0 && (
                   <tr>
                     <td colSpan={5} className="py-6 text-center text-white/30">
-                      Пока нет ставок по этому рынку
+                      No bets on this market yet
                     </td>
                   </tr>
                 )}
@@ -126,24 +126,24 @@ export function MarketDetailPage() {
             <div className="mt-3">
               <CancelledBadge />
               <p className="text-white/40 text-sm mt-2">
-                Рынок отменён — ставки были только с одной стороны, деньги вернулись всем полностью.
+                Market cancelled — bets came in on only one side, so everyone was refunded in full.
               </p>
             </div>
           ) : market.resolved ? (
             <div className="mt-3">
               <SideBadge side={market.outcome ?? 'NO'} />
-              <p className="text-white/40 text-sm mt-2">Рынок завершён.</p>
+              <p className="text-white/40 text-sm mt-2">Market has resolved.</p>
             </div>
           ) : (
             <>
               <p className="text-white/40 text-xs mb-3">
                 {bettingClosed ? (
                   <>
-                    Ставки закрыты, ждём резолва: <CountdownTimer deadline={market.deadline} />
+                    Betting closed, waiting to resolve: <CountdownTimer deadline={market.deadline} />
                   </>
                 ) : (
                   <>
-                    Ставки открыты ещё: <CountdownTimer deadline={cutoffMs} />
+                    Betting open for: <CountdownTimer deadline={cutoffMs} />
                   </>
                 )}
               </p>
@@ -152,7 +152,7 @@ export function MarketDetailPage() {
                 <div className="mb-3 flex items-start gap-2">
                   <AwaitingCounterBetsBadge />
                   <p className="text-[11px] text-amber-400/80">
-                    Ставка будет возвращена в 100% объёме, если напротив никто не поставит.
+                    Bets get refunded in full if nobody takes the other side.
                   </p>
                 </div>
               )}
@@ -161,8 +161,8 @@ export function MarketDetailPage() {
                 <div className="h-full bg-emerald-400" style={{ width: `${odds.yesPct * 100}%` }} />
               </div>
               <div className="flex justify-between text-xs text-white/50 mb-4">
-                <span>ЗА {formatPct(odds.yesPct)}</span>
-                <span>ПРОТИВ {formatPct(odds.noPct)}</span>
+                <span>YES {formatPct(odds.yesPct)}</span>
+                <span>NO {formatPct(odds.noPct)}</span>
               </div>
 
               <BetForm key={reopenBet?.side ?? 'YES'} marketId={marketId} initialSide={reopenBet?.side ?? 'YES'} />
@@ -172,7 +172,7 @@ export function MarketDetailPage() {
 
         {user && myPositions.length > 0 && (
           <div className="bg-[#12121c]/95 border border-white/10 rounded-2xl p-4">
-            <h2 className="font-semibold mb-3">Ваши ставки здесь</h2>
+            <h2 className="font-semibold mb-3">Your bets here</h2>
             <div className="space-y-2">
               {myPositions.map((p) => (
                 <div key={p.id} className="flex items-center justify-between text-sm">
@@ -181,11 +181,11 @@ export function MarketDetailPage() {
                   <span className="text-white/40 text-xs">
                     {p.settled
                       ? p.refunded
-                        ? `возврат ${formatUsd(p.payout ?? 0)}`
+                        ? `refunded ${formatUsd(p.payout ?? 0)}`
                         : p.payout
                           ? `+${formatUsd(p.payout)}`
-                          : 'проигрыш'
-                      : 'в игре'}
+                          : 'lost'
+                      : 'in play'}
                   </span>
                 </div>
               ))}

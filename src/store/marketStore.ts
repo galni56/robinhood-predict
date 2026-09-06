@@ -12,9 +12,9 @@ import type { MarketSide, PredictionMarket, PricePoint, Position, User, UserStat
 // window so the game is actually playable in one sitting. This is clearly
 // surfaced in the UI as a demo timeline, not a real deadline.
 export const DURATION_PRESETS = [
-  { label: 'Спринт (демо: 2 мин)', ms: 2 * 60 * 1000 },
-  { label: 'Неделя (демо: 5 мин)', ms: 5 * 60 * 1000 },
-  { label: 'Месяц (демо: 15 мин)', ms: 15 * 60 * 1000 },
+  { label: 'Sprint (demo: 2 min)', ms: 2 * 60 * 1000 },
+  { label: 'Week (demo: 5 min)', ms: 5 * 60 * 1000 },
+  { label: 'Month (demo: 15 min)', ms: 15 * 60 * 1000 },
 ] as const
 
 /** Business rule from the product spec: no market can target above this. */
@@ -121,7 +121,7 @@ function makeMarket(
   return {
     id: mockAddress(`market:${symbol}:${now}:${Math.random()}`),
     symbol,
-    question: `Достигнет ли ${symbol} цены $${target} до дедлайна?`,
+    question: `Will ${symbol} reach $${target} before the deadline?`,
     target,
     createdAt: now,
     createdBy,
@@ -171,7 +171,7 @@ export const useMarketStore = create<MarketState>()(
         // rather than spawn something that's already trivially resolved.
         if (price >= MAX_TARGET_PRICE) return
         const target = Math.min(defaultTargetFor(price), MAX_TARGET_PRICE)
-        // Always the longest preset ("месяц") — the shorter ones stay
+        // Always the longest preset ("month") — the shorter ones stay
         // available for a curator who deliberately wants a fast-resolving
         // market, but auto-seeded ones shouldn't churn every couple minutes.
         const preset = DURATION_PRESETS[DURATION_PRESETS.length - 1]
@@ -214,27 +214,27 @@ export const useMarketStore = create<MarketState>()(
         // someone else's market, and here for seed liquidity) — just not for
         // creation itself.
         const token = TOKENS.find((t) => t.symbol === symbol)
-        if (!token) return { ok: false, error: 'Токен не найден' }
-        if (!(targetPrice > 0)) return { ok: false, error: 'Целевая цена должна быть больше нуля' }
+        if (!token) return { ok: false, error: 'Token not found' }
+        if (!(targetPrice > 0)) return { ok: false, error: 'Target price must be greater than zero' }
         if (targetPrice > MAX_TARGET_PRICE) {
-          return { ok: false, error: `Целевая цена не может быть больше ${formatUsd(MAX_TARGET_PRICE, 0)}` }
+          return { ok: false, error: `Target price cannot exceed ${formatUsd(MAX_TARGET_PRICE, 0)}` }
         }
 
         let poolYes = 0
         let poolNo = 0
         if (seed && (seed.yes > 0 || seed.no > 0)) {
           if (creator.role !== 'admin') {
-            return { ok: false, error: 'Начальная ликвидность доступна только администратору' }
+            return { ok: false, error: 'Only an admin can add seed liquidity' }
           }
           if (seed.yes < 0 || seed.no < 0) {
-            return { ok: false, error: 'Начальная ликвидность не может быть отрицательной' }
+            return { ok: false, error: 'Seed liquidity cannot be negative' }
           }
           if (seed.yes + seed.no > MAX_SEED_LIQUIDITY) {
-            return { ok: false, error: `Начальная ликвидность не может превышать ${formatUsd(MAX_SEED_LIQUIDITY, 0)}` }
+            return { ok: false, error: `Seed liquidity cannot exceed ${formatUsd(MAX_SEED_LIQUIDITY, 0)}` }
           }
           const balance = useChainStore.getState().balanceOf(creator.walletAddress)
           if (balance < seed.yes + seed.no) {
-            return { ok: false, error: 'Недостаточно mUSD на кошельке для этой seed-ликвидности' }
+            return { ok: false, error: 'Not enough mUSD in your wallet for this seed liquidity' }
           }
           poolYes = seed.yes
           poolNo = seed.no
@@ -262,7 +262,7 @@ export const useMarketStore = create<MarketState>()(
               amount,
               marketId: m.id,
               side,
-              memo: `Seed-ликвидность (${side === 'YES' ? 'ЗА' : 'ПРОТИВ'}): ${symbol} достигнет $${targetPrice}`,
+              memo: `Seed liquidity (${side === 'YES' ? 'YES' : 'NO'}): ${symbol} reaches $${targetPrice}`,
             })
             seedPositions.push({
               id: mockAddress(`position:${txHash}`),
@@ -284,23 +284,23 @@ export const useMarketStore = create<MarketState>()(
       },
 
       placeBet: (user, marketId, side, amount) => {
-        if (amount <= 0) return { ok: false, error: 'Сумма ставки должна быть больше нуля' }
+        if (amount <= 0) return { ok: false, error: 'Bet amount must be greater than zero' }
         const market = get().markets[marketId]
-        if (!market) return { ok: false, error: 'Рынок не найден' }
-        if (market.resolved) return { ok: false, error: 'Рынок уже завершён' }
-        if (market.cancelled) return { ok: false, error: 'Рынок отменён' }
+        if (!market) return { ok: false, error: 'Market not found' }
+        if (market.resolved) return { ok: false, error: 'Market has already resolved' }
+        if (market.cancelled) return { ok: false, error: 'Market was cancelled' }
         // One bet per side per market — mirrors the contract's `bet()` rule.
         const alreadyBetThisSide = get().positions.some((p) => p.marketId === marketId && p.userId === user.id && p.side === side)
         if (alreadyBetThisSide) {
-          return { ok: false, error: `Вы уже ставили ${side === 'YES' ? 'ЗА' : 'ПРОТИВ'} в этом рынке` }
+          return { ok: false, error: `You already bet ${side === 'YES' ? 'YES' : 'NO'} on this market` }
         }
         const weightBp = currentWeightBp(market.createdAt, market.deadline, Date.now())
-        if (weightBp == null) return { ok: false, error: 'Ставки на этот рынок уже закрыты' }
+        if (weightBp == null) return { ok: false, error: 'Betting on this market is already closed' }
         const balance = useChainStore.getState().balanceOf(user.walletAddress)
-        if (balance < amount) return { ok: false, error: 'Недостаточно mUSD на кошельке' }
+        if (balance < amount) return { ok: false, error: 'Not enough mUSD in your wallet' }
 
         const token = TOKENS.find((t) => t.symbol === market.symbol)
-        if (!token) return { ok: false, error: 'Токен не найден' }
+        if (!token) return { ok: false, error: 'Token not found' }
 
         const txHash = useChainStore.getState().submitTx({
           from: user.walletAddress,
@@ -309,7 +309,7 @@ export const useMarketStore = create<MarketState>()(
           amount,
           marketId,
           side,
-          memo: `${side === 'YES' ? 'Ставка ЗА' : 'Ставка ПРОТИВ'}: ${market.symbol} достигнет $${market.target}`,
+          memo: `${side === 'YES' ? 'YES bet' : 'NO bet'}: ${market.symbol} reaches $${market.target}`,
         })
 
         const position: Position = {
@@ -405,7 +405,7 @@ export const useMarketStore = create<MarketState>()(
                 amount: payout,
                 marketId,
                 side: outcome,
-                memo: `Выплата по рынку ${market.symbol}: ${outcome === 'YES' ? 'ЗА' : 'ПРОТИВ'} выиграло`,
+                memo: `Payout for market ${market.symbol}: ${outcome === 'YES' ? 'YES' : 'NO'} won`,
               })
             }
             settledPositions[idx] = { ...pos, settled: true, payout }

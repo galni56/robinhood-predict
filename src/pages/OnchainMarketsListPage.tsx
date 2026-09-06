@@ -51,26 +51,26 @@ export function OnchainMarketsListPage() {
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
       <div className="mb-6 rounded-lg border border-sky-500/30 bg-sky-500/10 px-4 py-3 text-sm text-sky-200">
-        ⛓️ Это <b>реальный режим</b> — рынки читаются напрямую с задеплоенного контракта на Robinhood Chain testnet.
+        ⛓️ This is <b>real mode</b> — markets are read directly from the deployed contract on Robinhood Chain testnet.
       </div>
 
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-xl font-semibold">Ончейн-рынки</h1>
+        <h1 className="text-xl font-semibold">On-chain markets</h1>
         <Link
           to="/onchain/create"
           className="text-sm px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black font-medium transition-colors"
         >
-          + Рынок
+          + Market
         </Link>
       </div>
 
       {marketCount.isLoading ? (
-        <p className="text-white/50 text-sm">Загрузка…</p>
+        <p className="text-white/50 text-sm">Loading…</p>
       ) : count === 0 ? (
         <p className="text-white/40 text-sm">
-          Рынков пока нет.{' '}
+          No markets yet.{' '}
           <Link to="/onchain/create" className="text-emerald-400 hover:underline">
-            Создать первый
+            Create the first one
           </Link>
         </p>
       ) : (
@@ -96,13 +96,13 @@ export function OnchainMarketsListPage() {
               >
                 <div className="flex items-start justify-between mb-2">
                   <div className="flex items-center gap-2">
-                    <span className="font-semibold">Рынок #{id.toString()}</span>
+                    <span className="font-semibold">Market #{id.toString()}</span>
                     {m.status === MarketStatusOnchain.Cancelled && <CancelledBadge />}
                     {awaitingCounterBets && <AwaitingCounterBetsBadge />}
                   </div>
                   <div className="text-right text-sm">
                     <div className="font-mono">{targetUsd != null ? formatUsd(targetUsd) : '…'}</div>
-                    <div className="text-white/40 text-xs">{currentUsd != null ? `сейчас ${formatUsd(currentUsd)}` : ''}</div>
+                    <div className="text-white/40 text-xs">{currentUsd != null ? `now ${formatUsd(currentUsd)}` : ''}</div>
                   </div>
                 </div>
 
@@ -110,17 +110,17 @@ export function OnchainMarketsListPage() {
                   <div className="h-full bg-emerald-500" style={{ width: `${yesPct}%` }} />
                 </div>
                 <div className="flex justify-between text-[11px] text-white/40 mt-1">
-                  <span>ЗА {yesPct.toFixed(1)}%</span>
+                  <span>YES {yesPct.toFixed(1)}%</span>
                   <span>
                     {m.status === MarketStatusOnchain.Resolved
-                      ? 'резолвнут'
+                      ? 'resolved'
                       : m.status === MarketStatusOnchain.Cancelled
-                        ? 'отменён'
+                        ? 'cancelled'
                         : Date.now() < Number(bettingWindowEndSeconds(m.createdAt, m.deadline)) * 1000
-                          ? `ставки: ${formatCountdown(Number(bettingWindowEndSeconds(m.createdAt, m.deadline)) * 1000 - Date.now())}`
-                          : `ждём резолва: ${formatCountdown(deadlineMs - Date.now())}`}
+                          ? `betting: ${formatCountdown(Number(bettingWindowEndSeconds(m.createdAt, m.deadline)) * 1000 - Date.now())}`
+                          : `awaiting resolve: ${formatCountdown(deadlineMs - Date.now())}`}
                   </span>
-                  <span>ПРОТИВ {(100 - yesPct).toFixed(1)}%</span>
+                  <span>NO {(100 - yesPct).toFixed(1)}%</span>
                 </div>
               </Link>
             )

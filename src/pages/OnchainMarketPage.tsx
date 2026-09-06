@@ -119,53 +119,53 @@ export function OnchainMarketPage() {
     setError(null)
     try {
       if (bettingClosed) {
-        setError('Ставки на этот рынок уже закрыты')
+        setError('Betting on this market is already closed')
         return
       }
       if (sideAlreadyBet) {
-        setError(`Вы уже ставили ${side === 'YES' ? 'ЗА' : 'ПРОТИВ'} в этом рынке`)
+        setError(`You already bet ${side === 'YES' ? 'YES' : 'NO'} on this market`)
         return
       }
       const amountWei = parseUnits(amount || '0', BET_TOKEN_DECIMALS)
       if (amountWei <= 0n) {
-        setError('Сумма должна быть больше нуля')
+        setError('Amount must be greater than zero')
         return
       }
 
       if ((allowance.data ?? 0n) < amountWei) {
-        setTx({ label: 'Подтверди approve в кошельке…' })
+        setTx({ label: 'Confirm approve in your wallet…' })
         const approveHash = await writeContractAsync({
           address: BET_TOKEN_ADDRESS,
           abi: erc20Abi,
           functionName: 'approve',
           args: [PREDICTION_MARKET_ADDRESS, amountWei],
         })
-        setTx({ label: 'Ждём подтверждения approve…' })
+        setTx({ label: 'Waiting for approve confirmation…' })
         await waitForTransactionReceipt(wagmiConfig, { hash: approveHash })
       }
 
-      setTx({ label: 'Подтверди ставку в кошельке…' })
+      setTx({ label: 'Confirm bet in your wallet…' })
       const betHash = await writeContractAsync({
         address: PREDICTION_MARKET_ADDRESS,
         abi: predictionMarketAbi,
         functionName: 'bet',
         args: [MARKET_ID, MarketSideOnchain[side], amountWei],
       })
-      setTx({ label: 'Ждём подтверждения ставки…' })
+      setTx({ label: 'Waiting for bet confirmation…' })
       await waitForTransactionReceipt(wagmiConfig, { hash: betHash })
 
       setTx(null)
       await refetchAll()
     } catch (e) {
       setTx(null)
-      setError(e instanceof Error ? e.message : 'Транзакция не прошла')
+      setError(e instanceof Error ? e.message : 'Transaction failed')
     }
   }
 
   async function handleResolve() {
     setError(null)
     try {
-      setTx({ label: 'Подтверди resolve в кошельке…' })
+      setTx({ label: 'Confirm resolve in your wallet…' })
       const hash = await writeContractAsync({
         address: PREDICTION_MARKET_ADDRESS,
         abi: predictionMarketAbi,
@@ -177,14 +177,14 @@ export function OnchainMarketPage() {
       await refetchAll()
     } catch (e) {
       setTx(null)
-      setError(e instanceof Error ? e.message : 'Транзакция не прошла')
+      setError(e instanceof Error ? e.message : 'Transaction failed')
     }
   }
 
   async function handleClaimOrRefund(fn: 'claim' | 'refund', side?: 0 | 1) {
     setError(null)
     try {
-      setTx({ label: `Подтверди ${fn} в кошельке…` })
+      setTx({ label: `Confirm ${fn} in your wallet…` })
       const hash = await writeContractAsync(
         fn === 'claim'
           ? { address: PREDICTION_MARKET_ADDRESS, abi: predictionMarketAbi, functionName: 'claim', args: [MARKET_ID] }
@@ -195,7 +195,7 @@ export function OnchainMarketPage() {
       await refetchAll()
     } catch (e) {
       setTx(null)
-      setError(e instanceof Error ? e.message : 'Транзакция не прошла')
+      setError(e instanceof Error ? e.message : 'Transaction failed')
     }
   }
 
@@ -221,39 +221,39 @@ export function OnchainMarketPage() {
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
       <div className="mb-6 rounded-lg border border-sky-500/30 bg-sky-500/10 px-4 py-3 text-sm text-sky-200">
-        ⛓️ Это <b>реальный режим</b> — настоящие транзакции на Robinhood Chain testnet через твой кошелёк
-        (MetaMask/Phantom). Не мок: газ и токены здесь тестовые, но транзакции идут по-настоящему в блокчейн.
+        ⛓️ This is <b>real mode</b> — actual transactions on Robinhood Chain testnet through your wallet
+        (MetaMask/Phantom). Not a mock: gas and tokens are test units, but the transactions really go on-chain.
       </div>
 
       <Link to="/onchain" className="text-sm text-white/40 hover:text-white/70">
-        ← Все ончейн-рынки
+        ← All on-chain markets
       </Link>
-      <h1 className="text-xl font-semibold my-4">Ончейн-рынок #{MARKET_ID.toString()}</h1>
+      <h1 className="text-xl font-semibold my-4">On-chain market #{MARKET_ID.toString()}</h1>
 
       {/* Market data is a public read — shown regardless of wallet connection. */}
       {market.isLoading ? (
-        <p className="text-white/50">Загрузка рынка…</p>
+        <p className="text-white/50">Loading market…</p>
       ) : !market.data ? (
-        <p className="text-rose-400">Рынок не найден.</p>
+        <p className="text-rose-400">Market not found.</p>
       ) : (
         <div className="rounded-lg border border-white/10 p-4 space-y-2 mb-4">
           <div className="text-white/50 text-xs">
-            Статус: {status === MarketStatusOnchain.Open ? 'открыт' : status === MarketStatusOnchain.Resolved ? 'резолвнут' : 'отменён'}
+            Status: {status === MarketStatusOnchain.Open ? 'open' : status === MarketStatusOnchain.Resolved ? 'resolved' : 'cancelled'}
           </div>
           <div className="text-lg">
-            Цель: {targetPriceUsd != null ? formatUsd(targetPriceUsd) : '…'} · Сейчас: {currentPriceUsd != null ? formatUsd(currentPriceUsd) : '…'}
+            Target: {targetPriceUsd != null ? formatUsd(targetPriceUsd) : '…'} · Now: {currentPriceUsd != null ? formatUsd(currentPriceUsd) : '…'}
           </div>
           <div className="text-sm text-white/50">
             {status === MarketStatusOnchain.Open &&
               (bettingClosed
-                ? `Ставки закрыты, ждём резолва: ${formatCountdown(deadlineMs - Date.now())}`
-                : `Ставки открыты ещё: ${formatCountdown(bettingWindowEndMs - Date.now())}`)}
+                ? `Betting closed, waiting to resolve: ${formatCountdown(deadlineMs - Date.now())}`
+                : `Betting open for: ${formatCountdown(bettingWindowEndMs - Date.now())}`)}
           </div>
           <div className="h-2 rounded-full bg-rose-500/30 overflow-hidden">
             <div className="h-full bg-emerald-500" style={{ width: `${yesPct}%` }} />
           </div>
           <div className="text-xs text-white/40">
-            Пул YES: {formatUnits(market.data.poolYes, BET_TOKEN_DECIMALS)} mUSD · Пул NO: {formatUnits(market.data.poolNo, BET_TOKEN_DECIMALS)} mUSD
+            YES pool: {formatUnits(market.data.poolYes, BET_TOKEN_DECIMALS)} mUSD · NO pool: {formatUnits(market.data.poolNo, BET_TOKEN_DECIMALS)} mUSD
           </div>
         </div>
       )}
@@ -267,22 +267,22 @@ export function OnchainMarketPage() {
               disabled={isConnecting}
               className="w-full rounded-lg border border-white/10 px-4 py-2 text-left hover:border-emerald-400/50 transition-colors"
             >
-              Подключить {c.name}
+              Connect {c.name}
             </button>
           ))}
           {connectors.length === 0 && (
-            <p className="text-sm text-white/50">Не найден ни один кошелёк (MetaMask/Phantom). Установи расширение и обнови страницу.</p>
+            <p className="text-sm text-white/50">No wallet found (MetaMask/Phantom). Install the extension and reload the page.</p>
           )}
         </div>
       ) : !onRightChain ? (
         <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-200">
-          Неправильная сеть. Нужна Robinhood Chain Testnet.
+          Wrong network. You need Robinhood Chain Testnet.
           <button
             onClick={() => switchChain({ chainId: robinhoodTestnet.id })}
             disabled={isSwitching}
             className="ml-3 rounded-md bg-amber-500 text-black px-3 py-1 font-medium"
           >
-            Переключить сеть
+            Switch network
           </button>
         </div>
       ) : (
@@ -290,7 +290,7 @@ export function OnchainMarketPage() {
           <div className="flex items-center justify-between text-sm text-white/60">
             <span>{address}</span>
             <button onClick={() => disconnect()} className="text-white/40 hover:text-white">
-              Отключить
+              Disconnect
             </button>
           </div>
 
@@ -300,28 +300,28 @@ export function OnchainMarketPage() {
                 <>
                   {deadlineMs <= Date.now() && (
                     <button onClick={handleResolve} className="w-full rounded-lg bg-white/10 hover:bg-white/20 py-2 text-sm">
-                      Resolve сейчас (дедлайн прошёл)
+                      Resolve now (deadline passed)
                     </button>
                   )}
 
                   {bettingClosed ? (
                     <p className="text-sm text-white/40">
-                      Ставки на этот рынок закрыты — ждём дедлайна, чтобы можно было зарезолвить.
+                      Betting on this market is closed — waiting for the deadline so it can resolve.
                     </p>
                   ) : (
                     <div className="rounded-lg border border-white/10 p-4 space-y-3">
                       <div className="flex items-center justify-between text-xs text-white/50">
-                        <span>Твой баланс: {betTokenBalance.data != null ? formatUnits(betTokenBalance.data, BET_TOKEN_DECIMALS) : '…'} mUSD</span>
+                        <span>Your balance: {betTokenBalance.data != null ? formatUnits(betTokenBalance.data, BET_TOKEN_DECIMALS) : '…'} mUSD</span>
                         {liveWeightBp != null && (
                           <span className="text-emerald-400/80">
-                            Бонус за раннюю ставку: {(Number(liveWeightBp) / Number(BP_DENOMINATOR)).toFixed(2)}x
+                            Early-bet bonus: {(Number(liveWeightBp) / Number(BP_DENOMINATOR)).toFixed(2)}x
                           </span>
                         )}
                       </div>
 
                       {bothSidesUsed ? (
                         <p className="text-xs text-white/40">
-                          Вы уже поставили и ЗА, и ПРОТИВ в этом рынке — по одной ставке на сторону, больше нельзя.
+                          You've already bet both YES and NO on this market — one bet per side, no more allowed.
                         </p>
                       ) : (
                         <>
@@ -331,20 +331,20 @@ export function OnchainMarketPage() {
                               disabled={hasBetYes}
                               className={`py-2 rounded-lg text-sm font-medium border disabled:opacity-40 disabled:cursor-not-allowed ${side === 'YES' ? 'bg-emerald-500 text-black border-emerald-500' : 'border-white/10 text-white/60'}`}
                             >
-                              ЗА (YES){hasBetYes ? ' ✓' : ''}
+                              YES{hasBetYes ? ' ✓' : ''}
                             </button>
                             <button
                               onClick={() => setSide('NO')}
                               disabled={hasBetNo}
                               className={`py-2 rounded-lg text-sm font-medium border disabled:opacity-40 disabled:cursor-not-allowed ${side === 'NO' ? 'bg-rose-500 text-black border-rose-500' : 'border-white/10 text-white/60'}`}
                             >
-                              ПРОТИВ (NO){hasBetNo ? ' ✓' : ''}
+                              NO{hasBetNo ? ' ✓' : ''}
                             </button>
                           </div>
 
                           {sideAlreadyBet ? (
                             <p className="text-xs text-amber-400/80">
-                              Вы уже поставили {side === 'YES' ? 'ЗА' : 'ПРОТИВ'} в этом рынке — выберите другую сторону.
+                              You've already bet {side === 'YES' ? 'YES' : 'NO'} on this market — pick the other side.
                             </p>
                           ) : (
                             <>
@@ -353,14 +353,14 @@ export function OnchainMarketPage() {
                                 value={amount}
                                 onChange={(e) => setAmount(e.target.value)}
                                 className="w-full rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-sm"
-                                placeholder="Сумма в mUSD"
+                                placeholder="Amount in mUSD"
                               />
                               <button
                                 onClick={handleBet}
                                 disabled={!!tx}
                                 className="w-full rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black font-medium py-2 text-sm disabled:opacity-50"
                               >
-                                {tx ? tx.label : 'Сделать ставку (approve + bet)'}
+                                {tx ? tx.label : 'Place bet (approve + bet)'}
                               </button>
                             </>
                           )}
@@ -377,7 +377,7 @@ export function OnchainMarketPage() {
                   disabled={!!tx || hasClaimed.data === true}
                   className="w-full rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black font-medium py-2 text-sm disabled:opacity-50"
                 >
-                  {hasClaimed.data ? 'Уже забрано' : tx ? tx.label : 'Забрать выигрыш (claim)'}
+                  {hasClaimed.data ? 'Already claimed' : tx ? tx.label : 'Claim winnings'}
                 </button>
               )}
 

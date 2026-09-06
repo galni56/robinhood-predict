@@ -8,15 +8,15 @@ import { useAuthStore } from '@/store/authStore'
 import { useChainStore } from '@/store/chainStore'
 
 const links = [
-  { to: '/markets', label: 'Рынки' },
-  { to: '/portfolio', label: 'Портфель' },
-  { to: '/leaderboard', label: 'Лидерборд' },
-  { to: '/archive', label: 'Архив' },
-  { to: '/explorer', label: 'Эксплорер' },
+  { to: '/markets', label: 'Markets' },
+  { to: '/portfolio', label: 'Portfolio' },
+  { to: '/leaderboard', label: 'Leaderboard' },
+  { to: '/archive', label: 'Archive' },
+  { to: '/explorer', label: 'Explorer' },
 ]
 
 // Full nav + account cluster no longer fits one row once both are always
-// visible (browsing is public now, so there's a "Войти"+"Регистрация" pair
+// visible (browsing is public now, so there's a "Log in"+"Sign up" pair
 // competing for the same space as the links) — collapse into a hamburger
 // below `lg` instead of letting things overflow/cram.
 export function Navbar() {
@@ -62,7 +62,7 @@ export function Navbar() {
               )
             }
           >
-            + Рынок
+            + Market
           </NavLink>
         </nav>
 
@@ -78,7 +78,7 @@ export function Navbar() {
               )
             }
           >
-            ⛓️ Реальный тестнет
+            ⛓️ Live testnet
           </NavLink>
           {user ? (
             <>
@@ -100,14 +100,14 @@ export function Navbar() {
                         onClick={() => setMenuOpen(false)}
                         className="block px-3 py-2 text-white/70 hover:bg-white/5 hover:text-white"
                       >
-                        Публичный профиль
+                        Public profile
                       </NavLink>
                       <NavLink
                         to="/settings"
                         onClick={() => setMenuOpen(false)}
                         className="block px-3 py-2 text-white/70 hover:bg-white/5 hover:text-white"
                       >
-                        Настройки
+                        Settings
                       </NavLink>
                       <button
                         onClick={() => {
@@ -117,7 +117,7 @@ export function Navbar() {
                         }}
                         className="w-full text-left px-3 py-2 text-rose-400 hover:bg-white/5"
                       >
-                        Выйти
+                        Log out
                       </button>
                     </div>
                   </>
@@ -130,13 +130,13 @@ export function Navbar() {
                 to="/login"
                 className="text-sm px-3 py-1.5 rounded-full border border-white/10 text-white/70 hover:text-white hover:border-white/30 transition-colors"
               >
-                Войти
+                Log in
               </NavLink>
               <NavLink
                 to="/register"
                 className="text-sm px-3 py-1.5 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:brightness-110 text-white font-semibold transition-all"
               >
-                Регистрация
+                Sign up
               </NavLink>
             </div>
           )}
@@ -156,12 +156,12 @@ export function Navbar() {
               to="/register"
               className="text-xs px-2.5 py-1.5 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white font-semibold"
             >
-              Начать
+              Get started
             </NavLink>
           )}
           <button
             onClick={() => setMobileOpen((v) => !v)}
-            aria-label={mobileOpen ? 'Закрыть меню' : 'Открыть меню'}
+            aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
             aria-expanded={mobileOpen}
             className="w-9 h-9 shrink-0 rounded-lg border border-white/10 flex flex-col items-center justify-center gap-[3px] hover:border-white/30 transition-colors"
           >
@@ -194,14 +194,14 @@ export function Navbar() {
             onClick={() => setMobileOpen(false)}
             className="block px-3 py-2 rounded-lg text-sm font-medium text-emerald-300 hover:bg-emerald-500/10"
           >
-            + Создать рынок
+            + Create market
           </NavLink>
           <NavLink
             to="/onchain"
             onClick={() => setMobileOpen(false)}
             className="block px-3 py-2 rounded-lg text-sm font-medium text-sky-300 hover:bg-sky-500/10"
           >
-            ⛓️ Реальный тестнет
+            ⛓️ Live testnet
           </NavLink>
 
           <div className="pt-2 mt-2 border-t border-white/10">
@@ -212,14 +212,14 @@ export function Navbar() {
                   onClick={() => setMobileOpen(false)}
                   className="block px-3 py-2 rounded-lg text-sm text-white/70 hover:bg-white/5 hover:text-white"
                 >
-                  Публичный профиль
+                  Public profile
                 </NavLink>
                 <NavLink
                   to="/settings"
                   onClick={() => setMobileOpen(false)}
                   className="block px-3 py-2 rounded-lg text-sm text-white/70 hover:bg-white/5 hover:text-white"
                 >
-                  Настройки
+                  Settings
                 </NavLink>
                 <button
                   onClick={() => {
@@ -229,7 +229,7 @@ export function Navbar() {
                   }}
                   className="w-full text-left px-3 py-2 rounded-lg text-sm text-rose-400 hover:bg-white/5"
                 >
-                  Выйти
+                  Log out
                 </button>
               </>
             ) : (
@@ -239,14 +239,14 @@ export function Navbar() {
                   onClick={() => setMobileOpen(false)}
                   className="flex-1 text-center text-sm px-3 py-2 rounded-lg border border-white/10 text-white/70 hover:text-white hover:border-white/30"
                 >
-                  Войти
+                  Log in
                 </NavLink>
                 <NavLink
                   to="/register"
                   onClick={() => setMobileOpen(false)}
                   className="flex-1 text-center text-sm px-3 py-2 rounded-lg bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white font-semibold"
                 >
-                  Регистрация
+                  Sign up
                 </NavLink>
               </div>
             )}

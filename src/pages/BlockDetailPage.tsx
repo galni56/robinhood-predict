@@ -14,23 +14,23 @@ export function BlockDetailPage() {
   return (
     <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
       <Link to="/explorer" className="text-sm text-white/40 hover:text-white/70">
-        ← Эксплорер
+        ← Explorer
       </Link>
 
       <div>
-        <h1 className="text-2xl font-semibold">Блок #{block.number}</h1>
+        <h1 className="text-2xl font-semibold">Block #{block.number}</h1>
         <p className="text-white/40 text-sm">{timeAgo(block.timestamp)}</p>
       </div>
 
       <div className="bg-[#12121c]/95 border border-white/10 rounded-xl p-4 space-y-2 text-sm">
-        <Row label="Хэш блока" value={<HashPill hash={block.hash} />} />
-        <Row label="Хэш родителя" value={block.parentHash === '0x0' ? '—' : <HashPill hash={block.parentHash} />} />
-        <Row label="Валидатор" value={<span className="font-mono text-white/70">{block.validator}</span>} />
-        <Row label="Транзакций" value={block.txHashes.length} />
+        <Row label="Block hash" value={<HashPill hash={block.hash} />} />
+        <Row label="Parent hash" value={block.parentHash === '0x0' ? '—' : <HashPill hash={block.parentHash} />} />
+        <Row label="Validator" value={<span className="font-mono text-white/70">{block.validator}</span>} />
+        <Row label="Transactions" value={block.txHashes.length} />
       </div>
 
       <div className="bg-[#12121c]/95 border border-white/10 rounded-xl p-4">
-        <h2 className="font-medium mb-3">Транзакции</h2>
+        <h2 className="font-medium mb-3">Transactions</h2>
         <div className="space-y-2">
           {block.txHashes.map((hash) => {
             const tx = txs[hash]
@@ -44,7 +44,7 @@ export function BlockDetailPage() {
               </div>
             )
           })}
-          {block.txHashes.length === 0 && <p className="text-white/30 text-sm text-center py-6">Пустой блок</p>}
+          {block.txHashes.length === 0 && <p className="text-white/30 text-sm text-center py-6">Empty block</p>}
         </div>
       </div>
     </div>

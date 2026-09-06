@@ -31,12 +31,12 @@ export function SettingsPage() {
     e.preventDefault()
     if (!user) return
     if (newPassword !== confirmPassword) {
-      setPasswordMsg({ ok: false, text: 'Новые пароли не совпадают' })
+      setPasswordMsg({ ok: false, text: "New passwords don't match" })
       return
     }
     const result = changePassword(user.id, currentPassword, newPassword)
     if (result.ok) {
-      setPasswordMsg({ ok: true, text: 'Пароль изменён' })
+      setPasswordMsg({ ok: true, text: 'Password changed' })
       setCurrentPassword('')
       setNewPassword('')
       setConfirmPassword('')
@@ -47,10 +47,10 @@ export function SettingsPage() {
 
   return (
     <div className="max-w-xl mx-auto px-4 py-8 space-y-6">
-      <h1 className="text-2xl font-semibold">Настройки</h1>
+      <h1 className="text-2xl font-semibold">Settings</h1>
 
       <form onSubmit={onSaveProfile} className="bg-[#12121c]/95 border border-white/10 rounded-xl p-6 space-y-4">
-        <h2 className="font-medium">Профиль</h2>
+        <h2 className="font-medium">Profile</h2>
 
         <div className="flex items-center gap-4">
           <Avatar name={displayName || user.displayName} color={avatarColor} size={56} />
@@ -62,14 +62,14 @@ export function SettingsPage() {
                 onClick={() => setAvatarColor(c)}
                 className={`w-7 h-7 rounded-full transition-transform ${avatarColor === c ? 'ring-2 ring-white ring-offset-2 ring-offset-[#0b0c10] scale-110' : ''}`}
                 style={{ background: c }}
-                aria-label={`Выбрать цвет аватара ${c}`}
+                aria-label={`Choose avatar color ${c}`}
               />
             ))}
           </div>
         </div>
 
         <div>
-          <label className="block text-sm text-white/60 mb-1.5">Имя</label>
+          <label className="block text-sm text-white/60 mb-1.5">Name</label>
           <input
             value={displayName}
             onChange={(e) => setDisplayName(e.target.value)}
@@ -90,16 +90,16 @@ export function SettingsPage() {
           type="submit"
           className="rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black font-medium py-2 px-4 text-sm transition-colors"
         >
-          Сохранить
+          Save
         </button>
-        {profileSaved && <span className="ml-3 text-xs text-emerald-400">Сохранено ✓</span>}
+        {profileSaved && <span className="ml-3 text-xs text-emerald-400">Saved ✓</span>}
       </form>
 
       <form onSubmit={onChangePassword} className="bg-[#12121c]/95 border border-white/10 rounded-xl p-6 space-y-4">
-        <h2 className="font-medium">Смена пароля</h2>
+        <h2 className="font-medium">Change password</h2>
 
         <div>
-          <label className="block text-sm text-white/60 mb-1.5">Текущий пароль</label>
+          <label className="block text-sm text-white/60 mb-1.5">Current password</label>
           <input
             type="password"
             value={currentPassword}
@@ -108,7 +108,7 @@ export function SettingsPage() {
           />
         </div>
         <div>
-          <label className="block text-sm text-white/60 mb-1.5">Новый пароль</label>
+          <label className="block text-sm text-white/60 mb-1.5">New password</label>
           <input
             type="password"
             value={newPassword}
@@ -118,7 +118,7 @@ export function SettingsPage() {
           />
         </div>
         <div>
-          <label className="block text-sm text-white/60 mb-1.5">Повторите новый пароль</label>
+          <label className="block text-sm text-white/60 mb-1.5">Confirm new password</label>
           <input
             type="password"
             value={confirmPassword}
@@ -136,12 +136,12 @@ export function SettingsPage() {
           type="submit"
           className="rounded-lg border border-white/15 hover:border-white/30 text-white/80 font-medium py-2 px-4 text-sm transition-colors"
         >
-          Сменить пароль
+          Change password
         </button>
       </form>
 
       <p className="text-center text-xs text-white/25">
-        Всё это мок — данные хранятся только в localStorage вашего браузера.
+        All of this is mock — data is stored only in your browser's localStorage.
       </p>
     </div>
   )
