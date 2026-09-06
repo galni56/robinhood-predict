@@ -128,7 +128,7 @@ export function CreateMarketPage() {
 
         <button
           type="submit"
-          className="w-full rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black font-medium py-2 text-sm transition-colors"
+          className="w-full rounded-lg bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:brightness-110 text-white font-semibold py-2 text-sm transition-all"
         >
           Создать рынок
         </button>

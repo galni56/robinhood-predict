@@ -23,50 +23,50 @@ export function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false)
 
   return (
-    <header className="sticky top-0 z-20 border-b border-white/10 bg-[#0b0c10]/90 backdrop-blur">
+    <header className="sticky top-0 z-20 border-b border-white/10 bg-[#0a0a12]/85 backdrop-blur">
       <div className="max-w-6xl mx-auto px-4 h-14 flex items-center gap-6">
-        <NavLink to="/markets" className="flex items-center gap-2 font-semibold shrink-0">
-          <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_8px_2px_rgba(52,211,153,0.6)]" />
+        <NavLink to="/markets" className="flex items-center gap-2 font-extrabold shrink-0">
+          <span className="w-2.5 h-2.5 rounded-full bg-gradient-to-br from-violet-400 to-emerald-400 shadow-[0_0_10px_2px_rgba(139,92,246,0.55)]" />
           PredictX
           <span className="text-white/30 font-normal text-xs hidden sm:inline">on {RHCHAIN_META.name}</span>
         </NavLink>
 
-        {user && (
-          <nav className="flex items-center gap-1 text-sm">
-            {links.map((l) => (
-              <NavLink
-                key={l.to}
-                to={l.to}
-                className={({ isActive }) =>
-                  clsx(
-                    'px-3 py-1.5 rounded-md transition-colors',
-                    isActive ? 'bg-white/10 text-white' : 'text-white/60 hover:text-white hover:bg-white/5',
-                  )
-                }
-              >
-                {l.label}
-              </NavLink>
-            ))}
+        {/* Nav is public — browsing markets/leaderboard/archive/explorer needs
+            no account, only placing a bet or creating a market does. */}
+        <nav className="hidden md:flex items-center gap-1 text-sm">
+          {links.map((l) => (
             <NavLink
-              to="/markets/create"
+              key={l.to}
+              to={l.to}
               className={({ isActive }) =>
                 clsx(
-                  'px-3 py-1.5 rounded-md transition-colors text-emerald-300',
-                  isActive ? 'bg-emerald-500/15' : 'hover:bg-emerald-500/10',
+                  'px-3 py-1.5 rounded-full transition-colors font-medium',
+                  isActive ? 'bg-violet-500/15 text-violet-200' : 'text-white/60 hover:text-white hover:bg-white/5',
                 )
               }
             >
-              + Рынок
+              {l.label}
             </NavLink>
-          </nav>
-        )}
+          ))}
+          <NavLink
+            to="/markets/create"
+            className={({ isActive }) =>
+              clsx(
+                'px-3 py-1.5 rounded-full transition-colors font-medium text-emerald-300',
+                isActive ? 'bg-emerald-500/15' : 'hover:bg-emerald-500/10',
+              )
+            }
+          >
+            + Рынок
+          </NavLink>
+        </nav>
 
         <div className="ml-auto flex items-center gap-3">
           <NavLink
             to="/onchain"
             className={({ isActive }) =>
               clsx(
-                'text-xs px-2.5 py-1.5 rounded-md border transition-colors',
+                'text-xs px-2.5 py-1.5 rounded-full border transition-colors',
                 isActive
                   ? 'border-sky-400/50 bg-sky-500/15 text-sky-300'
                   : 'border-white/10 text-white/50 hover:text-sky-300 hover:border-sky-400/30',
@@ -78,7 +78,7 @@ export function Navbar() {
           {user ? (
             <>
               <div className="text-sm text-right hidden sm:block">
-                <div className="text-white/90 font-medium">{formatUsd(balance)}</div>
+                <div className="text-white/90 font-semibold">{formatUsd(balance)}</div>
                 <div className="text-white/40 text-xs">{RHCHAIN_META.ticker}</div>
               </div>
 
@@ -89,7 +89,7 @@ export function Navbar() {
                 {menuOpen && (
                   <>
                     <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
-                    <div className="absolute right-0 top-10 z-20 w-48 rounded-lg border border-white/10 bg-[#16171d] shadow-xl py-1 text-sm">
+                    <div className="absolute right-0 top-10 z-20 w-48 rounded-xl border border-white/10 bg-[#151622] shadow-2xl py-1 text-sm">
                       <NavLink
                         to={`/u/${user.id}`}
                         onClick={() => setMenuOpen(false)}
@@ -120,12 +120,20 @@ export function Navbar() {
               </div>
             </>
           ) : (
-            <NavLink
-              to="/login"
-              className="text-sm px-3 py-1.5 rounded-md border border-white/10 text-white/70 hover:text-white hover:border-white/30 transition-colors"
-            >
-              Войти
-            </NavLink>
+            <div className="flex items-center gap-2">
+              <NavLink
+                to="/login"
+                className="text-sm px-3 py-1.5 rounded-full border border-white/10 text-white/70 hover:text-white hover:border-white/30 transition-colors"
+              >
+                Войти
+              </NavLink>
+              <NavLink
+                to="/register"
+                className="text-sm px-3 py-1.5 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:brightness-110 text-white font-semibold transition-all"
+              >
+                Регистрация
+              </NavLink>
+            </div>
           )}
         </div>
       </div>

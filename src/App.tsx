@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import { ChainEngine } from '@/components/ChainEngine'
 import { DisclaimerBanner } from '@/components/DisclaimerBanner'
 import { Navbar } from '@/components/Navbar'
+import { NeonGridBackground } from '@/components/NeonGridBackground'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { AddressDetailPage } from '@/pages/AddressDetailPage'
 import { ArchivePage } from '@/pages/ArchivePage'
@@ -24,7 +25,8 @@ import { TxDetailPage } from '@/pages/TxDetailPage'
 
 export default function App() {
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col relative z-10">
+      <NeonGridBackground />
       <ChainEngine />
       <DisclaimerBanner />
       <Navbar />
@@ -38,22 +40,10 @@ export default function App() {
           <Route path="/onchain/create" element={<OnchainCreateMarketPage />} />
           <Route path="/onchain/:id" element={<OnchainMarketPage />} />
 
-          <Route
-            path="/markets"
-            element={
-              <ProtectedRoute>
-                <MarketsPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/markets/:marketId"
-            element={
-              <ProtectedRoute>
-                <MarketDetailPage />
-              </ProtectedRoute>
-            }
-          />
+          {/* Browsing is public — login is only required to place a bet,
+              create a market, or view account-specific pages (see BetForm). */}
+          <Route path="/markets" element={<MarketsPage />} />
+          <Route path="/markets/:marketId" element={<MarketDetailPage />} />
           <Route
             path="/markets/create"
             element={
@@ -78,62 +68,13 @@ export default function App() {
               </ProtectedRoute>
             }
           />
-          <Route
-            path="/leaderboard"
-            element={
-              <ProtectedRoute>
-                <LeaderboardPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/archive"
-            element={
-              <ProtectedRoute>
-                <ArchivePage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/u/:userId"
-            element={
-              <ProtectedRoute>
-                <PublicProfilePage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/explorer"
-            element={
-              <ProtectedRoute>
-                <ExplorerPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/explorer/block/:number"
-            element={
-              <ProtectedRoute>
-                <BlockDetailPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/explorer/tx/:hash"
-            element={
-              <ProtectedRoute>
-                <TxDetailPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/explorer/address/:address"
-            element={
-              <ProtectedRoute>
-                <AddressDetailPage />
-              </ProtectedRoute>
-            }
-          />
+          <Route path="/leaderboard" element={<LeaderboardPage />} />
+          <Route path="/archive" element={<ArchivePage />} />
+          <Route path="/u/:userId" element={<PublicProfilePage />} />
+          <Route path="/explorer" element={<ExplorerPage />} />
+          <Route path="/explorer/block/:number" element={<BlockDetailPage />} />
+          <Route path="/explorer/tx/:hash" element={<TxDetailPage />} />
+          <Route path="/explorer/address/:address" element={<AddressDetailPage />} />
 
           <Route path="*" element={<NotFoundPage />} />
         </Routes>

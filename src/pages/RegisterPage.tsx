@@ -27,21 +27,21 @@ export function RegisterPage() {
     <div className="min-h-[calc(100svh-90px)] flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-2 font-semibold text-lg mb-1">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_8px_2px_rgba(52,211,153,0.6)]" />
+          <div className="inline-flex items-center gap-2 font-extrabold text-lg mb-1">
+            <span className="w-2.5 h-2.5 rounded-full bg-gradient-to-br from-violet-400 to-emerald-400 shadow-[0_0_8px_2px_rgba(139,92,246,0.55)]" />
             PredictX
           </div>
           <p className="text-white/40 text-sm">Новый демо-аккаунт на {RHCHAIN_META.name}</p>
         </div>
 
-        <form onSubmit={onSubmit} className="bg-white/[0.03] border border-white/10 rounded-xl p-6 space-y-4">
+        <form onSubmit={onSubmit} className="bg-white/[0.04] border border-white/10 rounded-2xl p-6 space-y-4">
           <div>
             <label className="block text-sm text-white/60 mb-1.5">Имя</label>
             <input
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
               placeholder="Как вас называть"
-              className="w-full rounded-lg bg-black/30 border border-white/10 px-3 py-2 text-sm outline-none focus:border-emerald-400/60"
+              className="w-full rounded-lg bg-black/30 border border-white/10 px-3 py-2 text-sm outline-none focus:border-violet-400/60"
             />
           </div>
           <div>
@@ -52,7 +52,7 @@ export function RegisterPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
-              className="w-full rounded-lg bg-black/30 border border-white/10 px-3 py-2 text-sm outline-none focus:border-emerald-400/60"
+              className="w-full rounded-lg bg-black/30 border border-white/10 px-3 py-2 text-sm outline-none focus:border-violet-400/60"
             />
           </div>
           <div>
@@ -64,7 +64,7 @@ export function RegisterPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Минимум 6 символов"
-              className="w-full rounded-lg bg-black/30 border border-white/10 px-3 py-2 text-sm outline-none focus:border-emerald-400/60"
+              className="w-full rounded-lg bg-black/30 border border-white/10 px-3 py-2 text-sm outline-none focus:border-violet-400/60"
             />
           </div>
 
@@ -72,14 +72,14 @@ export function RegisterPage() {
 
           <button
             type="submit"
-            className="w-full rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black font-medium py-2 text-sm transition-colors"
+            className="w-full rounded-lg bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:brightness-110 text-white font-semibold py-2 text-sm transition-all"
           >
             Создать аккаунт
           </button>
 
           <p className="text-center text-sm text-white/40">
             Уже есть аккаунт?{' '}
-            <Link to="/login" className="text-emerald-400 hover:underline">
+            <Link to="/login" className="text-violet-300 hover:underline">
               Войти
             </Link>
           </p>

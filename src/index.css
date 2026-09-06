@@ -1,8 +1,8 @@
 @import 'tailwindcss';
 
 @theme {
-  --font-sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, Consolas, monospace;
+  --font-sans: 'Manrope', system-ui, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Consolas, monospace;
 }
 
 :root {
@@ -17,14 +17,16 @@ body,
 
 body {
   margin: 0;
-  background: #0b0c10;
-  color: #e6e6ea;
+  /* Base color behind the animated neon grid (NeonGridBackground) — that
+     canvas now carries the atmosphere, this is just its backdrop. */
+  background: #0a0a12;
+  color: #eef0f6;
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
 }
 
 ::selection {
-  background: #22c55e55;
+  background: #8b5cf655;
 }
 
 /* thin scrollbar for tables / explorer lists */
@@ -33,6 +35,6 @@ body {
   width: 6px;
 }
 .scrollbar-thin::-webkit-scrollbar-thumb {
-  background: #2e303a;
+  background: #34364a;
   border-radius: 999px;
 }
