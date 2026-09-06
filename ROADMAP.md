@@ -228,15 +228,6 @@ change, and was deliberately deferred rather than done alongside 3.5:
 Realistic scope: days, not hours — treat as its own project phase with its
 own security review, not something to fit alongside other work.
 
-## 4. Security pass
-
-- Review the contract again once permissionless creation + the feed-
-  allowlist mitigation are in
-- Even testnet-only, this is publicly deployed code people will interact
-  with — a review before real usage, not after an incident
-- Decide the mainnet bar separately — different, higher standard (audit,
-  legal/compliance conversation we've deliberately parked so far)
-
 ## Explicitly not in this phase
 
 - Mainnet deployment
