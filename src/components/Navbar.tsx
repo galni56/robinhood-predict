@@ -15,16 +15,21 @@ const links = [
   { to: '/explorer', label: 'Эксплорер' },
 ]
 
+// Full nav + account cluster no longer fits one row once both are always
+// visible (browsing is public now, so there's a "Войти"+"Регистрация" pair
+// competing for the same space as the links) — collapse into a hamburger
+// below `lg` instead of letting things overflow/cram.
 export function Navbar() {
   const navigate = useNavigate()
   const user = useAuthStore((s) => s.currentUser())
   const logout = useAuthStore((s) => s.logout)
   const balance = useChainStore((s) => (user ? s.balanceOf(user.walletAddress) : 0))
   const [menuOpen, setMenuOpen] = useState(false)
+  const [mobileOpen, setMobileOpen] = useState(false)
 
   return (
-    <header className="sticky top-0 z-20 border-b border-white/10 bg-[#0a0a12]/85 backdrop-blur">
-      <div className="max-w-6xl mx-auto px-4 h-14 flex items-center gap-6">
+    <header className="sticky top-0 z-20 border-b border-white/10 bg-[#0a0a12]/95 lg:bg-[#0a0a12]/85 lg:backdrop-blur">
+      <div className="max-w-6xl mx-auto px-4 h-14 flex items-center gap-4 lg:gap-6">
         <NavLink to="/markets" className="flex items-center gap-2 font-extrabold shrink-0">
           <span className="w-2.5 h-2.5 rounded-full bg-gradient-to-br from-violet-400 to-emerald-400 shadow-[0_0_10px_2px_rgba(139,92,246,0.55)]" />
           PredictX
@@ -33,7 +38,7 @@ export function Navbar() {
 
         {/* Nav is public — browsing markets/leaderboard/archive/explorer needs
             no account, only placing a bet or creating a market does. */}
-        <nav className="hidden md:flex items-center gap-1 text-sm">
+        <nav className="hidden lg:flex items-center gap-1 text-sm">
           {links.map((l) => (
             <NavLink
               key={l.to}
@@ -61,7 +66,7 @@ export function Navbar() {
           </NavLink>
         </nav>
 
-        <div className="ml-auto flex items-center gap-3">
+        <div className="ml-auto hidden lg:flex items-center gap-3">
           <NavLink
             to="/onchain"
             className={({ isActive }) =>
@@ -77,7 +82,7 @@ export function Navbar() {
           </NavLink>
           {user ? (
             <>
-              <div className="text-sm text-right hidden sm:block">
+              <div className="text-sm text-right">
                 <div className="text-white/90 font-semibold">{formatUsd(balance)}</div>
                 <div className="text-white/40 text-xs">{RHCHAIN_META.ticker}</div>
               </div>
@@ -136,7 +141,118 @@ export function Navbar() {
             </div>
           )}
         </div>
+
+        {/* Mobile / narrow-desktop: everything collapses behind one toggle. */}
+        <div className="ml-auto flex lg:hidden items-center gap-2">
+          {user && (
+            <div className="text-sm text-right hidden sm:block">
+              <div className="text-white/90 font-semibold">{formatUsd(balance)}</div>
+            </div>
+          )}
+          {user ? (
+            <Avatar name={user.displayName} color={user.avatarColor} size={28} />
+          ) : (
+            <NavLink
+              to="/register"
+              className="text-xs px-2.5 py-1.5 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white font-semibold"
+            >
+              Начать
+            </NavLink>
+          )}
+          <button
+            onClick={() => setMobileOpen((v) => !v)}
+            aria-label={mobileOpen ? 'Закрыть меню' : 'Открыть меню'}
+            aria-expanded={mobileOpen}
+            className="w-9 h-9 shrink-0 rounded-lg border border-white/10 flex flex-col items-center justify-center gap-[3px] hover:border-white/30 transition-colors"
+          >
+            <span className={clsx('block w-4 h-[1.5px] bg-white/80 transition-transform', mobileOpen && 'translate-y-[5px] rotate-45')} />
+            <span className={clsx('block w-4 h-[1.5px] bg-white/80 transition-opacity', mobileOpen && 'opacity-0')} />
+            <span className={clsx('block w-4 h-[1.5px] bg-white/80 transition-transform', mobileOpen && '-translate-y-[5px] -rotate-45')} />
+          </button>
+        </div>
       </div>
+
+      {mobileOpen && (
+        <div className="lg:hidden border-t border-white/10 bg-[#0a0a12] px-4 py-3 space-y-1">
+          {links.map((l) => (
+            <NavLink
+              key={l.to}
+              to={l.to}
+              onClick={() => setMobileOpen(false)}
+              className={({ isActive }) =>
+                clsx(
+                  'block px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                  isActive ? 'bg-violet-500/15 text-violet-200' : 'text-white/70 hover:bg-white/5 hover:text-white',
+                )
+              }
+            >
+              {l.label}
+            </NavLink>
+          ))}
+          <NavLink
+            to="/markets/create"
+            onClick={() => setMobileOpen(false)}
+            className="block px-3 py-2 rounded-lg text-sm font-medium text-emerald-300 hover:bg-emerald-500/10"
+          >
+            + Создать рынок
+          </NavLink>
+          <NavLink
+            to="/onchain"
+            onClick={() => setMobileOpen(false)}
+            className="block px-3 py-2 rounded-lg text-sm font-medium text-sky-300 hover:bg-sky-500/10"
+          >
+            ⛓️ Реальный тестнет
+          </NavLink>
+
+          <div className="pt-2 mt-2 border-t border-white/10">
+            {user ? (
+              <>
+                <NavLink
+                  to={`/u/${user.id}`}
+                  onClick={() => setMobileOpen(false)}
+                  className="block px-3 py-2 rounded-lg text-sm text-white/70 hover:bg-white/5 hover:text-white"
+                >
+                  Публичный профиль
+                </NavLink>
+                <NavLink
+                  to="/settings"
+                  onClick={() => setMobileOpen(false)}
+                  className="block px-3 py-2 rounded-lg text-sm text-white/70 hover:bg-white/5 hover:text-white"
+                >
+                  Настройки
+                </NavLink>
+                <button
+                  onClick={() => {
+                    setMobileOpen(false)
+                    logout()
+                    navigate('/login')
+                  }}
+                  className="w-full text-left px-3 py-2 rounded-lg text-sm text-rose-400 hover:bg-white/5"
+                >
+                  Выйти
+                </button>
+              </>
+            ) : (
+              <div className="flex gap-2 px-1">
+                <NavLink
+                  to="/login"
+                  onClick={() => setMobileOpen(false)}
+                  className="flex-1 text-center text-sm px-3 py-2 rounded-lg border border-white/10 text-white/70 hover:text-white hover:border-white/30"
+                >
+                  Войти
+                </NavLink>
+                <NavLink
+                  to="/register"
+                  onClick={() => setMobileOpen(false)}
+                  className="flex-1 text-center text-sm px-3 py-2 rounded-lg bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white font-semibold"
+                >
+                  Регистрация
+                </NavLink>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </header>
   )
 }

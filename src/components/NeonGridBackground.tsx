@@ -79,9 +79,9 @@ export function NeonGridBackground() {
       const originY = -pad
 
       // Horizontal strands — emerald (brand "YES" color).
-      ctx!.strokeStyle = 'rgba(52, 211, 153, 0.22)'
-      ctx!.shadowColor = 'rgba(52, 211, 153, 0.55)'
-      ctx!.shadowBlur = 6
+      ctx!.strokeStyle = 'rgba(52, 211, 153, 0.4)'
+      ctx!.shadowColor = 'rgba(52, 211, 153, 0.7)'
+      ctx!.shadowBlur = 7
       ctx!.lineWidth = 1
       for (let j = 0; j <= rows; j++) {
         const y0 = originY + j * LINE_SPACING
@@ -97,8 +97,8 @@ export function NeonGridBackground() {
 
       // Vertical strands — brand green, a touch cooler than the emerald
       // horizontals so the mesh reads as two-tone rather than flat/mono.
-      ctx!.strokeStyle = 'rgba(74, 222, 128, 0.16)'
-      ctx!.shadowColor = 'rgba(74, 222, 128, 0.45)'
+      ctx!.strokeStyle = 'rgba(74, 222, 128, 0.3)'
+      ctx!.shadowColor = 'rgba(74, 222, 128, 0.6)'
       for (let i = 0; i <= cols; i++) {
         const x0 = originX + i * LINE_SPACING
         ctx!.beginPath()
@@ -129,10 +129,12 @@ export function NeonGridBackground() {
 
   return (
     <div className="fixed inset-0 z-0 pointer-events-none overflow-hidden" aria-hidden="true">
-      <canvas ref={canvasRef} className="absolute inset-0" />
-      {/* Darkening + blur over the raw grid so foreground text keeps its
-          contrast — the mesh reads as ambient texture, not full-strength neon. */}
-      <div className="absolute inset-0 bg-[#05050a]/55 backdrop-blur-[2px]" />
+      <canvas ref={canvasRef} className="absolute inset-0" style={{ filter: 'blur(0.5px)' }} />
+      {/* Plain darkening gradient — deliberately NOT `backdrop-filter`, which
+          on some Chromium builds bleeds a visible blur onto the sticky
+          navbar/hero text sitting above it in the same stacking area. A
+          static gradient softens the grid just as well without that risk. */}
+      <div className="absolute inset-0 bg-gradient-to-b from-[#05050a]/70 via-[#05050a]/40 to-[#05050a]/70" />
     </div>
   )
 }
