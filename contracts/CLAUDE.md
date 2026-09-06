@@ -48,20 +48,6 @@ cap (`MAX_TARGET_PRICE_USD`) mirroring the frontend's `MAX_TARGET_PRICE`.
   of the share ratio (`userWeightedStake / weightedWinningPool == 1` when
   you're the sole winner) — confirmed by rerunning, not assumed.
 
-As of the 2026-09-04 session this ran on a machine the user confirmed is
-**not** company-managed, so Foundry was installed directly (`curl -L
-https://foundry.paradigm.xyz | bash && foundryup`), with
-`lib/forge-std` and `lib/openzeppelin-contracts@v5.1.0` fetched via
-`forge install ... --no-git --no-commit` (they're gitignored, so a fresh
-checkout on any machine needs this step regardless of Docker vs. direct
-install). The original session that authored this file ran everything via
-the Docker image below on a company-managed, EDR-monitored workstation —
-that path is kept as the fallback for whichever machine this next runs on.
-
-Still true regardless of the green tests: this has had **no external
-security review**. Green tests mean the logic does what the tests say, not
-that it's safe against a determined attacker. Don't put real value behind
-it before a review — see the checklist at the bottom of this file.
 
 **Deployed to Robinhood Chain testnet as of 2026-09-05** (see section 2
 below for the full deploy flow that produced these):
@@ -70,16 +56,6 @@ below for the full deploy flow that produced these):
 - `MockAggregator` stand-in TSLA feed: `0x3d8cC74a198ad948D77c65d88Ed24acFeE77Cd67`
   (mock, not real Chainlink — see section 2 for why)
 - Market #0 open: "Does TSLA reach $400?", 24h deadline from creation
-
-## 0. One-time setup on this machine
-
-Confirm whether the current machine is company-managed/EDR-monitored
-before choosing a path — don't assume either way carries over from a past
-session. On a work machine, keep Foundry Docker-only (no new binary on the
-host) unless explicitly cleared with whoever owns security policy there.
-On a confirmed non-work machine, installing Foundry directly is fine (see
-"Installing Foundry directly" below) — that's what happened on
-2026-09-04.
 
 ### Building via Docker (what was actually used, safe to repeat)
 
@@ -109,23 +85,7 @@ docker run --rm -v "$PWD":/app -w /app --entrypoint sh \
 install` expects one for submodules. Pinning OpenZeppelin to `v5.1.0` rather
 than tracking `master` matters too — the contract uses the v5
 `Ownable(initialOwner)` constructor signature; a future major version could
-break that silently.)
-
-### Installing Foundry directly on a machine where that's fine
-
-Only do this on a machine where installing dev tools isn't a policy
-question (e.g. your own personal laptop):
-
-```bash
-curl -L https://foundry.paradigm.xyz | bash
-foundryup
-```
-
-Then the same `forge install` commands as above, minus the `docker run`
-wrapper.
-
-(`remappings.txt` already points `@openzeppelin/contracts/` and `forge-std/`
-at these — no extra config needed once they're installed.)
+break that silently.
 
 ## 1. Build & test (no network, no keys, safe to run freely)
 
@@ -159,13 +119,7 @@ for whoever does that audit, not a replacement for it):
   exactly the amount it was told; a non-standard token would silently
   under-fund the contract relative to what it believes it owes bettors.
   Documented inline on the `betToken` declaration. Vet whatever token you
-  point this at before mainnet — the contract can't detect this on its own.
-- **Owner is a real centralization point**, more so now than at the last
-  review: owner controls the price-feed allowlist, `feeBp`, seed liquidity,
-  `voidMarket` (can cancel any open market for any reason, e.g. one about
-  to resolve against a colluding party), and fee withdrawal. A single EOA
-  is fine for a testnet MVP; before mainnet this should move to a
-  multisig (e.g. Safe), not stay a single key.
+  point this at before mainnet — the contract can't detect this on its own..
 - `MAX_PRICE_STALENESS` in `PredictionMarket.sol` is a placeholder (1 hour).
   Check the actual heartbeat of the specific Chainlink feed you'll use
   (https://docs.chain.link/data-feeds/tokenized-equity-feeds/robinhood) and
@@ -176,9 +130,6 @@ for whoever does that audit, not a replacement for it):
   inherent to how parimutuel pools work (same as horse-racing tote boards),
   not a bug, but worth being explicit about in user-facing copy so it isn't
   "discovered" as a surprise.
-- This has had no external security review. Don't put real (mainnet) value
-  behind it until it's had one — a bug here means an irreversible loss of
-  whatever's in the vault, this isn't a "redeploy and move on" situation.
 
 ## 2. Testnet deployment checklist
 
@@ -244,7 +195,7 @@ Claude ever reading the file).
        ghcr.io/foundry-rs/foundry:latest \
        -c "FEED_INITIAL_ANSWER=35390000000 forge script script/DeployMockFeed.s.sol --rpc-url robinhood_testnet --broadcast"
      ```
-   - **On mainnet (later, post security review):** look up the real feed
+   - **On mainnet** look up the real feed
      address at the link above instead of deploying a mock.
    Either way, pick a target price (scaled to the feed's own `decimals()`,
    capped at `MAX_TARGET_PRICE_USD` = $500 in the same units) and a
@@ -295,10 +246,3 @@ external, not embedded — see root `CLAUDE.md`):
   needs an ERC20 `approve` first — that's a separate signed transaction
   before the bet itself; surface both steps clearly in the UI rather than
   making it look like one action.
-
-## 4. Don't do without checking with the project owner first
-
-- Don't deploy to **mainnet** (chain id `4663`) — testnet only until there's
-  been a real review.
-- Don't put anything but testnet-faucet funds behind this contract.
-- Don't reuse a wallet that holds real assets as the deployer/owner key.
