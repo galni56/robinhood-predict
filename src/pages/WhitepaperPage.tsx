@@ -31,12 +31,12 @@ export function WhitepaperPage() {
 
       <article className="min-w-0 space-y-12">
         <div>
-          <p className="text-xs font-bold tracking-[0.2em] text-violet-300/80 uppercase mb-2">Whitepaper</p>
+          <p className="text-xs font-bold tracking-[0.2em] text-[#C6FF3D]/80 uppercase mb-2">Whitepaper</p>
           <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight">PredictX: parimutuel prediction markets for tokenized stocks</h1>
           <p className="text-white/40 text-sm mt-3">
             Version 0.3 · Draft for {RHCHAIN_META.name}. This document describes how the product works today. It is
             not audited, not legal or investment advice, and describes a demo/testnet system — see{' '}
-            <Link to="/terms" className="text-violet-300 hover:underline">
+            <Link to="/terms" className="text-[#C6FF3D] hover:underline">
               Terms of Service
             </Link>{' '}
             §9 for the full disclaimer.
@@ -52,7 +52,7 @@ export function WhitepaperPage() {
           </p>
           <p>
             The product ships as two parallel implementations of the same rules: a fully client-side mock (this
-            site, on every route except <code className="text-violet-300">/onchain/*</code>) for a zero-friction
+            site, on every route except <code className="text-[#C6FF3D]">/onchain/*</code>) for a zero-friction
             demo, and a Solidity contract deployed to {RHCHAIN_META.name} for real (test-value) on-chain
             settlement. Both enforce identical math — target price caps, fee structure, and the weighting mechanic
             described below.
@@ -119,17 +119,17 @@ export function WhitepaperPage() {
 
         <Section id="architecture" title="7. Architecture">
           <p>
-            The mock app (everything under <code className="text-violet-300">/markets</code>,{' '}
-            <code className="text-violet-300">/portfolio</code>, etc.) runs entirely in your browser — a simulated
+            The mock app (everything under <code className="text-[#C6FF3D]">/markets</code>,{' '}
+            <code className="text-[#C6FF3D]">/portfolio</code>, etc.) runs entirely in your browser — a simulated
             chain, simulated price feeds, and localStorage-backed accounts, with zero backend. It exists to make the
             mechanics playable without a wallet or test funds.
           </p>
           <p>
-            The real implementation is a Solidity contract (OpenZeppelin's <code className="text-violet-300">Ownable</code>,{' '}
-            <code className="text-violet-300">ReentrancyGuard</code>, <code className="text-violet-300">SafeERC20</code>) deployed to{' '}
+            The real implementation is a Solidity contract (OpenZeppelin's <code className="text-[#C6FF3D]">Ownable</code>,{' '}
+            <code className="text-[#C6FF3D]">ReentrancyGuard</code>, <code className="text-[#C6FF3D]">SafeERC20</code>) deployed to{' '}
             {RHCHAIN_META.name}, reading prices through a Chainlink-compatible{' '}
-            <code className="text-violet-300">AggregatorV3Interface</code>. It is wired into the{' '}
-            <Link to="/onchain" className="text-violet-300 hover:underline">
+            <code className="text-[#C6FF3D]">AggregatorV3Interface</code>. It is wired into the{' '}
+            <Link to="/onchain" className="text-[#C6FF3D] hover:underline">
               live testnet section
             </Link>{' '}
             of this site via a standard browser wallet connection (MetaMask or Phantom) — no custodial wallet, no
@@ -161,7 +161,7 @@ export function WhitepaperPage() {
             legal advice, and none of it should be treated as an offer to trade a real financial product.
             Legal/regulatory review has been deliberately deferred and is not resolved by this document existing —
             see the full{' '}
-            <Link to="/terms" className="text-violet-300 hover:underline">
+            <Link to="/terms" className="text-[#C6FF3D] hover:underline">
               Terms of Service
             </Link>
             .

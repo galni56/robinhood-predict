@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { CountdownTimer } from '@/components/CountdownTimer'
+import { HeroMark } from '@/components/HeroMark'
 import { Sparkline } from '@/components/PriceChart'
 import { formatPct, formatUsd } from '@/lib/format'
 import { RHCHAIN_META, TOKEN_BY_SYMBOL, TOKENS } from '@/market/tokens'
@@ -59,30 +59,25 @@ export function LandingPage() {
 
   const preview = openMarkets.slice(0, 3)
   const heroMarket = openMarkets[0]
-  const heroToken = heroMarket ? TOKEN_BY_SYMBOL.get(heroMarket.symbol) : undefined
-  const heroPrice = heroToken ? (prices[heroToken.symbol] ?? heroToken.startPrice) : 0
-  const heroSeries = heroToken ? (history[heroToken.symbol] ?? []) : []
-  const heroOdds = heroMarket ? oddsFor(heroMarket.id) : { yesPct: 0.5, noPct: 0.5, totalPool: 0 }
-  const heroChange = heroSeries.length > 1 ? (heroPrice - heroSeries[0].price) / heroSeries[0].price : 0
 
   return (
     <div>
       {/* Hero */}
       <section className="max-w-6xl mx-auto px-4 pt-10 pb-6">
         <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-[#0e0e18] px-6 py-12 sm:px-12 sm:py-16">
-          <div className="pointer-events-none absolute -top-24 -left-24 w-72 h-72 rounded-full bg-violet-500/25 blur-3xl" />
-          <div className="pointer-events-none absolute -bottom-24 -right-16 w-72 h-72 rounded-full bg-fuchsia-500/15 blur-3xl" />
+          <div className="pointer-events-none absolute -top-24 -left-24 w-72 h-72 rounded-full bg-[#C6FF3D]/20 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-24 -right-16 w-72 h-72 rounded-full bg-[#8FBF1F]/15 blur-3xl" />
 
           <div className="relative grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div>
-              <p className="inline-flex items-center gap-2 text-xs font-bold tracking-[0.2em] text-violet-300/80 uppercase mb-5">
-                <span className="w-1.5 h-1.5 rounded-full bg-violet-400" />
+              <p className="inline-flex items-center gap-2 text-xs font-bold tracking-[0.2em] text-[#C6FF3D]/80 uppercase mb-5">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#C6FF3D]" />
                 Prediction markets for tokenized stocks
               </p>
               <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight leading-[1.05]">
                 Call the price.
                 <br />
-                <span className="bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-transparent">
+                <span className="bg-gradient-to-r from-[#C6FF3D] to-[#8FBF1F] bg-clip-text text-transparent">
                   Get paid when you're right.
                 </span>
               </h1>
@@ -98,7 +93,7 @@ export function LandingPage() {
                 <Link
                   to="/markets"
                   aria-label="Browse markets"
-                  className="shrink-0 rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:brightness-110 text-white px-4 py-2.5 text-sm font-semibold transition-all"
+                  className="shrink-0 rounded-xl bg-gradient-to-r from-[#C6FF3D] to-[#8FBF1F] hover:brightness-110 text-black px-4 py-2.5 text-sm font-semibold transition-all"
                 >
                   Browse →
                 </Link>
@@ -108,49 +103,23 @@ export function LandingPage() {
                 <span className="text-emerald-400">◆</span> No wallet needed to browse — sign up only when you're ready to bet
               </p>
 
-              <Link to="/whitepaper" className="inline-block text-sm text-violet-300 hover:underline mt-4">
+              <Link to="/whitepaper" className="inline-block text-sm text-[#C6FF3D] hover:underline mt-4">
                 Read how the payout math works ↗
               </Link>
             </div>
 
-            <div className="relative">
-              {heroMarket && heroToken ? (
-                <Link
-                  to={`/markets/${heroMarket.id}`}
-                  className="block bg-[#12121c]/95 border border-white/10 rounded-2xl p-5 shadow-[0_0_50px_-12px_rgba(139,92,246,0.5)] hover:border-violet-400/30 transition-colors"
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <div>
-                      <div className="font-bold text-lg">{heroToken.symbol}</div>
-                      <div className="text-white/40 text-xs">{heroToken.name}</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="font-mono font-semibold text-lg">{formatUsd(heroPrice)}</div>
-                      <div className={heroChange >= 0 ? 'text-xs text-emerald-400' : 'text-xs text-rose-400'}>
-                        {heroChange >= 0 ? '+' : ''}
-                        {formatPct(heroChange)}
-                      </div>
-                    </div>
-                  </div>
-                  <p className="text-sm text-white/60 mb-3">{heroMarket.question}</p>
-                  <Sparkline data={heroSeries} color={heroChange >= 0 ? '#2dd888' : '#ff5577'} height={56} />
-                  <div className="mt-4 h-2 rounded-full bg-rose-500/25 overflow-hidden">
-                    <div className="h-full bg-emerald-400" style={{ width: `${heroOdds.yesPct * 100}%` }} />
-                  </div>
-                  <div className="flex justify-between text-xs text-white/50 mt-1.5">
-                    <span>YES {formatPct(heroOdds.yesPct)}</span>
-                    <span>NO {formatPct(heroOdds.noPct)}</span>
-                  </div>
-                  <div className="mt-4 flex items-center justify-between text-xs text-white/40">
-                    <span>⏱ closes in <CountdownTimer deadline={heroMarket.deadline} /></span>
-                    <span className="text-violet-300">View market →</span>
-                  </div>
-                </Link>
-              ) : (
-                <div className="bg-[#12121c]/95 border border-white/10 rounded-2xl p-8 text-center text-white/40 text-sm">
-                  New markets spin up automatically — check back in a moment.
-                </div>
-              )}
+            <div className="relative flex flex-col items-center">
+              <HeroMark className="w-full max-w-sm drop-shadow-[0_0_60px_rgba(198,255,61,0.25)]" />
+              <div className="flex items-center gap-2 text-xs text-white/40 mt-2">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#C6FF3D]/60" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-[#C6FF3D]" />
+                </span>
+                <span className="uppercase tracking-[0.15em] font-bold text-white/50">
+                  live on {RHCHAIN_META.name}
+                </span>
+                <span>· {openMarkets.length} markets open</span>
+              </div>
             </div>
           </div>
         </div>
@@ -192,7 +161,7 @@ export function LandingPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {STEPS.map((s) => (
               <div key={s.n} className="bg-[#12121c]/95 border border-white/10 rounded-2xl p-5">
-                <div className="text-violet-300/60 font-mono text-sm mb-3">{s.n}</div>
+                <div className="text-[#C6FF3D]/60 font-mono text-sm mb-3">{s.n}</div>
                 <h3 className="font-bold mb-2">{s.title}</h3>
                 <p className="text-white/50 text-sm">{s.body}</p>
               </div>
@@ -207,7 +176,7 @@ export function LandingPage() {
         <p className="text-white/40 text-sm text-center mb-10">Mechanics designed around one idea: reward conviction, not luck of timing.</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
           {FEATURES.map((f) => (
-            <div key={f.title} className="bg-[#12121c]/95 border border-white/10 rounded-2xl p-6 hover:border-violet-400/30 transition-colors">
+            <div key={f.title} className="bg-[#12121c]/95 border border-white/10 rounded-2xl p-6 hover:border-[#C6FF3D]/30 transition-colors">
               <h3 className="font-bold mb-2">{f.title}</h3>
               <p className="text-white/50 text-sm">{f.body}</p>
             </div>
@@ -221,7 +190,7 @@ export function LandingPage() {
           <div className="max-w-6xl mx-auto px-4 py-16">
             <div className="flex items-center justify-between mb-8 flex-wrap gap-3">
               <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">On the board right now</h2>
-              <Link to="/markets" className="text-sm text-violet-300 hover:underline">
+              <Link to="/markets" className="text-sm text-[#C6FF3D] hover:underline">
                 View all {openMarkets.length} markets →
               </Link>
             </div>
@@ -238,7 +207,7 @@ export function LandingPage() {
                   <Link
                     key={market.id}
                     to={`/markets/${market.id}`}
-                    className="block bg-[#12121c]/95 border border-white/10 rounded-2xl p-4 hover:border-violet-400/30 hover:bg-[#181829]/95 transition-all"
+                    className="block bg-[#12121c]/95 border border-white/10 rounded-2xl p-4 hover:border-[#C6FF3D]/30 hover:bg-[#181829]/95 transition-all"
                   >
                     <div className="flex items-start justify-between mb-2">
                       <div>
@@ -271,7 +240,7 @@ export function LandingPage() {
         <div className="flex flex-wrap gap-3 justify-center">
           <Link
             to="/register"
-            className="text-sm px-6 py-3 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:brightness-110 text-white font-semibold transition-all"
+            className="text-sm px-6 py-3 rounded-full bg-gradient-to-r from-[#C6FF3D] to-[#8FBF1F] hover:brightness-110 text-black font-semibold transition-all"
           >
             Sign up — it's free
           </Link>

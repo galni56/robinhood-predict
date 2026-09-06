@@ -130,7 +130,7 @@ export function BetForm({ marketId, initialSide = 'YES' }: { marketId: string; i
               min={1}
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              className="w-full rounded-lg bg-black/30 border border-white/10 px-3 py-2 text-sm outline-none focus:border-violet-400/60"
+              className="w-full rounded-lg bg-black/30 border border-white/10 px-3 py-2 text-sm outline-none focus:border-[#C6FF3D]/60"
             />
           </div>
 

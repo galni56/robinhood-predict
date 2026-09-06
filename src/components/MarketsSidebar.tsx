@@ -30,7 +30,7 @@ export function MarketsSidebar() {
       <div className="rounded-2xl border border-white/10 bg-[#12121c]/95 p-4">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-bold flex items-center gap-1.5">🏆 Leaderboard</h2>
-          <Link to="/leaderboard" className="text-xs text-violet-300/80 hover:text-violet-200">
+          <Link to="/leaderboard" className="text-xs text-[#C6FF3D]/80 hover:text-[#d9ff80]">
             all →
           </Link>
         </div>

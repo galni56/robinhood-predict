@@ -5,7 +5,7 @@ export function TermsPage() {
   return (
     <div className="max-w-3xl mx-auto px-4 py-10 space-y-10">
       <div>
-        <p className="text-xs font-bold tracking-[0.2em] text-violet-300/80 uppercase mb-2">Legal</p>
+        <p className="text-xs font-bold tracking-[0.2em] text-[#C6FF3D]/80 uppercase mb-2">Legal</p>
         <h1 className="text-3xl font-extrabold tracking-tight">Terms of Service</h1>
         <p className="text-white/40 text-sm mt-3">
           Last updated {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}.
@@ -25,7 +25,7 @@ export function TermsPage() {
       <Section title="1. Acceptance of these terms">
         <p>
           By accessing or using PredictX (the "Service"), you agree to these Terms of Service. If you don't agree,
-          don't use the Service. These terms apply to the mock demo (every page except <code className="text-violet-300">/onchain/*</code>) and
+          don't use the Service. These terms apply to the mock demo (every page except <code className="text-[#C6FF3D]">/onchain/*</code>) and
           to the real-testnet section alike.
         </p>
       </Section>
@@ -50,7 +50,7 @@ export function TermsPage() {
 
       <Section title="4. Accounts">
         <p>
-          Demo accounts are stored only in your browser's <code className="text-violet-300">localStorage</code> —
+          Demo accounts are stored only in your browser's <code className="text-[#C6FF3D]">localStorage</code> —
           there is no server-side account database, no password recovery, and clearing your browser data deletes
           the account. Don't reuse a real password here. Wallet connections for the real-testnet section use your
           own browser extension (MetaMask, Phantom, or similar); PredictX never receives or stores your private key
@@ -110,7 +110,7 @@ export function TermsPage() {
             href="/"
             target="_blank"
             rel="noreferrer"
-            className="text-violet-300 hover:underline"
+            className="text-[#C6FF3D] hover:underline"
           >
             GitHub repository
           </a>

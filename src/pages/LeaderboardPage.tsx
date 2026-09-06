@@ -25,7 +25,7 @@ export function LeaderboardPage() {
       </div>
 
       {!user && (
-        <div className="bg-gradient-to-r from-violet-500/15 to-fuchsia-500/10 border border-violet-400/20 rounded-xl p-4 flex items-center justify-between flex-wrap gap-3">
+        <div className="bg-gradient-to-r from-[#C6FF3D]/15 to-[#8FBF1F]/10 border border-[#C6FF3D]/20 rounded-xl p-4 flex items-center justify-between flex-wrap gap-3">
           <p className="text-sm text-white/70">Want your name on this board? Sign up, place a bet, and climb it.</p>
           <div className="flex gap-2 shrink-0">
             <Link
@@ -36,7 +36,7 @@ export function LeaderboardPage() {
             </Link>
             <Link
               to="/register"
-              className="text-sm px-3 py-1.5 rounded-lg bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:brightness-110 text-white font-semibold transition-all"
+              className="text-sm px-3 py-1.5 rounded-lg bg-gradient-to-r from-[#C6FF3D] to-[#8FBF1F] hover:brightness-110 text-black font-semibold transition-all"
             >
               Sign up
             </Link>
@@ -66,7 +66,7 @@ export function LeaderboardPage() {
           {rows.length === 0 && (
             <div className="text-center py-10">
               <p className="text-white/40 text-sm mb-3">No one's on the board yet — place the first bet and take the top spot.</p>
-              <Link to="/markets" className="text-violet-300 hover:underline text-sm">
+              <Link to="/markets" className="text-[#C6FF3D] hover:underline text-sm">
                 Browse markets →
               </Link>
             </div>

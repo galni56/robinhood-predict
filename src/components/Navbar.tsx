@@ -31,7 +31,7 @@ export function Navbar() {
     <header className="sticky top-0 z-20 border-b border-white/10 bg-[#0a0a12]/95 lg:bg-[#0a0a12]/85 lg:backdrop-blur">
       <div className="max-w-6xl mx-auto px-4 h-14 flex items-center gap-4 lg:gap-6">
         <NavLink to="/" className="flex items-center gap-2 font-extrabold shrink-0">
-          <span className="w-2.5 h-2.5 rounded-full bg-gradient-to-br from-violet-400 to-emerald-400 shadow-[0_0_10px_2px_rgba(139,92,246,0.55)]" />
+          <span className="w-2.5 h-2.5 rounded-full bg-gradient-to-br from-[#C6FF3D] to-emerald-400 shadow-[0_0_10px_2px_rgba(198,255,61,0.55)]" />
           PredictX
           <span className="text-white/30 font-normal text-xs hidden sm:inline">on {RHCHAIN_META.name}</span>
         </NavLink>
@@ -46,7 +46,7 @@ export function Navbar() {
               className={({ isActive }) =>
                 clsx(
                   'px-3 py-1.5 rounded-full transition-colors font-medium',
-                  isActive ? 'bg-violet-500/15 text-violet-200' : 'text-white/60 hover:text-white hover:bg-white/5',
+                  isActive ? 'bg-[#C6FF3D]/15 text-[#C6FF3D]' : 'text-white/60 hover:text-white hover:bg-white/5',
                 )
               }
             >
@@ -134,7 +134,7 @@ export function Navbar() {
               </NavLink>
               <NavLink
                 to="/register"
-                className="text-sm px-3 py-1.5 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:brightness-110 text-white font-semibold transition-all"
+                className="text-sm px-3 py-1.5 rounded-full bg-gradient-to-r from-[#C6FF3D] to-[#8FBF1F] hover:brightness-110 text-black font-semibold transition-all"
               >
                 Sign up
               </NavLink>
@@ -154,7 +154,7 @@ export function Navbar() {
           ) : (
             <NavLink
               to="/register"
-              className="text-xs px-2.5 py-1.5 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white font-semibold"
+              className="text-xs px-2.5 py-1.5 rounded-full bg-gradient-to-r from-[#C6FF3D] to-[#8FBF1F] text-black font-semibold"
             >
               Get started
             </NavLink>
@@ -182,7 +182,7 @@ export function Navbar() {
               className={({ isActive }) =>
                 clsx(
                   'block px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-                  isActive ? 'bg-violet-500/15 text-violet-200' : 'text-white/70 hover:bg-white/5 hover:text-white',
+                  isActive ? 'bg-[#C6FF3D]/15 text-[#C6FF3D]' : 'text-white/70 hover:bg-white/5 hover:text-white',
                 )
               }
             >
@@ -244,7 +244,7 @@ export function Navbar() {
                 <NavLink
                   to="/register"
                   onClick={() => setMobileOpen(false)}
-                  className="flex-1 text-center text-sm px-3 py-2 rounded-lg bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white font-semibold"
+                  className="flex-1 text-center text-sm px-3 py-2 rounded-lg bg-gradient-to-r from-[#C6FF3D] to-[#8FBF1F] text-black font-semibold"
                 >
                   Sign up
                 </NavLink>

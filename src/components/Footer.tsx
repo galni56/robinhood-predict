@@ -20,7 +20,7 @@ export function Footer() {
       <div className="max-w-6xl mx-auto px-4 py-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
         <div className="lg:col-span-2 max-w-sm">
           <div className="flex items-center gap-2 font-extrabold">
-            <span className="w-2.5 h-2.5 rounded-full bg-gradient-to-br from-violet-400 to-emerald-400 shadow-[0_0_8px_2px_rgba(139,92,246,0.55)]" />
+            <span className="w-2.5 h-2.5 rounded-full bg-gradient-to-br from-[#C6FF3D] to-emerald-400 shadow-[0_0_8px_2px_rgba(198,255,61,0.55)]" />
             PredictX
           </div>
           <p className="text-white/40 text-sm mt-3">

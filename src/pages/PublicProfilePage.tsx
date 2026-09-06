@@ -34,7 +34,7 @@ export function PublicProfilePage() {
           <h1 className="text-2xl font-semibold flex items-center gap-2">
             {user.displayName}
             {user.role === 'admin' && (
-              <span className="text-[11px] px-2 py-0.5 rounded-full bg-violet-500/15 text-violet-300 border border-violet-500/30">
+              <span className="text-[11px] px-2 py-0.5 rounded-full bg-[#C6FF3D]/15 text-[#C6FF3D] border border-[#C6FF3D]/30">
                 curator
               </span>
             )}

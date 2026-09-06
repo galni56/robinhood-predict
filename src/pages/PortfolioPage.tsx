@@ -38,7 +38,7 @@ export function PortfolioPage() {
           </Link>
           <Link
             to="/register"
-            className="text-sm px-4 py-2 rounded-lg bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:brightness-110 text-white font-semibold transition-all"
+            className="text-sm px-4 py-2 rounded-lg bg-gradient-to-r from-[#C6FF3D] to-[#8FBF1F] hover:brightness-110 text-black font-semibold transition-all"
           >
             Sign up — it's free
           </Link>

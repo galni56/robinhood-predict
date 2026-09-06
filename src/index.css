@@ -24,12 +24,13 @@ body {
      some renders even though computed styles were fine — a browser
      layering bug, not a CSS logic bug. Painting the gradient directly as
      `body`'s own background removes that extra layer entirely, so there is
-     no paint-order ambiguity left to go wrong. Violet/fuchsia/indigo only —
-     no green, kept clear of the emerald "YES" brand color used in the UI. */
+     no paint-order ambiguity left to go wrong. Brand lime (#C6FF3D /
+     #8FBF1F) at low opacity — kept subtle so it doesn't compete with the
+     emerald "YES" / rose "NO" semantic colors used throughout the UI. */
   background:
-    radial-gradient(1200px 700px at 12% -10%, rgba(139, 92, 246, 0.28), transparent 60%),
-    radial-gradient(1000px 650px at 105% 0%, rgba(236, 72, 153, 0.2), transparent 55%),
-    radial-gradient(900px 700px at 50% 115%, rgba(99, 102, 241, 0.22), transparent 55%),
+    radial-gradient(1200px 700px at 12% -10%, rgba(198, 255, 61, 0.14), transparent 60%),
+    radial-gradient(1000px 650px at 105% 0%, rgba(143, 191, 31, 0.16), transparent 55%),
+    radial-gradient(900px 700px at 50% 115%, rgba(198, 255, 61, 0.1), transparent 55%),
     #0a0a12;
   background-attachment: fixed;
   color: #eef0f6;
@@ -38,7 +39,7 @@ body {
 }
 
 ::selection {
-  background: #8b5cf655;
+  background: #c6ff3d55;
 }
 
 /* thin scrollbar for tables / explorer lists */

@@ -49,14 +49,14 @@ export function MarketsPage() {
           <p className="text-white/50 text-sm mt-1.5">
             {list.length} open right now. Bet YES or NO before the deadline — early bets carry more weight, and a
             market with only one side ever betting cancels and refunds in full.{' '}
-            <Link to="/whitepaper" className="text-violet-300 hover:underline">
+            <Link to="/whitepaper" className="text-[#C6FF3D] hover:underline">
               How the payout math works →
             </Link>
           </p>
         </div>
         <Link
           to="/markets/create"
-          className="shrink-0 text-sm px-4 py-2.5 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 hover:brightness-110 text-white font-semibold transition-all shadow-[0_0_20px_-6px_rgba(217,70,239,0.7)]"
+          className="shrink-0 text-sm px-4 py-2.5 rounded-full bg-gradient-to-r from-[#C6FF3D] to-[#8FBF1F] hover:brightness-110 text-black font-semibold transition-all shadow-[0_0_20px_-6px_rgba(198,255,61,0.7)]"
         >
           + Create market
         </Link>
@@ -67,11 +67,11 @@ export function MarketsPage() {
           {list.length === 0 && (
             <div className="text-center py-16 text-white/40 text-sm">
               No open markets right now.{' '}
-              <Link to="/markets/create" className="text-violet-300 hover:underline">
+              <Link to="/markets/create" className="text-[#C6FF3D] hover:underline">
                 Create the first one
               </Link>
               {' · '}
-              <Link to="/archive" className="text-violet-300 hover:underline">
+              <Link to="/archive" className="text-[#C6FF3D] hover:underline">
                 browse the archive
               </Link>
             </div>
@@ -91,7 +91,7 @@ export function MarketsPage() {
                 <div
                   key={market.id}
                   onClick={() => navigate(`/markets/${market.id}`)}
-                  className="group relative cursor-pointer bg-[#12121c]/95 border border-white/10 rounded-2xl p-4 hover:border-violet-400/30 hover:bg-[#181829]/95 hover:shadow-[0_0_28px_-14px_rgba(139,92,246,0.9)] transition-all"
+                  className="group relative cursor-pointer bg-[#12121c]/95 border border-white/10 rounded-2xl p-4 hover:border-[#C6FF3D]/30 hover:bg-[#181829]/95 hover:shadow-[0_0_28px_-14px_rgba(198,255,61,0.9)] transition-all"
                 >
                   <div className="flex items-start justify-between mb-2">
                     <div>
