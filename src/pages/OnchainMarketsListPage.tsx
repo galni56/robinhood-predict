@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { formatUnits } from 'viem'
 import { useReadContract, useReadContracts } from 'wagmi'
@@ -5,7 +6,18 @@ import { AwaitingCounterBetsBadge, CancelledBadge } from '@/components/Pills'
 import { PREDICTION_MARKET_ADDRESS, aggregatorV3Abi, predictionMarketAbi, MarketStatusOnchain, bettingWindowEndSeconds } from '@/chain/contracts'
 import { formatCountdown, formatUsd } from '@/lib/format'
 
+type StatusFilter = 'ALL' | 'OPEN' | 'RESOLVED' | 'CANCELLED'
+
+const STATUS_FILTERS: { key: StatusFilter; label: string }[] = [
+  { key: 'ALL', label: 'All' },
+  { key: 'OPEN', label: 'Open' },
+  { key: 'RESOLVED', label: 'Resolved' },
+  { key: 'CANCELLED', label: 'Cancelled' },
+]
+
 export function OnchainMarketsListPage() {
+  const [filter, setFilter] = useState<StatusFilter>('ALL')
+
   const marketCount = useReadContract({
     address: PREDICTION_MARKET_ADDRESS,
     abi: predictionMarketAbi,
@@ -48,6 +60,16 @@ export function OnchainMarketsListPage() {
   const decimalsByFeed = new Map(feedAddresses.map((addr, i) => [addr, feedDecimals.data?.[i]?.status === 'success' ? feedDecimals.data[i].result : undefined]))
   const priceByFeed = new Map(feedAddresses.map((addr, i) => [addr, feedPrices.data?.[i]?.status === 'success' ? feedPrices.data[i].result : undefined]))
 
+  const filteredIds = ids.filter((_id, i) => {
+    if (filter === 'ALL') return true
+    const result = markets.data?.[i]
+    if (!result || result.status !== 'success') return false
+    const status = result.result.status
+    if (filter === 'OPEN') return status === MarketStatusOnchain.Open
+    if (filter === 'RESOLVED') return status === MarketStatusOnchain.Resolved
+    return status === MarketStatusOnchain.Cancelled
+  })
+
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
       <div className="mb-6 rounded-lg border border-sky-500/30 bg-sky-500/10 px-4 py-3 text-sm text-sky-200">
@@ -58,10 +80,26 @@ export function OnchainMarketsListPage() {
         <h1 className="text-xl font-semibold">On-chain markets</h1>
         <Link
           to="/onchain/create"
-          className="text-sm px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black font-medium transition-colors"
+          className="text-sm px-3 py-1.5 rounded-lg bg-gradient-to-r from-[#C6FF3D] to-[#8FBF1F] hover:brightness-110 text-black font-semibold transition-all"
         >
           + Market
         </Link>
+      </div>
+
+      <div className="flex gap-1 mb-4">
+        {STATUS_FILTERS.map((f) => (
+          <button
+            key={f.key}
+            onClick={() => setFilter(f.key)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
+              filter === f.key
+                ? 'bg-white/10 border-white/20 text-white'
+                : 'border-white/10 text-white/50 hover:text-white hover:border-white/30'
+            }`}
+          >
+            {f.label}
+          </button>
+        ))}
       </div>
 
       {marketCount.isLoading ? (
@@ -69,13 +107,16 @@ export function OnchainMarketsListPage() {
       ) : count === 0 ? (
         <p className="text-white/40 text-sm">
           No markets yet.{' '}
-          <Link to="/onchain/create" className="text-emerald-400 hover:underline">
+          <Link to="/onchain/create" className="text-[#C6FF3D] hover:underline">
             Create the first one
           </Link>
         </p>
+      ) : filteredIds.length === 0 ? (
+        <p className="text-white/40 text-sm text-center py-10">No markets match this filter.</p>
       ) : (
         <div className="space-y-3">
-          {ids.map((id, i) => {
+          {filteredIds.map((id) => {
+            const i = ids.indexOf(id)
             const result = markets.data?.[i]
             if (!result || result.status !== 'success') return null
             const m = result.result
@@ -92,7 +133,7 @@ export function OnchainMarketsListPage() {
               <Link
                 key={id.toString()}
                 to={`/onchain/${id}`}
-                className="block rounded-xl border border-white/10 bg-[#12121c]/95 hover:border-white/25 hover:bg-[#181829]/95 p-4 transition-colors"
+                className="block rounded-xl border border-white/10 bg-[#12121c]/95 hover:border-[#C6FF3D]/30 hover:bg-[#181829]/95 p-4 transition-colors"
               >
                 <div className="flex items-start justify-between mb-2">
                   <div className="flex items-center gap-2">

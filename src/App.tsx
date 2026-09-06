@@ -3,6 +3,7 @@ import { ChainEngine } from '@/components/ChainEngine'
 import { DisclaimerBanner } from '@/components/DisclaimerBanner'
 import { Footer } from '@/components/Footer'
 import { Navbar } from '@/components/Navbar'
+import { OnchainLayout } from '@/components/OnchainLayout'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { AddressDetailPage } from '@/pages/AddressDetailPage'
 import { ArchivePage } from '@/pages/ArchivePage'
@@ -16,8 +17,10 @@ import { MarketDetailPage } from '@/pages/MarketDetailPage'
 import { MarketsPage } from '@/pages/MarketsPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { OnchainCreateMarketPage } from '@/pages/OnchainCreateMarketPage'
+import { OnchainLeaderboardPage } from '@/pages/OnchainLeaderboardPage'
 import { OnchainMarketPage } from '@/pages/OnchainMarketPage'
 import { OnchainMarketsListPage } from '@/pages/OnchainMarketsListPage'
+import { OnchainPortfolioPage } from '@/pages/OnchainPortfolioPage'
 import { PortfolioPage } from '@/pages/PortfolioPage'
 import { PublicProfilePage } from '@/pages/PublicProfilePage'
 import { RegisterPage } from '@/pages/RegisterPage'
@@ -40,9 +43,13 @@ export default function App() {
           <Route path="/terms" element={<TermsPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
-          <Route path="/onchain" element={<OnchainMarketsListPage />} />
-          <Route path="/onchain/create" element={<OnchainCreateMarketPage />} />
-          <Route path="/onchain/:id" element={<OnchainMarketPage />} />
+          <Route path="/onchain" element={<OnchainLayout />}>
+            <Route index element={<OnchainMarketsListPage />} />
+            <Route path="create" element={<OnchainCreateMarketPage />} />
+            <Route path="portfolio" element={<OnchainPortfolioPage />} />
+            <Route path="leaderboard" element={<OnchainLeaderboardPage />} />
+            <Route path=":id" element={<OnchainMarketPage />} />
+          </Route>
 
           {/* Browsing is public — login is only required to place a bet,
               create a market, or view account-specific pages (see BetForm). */}

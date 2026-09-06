@@ -126,7 +126,7 @@ export function OnchainCreateMarketPage() {
           <button
             type="submit"
             disabled={pending}
-            className="w-full rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black font-medium py-2 text-sm transition-colors disabled:opacity-50"
+            className="w-full rounded-lg bg-gradient-to-r from-[#C6FF3D] to-[#8FBF1F] hover:brightness-110 text-black font-semibold py-2 text-sm transition-all disabled:opacity-50"
           >
             {pending ? 'Confirm in wallet…' : 'Create market'}
           </button>

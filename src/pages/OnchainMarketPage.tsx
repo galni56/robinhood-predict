@@ -265,7 +265,7 @@ export function OnchainMarketPage() {
               key={c.uid}
               onClick={() => connect({ connector: c })}
               disabled={isConnecting}
-              className="w-full rounded-lg border border-white/10 px-4 py-2 text-left hover:border-emerald-400/50 transition-colors"
+              className="w-full rounded-lg border border-white/10 px-4 py-2 text-left hover:border-[#C6FF3D]/50 transition-colors"
             >
               Connect {c.name}
             </button>
@@ -358,7 +358,9 @@ export function OnchainMarketPage() {
                               <button
                                 onClick={handleBet}
                                 disabled={!!tx}
-                                className="w-full rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black font-medium py-2 text-sm disabled:opacity-50"
+                                className={`w-full rounded-lg text-black font-medium py-2 text-sm disabled:opacity-50 transition-colors ${
+                                  side === 'YES' ? 'bg-emerald-500 hover:bg-emerald-400' : 'bg-rose-500 hover:bg-rose-400'
+                                }`}
                               >
                                 {tx ? tx.label : 'Place bet (approve + bet)'}
                               </button>
@@ -375,7 +377,7 @@ export function OnchainMarketPage() {
                 <button
                   onClick={() => handleClaimOrRefund('claim')}
                   disabled={!!tx || hasClaimed.data === true}
-                  className="w-full rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black font-medium py-2 text-sm disabled:opacity-50"
+                  className="w-full rounded-lg bg-gradient-to-r from-[#C6FF3D] to-[#8FBF1F] hover:brightness-110 text-black font-semibold py-2 text-sm disabled:opacity-50 transition-all"
                 >
                   {hasClaimed.data ? 'Already claimed' : tx ? tx.label : 'Claim winnings'}
                 </button>

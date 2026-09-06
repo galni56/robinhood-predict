@@ -21,6 +21,13 @@ export const DEFAULT_PRICE_FEED_ADDRESS = (import.meta.env.VITE_PRICE_FEED_ADDRE
   '0x3d8cC74a198ad948D77c65d88Ed24acFeE77Cd67') as Address
 export const DEFAULT_PRICE_FEED_LABEL = 'TSLA (test feed)'
 
+/** Block the contract was deployed at, if known — narrows `getLogs` scans
+ * (leaderboard/activity feed) instead of scanning from genesis, which can
+ * hit RPC range limits or rate limits on a public endpoint. Defaults to 0
+ * (scan everything) when unset; set `VITE_DEPLOY_BLOCK` once the real
+ * deployment block is known to speed this up. */
+export const DEPLOY_BLOCK = BigInt(import.meta.env.VITE_DEPLOY_BLOCK ?? 0)
+
 export const predictionMarketAbi = [
   {
     type: 'function',
@@ -135,6 +142,35 @@ export const predictionMarketAbi = [
       { name: 'side', type: 'uint8' },
     ],
     outputs: [],
+  },
+  {
+    type: 'event',
+    name: 'BetPlaced',
+    inputs: [
+      { name: 'id', type: 'uint256', indexed: true },
+      { name: 'user', type: 'address', indexed: true },
+      { name: 'side', type: 'uint8', indexed: false },
+      { name: 'amount', type: 'uint256', indexed: false },
+      { name: 'weightBp', type: 'uint256', indexed: false },
+    ],
+  },
+  {
+    type: 'event',
+    name: 'Claimed',
+    inputs: [
+      { name: 'id', type: 'uint256', indexed: true },
+      { name: 'user', type: 'address', indexed: true },
+      { name: 'payout', type: 'uint256', indexed: false },
+    ],
+  },
+  {
+    type: 'event',
+    name: 'MarketResolved',
+    inputs: [
+      { name: 'id', type: 'uint256', indexed: true },
+      { name: 'outcome', type: 'uint8', indexed: false },
+      { name: 'settlePrice', type: 'int256', indexed: false },
+    ],
   },
 ] as const
 
