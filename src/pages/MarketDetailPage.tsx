@@ -57,7 +57,7 @@ export function MarketDetailPage() {
   const bettingClosed = currentWeightBp(market.createdAt, market.deadline, Date.now()) == null
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8 grid lg:grid-cols-3 gap-6">
+    <div className="max-w-6xl mx-auto px-4 py-8 grid grid-cols-1 lg:grid-cols-3 gap-6">
       <div className="lg:col-span-2 space-y-6">
         <div>
           <Link to="/markets" className="text-sm text-white/40 hover:text-white/70">

@@ -77,7 +77,7 @@ export function MarketsPage() {
             </div>
           )}
 
-          <div className="grid sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {list.map((market) => {
               const token = TOKEN_BY_SYMBOL.get(market.symbol)
               if (!token) return null

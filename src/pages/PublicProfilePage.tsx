@@ -44,7 +44,7 @@ export function PublicProfilePage() {
         </div>
       </div>
 
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Stat label="Win rate" value={stats.totalBets > 0 ? formatPct(stats.winRate) : '—'} />
         <Stat label="Win streak" value={stats.currentStreak > 0 ? `${stats.currentStreak} 🔥` : '—'} />
         <Stat label="Total bets" value={String(stats.totalBets)} />

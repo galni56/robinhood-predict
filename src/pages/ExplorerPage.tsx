@@ -45,13 +45,13 @@ export function ExplorerPage() {
         <button className="px-4 rounded-lg bg-white/10 hover:bg-white/15 text-sm transition-colors">Search</button>
       </form>
 
-      <div className="grid sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Stat label="Blocks" value={blocks.length} />
         <Stat label="Transactions" value={Object.keys(txs).length} />
         <Stat label="In mempool" value={mempool.length} />
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-[#12121c]/95 border border-white/10 rounded-xl p-4">
           <h2 className="font-medium mb-3">Latest blocks</h2>
           <div className="space-y-2 max-h-[480px] overflow-y-auto scrollbar-thin pr-1">

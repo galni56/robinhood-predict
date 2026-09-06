@@ -73,7 +73,7 @@ export function PortfolioPage() {
         </div>
       </div>
 
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Stat label="Balance" value={formatUsd(balance)} />
         <Stat label="Wallet" value={<AddressPill address={user.walletAddress} to={`/explorer/address/${user.walletAddress}`} />} />
         <Stat label="Win rate" value={settledPositions.length > 0 ? formatPct(stats.winRate) : '—'} />

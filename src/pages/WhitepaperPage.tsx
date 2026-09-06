@@ -17,7 +17,7 @@ const SECTIONS = [
 
 export function WhitepaperPage() {
   return (
-    <div className="max-w-6xl mx-auto px-4 py-10 grid lg:grid-cols-[200px_1fr] gap-10">
+    <div className="max-w-6xl mx-auto px-4 py-10 grid grid-cols-1 lg:grid-cols-[200px_1fr] gap-10">
       <aside className="hidden lg:block">
         <div className="sticky top-20 space-y-1 text-sm">
           <p className="text-xs font-bold tracking-wider text-white/40 uppercase mb-2">Contents</p>

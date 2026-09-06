@@ -73,7 +73,7 @@ export function LandingPage() {
           <div className="pointer-events-none absolute -top-24 -left-24 w-72 h-72 rounded-full bg-violet-500/25 blur-3xl" />
           <div className="pointer-events-none absolute -bottom-24 -right-16 w-72 h-72 rounded-full bg-fuchsia-500/15 blur-3xl" />
 
-          <div className="relative grid lg:grid-cols-2 gap-12 items-center">
+          <div className="relative grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div>
               <p className="inline-flex items-center gap-2 text-xs font-bold tracking-[0.2em] text-violet-300/80 uppercase mb-5">
                 <span className="w-1.5 h-1.5 rounded-full bg-violet-400" />
@@ -189,7 +189,7 @@ export function LandingPage() {
         <div className="max-w-6xl mx-auto px-4 py-16">
           <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-center mb-2">How it works</h2>
           <p className="text-white/40 text-sm text-center mb-10">Four steps, start to settlement.</p>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {STEPS.map((s) => (
               <div key={s.n} className="bg-[#12121c]/95 border border-white/10 rounded-2xl p-5">
                 <div className="text-violet-300/60 font-mono text-sm mb-3">{s.n}</div>
@@ -205,7 +205,7 @@ export function LandingPage() {
       <section className="max-w-6xl mx-auto px-4 py-16">
         <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-center mb-2">Why PredictX</h2>
         <p className="text-white/40 text-sm text-center mb-10">Mechanics designed around one idea: reward conviction, not luck of timing.</p>
-        <div className="grid sm:grid-cols-2 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
           {FEATURES.map((f) => (
             <div key={f.title} className="bg-[#12121c]/95 border border-white/10 rounded-2xl p-6 hover:border-violet-400/30 transition-colors">
               <h3 className="font-bold mb-2">{f.title}</h3>
@@ -225,7 +225,7 @@ export function LandingPage() {
                 View all {openMarkets.length} markets →
               </Link>
             </div>
-            <div className="grid sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               {preview.map((market) => {
                 const token = TOKEN_BY_SYMBOL.get(market.symbol)
                 if (!token) return null
