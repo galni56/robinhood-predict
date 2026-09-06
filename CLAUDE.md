@@ -54,7 +54,6 @@ forge install OpenZeppelin/openzeppelin-contracts@v5.1.0 --no-git --no-commit
 This was done since `lib/` is gitignored and not vendored on a fresh checkout — confirmed with the user first. The Docker path above still works and is the fallback if a future machine turns out to be work-managed again. Rule 1 (never handle private keys) and rule 4 (ask before a new install/tool/server) are unaffected either way — those aren't about EDR policy, they hold regardless of machine.
 3. **`git commit -m` breaks on apostrophes** in this shell setup (e.g. "authStore's" mid-sentence closes the quote early and corrupts the command). Write the message to a temp file and use `git commit -F <file>` for anything non-trivial, or just avoid contractions/apostrophes in `-m` strings.
 4. **Ask before git init / npm install / dev servers** the first time in a session — the user has pushed back hard on unprompted execution of these before. Once a repo is already set up (like this one now), normal edits don't need re-confirmation each time, but a *new* install/tool/server does.
-5. Everything client-side is mock and should say so in the UI — there's a disclaimer banner (`DisclaimerBanner.tsx`) and it should stay accurate as things change (e.g. once real chain calls exist, distinguish mock mode from real mode clearly, don't just delete the disclaimer).
 
 ## Roadmap
 
