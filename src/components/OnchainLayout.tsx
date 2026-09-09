@@ -1,6 +1,7 @@
 import clsx from 'clsx'
 import { NavLink, Outlet } from 'react-router-dom'
 import { robinhoodMainnet } from '@/chain/config'
+import { RealModeTopBar } from '@/components/RealModeTopBar'
 
 const links = [
   { to: '/onchain', label: 'Markets', end: true },
@@ -16,6 +17,7 @@ const links = [
 export function OnchainLayout() {
   return (
     <div>
+      <RealModeTopBar />
       <div className="border-b border-white/10 bg-[#0a0a12]">
         <div className="max-w-2xl mx-auto px-4 h-11 flex items-center gap-1 overflow-x-auto scrollbar-thin">
           {links.map((l) => (

@@ -1,12 +1,19 @@
 import { Link, useLocation } from 'react-router-dom'
 import { RHCHAIN_META } from '@/market/tokens'
 
-const productLinks = [
+const realModeLinks = [
+  { to: '/onchain', label: 'Markets' },
+  { to: '/onchain/portfolio', label: 'Portfolio' },
+  { to: '/onchain/leaderboard', label: 'Leaderboard' },
+  { to: '/demo', label: 'Try the demo' },
+]
+
+const mockModeLinks = [
   { to: '/markets', label: 'Markets' },
   { to: '/leaderboard', label: 'Leaderboard' },
   { to: '/archive', label: 'Archive' },
   { to: '/explorer', label: 'Explorer' },
-  { to: '/onchain', label: 'Live mainnet' },
+  { to: '/', label: 'Live mainnet' },
 ]
 
 const resourceLinks = [
@@ -16,7 +23,8 @@ const resourceLinks = [
 
 export function Footer() {
   const { pathname } = useLocation()
-  const isOnchain = pathname.startsWith('/onchain')
+  const isOnchain = pathname === '/' || pathname.startsWith('/onchain')
+  const productLinks = isOnchain ? realModeLinks : mockModeLinks
 
   return (
     <footer className="border-t border-white/10 bg-[#08080e]">

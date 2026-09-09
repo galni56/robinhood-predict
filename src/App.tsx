@@ -1,4 +1,4 @@
-import { Route, Routes } from 'react-router-dom'
+import { Route, Routes, useLocation } from 'react-router-dom'
 import { ChainEngine } from '@/components/ChainEngine'
 import { DisclaimerBanner } from '@/components/DisclaimerBanner'
 import { Footer } from '@/components/Footer'
@@ -11,6 +11,7 @@ import { BlockDetailPage } from '@/pages/BlockDetailPage'
 import { CreateMarketPage } from '@/pages/CreateMarketPage'
 import { ExplorerPage } from '@/pages/ExplorerPage'
 import { LandingPage } from '@/pages/LandingPage'
+import { OnchainLandingPage } from '@/pages/OnchainLandingPage'
 import { LeaderboardPage } from '@/pages/LeaderboardPage'
 import { LoginPage } from '@/pages/LoginPage'
 import { MarketDetailPage } from '@/pages/MarketDetailPage'
@@ -30,15 +31,22 @@ import { TxDetailPage } from '@/pages/TxDetailPage'
 import { WhitepaperPage } from '@/pages/WhitepaperPage'
 
 export default function App() {
+  const { pathname } = useLocation()
+  // Real mode ("/" and everything under /onchain) has its own top bar
+  // (RealModeTopBar / OnchainLayout) — the mock Navbar's links and its Log
+  // in/Sign up don't apply to a wallet-based flow.
+  const isRealMode = pathname === '/' || pathname.startsWith('/onchain')
+
   return (
     <div className="min-h-screen flex flex-col">
       <ChainEngine />
       <DisclaimerBanner />
-      <Navbar />
+      {!isRealMode && <Navbar />}
 
       <main className="flex-1">
         <Routes>
-          <Route path="/" element={<LandingPage />} />
+          <Route path="/" element={<OnchainLandingPage />} />
+          <Route path="/demo" element={<LandingPage />} />
           <Route path="/whitepaper" element={<WhitepaperPage />} />
           <Route path="/terms" element={<TermsPage />} />
           <Route path="/login" element={<LoginPage />} />
