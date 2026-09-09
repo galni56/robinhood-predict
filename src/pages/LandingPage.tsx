@@ -42,8 +42,8 @@ const FEATURES = [
     body: 'If a market reaches its deadline with bets on only one side, it cancels automatically and every stake is refunded in full — no fee, no loss.',
   },
   {
-    title: 'Real contract, real testnet',
-    body: `Alongside this demo, the same mechanics run in a Solidity contract on ${RHCHAIN_META.name} — permissionless market creation, an owner-maintained price-feed allowlist, and a $${MAX_TARGET_PRICE} target-price cap.`,
+    title: 'Real contract, real mainnet',
+    body: `Alongside this demo, the same mechanics run in a Solidity contract live on Robinhood Chain mainnet — permissionless market creation, an owner-maintained price-feed allowlist, and a $${MAX_TARGET_PRICE} target-price cap.`,
   },
 ] as const
 

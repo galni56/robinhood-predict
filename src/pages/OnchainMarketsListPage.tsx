@@ -73,7 +73,7 @@ export function OnchainMarketsListPage() {
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
       <div className="mb-6 rounded-lg border border-sky-500/30 bg-sky-500/10 px-4 py-3 text-sm text-sky-200">
-        ⛓️ This is <b>real mode</b> — markets are read directly from the deployed contract on Robinhood Chain testnet.
+        ⛓️ This is <b>real mode</b> — markets are read directly from the deployed contract on Robinhood Chain mainnet.
       </div>
 
       <div className="flex items-center justify-between mb-4">

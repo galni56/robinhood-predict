@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { parseUnits } from 'viem'
 import { useAccount, useChainId, useReadContract, useWriteContract } from 'wagmi'
 import { waitForTransactionReceipt } from 'wagmi/actions'
-import { robinhoodTestnet, wagmiConfig } from '@/chain/config'
+import { robinhoodMainnet, wagmiConfig } from '@/chain/config'
 import { DEFAULT_PRICE_FEED_ADDRESS, DEFAULT_PRICE_FEED_LABEL, PREDICTION_MARKET_ADDRESS, aggregatorV3Abi, predictionMarketAbi } from '@/chain/contracts'
 import { formatUsd } from '@/lib/format'
 
@@ -32,7 +32,7 @@ export function OnchainCreateMarketPage() {
     functionName: 'decimals',
   })
 
-  const onRightChain = chainId === robinhoodTestnet.id
+  const onRightChain = chainId === robinhoodMainnet.id
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
@@ -73,14 +73,14 @@ export function OnchainCreateMarketPage() {
     <div className="max-w-lg mx-auto px-4 py-8">
       <h1 className="text-xl font-semibold mb-1">Create an on-chain market</h1>
       <p className="text-white/50 text-sm mb-6">
-        A real transaction on testnet. Target price can't exceed {formatUsd(MAX_TARGET_PRICE_USD, 0)}. YES/NO pools
+        A real transaction on mainnet. Target price can't exceed {formatUsd(MAX_TARGET_PRICE_USD, 0)}. YES/NO pools
         start at $0 — if only one side has bets by the deadline, the market cancels and money is refunded in full.
       </p>
 
       {!isConnected ? (
         <p className="text-amber-400 text-sm">Connect a wallet on the markets list page first.</p>
       ) : !onRightChain ? (
-        <p className="text-amber-400 text-sm">Switch to Robinhood Chain Testnet.</p>
+        <p className="text-amber-400 text-sm">Switch to Robinhood Chain.</p>
       ) : (
         <form onSubmit={onSubmit} className="bg-[#12121c]/95 border border-white/10 rounded-xl p-6 space-y-4">
           <div>
@@ -89,7 +89,7 @@ export function OnchainCreateMarketPage() {
               {DEFAULT_PRICE_FEED_LABEL}
             </div>
             <p className="text-[11px] text-white/30 mt-1">
-              The only allowlisted feed on testnet right now — only the contract owner can add feeds.
+              The only allowlisted feed right now — only the contract owner can add feeds.
             </p>
           </div>
 

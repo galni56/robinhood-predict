@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { formatUnits, parseAbiItem } from 'viem'
 import { usePublicClient } from 'wagmi'
 import { SideBadge } from '@/components/Pills'
-import { robinhoodTestnet } from '@/chain/config'
+import { robinhoodMainnet } from '@/chain/config'
 import { DEPLOY_BLOCK, MarketSideOnchain, PREDICTION_MARKET_ADDRESS } from '@/chain/contracts'
 import { formatUsd } from '@/lib/format'
 import { shortHash } from '@/lib/hash'
@@ -16,7 +16,7 @@ const BET_PLACED_EVENT = parseAbiItem(
 )
 const CLAIMED_EVENT = parseAbiItem('event Claimed(uint256 indexed id, address indexed user, uint256 payout)')
 
-const BET_TOKEN_DECIMALS = 18
+const BET_TOKEN_DECIMALS = 6 // USDG's real decimals (old testnet mock token was 18)
 
 interface UserStats {
   address: `0x${string}`
@@ -153,7 +153,7 @@ export function OnchainLeaderboardPage() {
                 >
                   <span className="w-5 text-white/30 text-center font-mono text-xs">{i + 1}</span>
                   <a
-                    href={`${robinhoodTestnet.blockExplorers.default.url}/address/${s.address}`}
+                    href={`${robinhoodMainnet.blockExplorers.default.url}/address/${s.address}`}
                     target="_blank"
                     rel="noreferrer"
                     className="font-mono text-xs text-white/70 hover:text-white truncate"
@@ -191,9 +191,9 @@ export function OnchainLeaderboardPage() {
                   #{log.id.toString()}
                 </Link>
                 <SideBadge side={log.side === MarketSideOnchain.YES ? 'YES' : 'NO'} />
-                <span className="font-mono text-xs">{formatUnits(log.amount, BET_TOKEN_DECIMALS)} mUSD</span>
+                <span className="font-mono text-xs">{formatUnits(log.amount, BET_TOKEN_DECIMALS)} USDG</span>
                 <a
-                  href={`${robinhoodTestnet.blockExplorers.default.url}/tx/${log.txHash}`}
+                  href={`${robinhoodMainnet.blockExplorers.default.url}/tx/${log.txHash}`}
                   target="_blank"
                   rel="noreferrer"
                   className="ml-auto shrink-0 font-mono text-xs px-2 py-1 rounded-md bg-white/5 border border-white/10 text-[#C6FF3D]/90 hover:bg-white/10 transition-colors"

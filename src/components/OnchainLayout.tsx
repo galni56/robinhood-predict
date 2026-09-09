@@ -1,6 +1,6 @@
 import clsx from 'clsx'
 import { NavLink, Outlet } from 'react-router-dom'
-import { robinhoodTestnet } from '@/chain/config'
+import { robinhoodMainnet } from '@/chain/config'
 
 const links = [
   { to: '/onchain', label: 'Markets', end: true },
@@ -34,7 +34,7 @@ export function OnchainLayout() {
             </NavLink>
           ))}
           <a
-            href={robinhoodTestnet.blockExplorers.default.url}
+            href={robinhoodMainnet.blockExplorers.default.url}
             target="_blank"
             rel="noreferrer"
             className="ml-auto shrink-0 text-xs text-white/40 hover:text-white/70 px-3"

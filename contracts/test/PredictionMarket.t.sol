@@ -20,7 +20,12 @@ contract PredictionMarketTest is Test {
 
     function setUp() public {
         betToken = new MockERC20("Mock USD", "mUSD");
-        feed = new MockAggregator(8, 90_00000000); // $90.00, 8 decimals like Chainlink USD feeds
+        // $97, ~3.1% below the $100 target used by _createMarket and most tests
+        // below — inside every tier's deviation band (2%-4% short, up to 15%/20%
+        // medium/long) so the floor+ceiling guard on createMarket doesn't interfere
+        // with tests unrelated to it. Resolution-time price movement is set
+        // separately per test via feed.setAnswer().
+        feed = new MockAggregator(8, 97_00000000); // $97.00, 8 decimals like Chainlink USD feeds
         market = new PredictionMarket(address(betToken), 0); // 0% fee by default — keeps old exact-payout math unchanged
 
         betToken.mint(owner, START_BALANCE);
@@ -70,10 +75,70 @@ contract PredictionMarketTest is Test {
     }
 
     function test_CreateMarket_AllowsTargetAtExactCap() public {
+        // Own feed priced near $500 so the target-deviation guard (unrelated to
+        // the cap this test checks) doesn't reject a target this far from the
+        // shared feed's $100.
+        MockAggregator capFeed = new MockAggregator(8, 480_00000000);
+        market.setPriceFeedAllowed(address(capFeed), true);
+
         vm.prank(alice);
-        uint256 id = market.createMarket(address(feed), 500_00000000, block.timestamp + 1 days, 0, 0);
+        uint256 id = market.createMarket(address(capFeed), 500_00000000, block.timestamp + 1 days, 0, 0);
         PredictionMarket.Market memory m = market.getMarket(id);
         assertEq(m.targetPrice, 500_00000000);
+    }
+
+    // --- createMarket: anti-griefing guards (min duration, target-vs-price deviation) ---
+
+    function test_CreateMarket_RevertsWhenDurationTooShort() public {
+        vm.prank(alice);
+        vm.expectRevert("market duration too short");
+        market.createMarket(address(feed), 100_00000000, block.timestamp + 29 minutes, 0, 0);
+    }
+
+    function test_CreateMarket_AllowsDurationAtExactMinimum() public {
+        vm.prank(alice);
+        uint256 id = market.createMarket(address(feed), 100_00000000, block.timestamp + 30 minutes, 0, 0);
+        assertEq(market.getMarket(id).deadline, block.timestamp + 30 minutes);
+    }
+
+    function test_CreateMarket_RevertsWhenTargetTooCloseToPrice() public {
+        // Feed at $97, floor is +/-2% ($95.06-$98.94) regardless of duration —
+        // $97.50 is only ~0.5% away, a degenerate market trivial to flip with a
+        // last-second nudge to the underlying price.
+        vm.prank(alice);
+        vm.expectRevert("target too close to current price");
+        market.createMarket(address(feed), 97_50000000, block.timestamp + 7 days, 0, 0);
+    }
+
+    function test_CreateMarket_AllowsTargetAtExactFloor() public {
+        // Exactly 2% below $97 = $95.06.
+        vm.prank(alice);
+        uint256 id = market.createMarket(address(feed), 95_06000000, block.timestamp + 7 days, 0, 0);
+        assertEq(market.getMarket(id).targetPrice, 95_06000000);
+    }
+
+    function test_CreateMarket_RevertsWhenTargetTooFarFromPrice_ShortDuration() public {
+        // Feed at $100, short (<=2h) tier allows only +/-4% ($96-$104) — $110 is a
+        // "sure thing" dressed up as a market and should be rejected.
+        vm.prank(alice);
+        vm.expectRevert("target too far from current price");
+        market.createMarket(address(feed), 110_00000000, block.timestamp + 1 hours, 0, 0);
+    }
+
+    function test_CreateMarket_AllowsWiderDeviation_LongDuration() public {
+        // Same $110 target that reverts on a short-duration market is fine on a
+        // 7-day one — long tier allows +/-20% ($80-$120).
+        vm.prank(alice);
+        uint256 id = market.createMarket(address(feed), 110_00000000, block.timestamp + 7 days, 0, 0);
+        assertEq(market.getMarket(id).targetPrice, 110_00000000);
+    }
+
+    function test_CreateMarket_RevertsWhenTargetTooFarFromPrice_LongDuration() public {
+        // Even the widest (long, <=7d) tier has a limit — +/-20% of $100 tops out
+        // at $120, so $130 should still revert.
+        vm.prank(alice);
+        vm.expectRevert("target too far from current price");
+        market.createMarket(address(feed), 130_00000000, block.timestamp + 7 days, 0, 0);
     }
 
     function test_SetPriceFeedAllowed_OnlyOwner() public {
@@ -123,12 +188,12 @@ contract PredictionMarketTest is Test {
         uint256 id = _createMarket(block.timestamp + 1 days);
 
         vm.prank(alice);
-        market.bet(id, PredictionMarket.Side.YES, 100e18);
+        market.bet(id, PredictionMarket.Side.YES, 50e18);
 
         PredictionMarket.Market memory m = market.getMarket(id);
-        assertEq(m.poolYes, 100e18);
+        assertEq(m.poolYes, 50e18);
         assertEq(m.poolNo, 0);
-        assertEq(betToken.balanceOf(address(market)), 100e18);
+        assertEq(betToken.balanceOf(address(market)), 50e18);
     }
 
     function test_Bet_AllowsOneBetPerSide() public {
@@ -154,6 +219,28 @@ contract PredictionMarketTest is Test {
         market.bet(id, PredictionMarket.Side.YES, 50e18);
     }
 
+    function test_Bet_RevertsWhenAboveMaxStakePerSide() public {
+        uint256 id = _createMarket(block.timestamp + 1 days);
+
+        vm.prank(alice);
+        vm.expectRevert("exceeds max stake per side");
+        market.bet(id, PredictionMarket.Side.YES, 50e18 + 1);
+    }
+
+    function test_Bet_AllowsExactMaxStakePerSide_BothSidesIndependently() public {
+        uint256 id = _createMarket(block.timestamp + 1 days);
+
+        // Same wallet can hit the $50 cap on YES *and* the $50 cap on NO —
+        // the cap is per-side, not a combined per-wallet total.
+        vm.startPrank(alice);
+        market.bet(id, PredictionMarket.Side.YES, 50e18);
+        market.bet(id, PredictionMarket.Side.NO, 50e18);
+        vm.stopPrank();
+
+        assertEq(market.stakes(id, alice, PredictionMarket.Side.YES), 50e18);
+        assertEq(market.stakes(id, alice, PredictionMarket.Side.NO), 50e18);
+    }
+
     function test_Bet_RevertsAfterDeadline() public {
         uint256 id = _createMarket(block.timestamp + 1 hours);
         vm.warp(block.timestamp + 2 hours);
@@ -169,9 +256,9 @@ contract PredictionMarketTest is Test {
         uint256 id = _createMarket(block.timestamp + 1 days);
 
         vm.prank(alice);
-        market.bet(id, PredictionMarket.Side.YES, 100e18);
+        market.bet(id, PredictionMarket.Side.YES, 50e18);
         vm.prank(bob);
-        market.bet(id, PredictionMarket.Side.NO, 300e18);
+        market.bet(id, PredictionMarket.Side.NO, 50e18);
 
         vm.warp(block.timestamp + 1 days + 1);
         feed.setAnswer(101_00000000, block.timestamp); // price now above $100 target
@@ -185,17 +272,17 @@ contract PredictionMarketTest is Test {
         uint256 balBefore = betToken.balanceOf(alice);
         vm.prank(alice);
         market.claim(id);
-        // sole YES bettor takes the whole pool (100 + 300), 0% fee
-        assertEq(betToken.balanceOf(alice) - balBefore, 400e18);
+        // sole YES bettor takes the whole pool (50 + 50), 0% fee
+        assertEq(betToken.balanceOf(alice) - balBefore, 100e18);
     }
 
     function test_Resolve_NoWins_LoserCannotClaim() public {
         uint256 id = _createMarket(block.timestamp + 1 days);
 
         vm.prank(alice);
-        market.bet(id, PredictionMarket.Side.YES, 100e18);
+        market.bet(id, PredictionMarket.Side.YES, 50e18);
         vm.prank(bob);
-        market.bet(id, PredictionMarket.Side.NO, 100e18);
+        market.bet(id, PredictionMarket.Side.NO, 50e18);
 
         vm.warp(block.timestamp + 1 days + 1);
         feed.setAnswer(50_00000000, block.timestamp); // below target -> NO wins
@@ -208,17 +295,22 @@ contract PredictionMarketTest is Test {
     }
 
     function test_Resolve_RevertsOnStalePrice() public {
-        uint256 id = _createMarket(block.timestamp + 1 days);
+        // Deadline pushed out past MAX_PRICE_STALENESS so warping there and
+        // subtracting 4 days for the feed timestamp can't underflow the
+        // test's starting block.timestamp.
+        uint256 id = _createMarket(block.timestamp + 5 days);
         // Need both sides staked so resolve() reaches the price-feed check
         // instead of short-circuiting into the one-sided-market cancellation.
         vm.prank(alice);
-        market.bet(id, PredictionMarket.Side.YES, 100e18);
+        market.bet(id, PredictionMarket.Side.YES, 50e18);
         vm.prank(bob);
-        market.bet(id, PredictionMarket.Side.NO, 100e18);
+        market.bet(id, PredictionMarket.Side.NO, 50e18);
 
-        vm.warp(block.timestamp + 1 days + 1);
+        vm.warp(block.timestamp + 5 days + 1);
         // feed was last updated far in the past relative to resolution time
-        feed.setAnswer(101_00000000, block.timestamp - 2 hours);
+        // (beyond MAX_PRICE_STALENESS = 3 days, sized for equity feeds that
+        // don't publish over closed-market weekends)
+        feed.setAnswer(101_00000000, block.timestamp - 4 days);
 
         vm.expectRevert("stale price feed");
         market.resolve(id);
@@ -227,7 +319,7 @@ contract PredictionMarketTest is Test {
     function test_Claim_RevertsOnDoubleClaim() public {
         uint256 id = _createMarket(block.timestamp + 1 days);
         vm.prank(alice);
-        market.bet(id, PredictionMarket.Side.YES, 100e18);
+        market.bet(id, PredictionMarket.Side.YES, 50e18);
         vm.prank(bob);
         market.bet(id, PredictionMarket.Side.NO, 1e18); // needs a nonzero NO pool or resolve() cancels instead
 
@@ -262,7 +354,7 @@ contract PredictionMarketTest is Test {
         // with an empty pool. Market should cancel instead of resolve, before
         // even reading the price feed.
         vm.prank(alice);
-        market.bet(id, PredictionMarket.Side.NO, 100e18);
+        market.bet(id, PredictionMarket.Side.NO, 50e18);
 
         vm.warp(block.timestamp + 1 days + 1);
         feed.setAnswer(150_00000000, block.timestamp);
@@ -275,7 +367,7 @@ contract PredictionMarketTest is Test {
         uint256 balBefore = betToken.balanceOf(alice);
         vm.prank(alice);
         market.refund(id, PredictionMarket.Side.NO);
-        assertEq(betToken.balanceOf(alice) - balBefore, 100e18); // 100% back, no fee on a cancelled market
+        assertEq(betToken.balanceOf(alice) - balBefore, 50e18); // 100% back, no fee on a cancelled market
     }
 
     // --- parimutuel payout math with a protocol fee ---
@@ -285,25 +377,27 @@ contract PredictionMarketTest is Test {
         uint256 id = market.createMarket(address(feed), 100_00000000, block.timestamp + 1 days, 0, 0);
 
         // Sole YES bettor (winning side) vs sole NO bettor (losing side).
+        // 80/20 split, halved to 40/10 to respect MAX_STAKE_PER_SIDE_USD ($50) —
+        // same ratio, same fee math, smaller numbers.
         vm.prank(alice);
-        market.bet(id, PredictionMarket.Side.YES, 80e18);
+        market.bet(id, PredictionMarket.Side.YES, 40e18);
         vm.prank(bob);
-        market.bet(id, PredictionMarket.Side.NO, 20e18);
+        market.bet(id, PredictionMarket.Side.NO, 10e18);
 
         vm.warp(block.timestamp + 1 days + 1);
         feed.setAnswer(101_00000000, block.timestamp);
         market.resolve(id);
 
         // payout = userStake + userStake * losingPool * (10000 - feeBp) / (winningPool * 10000)
-        //        = 80e18 + 80e18 * 20e18 * 9800 / (80e18 * 10000)
-        //        = 80e18 + 19.6e18 = 99.6e18
+        //        = 40e18 + 40e18 * 10e18 * 9800 / (40e18 * 10000)
+        //        = 40e18 + 9.8e18 = 49.8e18
         uint256 balBefore = betToken.balanceOf(alice);
         vm.prank(alice);
         market.claim(id);
-        assertEq(betToken.balanceOf(alice) - balBefore, 99.6e18);
+        assertEq(betToken.balanceOf(alice) - balBefore, 49.8e18);
 
-        // fee = 80e18 * 20e18 * 200 / (80e18 * 10000) = 0.4e18
-        assertEq(market.accumulatedFees(), 0.4e18);
+        // fee = 40e18 * 10e18 * 200 / (40e18 * 10000) = 0.2e18
+        assertEq(market.accumulatedFees(), 0.2e18);
     }
 
     function test_Claim_FeeIsSnapshotted_LaterFeeChangeDoesNotAffectOpenMarket() public {
@@ -311,9 +405,9 @@ contract PredictionMarketTest is Test {
         market.setFeeBp(500); // owner raises the fee after the market is already open
 
         vm.prank(alice);
-        market.bet(id, PredictionMarket.Side.YES, 100e18);
+        market.bet(id, PredictionMarket.Side.YES, 50e18);
         vm.prank(bob);
-        market.bet(id, PredictionMarket.Side.NO, 100e18);
+        market.bet(id, PredictionMarket.Side.NO, 50e18);
 
         vm.warp(block.timestamp + 1 days + 1);
         feed.setAnswer(101_00000000, block.timestamp);
@@ -323,7 +417,7 @@ contract PredictionMarketTest is Test {
         vm.prank(alice);
         market.claim(id);
         // still the 0% fee from creation time, not the 5% set afterwards
-        assertEq(betToken.balanceOf(alice) - balBefore, 200e18);
+        assertEq(betToken.balanceOf(alice) - balBefore, 100e18);
     }
 
     function test_SetFeeBp_RevertsAboveMax() public {
@@ -342,9 +436,9 @@ contract PredictionMarketTest is Test {
         uint256 id = market.createMarket(address(feed), 100_00000000, block.timestamp + 1 days, 0, 0);
 
         vm.prank(alice);
-        market.bet(id, PredictionMarket.Side.YES, 80e18);
+        market.bet(id, PredictionMarket.Side.YES, 40e18);
         vm.prank(bob);
-        market.bet(id, PredictionMarket.Side.NO, 20e18);
+        market.bet(id, PredictionMarket.Side.NO, 10e18);
 
         vm.warp(block.timestamp + 1 days + 1);
         feed.setAnswer(101_00000000, block.timestamp);
@@ -359,7 +453,7 @@ contract PredictionMarketTest is Test {
 
         uint256 balBefore = betToken.balanceOf(owner);
         market.withdrawFees(owner);
-        assertEq(betToken.balanceOf(owner) - balBefore, 0.4e18);
+        assertEq(betToken.balanceOf(owner) - balBefore, 0.2e18);
         assertEq(market.accumulatedFees(), 0);
     }
 
@@ -402,7 +496,7 @@ contract PredictionMarketTest is Test {
 
         // Charlie funds the losing side so there's something to win.
         vm.prank(charlie);
-        market.bet(id, PredictionMarket.Side.NO, 100e18);
+        market.bet(id, PredictionMarket.Side.NO, 50e18);
 
         vm.warp(deadline);
         feed.setAnswer(101_00000000, block.timestamp);

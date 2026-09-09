@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { formatUnits, parseUnits } from 'viem'
 import { useAccount, useChainId, useConnect, useDisconnect, useReadContract, useSwitchChain, useWriteContract } from 'wagmi'
 import { waitForTransactionReceipt } from 'wagmi/actions'
-import { robinhoodTestnet, wagmiConfig } from '@/chain/config'
+import { robinhoodMainnet, wagmiConfig } from '@/chain/config'
 import {
   BET_TOKEN_ADDRESS,
   BP_DENOMINATOR,
@@ -18,7 +18,7 @@ import {
 } from '@/chain/contracts'
 import { formatCountdown, formatUsd } from '@/lib/format'
 
-const BET_TOKEN_DECIMALS = 18
+const BET_TOKEN_DECIMALS = 6 // USDG's real decimals (old testnet mock token was 18)
 
 type TxState = { label: string } | null
 
@@ -37,7 +37,7 @@ export function OnchainMarketPage() {
   const [tx, setTx] = useState<TxState>(null)
   const [error, setError] = useState<string | null>(null)
 
-  const onRightChain = chainId === robinhoodTestnet.id
+  const onRightChain = chainId === robinhoodMainnet.id
 
   const market = useReadContract({
     address: PREDICTION_MARKET_ADDRESS,
@@ -221,8 +221,8 @@ export function OnchainMarketPage() {
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
       <div className="mb-6 rounded-lg border border-sky-500/30 bg-sky-500/10 px-4 py-3 text-sm text-sky-200">
-        ⛓️ This is <b>real mode</b> — actual transactions on Robinhood Chain testnet through your wallet
-        (MetaMask/Phantom). Not a mock: gas and tokens are test units, but the transactions really go on-chain.
+        ⛓️ This is <b>real mode</b> — actual transactions on Robinhood Chain mainnet through your wallet
+        (MetaMask/Phantom). Not a mock: gas and tokens are real, and transactions really go on-chain.
       </div>
 
       <Link to="/onchain" className="text-sm text-white/40 hover:text-white/70">
@@ -253,7 +253,7 @@ export function OnchainMarketPage() {
             <div className="h-full bg-emerald-500" style={{ width: `${yesPct}%` }} />
           </div>
           <div className="text-xs text-white/40">
-            YES pool: {formatUnits(market.data.poolYes, BET_TOKEN_DECIMALS)} mUSD · NO pool: {formatUnits(market.data.poolNo, BET_TOKEN_DECIMALS)} mUSD
+            YES pool: {formatUnits(market.data.poolYes, BET_TOKEN_DECIMALS)} USDG · NO pool: {formatUnits(market.data.poolNo, BET_TOKEN_DECIMALS)} USDG
           </div>
         </div>
       )}
@@ -276,9 +276,9 @@ export function OnchainMarketPage() {
         </div>
       ) : !onRightChain ? (
         <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-200">
-          Wrong network. You need Robinhood Chain Testnet.
+          Wrong network. You need Robinhood Chain.
           <button
-            onClick={() => switchChain({ chainId: robinhoodTestnet.id })}
+            onClick={() => switchChain({ chainId: robinhoodMainnet.id })}
             disabled={isSwitching}
             className="ml-3 rounded-md bg-amber-500 text-black px-3 py-1 font-medium"
           >
@@ -311,7 +311,7 @@ export function OnchainMarketPage() {
                   ) : (
                     <div className="rounded-lg border border-white/10 p-4 space-y-3">
                       <div className="flex items-center justify-between text-xs text-white/50">
-                        <span>Your balance: {betTokenBalance.data != null ? formatUnits(betTokenBalance.data, BET_TOKEN_DECIMALS) : '…'} mUSD</span>
+                        <span>Your balance: {betTokenBalance.data != null ? formatUnits(betTokenBalance.data, BET_TOKEN_DECIMALS) : '…'} USDG</span>
                         {liveWeightBp != null && (
                           <span className="text-emerald-400/80">
                             Early-bet bonus: {(Number(liveWeightBp) / Number(BP_DENOMINATOR)).toFixed(2)}x
@@ -353,7 +353,7 @@ export function OnchainMarketPage() {
                                 value={amount}
                                 onChange={(e) => setAmount(e.target.value)}
                                 className="w-full rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-sm"
-                                placeholder="Amount in mUSD"
+                                placeholder="Amount in USDG"
                               />
                               <button
                                 onClick={handleBet}

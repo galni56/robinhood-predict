@@ -12,7 +12,7 @@ import {
 } from '@/chain/contracts'
 import type { MarketSide } from '@/types'
 
-const BET_TOKEN_DECIMALS = 18
+const BET_TOKEN_DECIMALS = 6 // USDG's real decimals (old testnet mock token was 18)
 
 interface Position {
   id: bigint
@@ -110,7 +110,7 @@ export function OnchainPortfolioPage() {
       <div className="rounded-lg border border-white/10 p-4">
         <div className="text-white/40 text-xs">Balance</div>
         <div className="text-2xl font-mono font-semibold">
-          {balance.data != null ? `${formatUnits(balance.data, BET_TOKEN_DECIMALS)} mUSD` : '…'}
+          {balance.data != null ? `${formatUnits(balance.data, BET_TOKEN_DECIMALS)} USDG` : '…'}
         </div>
       </div>
 

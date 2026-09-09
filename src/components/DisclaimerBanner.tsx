@@ -8,7 +8,7 @@ export function DisclaimerBanner() {
   return (
     <div className="bg-amber-500/10 border-b border-amber-500/20 text-amber-200/90 text-xs text-center py-1.5 px-4">
       {isOnchain
-        ? '⛓️ Real mode: actual transactions on Robinhood Chain testnet via your wallet. Testnet tokens only — not real money, contract has not had a security audit.'
+        ? '⛓️ Real mode: actual transactions on Robinhood Chain mainnet via your wallet. Real USDG, real money — contract has not had an external security audit.'
         : `⚠️ Demo / prototype running on mock data. ${RHCHAIN_META.disclaimer}`}
     </div>
   )

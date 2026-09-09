@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { RHCHAIN_META } from '@/market/tokens'
 
 const productLinks = [
@@ -6,7 +6,7 @@ const productLinks = [
   { to: '/leaderboard', label: 'Leaderboard' },
   { to: '/archive', label: 'Archive' },
   { to: '/explorer', label: 'Explorer' },
-  { to: '/onchain', label: 'Live testnet' },
+  { to: '/onchain', label: 'Live mainnet' },
 ]
 
 const resourceLinks = [
@@ -15,6 +15,9 @@ const resourceLinks = [
 ]
 
 export function Footer() {
+  const { pathname } = useLocation()
+  const isOnchain = pathname.startsWith('/onchain')
+
   return (
     <footer className="border-t border-white/10 bg-[#08080e]">
       <div className="max-w-6xl mx-auto px-4 py-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
@@ -24,8 +27,8 @@ export function Footer() {
             PredictX
           </div>
           <p className="text-white/40 text-sm mt-3">
-            Parimutuel prediction markets for tokenized stocks, built for {RHCHAIN_META.name}. Pick YES or NO on a
-            target price, bet early for a bigger share, settle when the deadline hits.
+            Parimutuel prediction markets for tokenized stocks. Pick YES or NO on a target price, bet early for a
+            bigger share, settle when the deadline hits.
           </p>
         </div>
 
@@ -59,7 +62,11 @@ export function Footer() {
       <div className="border-t border-white/5">
         <div className="max-w-6xl mx-auto px-4 py-4 flex flex-wrap items-center justify-between gap-2 text-xs text-white/30">
           <span>© {new Date().getFullYear()} PredictX. Demo project, not a registered financial service.</span>
-          <span>{RHCHAIN_META.disclaimer}</span>
+          <span>
+            {isOnchain
+              ? 'Real mode: Robinhood Chain mainnet, real USDG. Not affiliated with Robinhood Markets, Inc. Contract has not had an external security audit.'
+              : RHCHAIN_META.disclaimer}
+          </span>
         </div>
       </div>
     </footer>

@@ -2,30 +2,30 @@ import { defineChain } from 'viem'
 import { createConfig, http } from 'wagmi'
 import { injected } from 'wagmi/connectors'
 
-// Real Robinhood Chain testnet — separate from the mock "RHChain" in
+// Real Robinhood Chain mainnet — separate from the mock "RHChain" in
 // src/market/tokens.ts, which simulates a chain entirely in the browser.
-// This is the actual chain the deployed PredictionMarket contract lives on.
-export const robinhoodTestnet = defineChain({
-  id: 46630,
-  name: 'Robinhood Chain Testnet',
+// This is the actual chain the deployed PredictionMarket contract lives on
+// (switched from testnet to mainnet 2026-09-07, see ROADMAP.md).
+export const robinhoodMainnet = defineChain({
+  id: 4663,
+  name: 'Robinhood Chain',
   nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
   rpcUrls: {
-    default: { http: ['https://rpc.testnet.chain.robinhood.com'] },
+    default: { http: ['https://rpc.mainnet.chain.robinhood.com'] },
   },
   blockExplorers: {
-    default: { name: 'Explorer', url: 'https://explorer.testnet.chain.robinhood.com' },
+    default: { name: 'Explorer', url: 'https://robinhoodchain.blockscout.com' },
   },
-  testnet: true,
 })
 
 // `injected()` auto-discovers every EIP-6963-announcing wallet in the
 // browser (MetaMask, Phantom, etc.) rather than hardcoding one — the
 // connect UI lists whichever of these the user actually has installed.
 export const wagmiConfig = createConfig({
-  chains: [robinhoodTestnet],
+  chains: [robinhoodMainnet],
   connectors: [injected()],
   transports: {
-    [robinhoodTestnet.id]: http(),
+    [robinhoodMainnet.id]: http(),
   },
 })
 

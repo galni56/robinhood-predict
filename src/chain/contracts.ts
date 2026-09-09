@@ -1,25 +1,22 @@
 import type { Address } from 'viem'
 
-// Addresses from the 2026-09-05 testnet deploy (see ROADMAP.md §2 and
-// contracts/CLAUDE.md). Public testnet contract addresses — not secrets.
+// Addresses from the 2026-09-07 mainnet deploy (see ROADMAP.md and
+// contracts/CLAUDE.md). Public contract addresses — not secrets.
 // Override via Vite env vars if the contracts get redeployed.
-// PREDICTION_MARKET_ADDRESS has been redeployed twice as the contract grew
-// (liquidity mechanics 2026-09-05, time-weighted early-bet mechanic
-// 2026-09-06) — BET_TOKEN_ADDRESS is unchanged and reused as-is throughout.
 export const PREDICTION_MARKET_ADDRESS = (import.meta.env.VITE_MARKET_ADDRESS ??
-  '0xE1BA3CBD9D6e5B88af2a3d283D11d7c88e4eC4a7') as Address
+  '0xE476e7d1Fdc05406921AD9671566048393813fc5') as Address
 export const BET_TOKEN_ADDRESS = (import.meta.env.VITE_BET_TOKEN_ADDRESS ??
-  '0xBDc0F8045Baa2377F11A03d3c867E81dB263A93A') as Address
+  '0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168') as Address
 
-// The only price feed the owner has allowlisted on testnet so far (mock
-// TSLA feed — see contracts/CLAUDE.md). `createMarket` is permissionless,
-// but the feed it settles against must already be owner-allowlisted, and
-// there's no on-chain way to enumerate allowlisted feeds (it's a mapping,
-// not a list) — so the create-market UI offers this one until more feeds
-// get allowlisted.
+// The only price feed the owner has allowlisted so far (real Chainlink
+// Robinhood TSLA/USD feed, verified on-chain — see contracts/CLAUDE.md).
+// `createMarket` is permissionless, but the feed it settles against must
+// already be owner-allowlisted, and there's no on-chain way to enumerate
+// allowlisted feeds (it's a mapping, not a list) — so the create-market UI
+// offers this one until more feeds get allowlisted.
 export const DEFAULT_PRICE_FEED_ADDRESS = (import.meta.env.VITE_PRICE_FEED_ADDRESS ??
-  '0x3d8cC74a198ad948D77c65d88Ed24acFeE77Cd67') as Address
-export const DEFAULT_PRICE_FEED_LABEL = 'TSLA (test feed)'
+  '0x4A1166a659A55625345e9515b32adECea5547C38') as Address
+export const DEFAULT_PRICE_FEED_LABEL = 'TSLA'
 
 /** Block the contract was deployed at, if known — narrows `getLogs` scans
  * (leaderboard/activity feed) instead of scanning from genesis, which can

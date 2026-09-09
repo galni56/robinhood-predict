@@ -6,8 +6,10 @@ import { defineConfig } from 'vite'
 // https://vite.dev/config/
 export default defineConfig({
   // GitHub Pages serves a project site from /<repo-name>/, not the domain
-  // root — every asset URL needs this prefix or they 404 once deployed.
-  base: '/robinhood-predict/',
+  // root — every asset URL needs this prefix or they 404 once deployed there.
+  // The VPS deploy (prophetmarkets.fun) serves from the domain root instead,
+  // so it builds with VITE_BASE_PATH=/ to override this default.
+  base: process.env.VITE_BASE_PATH ?? '/robinhood-predict/',
   // Vite blocks requests with an unrecognized Host header by default (DNS-
   // rebinding protection) — needed here because `vite preview` gets proxied
   // through a Cloudflare quick tunnel, which arrives with a *.trycloudflare.com

@@ -52,9 +52,13 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
     }
 
     /// @dev Max age (seconds) a Chainlink round may have at resolution time before
-    /// it's considered stale and resolution is refused. Tune per feed heartbeat —
-    /// see contracts/CLAUDE.md for how to find the actual heartbeat for a given feed.
-    uint256 public constant MAX_PRICE_STALENESS = 1 hours;
+    /// it's considered stale and resolution is refused. Robinhood tokenized-equity
+    /// feeds don't publish during closed market sessions (confirmed on the live
+    /// mainnet TSLA feed 2026-09-07: updatedAt was ~45h behind the current block,
+    /// consistent with Chainlink's docs stating these feeds have no heartbeat
+    /// during off-hours) — sized to survive a long weekend/holiday, not a fixed
+    /// per-update heartbeat like a crypto feed would use.
+    uint256 public constant MAX_PRICE_STALENESS = 3 days;
 
     /// @dev Business rule mirrored from the frontend (`MAX_TARGET_PRICE` in
     /// `src/store/marketStore.ts`) — no market can target above this, in whole
@@ -66,6 +70,40 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
     /// bet-token units (scaled to `betToken.decimals()` at use). Keeps the
     /// platform's own risk per market bounded regardless of `feeBp`.
     uint256 public constant MAX_SEED_LIQUIDITY_USD = 50;
+
+    /// @dev Anti-whale: caps any single wallet's stake on one side of one
+    /// market (a wallet may still bet up to this on YES *and* up to this on
+    /// NO — one bet per side, see `stakes` check in `bet`). Without this, one
+    /// large late bet could swing the pool ratio (and the odds shown on the
+    /// frontend, which read straight off poolYes/poolNo) far more than the
+    /// early-bet weight decay alone discourages. A whale wanting more
+    /// exposure has to spread it across multiple wallets, which naturally
+    /// spreads it across time too instead of landing as one instant shock.
+    uint256 public constant MAX_STAKE_PER_SIDE_USD = 50;
+
+    /// @dev Anti-griefing: `createMarket` is permissionless, so without a
+    /// floor a creator could open a market seconds before its own deadline,
+    /// bet immediately, and leave no real window for a counterparty to react.
+    /// Matches the shortest frontend duration preset (1 hour).
+    uint256 public constant MIN_MARKET_DURATION = 30 minutes;
+
+    /// @dev Anti-griefing, two-sided: without a floor, a creator could pick a
+    /// target a hair's-breadth from the live price — a degenerate market
+    /// that's trivial to flip with a last-second nudge to the underlying
+    /// price. Without a ceiling, a creator could pick a target so far from
+    /// the live price the outcome is already a foregone conclusion —
+    /// dressing up a "sure thing" as a fair-looking market for anyone who
+    /// doesn't check the current price themselves. The floor is constant;
+    /// the ceiling scales with how long the market runs (more time = more
+    /// room for a real price move), in three tiers matching the frontend's
+    /// duration presets (1h / 24h / 7d).
+    uint256 public constant MIN_TARGET_DEVIATION_BP = 200; // +/-2%, all tiers
+
+    uint256 public constant SHORT_DURATION_THRESHOLD = 2 hours;
+    uint256 public constant MEDIUM_DURATION_THRESHOLD = 24 hours;
+    uint256 public constant SHORT_MAX_DEVIATION_BP = 400; // +/-4%
+    uint256 public constant MEDIUM_MAX_DEVIATION_BP = 1500; // +/-15%
+    uint256 public constant LONG_MAX_DEVIATION_BP = 2000; // +/-20%
 
     /// @dev Upper bound on `feeBp` itself (1000 = 10%), so `setFeeBp` can
     /// never turn into a de facto rug on winners' payouts.
@@ -193,10 +231,26 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
         require(priceFeed != address(0), "feed = zero addr");
         require(allowedPriceFeeds[priceFeed], "feed not allowlisted");
         require(deadline > block.timestamp, "deadline in the past");
+        require(deadline - block.timestamp >= MIN_MARKET_DURATION, "market duration too short");
         require(targetPrice > 0, "target must be > 0");
 
         uint8 feedDecimals = AggregatorV3Interface(priceFeed).decimals();
         require(targetPrice <= int256(MAX_TARGET_PRICE_USD * 10 ** feedDecimals), "target exceeds max");
+
+        (, int256 currentPrice,, uint256 updatedAt,) = AggregatorV3Interface(priceFeed).latestRoundData();
+        require(currentPrice > 0, "invalid feed answer");
+        require(block.timestamp - updatedAt <= MAX_PRICE_STALENESS, "stale price feed");
+
+        uint256 duration = deadline - block.timestamp;
+        uint256 maxDeviationBp = duration <= SHORT_DURATION_THRESHOLD
+            ? SHORT_MAX_DEVIATION_BP
+            : duration <= MEDIUM_DURATION_THRESHOLD ? MEDIUM_MAX_DEVIATION_BP : LONG_MAX_DEVIATION_BP;
+
+        uint256 absDeviationBp = uint256(targetPrice) >= uint256(currentPrice)
+            ? ((uint256(targetPrice) - uint256(currentPrice)) * BP_DENOMINATOR) / uint256(currentPrice)
+            : ((uint256(currentPrice) - uint256(targetPrice)) * BP_DENOMINATOR) / uint256(currentPrice);
+        require(absDeviationBp >= MIN_TARGET_DEVIATION_BP, "target too close to current price");
+        require(absDeviationBp <= maxDeviationBp, "target too far from current price");
 
         if (initialYesAmount > 0 || initialNoAmount > 0) {
             require(msg.sender == owner(), "seed liquidity is owner-only");
@@ -280,6 +334,9 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
         require(m.status == Status.Open, "market not open");
         require(amount > 0, "amount = 0");
         require(stakes[id][msg.sender][side] == 0, "already bet this side");
+
+        uint8 betDecimals = IERC20Metadata(address(betToken)).decimals();
+        require(amount <= MAX_STAKE_PER_SIDE_USD * 10 ** betDecimals, "exceeds max stake per side");
 
         uint256 weightBp = currentWeightBp(id); // reverts "betting closed" past the window
 

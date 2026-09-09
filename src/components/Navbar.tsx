@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { NavLink, useNavigate } from 'react-router-dom'
+import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import clsx from 'clsx'
 import { Avatar } from '@/components/Avatar'
 import { formatUsd } from '@/lib/format'
@@ -21,6 +21,8 @@ const links = [
 // below `lg` instead of letting things overflow/cram.
 export function Navbar() {
   const navigate = useNavigate()
+  const { pathname } = useLocation()
+  const isOnchain = pathname.startsWith('/onchain')
   const user = useAuthStore((s) => s.currentUser())
   const logout = useAuthStore((s) => s.logout)
   const balance = useChainStore((s) => (user ? s.balanceOf(user.walletAddress) : 0))
@@ -33,7 +35,9 @@ export function Navbar() {
         <NavLink to="/" className="flex items-center gap-2 font-extrabold shrink-0">
           <span className="w-2.5 h-2.5 rounded-full bg-gradient-to-br from-[#C6FF3D] to-emerald-400 shadow-[0_0_10px_2px_rgba(198,255,61,0.55)]" />
           PredictX
-          <span className="text-white/30 font-normal text-xs hidden sm:inline">on {RHCHAIN_META.name}</span>
+          <span className="text-white/30 font-normal text-xs hidden sm:inline">
+            on {isOnchain ? 'Robinhood Chain (mainnet)' : RHCHAIN_META.name}
+          </span>
         </NavLink>
 
         {/* Nav is public — browsing markets/leaderboard/archive/explorer needs
@@ -78,7 +82,7 @@ export function Navbar() {
               )
             }
           >
-            ⛓️ Live testnet
+            ⛓️ Live mainnet
           </NavLink>
           {user ? (
             <>
@@ -201,7 +205,7 @@ export function Navbar() {
             onClick={() => setMobileOpen(false)}
             className="block px-3 py-2 rounded-lg text-sm font-medium text-sky-300 hover:bg-sky-500/10"
           >
-            ⛓️ Live testnet
+            ⛓️ Live mainnet
           </NavLink>
 
           <div className="pt-2 mt-2 border-t border-white/10">
