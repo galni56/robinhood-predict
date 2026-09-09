@@ -4,6 +4,7 @@ import { DisclaimerBanner } from '@/components/DisclaimerBanner'
 import { Footer } from '@/components/Footer'
 import { Navbar } from '@/components/Navbar'
 import { OnchainLayout } from '@/components/OnchainLayout'
+import { RealNavbar } from '@/components/RealNavbar'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { AddressDetailPage } from '@/pages/AddressDetailPage'
 import { ArchivePage } from '@/pages/ArchivePage'
@@ -32,16 +33,16 @@ import { WhitepaperPage } from '@/pages/WhitepaperPage'
 
 export default function App() {
   const { pathname } = useLocation()
-  // Real mode ("/" and everything under /onchain) has its own top bar
-  // (RealModeTopBar / OnchainLayout) — the mock Navbar's links and its Log
-  // in/Sign up don't apply to a wallet-based flow.
+  // Real mode ("/" and everything under /onchain) gets its own full-size
+  // navbar (RealNavbar) pointed at real routes — the mock Navbar's links
+  // and its Log in/Sign up don't apply to a wallet-based flow.
   const isRealMode = pathname === '/' || pathname.startsWith('/onchain')
 
   return (
     <div className="min-h-screen flex flex-col">
       <ChainEngine />
       <DisclaimerBanner />
-      {!isRealMode && <Navbar />}
+      {isRealMode ? <RealNavbar /> : <Navbar />}
 
       <main className="flex-1">
         <Routes>

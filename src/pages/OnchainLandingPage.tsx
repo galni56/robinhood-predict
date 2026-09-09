@@ -2,7 +2,6 @@ import { Link } from 'react-router-dom'
 import { formatUnits } from 'viem'
 import { useReadContract, useReadContracts } from 'wagmi'
 import { HeroMark } from '@/components/HeroMark'
-import { RealModeTopBar } from '@/components/RealModeTopBar'
 import { AwaitingCounterBetsBadge, CancelledBadge } from '@/components/Pills'
 import { PREDICTION_MARKET_ADDRESS, aggregatorV3Abi, predictionMarketAbi, MarketStatusOnchain } from '@/chain/contracts'
 import { formatUsd } from '@/lib/format'
@@ -98,7 +97,6 @@ export function OnchainLandingPage() {
 
   return (
     <div>
-      <RealModeTopBar />
       {/* Hero */}
       <section className="max-w-6xl mx-auto px-4 pt-10 pb-6">
         <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-[#0e0e18] px-6 py-12 sm:px-12 sm:py-16">
