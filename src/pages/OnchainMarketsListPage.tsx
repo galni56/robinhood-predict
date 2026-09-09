@@ -56,9 +56,14 @@ export function OnchainMarketsListPage() {
     contracts: feedAddresses.map((addr) => ({ address: addr, abi: aggregatorV3Abi, functionName: 'latestRoundData' }) as const),
     query: { enabled: feedAddresses.length > 0, refetchInterval: 15_000 },
   })
+  const feedDescriptions = useReadContracts({
+    contracts: feedAddresses.map((addr) => ({ address: addr, abi: aggregatorV3Abi, functionName: 'description' }) as const),
+    query: { enabled: feedAddresses.length > 0 },
+  })
 
   const decimalsByFeed = new Map(feedAddresses.map((addr, i) => [addr, feedDecimals.data?.[i]?.status === 'success' ? feedDecimals.data[i].result : undefined]))
   const priceByFeed = new Map(feedAddresses.map((addr, i) => [addr, feedPrices.data?.[i]?.status === 'success' ? feedPrices.data[i].result : undefined]))
+  const descByFeed = new Map(feedAddresses.map((addr, i) => [addr, feedDescriptions.data?.[i]?.status === 'success' ? feedDescriptions.data[i].result : undefined]))
 
   const filteredIds = ids.filter((_id, i) => {
     if (filter === 'ALL') return true
@@ -122,6 +127,10 @@ export function OnchainMarketsListPage() {
             const m = result.result
             const decimals = decimalsByFeed.get(m.priceFeed)
             const price = priceByFeed.get(m.priceFeed)
+            const rawDesc = descByFeed.get(m.priceFeed)
+            // Chainlink feed descriptions look like "RHTSLA / USD" — strip the
+            // "RH" issuer prefix and " / USD" quote suffix to get a bare ticker.
+            const ticker = rawDesc?.replace(/^RH/, '').replace(/\s*\/\s*USD$/i, '')
             const targetUsd = decimals != null ? Number(formatUnits(m.targetPrice, decimals)) : null
             const currentUsd = decimals != null && price ? Number(formatUnits(price[1], decimals)) : null
             const deadlineMs = Number(m.deadline) * 1000
@@ -136,10 +145,15 @@ export function OnchainMarketsListPage() {
                 className="block rounded-xl border border-white/10 bg-[#12121c]/95 hover:border-[#C6FF3D]/30 hover:bg-[#181829]/95 p-4 transition-colors"
               >
                 <div className="flex items-start justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold">Market #{id.toString()}</span>
-                    {m.status === MarketStatusOnchain.Cancelled && <CancelledBadge />}
-                    {awaitingCounterBets && <AwaitingCounterBetsBadge />}
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold">
+                        {ticker ?? '…'} reach {targetUsd != null ? formatUsd(targetUsd) : '…'}?
+                      </span>
+                      {m.status === MarketStatusOnchain.Cancelled && <CancelledBadge />}
+                      {awaitingCounterBets && <AwaitingCounterBetsBadge />}
+                    </div>
+                    <div className="text-white/30 text-xs">Market #{id.toString()}</div>
                   </div>
                   <div className="text-right text-sm">
                     <div className="font-mono">{targetUsd != null ? formatUsd(targetUsd) : '…'}</div>

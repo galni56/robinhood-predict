@@ -62,6 +62,16 @@ export function OnchainMarketPage() {
     query: { enabled: !!feedAddress, refetchInterval: 15_000 },
   })
 
+  const feedDescription = useReadContract({
+    address: feedAddress,
+    abi: aggregatorV3Abi,
+    functionName: 'description',
+    query: { enabled: !!feedAddress },
+  })
+  // Chainlink feed descriptions look like "RHTSLA / USD" — strip the "RH"
+  // issuer prefix and " / USD" quote suffix to get a bare ticker.
+  const ticker = feedDescription.data?.replace(/^RH/, '').replace(/\s*\/\s*USD$/i, '')
+
   const betTokenBalance = useReadContract({
     address: BET_TOKEN_ADDRESS,
     abi: erc20Abi,
@@ -228,7 +238,10 @@ export function OnchainMarketPage() {
       <Link to="/onchain" className="text-sm text-white/40 hover:text-white/70">
         ← All on-chain markets
       </Link>
-      <h1 className="text-xl font-semibold my-4">On-chain market #{MARKET_ID.toString()}</h1>
+      <h1 className="text-xl font-semibold mt-4 mb-1">
+        {ticker ?? '…'} reach {targetPriceUsd != null ? formatUsd(targetPriceUsd) : '…'}?
+      </h1>
+      <p className="text-white/30 text-sm mb-4">On-chain market #{MARKET_ID.toString()}</p>
 
       {/* Market data is a public read — shown regardless of wallet connection. */}
       {market.isLoading ? (

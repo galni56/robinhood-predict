@@ -218,6 +218,13 @@ export const aggregatorV3Abi = [
   },
   {
     type: 'function',
+    name: 'description',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ type: 'string' }],
+  },
+  {
+    type: 'function',
     name: 'latestRoundData',
     stateMutability: 'view',
     inputs: [],
