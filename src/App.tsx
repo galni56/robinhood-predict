@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
+import { Route, Routes } from 'react-router-dom'
 import { ChainEngine } from '@/components/ChainEngine'
 import { DisclaimerBanner } from '@/components/DisclaimerBanner'
 import { Footer } from '@/components/Footer'
@@ -30,25 +30,15 @@ import { TxDetailPage } from '@/pages/TxDetailPage'
 import { WhitepaperPage } from '@/pages/WhitepaperPage'
 
 export default function App() {
-  const { pathname } = useLocation()
-  const isOnchain = pathname.startsWith('/onchain')
-
   return (
     <div className="min-h-screen flex flex-col">
       <ChainEngine />
       <DisclaimerBanner />
-      {/* /onchain has its own top bar (OnchainLayout) — the mock Navbar's
-          links (and its Log in/Sign up, which don't apply to a wallet-based
-          flow) would just be a confusing second nav on top of it. */}
-      {!isOnchain && <Navbar />}
+      <Navbar />
 
       <main className="flex-1">
         <Routes>
-          {/* /onchain (real mainnet) is now the front door — the mock demo
-              stays reachable at /demo for anyone who wants to explore it
-              without a wallet. */}
-          <Route path="/" element={<Navigate to="/onchain" replace />} />
-          <Route path="/demo" element={<LandingPage />} />
+          <Route path="/" element={<LandingPage />} />
           <Route path="/whitepaper" element={<WhitepaperPage />} />
           <Route path="/terms" element={<TermsPage />} />
           <Route path="/login" element={<LoginPage />} />
