@@ -71,23 +71,25 @@ export function OnchainCreateMarketPage() {
 
   return (
     <div className="max-w-lg mx-auto px-4 py-8">
-      <h1 className="text-xl font-semibold mb-1">Create an on-chain market</h1>
+      <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight mb-1">Create an on-chain market</h1>
       <p className="text-white/50 text-sm mb-6">
         A real transaction on mainnet. Target price can't exceed {formatUsd(MAX_TARGET_PRICE_USD, 0)}. YES/NO pools
         start at $0 — if only one side has bets by the deadline, the market cancels and money is refunded in full.
       </p>
 
       {!isConnected ? (
-        <p className="text-amber-400 text-sm">Connect a wallet on the markets list page first.</p>
+        <p className="text-amber-400 text-sm bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-3">
+          Connect a wallet on the markets list page first.
+        </p>
       ) : !onRightChain ? (
-        <p className="text-amber-400 text-sm">Switch to Robinhood Chain.</p>
+        <p className="text-amber-400 text-sm bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-3">
+          Switch to Robinhood Chain.
+        </p>
       ) : (
-        <form onSubmit={onSubmit} className="bg-[#12121c]/95 border border-white/10 rounded-xl p-6 space-y-4">
+        <form onSubmit={onSubmit} className="bg-[#12121c]/95 border border-white/10 rounded-2xl p-6 space-y-5">
           <div>
             <label className="block text-sm text-white/60 mb-1.5">Price feed</label>
-            <div className="w-full rounded-lg bg-black/30 border border-white/10 px-3 py-2 text-sm text-white/70">
-              {DEFAULT_PRICE_FEED_LABEL}
-            </div>
+            <div className="w-full rounded-lg bg-black/30 border border-white/10 px-3 py-2 text-sm font-semibold">{DEFAULT_PRICE_FEED_LABEL}</div>
             <p className="text-[11px] text-white/30 mt-1">
               The only allowlisted feed right now — only the contract owner can add feeds.
             </p>
@@ -102,31 +104,36 @@ export function OnchainCreateMarketPage() {
               step="0.01"
               value={target}
               onChange={(e) => setTarget(e.target.value)}
-              className="w-full rounded-lg bg-black/30 border border-white/10 px-3 py-2 text-sm outline-none focus:border-emerald-400/60"
+              className="w-full rounded-lg bg-black/30 border border-white/10 px-3 py-2 text-sm font-mono outline-none focus:border-[#C6FF3D]/60 transition-colors"
             />
           </div>
 
           <div>
             <label className="block text-sm text-white/60 mb-1.5">Deadline</label>
-            <select
-              value={durationIdx}
-              onChange={(e) => setDurationIdx(Number(e.target.value))}
-              className="w-full rounded-lg bg-black/30 border border-white/10 px-3 py-2 text-sm outline-none focus:border-emerald-400/60"
-            >
+            <div className="grid grid-cols-3 gap-2">
               {DURATION_PRESETS.map((d, i) => (
-                <option key={d.label} value={i}>
+                <button
+                  type="button"
+                  key={d.label}
+                  onClick={() => setDurationIdx(i)}
+                  className={`rounded-lg px-3 py-2 text-sm font-medium border transition-colors ${
+                    durationIdx === i
+                      ? 'bg-[#C6FF3D]/15 border-[#C6FF3D]/50 text-[#C6FF3D]'
+                      : 'border-white/10 text-white/60 hover:border-white/30 hover:text-white'
+                  }`}
+                >
                   {d.label}
-                </option>
+                </button>
               ))}
-            </select>
+            </div>
           </div>
 
-          {error && <p className="text-rose-400 text-sm">{error}</p>}
+          {error && <p className="text-rose-400 text-sm bg-rose-500/10 border border-rose-500/30 rounded-lg px-3 py-2">{error}</p>}
 
           <button
             type="submit"
             disabled={pending}
-            className="w-full rounded-lg bg-gradient-to-r from-[#C6FF3D] to-[#8FBF1F] hover:brightness-110 text-black font-semibold py-2 text-sm transition-all disabled:opacity-50"
+            className="w-full rounded-full bg-gradient-to-r from-[#C6FF3D] to-[#8FBF1F] hover:brightness-110 text-black font-semibold py-2.5 text-sm transition-all disabled:opacity-50 shadow-[0_0_20px_-6px_rgba(198,255,61,0.7)]"
           >
             {pending ? 'Confirm in wallet…' : 'Create market'}
           </button>

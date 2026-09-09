@@ -23,6 +23,15 @@ interface Position {
   hasClaimed: boolean
 }
 
+function StatCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-[#12121c]/95 p-4">
+      <div className="text-white/40 text-xs mb-1">{label}</div>
+      <div className="text-xl font-mono font-semibold">{value}</div>
+    </div>
+  )
+}
+
 export function OnchainPortfolioPage() {
   const { address, isConnected } = useAccount()
   const { connectors, connect, isPending } = useConnect()
@@ -63,8 +72,8 @@ export function OnchainPortfolioPage() {
   if (!isConnected) {
     return (
       <div className="max-w-2xl mx-auto px-4 py-8">
-        <h1 className="text-xl font-semibold mb-1">Your on-chain portfolio</h1>
-        <p className="text-white/40 text-sm mb-4">Connect a wallet to see your real stakes across every market.</p>
+        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight mb-1">Your on-chain portfolio</h1>
+        <p className="text-white/40 text-sm mb-6">Connect a wallet to see your real stakes across every market.</p>
         <div className="space-y-2">
           {connectors.map((c) => (
             <button
@@ -99,19 +108,23 @@ export function OnchainPortfolioPage() {
 
   const openPositions = positions.filter((p) => p.status === MarketStatusOnchain.Open)
   const settledPositions = positions.filter((p) => p.status !== MarketStatusOnchain.Open)
+  const decidedPositions = settledPositions.filter((p) => p.status === MarketStatusOnchain.Resolved)
+  const wins = decidedPositions.filter((p) => (outcome(p) === 'YES' && p.yesStake > 0n) || (outcome(p) === 'NO' && p.noStake > 0n))
+  const winRate = decidedPositions.length > 0 ? (wins.length / decidedPositions.length) * 100 : null
+  const totalWagered = positions.reduce((sum, p) => sum + p.yesStake + p.noStake, 0n)
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
       <div>
-        <h1 className="text-xl font-semibold mb-1">Your on-chain portfolio</h1>
+        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight mb-1">Your on-chain portfolio</h1>
         <p className="text-white/40 text-xs font-mono break-all">{address}</p>
       </div>
 
-      <div className="rounded-lg border border-white/10 p-4">
-        <div className="text-white/40 text-xs">Balance</div>
-        <div className="text-2xl font-mono font-semibold">
-          {balance.data != null ? `${formatUnits(balance.data, BET_TOKEN_DECIMALS)} USDG` : '…'}
-        </div>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <StatCard label="Balance" value={balance.data != null ? `$${formatUnits(balance.data, BET_TOKEN_DECIMALS)}` : '…'} />
+        <StatCard label="Total wagered" value={`$${formatUnits(totalWagered, BET_TOKEN_DECIMALS)}`} />
+        <StatCard label="Win rate" value={winRate != null ? `${winRate.toFixed(0)}%` : '—'} />
+        <StatCard label="Positions" value={String(positions.length)} />
       </div>
 
       <div>
@@ -135,7 +148,7 @@ function PositionList({ positions }: { positions: Position[] }) {
         <Link
           key={p.id.toString()}
           to={`/onchain/${p.id}`}
-          className="flex flex-wrap items-center gap-3 text-sm bg-[#12121c]/95 border border-white/10 rounded-lg px-3 py-2.5 hover:border-[#C6FF3D]/30 transition-colors"
+          className="flex flex-wrap items-center gap-3 text-sm bg-[#12121c]/95 border border-white/10 rounded-xl px-4 py-3 hover:border-[#C6FF3D]/30 hover:bg-[#181829]/95 transition-colors"
         >
           <span className="font-mono text-white/70">#{p.id.toString()}</span>
           {p.yesStake > 0n && (

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { formatUnits, parseUnits } from 'viem'
 import { useAccount, useChainId, useConnect, useDisconnect, useReadContract, useSwitchChain, useWriteContract } from 'wagmi'
@@ -59,7 +59,7 @@ export function OnchainMarketPage() {
     address: feedAddress,
     abi: aggregatorV3Abi,
     functionName: 'latestRoundData',
-    query: { enabled: !!feedAddress, refetchInterval: 15_000 },
+    query: { enabled: !!feedAddress, refetchInterval: 2_000 },
   })
 
   const feedDescription = useReadContract({
@@ -120,6 +120,16 @@ export function OnchainMarketPage() {
     if (!feedPrice.data || feedDecimals.data == null) return null
     return Number(formatUnits(feedPrice.data[1], feedDecimals.data))
   }, [feedPrice.data, feedDecimals.data])
+
+  // Colors the price by whether it just ticked up or down since the last
+  // poll (not by distance from target) — ref so recording it never itself
+  // triggers a re-render; read during render, updated after via the effect
+  // below so this render still sees the *previous* poll's value.
+  const prevPriceRef = useRef<number | null>(null)
+  const tickedUp = currentPriceUsd == null || prevPriceRef.current == null ? true : currentPriceUsd >= prevPriceRef.current
+  useEffect(() => {
+    if (currentPriceUsd != null) prevPriceRef.current = currentPriceUsd
+  }, [currentPriceUsd])
 
   async function refetchAll() {
     await Promise.all([market.refetch(), betTokenBalance.refetch(), allowance.refetch(), myStakeYes.refetch(), myStakeNo.refetch(), hasClaimed.refetch()])
@@ -229,8 +239,8 @@ export function OnchainMarketPage() {
   const bothSidesUsed = hasBetYes && hasBetNo
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-8">
-      <div className="mb-6 rounded-lg border border-sky-500/30 bg-sky-500/10 px-4 py-3 text-sm text-sky-200">
+    <div className="max-w-3xl mx-auto px-4 py-8">
+      <div className="mb-6 rounded-xl border border-sky-500/30 bg-sky-500/10 px-4 py-3 text-sm text-sky-200">
         ⛓️ This is <b>real mode</b> — actual transactions on Robinhood Chain mainnet through your wallet
         (MetaMask/Phantom). Not a mock: gas and tokens are real, and transactions really go on-chain.
       </div>
@@ -238,10 +248,10 @@ export function OnchainMarketPage() {
       <Link to="/onchain" className="text-sm text-white/40 hover:text-white/70">
         ← All on-chain markets
       </Link>
-      <h1 className="text-xl font-semibold mt-4 mb-1">
+      <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight mt-4 mb-1">
         {ticker ?? '…'} reach {targetPriceUsd != null ? formatUsd(targetPriceUsd) : '…'}?
       </h1>
-      <p className="text-white/30 text-sm mb-4">On-chain market #{MARKET_ID.toString()}</p>
+      <p className="text-white/30 text-sm mb-5">On-chain market #{MARKET_ID.toString()}</p>
 
       {/* Market data is a public read — shown regardless of wallet connection. */}
       {market.isLoading ? (
@@ -249,24 +259,39 @@ export function OnchainMarketPage() {
       ) : !market.data ? (
         <p className="text-rose-400">Market not found.</p>
       ) : (
-        <div className="rounded-lg border border-white/10 p-4 space-y-2 mb-4">
-          <div className="text-white/50 text-xs">
-            Status: {status === MarketStatusOnchain.Open ? 'open' : status === MarketStatusOnchain.Resolved ? 'resolved' : 'cancelled'}
+        <div className="rounded-2xl border border-white/10 bg-[#12121c]/95 p-5 space-y-3 mb-5">
+          <div className="flex items-center justify-between">
+            <span className="text-white/50 text-xs uppercase tracking-wider">
+              {status === MarketStatusOnchain.Open ? 'Open' : status === MarketStatusOnchain.Resolved ? 'Resolved' : 'Cancelled'}
+            </span>
+            <span className="text-white/40 text-xs">
+              {status === MarketStatusOnchain.Open &&
+                (bettingClosed
+                  ? `⏱ resolves: ${formatCountdown(deadlineMs - Date.now())}`
+                  : `⏱ betting: ${formatCountdown(bettingWindowEndMs - Date.now())}`)}
+            </span>
           </div>
-          <div className="text-lg">
-            Target: {targetPriceUsd != null ? formatUsd(targetPriceUsd) : '…'} · Now: {currentPriceUsd != null ? formatUsd(currentPriceUsd) : '…'}
-          </div>
-          <div className="text-sm text-white/50">
-            {status === MarketStatusOnchain.Open &&
-              (bettingClosed
-                ? `Betting closed, waiting to resolve: ${formatCountdown(deadlineMs - Date.now())}`
-                : `Betting open for: ${formatCountdown(bettingWindowEndMs - Date.now())}`)}
+          <div className="flex items-baseline justify-between">
+            <div>
+              <div className={`font-mono text-2xl font-semibold ${tickedUp ? 'text-emerald-400' : 'text-rose-400'}`}>
+                {currentPriceUsd != null ? formatUsd(currentPriceUsd) : '…'}
+              </div>
+              <div className="text-white/40 text-xs">current price</div>
+            </div>
+            <div className="text-right">
+              <div className="font-mono text-2xl font-semibold text-white/70">{targetPriceUsd != null ? formatUsd(targetPriceUsd) : '…'}</div>
+              <div className="text-white/40 text-xs">target</div>
+            </div>
           </div>
           <div className="h-2 rounded-full bg-rose-500/30 overflow-hidden">
             <div className="h-full bg-emerald-500" style={{ width: `${yesPct}%` }} />
           </div>
-          <div className="text-xs text-white/40">
-            YES pool: {formatUnits(market.data.poolYes, BET_TOKEN_DECIMALS)} USDG · NO pool: {formatUnits(market.data.poolNo, BET_TOKEN_DECIMALS)} USDG
+          <div className="flex justify-between text-xs text-white/40">
+            <span>YES {yesPct.toFixed(1)}%</span>
+            <span>
+              {formatUnits(market.data.poolYes, BET_TOKEN_DECIMALS)} vs {formatUnits(market.data.poolNo, BET_TOKEN_DECIMALS)} USDG
+            </span>
+            <span>NO {(100 - yesPct).toFixed(1)}%</span>
           </div>
         </div>
       )}
