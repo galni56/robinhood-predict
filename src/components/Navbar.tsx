@@ -169,9 +169,9 @@ export function Navbar() {
             aria-expanded={mobileOpen}
             className="w-9 h-9 shrink-0 rounded-lg border border-white/10 flex flex-col items-center justify-center gap-[3px] hover:border-white/30 transition-colors"
           >
-            <span className={clsx('block w-4 h-[1.5px] bg-white/80 transition-transform', mobileOpen && 'translate-y-[5px] rotate-45')} />
-            <span className={clsx('block w-4 h-[1.5px] bg-white/80 transition-opacity', mobileOpen && 'opacity-0')} />
-            <span className={clsx('block w-4 h-[1.5px] bg-white/80 transition-transform', mobileOpen && '-translate-y-[5px] -rotate-45')} />
+            <span className={clsx('block w-4 h-[4px] bg-white/80 transition-transform', mobileOpen && 'translate-y-[5px] rotate-45')} />
+            <span className={clsx('block w-4 h-[4px] bg-white/80 transition-opacity', mobileOpen && 'opacity-0')} />
+            <span className={clsx('block w-4 h-[4px] bg-white/80 transition-transform', mobileOpen && '-translate-y-[5px] -rotate-45')} />
           </button>
         </div>
       </div>

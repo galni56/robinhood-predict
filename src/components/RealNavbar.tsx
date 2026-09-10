@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import clsx from 'clsx'
-import { useAccount } from 'wagmi'
 import { robinhoodMainnet } from '@/chain/config'
 import { ConnectWalletButton } from '@/components/ConnectWalletButton'
 
@@ -11,19 +10,16 @@ const links = [
   { to: '/onchain/leaderboard', label: 'Leaderboard' },
 ]
 
-function truncateAddress(addr: string) {
-  return `${addr.slice(0, 6)}…${addr.slice(-4)}`
-}
-
 /** Full-size navbar for the real (mainnet) side of the site — the landing
  * page at "/" and everything under /onchain — mirroring the mock <Navbar>'s
  * visual size and layout so the real side doesn't look like a stripped-down
  * afterthought. Links go to the real onchain routes instead of the mock
- * ones, and the right side shows a wallet address (if connected) plus a
- * "Try the demo" link instead of Log in/Sign up, which don't apply to a
- * wallet-based flow. */
+ * ones, and the right side shows ConnectWalletButton (address avatar once
+ * connected) plus a "Try the demo" link instead of Log in/Sign up, which
+ * don't apply to a wallet-based flow. ConnectWalletButton also appears in
+ * the collapsed mobile row, not just the hamburger menu — connecting a
+ * wallet shouldn't be buried an extra tap deep. */
 export function RealNavbar() {
-  const { address, isConnected } = useAccount()
   const [mobileOpen, setMobileOpen] = useState(false)
 
   return (
@@ -82,18 +78,19 @@ export function RealNavbar() {
           <ConnectWalletButton />
         </div>
 
-        {/* Mobile / narrow-desktop: everything collapses behind one toggle. */}
+        {/* Mobile / narrow-desktop: everything collapses behind one toggle,
+            except the wallet button itself — that stays one tap away. */}
         <div className="ml-auto flex lg:hidden items-center gap-2">
-          {isConnected && address && <span className="font-mono text-xs text-white/60">{truncateAddress(address)}</span>}
+          <ConnectWalletButton />
           <button
             onClick={() => setMobileOpen((v) => !v)}
             aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
             aria-expanded={mobileOpen}
             className="w-9 h-9 shrink-0 rounded-lg border border-white/10 flex flex-col items-center justify-center gap-[3px] hover:border-white/30 transition-colors"
           >
-            <span className={clsx('block w-4 h-[1.5px] bg-white/80 transition-transform', mobileOpen && 'translate-y-[5px] rotate-45')} />
-            <span className={clsx('block w-4 h-[1.5px] bg-white/80 transition-opacity', mobileOpen && 'opacity-0')} />
-            <span className={clsx('block w-4 h-[1.5px] bg-white/80 transition-transform', mobileOpen && '-translate-y-[5px] -rotate-45')} />
+            <span className={clsx('block w-4 h-[4px] bg-white/80 transition-transform', mobileOpen && 'translate-y-[5px] rotate-45')} />
+            <span className={clsx('block w-4 h-[4px] bg-white/80 transition-opacity', mobileOpen && 'opacity-0')} />
+            <span className={clsx('block w-4 h-[4px] bg-white/80 transition-transform', mobileOpen && '-translate-y-[5px] -rotate-45')} />
           </button>
         </div>
       </div>
