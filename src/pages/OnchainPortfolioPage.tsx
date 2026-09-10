@@ -1,7 +1,8 @@
 import { Link } from 'react-router-dom'
 import { formatUnits } from 'viem'
-import { useAccount, useConnect, useReadContract, useReadContracts } from 'wagmi'
+import { useAccount, useReadContract, useReadContracts } from 'wagmi'
 import { SideBadge, StatusBadge } from '@/components/Pills'
+import { WalletOptionsList } from '@/components/WalletOptionsList'
 import {
   BET_TOKEN_ADDRESS,
   MarketSideOnchain,
@@ -34,7 +35,6 @@ function StatCard({ label, value }: { label: string; value: string }) {
 
 export function OnchainPortfolioPage() {
   const { address, isConnected } = useAccount()
-  const { connectors, connect, isPending } = useConnect()
 
   const marketCount = useReadContract({
     address: PREDICTION_MARKET_ADDRESS,
@@ -74,21 +74,7 @@ export function OnchainPortfolioPage() {
       <div className="max-w-2xl mx-auto px-4 py-8">
         <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight mb-1">Your on-chain portfolio</h1>
         <p className="text-white/40 text-sm mb-6">Connect a wallet to see your real stakes across every market.</p>
-        <div className="space-y-2">
-          {connectors.map((c) => (
-            <button
-              key={c.uid}
-              onClick={() => connect({ connector: c })}
-              disabled={isPending}
-              className="w-full rounded-lg border border-white/10 px-4 py-2 text-left hover:border-[#C6FF3D]/50 transition-colors"
-            >
-              Connect {c.name}
-            </button>
-          ))}
-          {connectors.length === 0 && (
-            <p className="text-sm text-white/50">No wallet found (MetaMask/Phantom). Install the extension and reload the page.</p>
-          )}
-        </div>
+        <WalletOptionsList />
       </div>
     )
   }

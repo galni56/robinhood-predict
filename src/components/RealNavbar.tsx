@@ -3,6 +3,7 @@ import { NavLink } from 'react-router-dom'
 import clsx from 'clsx'
 import { useAccount } from 'wagmi'
 import { robinhoodMainnet } from '@/chain/config'
+import { ConnectWalletButton } from '@/components/ConnectWalletButton'
 
 const links = [
   { to: '/onchain', label: 'Markets', end: true },
@@ -22,9 +23,8 @@ function truncateAddress(addr: string) {
  * "Try the demo" link instead of Log in/Sign up, which don't apply to a
  * wallet-based flow. */
 export function RealNavbar() {
-  const { address, isConnected, chain } = useAccount()
+  const { address, isConnected } = useAccount()
   const [mobileOpen, setMobileOpen] = useState(false)
-  const onRightChain = chain?.id === robinhoodMainnet.id
 
   return (
     <header className="sticky top-0 z-20 border-b border-white/10 bg-[#0a0a12]/95 lg:bg-[#0a0a12]/85 lg:backdrop-blur">
@@ -79,16 +79,7 @@ export function RealNavbar() {
           >
             Try the demo →
           </NavLink>
-          {isConnected && address && (
-            <span
-              className={clsx(
-                'font-mono text-xs px-2.5 py-1.5 rounded-full border',
-                onRightChain ? 'border-emerald-400/30 text-emerald-300 bg-emerald-500/10' : 'border-amber-400/30 text-amber-300 bg-amber-500/10',
-              )}
-            >
-              {truncateAddress(address)}
-            </span>
-          )}
+          <ConnectWalletButton />
         </div>
 
         {/* Mobile / narrow-desktop: everything collapses behind one toggle. */}

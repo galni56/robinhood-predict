@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { formatUnits, parseUnits } from 'viem'
-import { useAccount, useChainId, useConnect, useDisconnect, useReadContract, useSwitchChain, useWriteContract } from 'wagmi'
+import { useAccount, useChainId, useDisconnect, useReadContract, useSwitchChain, useWriteContract } from 'wagmi'
 import { waitForTransactionReceipt } from 'wagmi/actions'
 import { robinhoodMainnet, wagmiConfig } from '@/chain/config'
+import { WalletOptionsList } from '@/components/WalletOptionsList'
 import {
   BET_TOKEN_ADDRESS,
   BP_DENOMINATOR,
@@ -28,7 +29,6 @@ export function OnchainMarketPage() {
   const MARKET_ID = BigInt(id)
   const { address, isConnected } = useAccount()
   const chainId = useChainId()
-  const { connectors, connect, isPending: isConnecting } = useConnect()
   const { disconnect } = useDisconnect()
   const { switchChain, isPending: isSwitching } = useSwitchChain()
   const { writeContractAsync } = useWriteContract()
@@ -296,21 +296,7 @@ export function OnchainMarketPage() {
       )}
 
       {!isConnected ? (
-        <div className="space-y-2">
-          {connectors.map((c) => (
-            <button
-              key={c.uid}
-              onClick={() => connect({ connector: c })}
-              disabled={isConnecting}
-              className="w-full rounded-lg border border-white/10 px-4 py-2 text-left hover:border-[#C6FF3D]/50 transition-colors"
-            >
-              Connect {c.name}
-            </button>
-          ))}
-          {connectors.length === 0 && (
-            <p className="text-sm text-white/50">No wallet found (MetaMask/Phantom). Install the extension and reload the page.</p>
-          )}
-        </div>
+        <WalletOptionsList />
       ) : !onRightChain ? (
         <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-200">
           Wrong network. You need Robinhood Chain.
