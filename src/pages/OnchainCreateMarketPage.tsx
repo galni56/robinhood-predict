@@ -1,11 +1,19 @@
-import { type FormEvent, useState } from 'react'
+import { type FormEvent, useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { parseUnits } from 'viem'
+import { formatUnits, parseUnits } from 'viem'
 import { useAccount, useChainId, useReadContract, useSwitchChain, useWriteContract } from 'wagmi'
 import { waitForTransactionReceipt } from 'wagmi/actions'
 import { robinhoodMainnet, wagmiConfig } from '@/chain/config'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
-import { ALLOWLISTED_FEEDS, PREDICTION_MARKET_ADDRESS, aggregatorV3Abi, feedAddressForTicker, predictionMarketAbi } from '@/chain/contracts'
+import {
+  ALLOWLISTED_FEEDS,
+  PREDICTION_MARKET_ADDRESS,
+  aggregatorV3Abi,
+  feedAddressForTicker,
+  predictionMarketAbi,
+  recommendedMinDeviationUsd,
+  recommendedTargetRange,
+} from '@/chain/contracts'
 import { formatUsd } from '@/lib/format'
 
 const MAX_TARGET_PRICE_USD = 500
@@ -39,8 +47,29 @@ export function OnchainCreateMarketPage() {
     abi: aggregatorV3Abi,
     functionName: 'decimals',
   })
+  const feedPrice = useReadContract({
+    address: feedAddress,
+    abi: aggregatorV3Abi,
+    functionName: 'latestRoundData',
+  })
+  const currentPriceUsd =
+    feedPrice.data && feedDecimals.data != null ? Number(formatUnits(feedPrice.data[1], feedDecimals.data)) : null
+
+  // Pre-fill the target with the live price whenever the ticker changes (not
+  // on every price poll, or the user's own edits would keep getting
+  // clobbered) — a sensible starting point instead of an arbitrary number.
+  const prefilledFor = useRef<string | null>(null)
+  useEffect(() => {
+    if (currentPriceUsd != null && prefilledFor.current !== feedAddress) {
+      setTarget(currentPriceUsd.toFixed(2))
+      prefilledFor.current = feedAddress
+    }
+  }, [feedAddress, currentPriceUsd])
 
   const onRightChain = chainId === robinhoodMainnet.id
+  const durationSeconds = DURATION_PRESETS[durationIdx].seconds
+  const [minRange, maxRange] = currentPriceUsd != null ? recommendedTargetRange(currentPriceUsd, durationSeconds) : [null, null]
+  const minGapUsd = currentPriceUsd != null ? recommendedMinDeviationUsd(currentPriceUsd) : null
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
@@ -110,7 +139,10 @@ export function OnchainCreateMarketPage() {
         </div>
 
         <div>
-          <label className="block text-sm text-white/60 mb-1.5">Target price, $ (max {formatUsd(MAX_TARGET_PRICE_USD, 0)})</label>
+          <div className="flex items-baseline justify-between mb-1.5">
+            <label className="text-sm text-white/60">Target price, $ (max {formatUsd(MAX_TARGET_PRICE_USD, 0)})</label>
+            {currentPriceUsd != null && <span className="text-[11px] text-white/40">now {formatUsd(currentPriceUsd)}</span>}
+          </div>
           <input
             type="number"
             min={1}
@@ -140,6 +172,12 @@ export function OnchainCreateMarketPage() {
               </button>
             ))}
           </div>
+          {minRange != null && maxRange != null && minGapUsd != null && (
+            <p className="text-[11px] text-white/30 mt-1.5">
+              Recommended for this duration: {formatUsd(minRange)}–{formatUsd(maxRange)}, at least {formatUsd(minGapUsd)} away
+              from the current price. Not yet enforced on-chain — a good-faith guide, not a hard limit.
+            </p>
+          )}
         </div>
 
         {error && <p className="text-rose-400 text-sm bg-rose-500/10 border border-rose-500/30 rounded-lg px-3 py-2">{error}</p>}

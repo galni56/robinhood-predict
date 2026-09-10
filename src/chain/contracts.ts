@@ -282,6 +282,43 @@ export const MAX_WEIGHT_BP = 20_000n
 export const MIN_WEIGHT_BP = 5_000n
 export const BP_DENOMINATOR = 10_000n
 
+// Mirrors the target-price floor/ceiling guard added to createMarket
+// (contracts/src/PredictionMarket.sol) — as of 2026-09-10 this exists only
+// in source, **not yet on the live mainnet contract** (verified: calling
+// MIN_TARGET_DEVIATION_BP() on it reverts), so treat any range shown from
+// this as a *recommendation* to the user, not something the chain will
+// actually enforce, until a redeploy picks it up.
+export const MIN_TARGET_DEVIATION_BP = 200n // 2%, all duration tiers
+export const SHORT_DURATION_SECONDS = 2n * 60n * 60n
+export const MEDIUM_DURATION_SECONDS = 24n * 60n * 60n
+export const SHORT_MAX_DEVIATION_BP = 400n // 4%
+export const MEDIUM_MAX_DEVIATION_BP = 1500n // 15%
+export const LONG_MAX_DEVIATION_BP = 2000n // 20%
+
+export function maxDeviationBpForDuration(durationSeconds: number): bigint {
+  if (durationSeconds <= Number(SHORT_DURATION_SECONDS)) return SHORT_MAX_DEVIATION_BP
+  if (durationSeconds <= Number(MEDIUM_DURATION_SECONDS)) return MEDIUM_MAX_DEVIATION_BP
+  return LONG_MAX_DEVIATION_BP
+}
+
+/** Outer [min, max] a target price could be for a given current price +
+ * duration — plain numbers (not scaled to feed decimals), for UI display
+ * only. Note this isn't one continuous valid range: the actual rule also
+ * excludes a band within MIN_TARGET_DEVIATION_BP of the current price (too
+ * close to be a real bet) — see recommendedMinDeviationUsd. */
+export function recommendedTargetRange(currentPrice: number, durationSeconds: number): [number, number] {
+  const maxBp = maxDeviationBpForDuration(durationSeconds)
+  const mult = Number(maxBp) / 10_000
+  return [currentPrice * (1 - mult), currentPrice * (1 + mult)]
+}
+
+/** How close (in $) a target may sit to the current price before it's
+ * rejected as too close to be a real bet — the excluded band is
+ * [current - this, current + this]. */
+export function recommendedMinDeviationUsd(currentPrice: number): number {
+  return (currentPrice * Number(MIN_TARGET_DEVIATION_BP)) / 10_000
+}
+
 /** Mirrors `PredictionMarket.bettingWindowEnd()` exactly (same truncating
  * integer division) — the unix-seconds timestamp betting closes at. */
 export function bettingWindowEndSeconds(createdAt: bigint, deadline: bigint): bigint {
