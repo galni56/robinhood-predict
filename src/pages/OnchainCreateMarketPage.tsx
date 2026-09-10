@@ -14,7 +14,7 @@ import {
   recommendedMinDeviationUsd,
   recommendedTargetRange,
 } from '@/chain/contracts'
-import { formatUsd } from '@/lib/format'
+import { formatUsd, shortTxError } from '@/lib/format'
 
 const DURATION_PRESETS = [
   { label: '1 hour', seconds: 60 * 60 },
@@ -102,7 +102,7 @@ export function OnchainCreateMarketPage() {
 
       navigate('/onchain')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Transaction failed')
+      setError(shortTxError(err))
     } finally {
       setPending(false)
     }
@@ -114,7 +114,8 @@ export function OnchainCreateMarketPage() {
       <p className="text-white/50 text-sm mb-6">
         A real transaction on mainnet. Target price must sit a reasonable distance from the current price — the
         further out the deadline, the wider that band. YES/NO pools start at $0 — if only one side has bets by the
-        deadline, the market cancels and money is refunded in full.
+        deadline, the market cancels and money is refunded in full. Betting currency is USDG only for now — ETH
+        support is planned for a future update. Want another token supported? Let us know what you'd like next.
       </p>
 
       <form onSubmit={onSubmit} className="bg-[#12121c]/95 border border-white/10 rounded-2xl p-6 space-y-5">

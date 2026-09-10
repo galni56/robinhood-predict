@@ -5,7 +5,7 @@ import { usePublicClient } from 'wagmi'
 import { SideBadge } from '@/components/Pills'
 import { robinhoodMainnet } from '@/chain/config'
 import { DEPLOY_BLOCK, MarketSideOnchain, PREDICTION_MARKET_ADDRESS } from '@/chain/contracts'
-import { formatUsd } from '@/lib/format'
+import { formatUsd, shortTxError } from '@/lib/format'
 import { shortHash } from '@/lib/hash'
 
 // viem's `getLogs` wants the specific ABI event item (not the full contract
@@ -112,7 +112,7 @@ export function OnchainLeaderboardPage() {
         setStats(ranked)
         setRecent(recentBets)
       } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to read activity from the chain')
+        if (!cancelled) setError(shortTxError(e))
       }
     }
 

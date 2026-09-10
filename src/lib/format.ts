@@ -24,6 +24,18 @@ export function timeAgo(ts: number): string {
   return `${d}d ago`
 }
 
+// Wallet/RPC errors (viem's `.message`) dump the full call — args, sender,
+// docs link, library version — which is noise to a non-technical user.
+// Show just: the wallet-rejected case, a decoded revert reason if one's
+// present, or a short generic fallback. Never the raw multi-line dump.
+export function shortTxError(e: unknown): string {
+  const raw = e instanceof Error ? ((e as { shortMessage?: string }).shortMessage ?? e.message) : String(e)
+  if (/rejected/i.test(raw)) return 'Rejected in wallet'
+  const reasonMatch = raw.match(/reason:\s*\n?\s*"?([^"\n]+)"?/i)
+  if (reasonMatch) return reasonMatch[1].trim()
+  return 'Transaction failed'
+}
+
 export function formatCountdown(msRemaining: number): string {
   if (msRemaining <= 0) return 'resolved'
   const totalSec = Math.floor(msRemaining / 1000)

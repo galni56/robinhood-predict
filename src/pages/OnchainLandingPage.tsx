@@ -176,6 +176,9 @@ export function OnchainLandingPage() {
           <span>
             <span className="text-white font-mono font-semibold">2%–20%</span> target price band by duration
           </span>
+          <span>
+            <span className="text-white font-mono font-semibold">USDG</span> only for now — ETH coming in a future update
+          </span>
         </div>
       </section>
 

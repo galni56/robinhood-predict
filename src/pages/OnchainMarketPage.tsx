@@ -18,7 +18,7 @@ import {
   predictionMarketAbi,
   tickerFromFeedDescription,
 } from '@/chain/contracts'
-import { formatCountdown, formatUsd } from '@/lib/format'
+import { formatCountdown, formatUsd, shortTxError } from '@/lib/format'
 
 const BET_TOKEN_DECIMALS = 6 // USDG's real decimals (old testnet mock token was 18)
 
@@ -177,7 +177,7 @@ export function OnchainMarketPage() {
       await refetchAll()
     } catch (e) {
       setTx(null)
-      setError(e instanceof Error ? e.message : 'Transaction failed')
+      setError(shortTxError(e))
     }
   }
 
@@ -196,7 +196,7 @@ export function OnchainMarketPage() {
       await refetchAll()
     } catch (e) {
       setTx(null)
-      setError(e instanceof Error ? e.message : 'Transaction failed')
+      setError(shortTxError(e))
     }
   }
 
@@ -214,7 +214,7 @@ export function OnchainMarketPage() {
       await refetchAll()
     } catch (e) {
       setTx(null)
-      setError(e instanceof Error ? e.message : 'Transaction failed')
+      setError(shortTxError(e))
     }
   }
 
@@ -378,6 +378,10 @@ export function OnchainMarketPage() {
                                 className="w-full rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-sm"
                                 placeholder="Amount in USDG"
                               />
+                              <p className="text-[11px] text-white/30">
+                                USDG only for now — ETH support is planned for a future update. Want another token
+                                supported? Let us know what you'd like next.
+                              </p>
                               <button
                                 onClick={handleBet}
                                 disabled={!!tx}
