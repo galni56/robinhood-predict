@@ -1,9 +1,10 @@
 import { type FormEvent, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { parseUnits } from 'viem'
-import { useAccount, useChainId, useReadContract, useWriteContract } from 'wagmi'
+import { useAccount, useChainId, useReadContract, useSwitchChain, useWriteContract } from 'wagmi'
 import { waitForTransactionReceipt } from 'wagmi/actions'
 import { robinhoodMainnet, wagmiConfig } from '@/chain/config'
+import { WalletOptionsList } from '@/components/WalletOptionsList'
 import { ALLOWLISTED_FEEDS, PREDICTION_MARKET_ADDRESS, aggregatorV3Abi, feedAddressForTicker, predictionMarketAbi } from '@/chain/contracts'
 import { formatUsd } from '@/lib/format'
 
@@ -20,6 +21,7 @@ export function OnchainCreateMarketPage() {
   const [searchParams] = useSearchParams()
   const { isConnected } = useAccount()
   const chainId = useChainId()
+  const { switchChain, isPending: isSwitching } = useSwitchChain()
   const { writeContractAsync } = useWriteContract()
 
   // Arriving from a "Create Prediction" button on a specific token's card
@@ -83,74 +85,83 @@ export function OnchainCreateMarketPage() {
         start at $0 — if only one side has bets by the deadline, the market cancels and money is refunded in full.
       </p>
 
-      {!isConnected ? (
-        <p className="text-amber-400 text-sm bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-3">
-          Connect a wallet on the markets list page first.
-        </p>
-      ) : !onRightChain ? (
-        <p className="text-amber-400 text-sm bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-3">
-          Switch to Robinhood Chain.
-        </p>
-      ) : (
-        <form onSubmit={onSubmit} className="bg-[#12121c]/95 border border-white/10 rounded-2xl p-6 space-y-5">
-          <div>
-            <label className="block text-sm text-white/60 mb-1.5">Price feed</label>
-            <div className="grid grid-cols-3 gap-2">
-              {ALLOWLISTED_FEEDS.map((f) => (
-                <button
-                  type="button"
-                  key={f.ticker}
-                  onClick={() => setFeedAddress(f.address)}
-                  className={`rounded-lg px-3 py-2 text-sm font-semibold border transition-colors ${
-                    feedAddress === f.address
-                      ? 'bg-[#C6FF3D]/15 border-[#C6FF3D]/50 text-[#C6FF3D]'
-                      : 'border-white/10 text-white/60 hover:border-white/30 hover:text-white'
-                  }`}
-                >
-                  {f.ticker}
-                </button>
-              ))}
-            </div>
-            <p className="text-[11px] text-white/30 mt-1">
-              Only allowlisted feeds can settle a market — only the contract owner can add more.
-            </p>
+      <form onSubmit={onSubmit} className="bg-[#12121c]/95 border border-white/10 rounded-2xl p-6 space-y-5">
+        <div>
+          <label className="block text-sm text-white/60 mb-1.5">Price feed</label>
+          <div className="grid grid-cols-3 gap-2">
+            {ALLOWLISTED_FEEDS.map((f) => (
+              <button
+                type="button"
+                key={f.ticker}
+                onClick={() => setFeedAddress(f.address)}
+                className={`rounded-lg px-3 py-2 text-sm font-semibold border transition-colors ${
+                  feedAddress === f.address
+                    ? 'bg-[#C6FF3D]/15 border-[#C6FF3D]/50 text-[#C6FF3D]'
+                    : 'border-white/10 text-white/60 hover:border-white/30 hover:text-white'
+                }`}
+              >
+                {f.ticker}
+              </button>
+            ))}
           </div>
+          <p className="text-[11px] text-white/30 mt-1">
+            Only allowlisted feeds can settle a market — only the contract owner can add more.
+          </p>
+        </div>
 
-          <div>
-            <label className="block text-sm text-white/60 mb-1.5">Target price, $ (max {formatUsd(MAX_TARGET_PRICE_USD, 0)})</label>
-            <input
-              type="number"
-              min={1}
-              max={MAX_TARGET_PRICE_USD}
-              step="0.01"
-              value={target}
-              onChange={(e) => setTarget(e.target.value)}
-              className="w-full rounded-lg bg-black/30 border border-white/10 px-3 py-2 text-sm font-mono outline-none focus:border-[#C6FF3D]/60 transition-colors"
-            />
+        <div>
+          <label className="block text-sm text-white/60 mb-1.5">Target price, $ (max {formatUsd(MAX_TARGET_PRICE_USD, 0)})</label>
+          <input
+            type="number"
+            min={1}
+            max={MAX_TARGET_PRICE_USD}
+            step="0.01"
+            value={target}
+            onChange={(e) => setTarget(e.target.value)}
+            className="w-full rounded-lg bg-black/30 border border-white/10 px-3 py-2 text-sm font-mono outline-none focus:border-[#C6FF3D]/60 transition-colors"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm text-white/60 mb-1.5">Deadline</label>
+          <div className="grid grid-cols-3 gap-2">
+            {DURATION_PRESETS.map((d, i) => (
+              <button
+                type="button"
+                key={d.label}
+                onClick={() => setDurationIdx(i)}
+                className={`rounded-lg px-3 py-2 text-sm font-medium border transition-colors ${
+                  durationIdx === i
+                    ? 'bg-[#C6FF3D]/15 border-[#C6FF3D]/50 text-[#C6FF3D]'
+                    : 'border-white/10 text-white/60 hover:border-white/30 hover:text-white'
+                }`}
+              >
+                {d.label}
+              </button>
+            ))}
           </div>
+        </div>
 
-          <div>
-            <label className="block text-sm text-white/60 mb-1.5">Deadline</label>
-            <div className="grid grid-cols-3 gap-2">
-              {DURATION_PRESETS.map((d, i) => (
-                <button
-                  type="button"
-                  key={d.label}
-                  onClick={() => setDurationIdx(i)}
-                  className={`rounded-lg px-3 py-2 text-sm font-medium border transition-colors ${
-                    durationIdx === i
-                      ? 'bg-[#C6FF3D]/15 border-[#C6FF3D]/50 text-[#C6FF3D]'
-                      : 'border-white/10 text-white/60 hover:border-white/30 hover:text-white'
-                  }`}
-                >
-                  {d.label}
-                </button>
-              ))}
-            </div>
+        {error && <p className="text-rose-400 text-sm bg-rose-500/10 border border-rose-500/30 rounded-lg px-3 py-2">{error}</p>}
+
+        {!isConnected ? (
+          <div className="pt-1 border-t border-white/10">
+            <p className="text-white/40 text-xs mb-2 mt-4">Connect a wallet to create this market:</p>
+            <WalletOptionsList />
           </div>
-
-          {error && <p className="text-rose-400 text-sm bg-rose-500/10 border border-rose-500/30 rounded-lg px-3 py-2">{error}</p>}
-
+        ) : !onRightChain ? (
+          <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-200 flex items-center justify-between gap-3">
+            Wrong network.
+            <button
+              type="button"
+              onClick={() => switchChain({ chainId: robinhoodMainnet.id })}
+              disabled={isSwitching}
+              className="shrink-0 rounded-md bg-amber-500 text-black px-3 py-1 text-xs font-medium disabled:opacity-50"
+            >
+              Switch network
+            </button>
+          </div>
+        ) : (
           <button
             type="submit"
             disabled={pending}
@@ -158,8 +169,8 @@ export function OnchainCreateMarketPage() {
           >
             {pending ? 'Confirm in wallet…' : 'Create market'}
           </button>
-        </form>
-      )}
+        )}
+      </form>
     </div>
   )
 }
