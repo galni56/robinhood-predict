@@ -3,7 +3,14 @@ import { Link } from 'react-router-dom'
 import { formatUnits } from 'viem'
 import { useReadContract, useReadContracts } from 'wagmi'
 import { AwaitingCounterBetsBadge, CancelledBadge } from '@/components/Pills'
-import { PREDICTION_MARKET_ADDRESS, aggregatorV3Abi, predictionMarketAbi, MarketStatusOnchain, bettingWindowEndSeconds } from '@/chain/contracts'
+import {
+  PREDICTION_MARKET_ADDRESS,
+  aggregatorV3Abi,
+  predictionMarketAbi,
+  MarketStatusOnchain,
+  bettingWindowEndSeconds,
+  tickerFromFeedDescription,
+} from '@/chain/contracts'
 import { formatCountdown, formatUsd } from '@/lib/format'
 
 type StatusFilter = 'ALL' | 'OPEN' | 'RESOLVED' | 'CANCELLED'
@@ -151,9 +158,7 @@ export function OnchainMarketsListPage() {
             const decimals = decimalsByFeed.get(m.priceFeed)
             const price = priceByFeed.get(m.priceFeed)
             const rawDesc = descByFeed.get(m.priceFeed)
-            // Chainlink feed descriptions look like "RHTSLA / USD" — strip the
-            // "RH" issuer prefix and " / USD" quote suffix to get a bare ticker.
-            const ticker = rawDesc?.replace(/^RH/, '').replace(/\s*\/\s*USD$/i, '')
+            const ticker = tickerFromFeedDescription(rawDesc)
             const targetUsd = decimals != null ? Number(formatUnits(m.targetPrice, decimals)) : null
             const currentUsd = decimals != null && price ? Number(formatUnits(price[1], decimals)) : null
             const deadlineMs = Number(m.deadline) * 1000

@@ -267,3 +267,11 @@ export function currentWeightBp(createdAt: bigint, deadline: bigint, nowSeconds:
   const decay = (range * elapsed) / windowDuration
   return MAX_WEIGHT_BP - decay
 }
+
+/** Chainlink feed descriptions for Robinhood tokenized equities aren't
+ * consistently formatted — some are "RHNVDA / USD", others "Robinhood AAPL /
+ * USD" — strip either issuer prefix and the " / USD" quote suffix to get a
+ * bare ticker. */
+export function tickerFromFeedDescription(desc?: string): string | undefined {
+  return desc?.replace(/^(Robinhood\s+|RH)/i, '').replace(/\s*\/\s*USD$/i, '')
+}

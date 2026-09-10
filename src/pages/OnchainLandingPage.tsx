@@ -3,7 +3,13 @@ import { formatUnits } from 'viem'
 import { useReadContract, useReadContracts } from 'wagmi'
 import { HeroMark } from '@/components/HeroMark'
 import { AwaitingCounterBetsBadge, CancelledBadge } from '@/components/Pills'
-import { PREDICTION_MARKET_ADDRESS, aggregatorV3Abi, predictionMarketAbi, MarketStatusOnchain } from '@/chain/contracts'
+import {
+  PREDICTION_MARKET_ADDRESS,
+  aggregatorV3Abi,
+  predictionMarketAbi,
+  MarketStatusOnchain,
+  tickerFromFeedDescription,
+} from '@/chain/contracts'
 import { formatUsd } from '@/lib/format'
 
 const STEPS = [
@@ -80,7 +86,7 @@ export function OnchainLandingPage() {
   const decimalsByFeed = new Map(feedAddresses.map((addr, i) => [addr, feedDecimals.data?.[i]?.status === 'success' ? feedDecimals.data[i].result : undefined]))
   const priceByFeed = new Map(feedAddresses.map((addr, i) => [addr, feedPrices.data?.[i]?.status === 'success' ? feedPrices.data[i].result : undefined]))
   const descByFeed = new Map(feedAddresses.map((addr, i) => [addr, feedDescriptions.data?.[i]?.status === 'success' ? feedDescriptions.data[i].result : undefined]))
-  const tickerFor = (desc?: string) => desc?.replace(/^RH/, '').replace(/\s*\/\s*USD$/i, '')
+  const tickerFor = tickerFromFeedDescription
 
   const openMarkets = ids
     .map((id, i) => {

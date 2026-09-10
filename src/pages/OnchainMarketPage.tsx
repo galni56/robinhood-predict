@@ -15,6 +15,7 @@ import {
   currentWeightBp,
   erc20Abi,
   predictionMarketAbi,
+  tickerFromFeedDescription,
 } from '@/chain/contracts'
 import { formatCountdown, formatUsd } from '@/lib/format'
 
@@ -68,9 +69,7 @@ export function OnchainMarketPage() {
     functionName: 'description',
     query: { enabled: !!feedAddress },
   })
-  // Chainlink feed descriptions look like "RHTSLA / USD" — strip the "RH"
-  // issuer prefix and " / USD" quote suffix to get a bare ticker.
-  const ticker = feedDescription.data?.replace(/^RH/, '').replace(/\s*\/\s*USD$/i, '')
+  const ticker = tickerFromFeedDescription(feedDescription.data)
 
   const betTokenBalance = useReadContract({
     address: BET_TOKEN_ADDRESS,
