@@ -7,7 +7,7 @@ import { formatUsd } from '@/lib/format'
 const TAPE_TICKERS = [
   'TSLA', 'NVDA', 'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'META', 'AVGO', 'CRWD', 'SNOW',
   'INTC', 'TSM', 'SPY', 'QQQ', 'GLD', 'NFLX', 'AMD', 'ADBE', 'ORCL', 'CSCO',
-  'IBM', 'UBER', 'SHOP', 'COIN', 'PLTR', 'SNAP', 'RDDT', 'SOFI', 'DELL', 'PANW',
+  'IBM', 'WDAY', 'SHOP', 'COIN', 'PLTR', 'SNAP', 'RDDT', 'SOFI', 'DELL', 'PANW',
 ]
 
 /** Horizontal auto-scrolling price strip — 30 tickers, live bid price,
