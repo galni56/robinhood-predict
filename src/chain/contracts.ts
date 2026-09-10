@@ -1,10 +1,12 @@
 import type { Address } from 'viem'
 
-// Addresses from the 2026-09-07 mainnet deploy (see ROADMAP.md and
-// contracts/CLAUDE.md). Public contract addresses — not secrets.
-// Override via Vite env vars if the contracts get redeployed.
+// PredictionMarket redeployed 2026-09-10 to remove the flat $500 target-price
+// cap and make the anti-griefing guardrails (min duration, target-price
+// deviation band, max stake per side) actually live on-chain — see
+// ROADMAP.md and contracts/CLAUDE.md. Public contract addresses — not
+// secrets. Override via Vite env vars if the contracts get redeployed again.
 export const PREDICTION_MARKET_ADDRESS = (import.meta.env.VITE_MARKET_ADDRESS ??
-  '0xE476e7d1Fdc05406921AD9671566048393813fc5') as Address
+  '0xd95ed19edBCd330498CADe7BA8569ac940A4182f') as Address
 export const BET_TOKEN_ADDRESS = (import.meta.env.VITE_BET_TOKEN_ADDRESS ??
   '0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168') as Address
 
@@ -283,11 +285,10 @@ export const MIN_WEIGHT_BP = 5_000n
 export const BP_DENOMINATOR = 10_000n
 
 // Mirrors the target-price floor/ceiling guard added to createMarket
-// (contracts/src/PredictionMarket.sol) — as of 2026-09-10 this exists only
-// in source, **not yet on the live mainnet contract** (verified: calling
-// MIN_TARGET_DEVIATION_BP() on it reverts), so treat any range shown from
-// this as a *recommendation* to the user, not something the chain will
-// actually enforce, until a redeploy picks it up.
+// (contracts/src/PredictionMarket.sol) — live on the mainnet contract as of
+// the 2026-09-10 redeploy (verified: MIN_TARGET_DEVIATION_BP() etc. return
+// real values, not a revert). A createMarket tx outside this range will
+// actually revert on-chain, not just get flagged in the UI.
 export const MIN_TARGET_DEVIATION_BP = 200n // 2%, all duration tiers
 export const SHORT_DURATION_SECONDS = 2n * 60n * 60n
 export const MEDIUM_DURATION_SECONDS = 24n * 60n * 60n

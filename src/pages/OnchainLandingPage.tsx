@@ -174,7 +174,7 @@ export function OnchainLandingPage() {
             <span className="text-white font-mono font-semibold">2x → 0.5x</span> early-bet payout weight
           </span>
           <span>
-            <span className="text-white font-mono font-semibold">$500</span> max target price
+            <span className="text-white font-mono font-semibold">2%–20%</span> target price band by duration
           </span>
         </div>
       </section>

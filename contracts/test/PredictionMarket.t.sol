@@ -67,24 +67,19 @@ contract PredictionMarketTest is Test {
         market.createMarket(address(rogueFeed), 100_00000000, block.timestamp + 1 days, 0, 0);
     }
 
-    function test_CreateMarket_RevertsWhenTargetExceedsCap() public {
-        // $500 cap, 8-decimal feed -> 500_00000000 is the max allowed target
-        vm.prank(alice);
-        vm.expectRevert("target exceeds max");
-        market.createMarket(address(feed), 500_00000001, block.timestamp + 1 days, 0, 0);
-    }
-
-    function test_CreateMarket_AllowsTargetAtExactCap() public {
-        // Own feed priced near $500 so the target-deviation guard (unrelated to
-        // the cap this test checks) doesn't reject a target this far from the
-        // shared feed's $100.
-        MockAggregator capFeed = new MockAggregator(8, 480_00000000);
-        market.setPriceFeedAllowed(address(capFeed), true);
+    function test_CreateMarket_AllowsTargetAboveOldFlatCap() public {
+        // No absolute dollar cap anymore -- only the relative deviation
+        // guard applies, so a target well above the old $500 flat cap must
+        // succeed as long as it's within the duration-scaled band of the
+        // feed's own live price. Own feed priced at $800 so a $900 target
+        // (12.5% away) stays inside the long-duration 20% band.
+        MockAggregator pricierFeed = new MockAggregator(8, 800_00000000);
+        market.setPriceFeedAllowed(address(pricierFeed), true);
 
         vm.prank(alice);
-        uint256 id = market.createMarket(address(capFeed), 500_00000000, block.timestamp + 1 days, 0, 0);
+        uint256 id = market.createMarket(address(pricierFeed), 900_00000000, block.timestamp + 7 days, 0, 0);
         PredictionMarket.Market memory m = market.getMarket(id);
-        assertEq(m.targetPrice, 500_00000000);
+        assertEq(m.targetPrice, 900_00000000);
     }
 
     // --- createMarket: anti-griefing guards (min duration, target-vs-price deviation) ---

@@ -60,12 +60,6 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
     /// per-update heartbeat like a crypto feed would use.
     uint256 public constant MAX_PRICE_STALENESS = 3 days;
 
-    /// @dev Business rule mirrored from the frontend (`MAX_TARGET_PRICE` in
-    /// `src/store/marketStore.ts`) — no market can target above this, in whole
-    /// USD. Compared against `targetPrice` after scaling to the feed's own
-    /// `decimals()`, since `targetPrice` is always in feed-decimal units.
-    uint256 public constant MAX_TARGET_PRICE_USD = 500;
-
     /// @dev Cap on owner-supplied house seed liquidity per market, in whole
     /// bet-token units (scaled to `betToken.decimals()` at use). Keeps the
     /// platform's own risk per market bounded regardless of `feeBp`.
@@ -211,8 +205,11 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
 
     /// @notice Create a new market. Permissionless — any address may call this —
     /// but `priceFeed` must already be on the owner-maintained allowlist (see
-    /// `setPriceFeedAllowed`), and `targetPrice` is capped at `MAX_TARGET_PRICE_USD`
-    /// to mirror the frontend's product rule.
+    /// `setPriceFeedAllowed`). No absolute target-price cap — instead
+    /// `targetPrice` must sit within the duration-scaled band of the feed's
+    /// live price (see MIN_TARGET_DEVIATION_BP and friends below), which
+    /// scales correctly for any stock's price level instead of a flat dollar
+    /// ceiling that stops making sense for anything trading above it.
     ///
     /// `initialYesAmount`/`initialNoAmount` let the owner seed both sides of a
     /// fresh market with house liquidity (e.g. to open at 50/50 odds instead of
@@ -233,9 +230,6 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
         require(deadline > block.timestamp, "deadline in the past");
         require(deadline - block.timestamp >= MIN_MARKET_DURATION, "market duration too short");
         require(targetPrice > 0, "target must be > 0");
-
-        uint8 feedDecimals = AggregatorV3Interface(priceFeed).decimals();
-        require(targetPrice <= int256(MAX_TARGET_PRICE_USD * 10 ** feedDecimals), "target exceeds max");
 
         (, int256 currentPrice,, uint256 updatedAt,) = AggregatorV3Interface(priceFeed).latestRoundData();
         require(currentPrice > 0, "invalid feed answer");

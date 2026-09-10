@@ -16,8 +16,6 @@ import {
 } from '@/chain/contracts'
 import { formatUsd } from '@/lib/format'
 
-const MAX_TARGET_PRICE_USD = 500
-
 const DURATION_PRESETS = [
   { label: '1 hour', seconds: 60 * 60 },
   { label: '24 hours', seconds: 24 * 60 * 60 },
@@ -76,8 +74,12 @@ export function OnchainCreateMarketPage() {
     setError(null)
 
     const targetNum = Number(target)
-    if (!(targetNum > 0) || targetNum > MAX_TARGET_PRICE_USD) {
-      setError(`Target price must be greater than 0 and no more than ${formatUsd(MAX_TARGET_PRICE_USD, 0)}`)
+    if (!(targetNum > 0)) {
+      setError('Target price must be greater than 0')
+      return
+    }
+    if (minRange != null && maxRange != null && (targetNum < minRange || targetNum > maxRange)) {
+      setError(`Target price must be between ${formatUsd(minRange)} and ${formatUsd(maxRange)} for this duration`)
       return
     }
     if (feedDecimals.data == null) {
@@ -110,8 +112,9 @@ export function OnchainCreateMarketPage() {
     <div className="max-w-lg mx-auto px-4 py-8">
       <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight mb-1">Create an on-chain market</h1>
       <p className="text-white/50 text-sm mb-6">
-        A real transaction on mainnet. Target price can't exceed {formatUsd(MAX_TARGET_PRICE_USD, 0)}. YES/NO pools
-        start at $0 — if only one side has bets by the deadline, the market cancels and money is refunded in full.
+        A real transaction on mainnet. Target price must sit a reasonable distance from the current price — the
+        further out the deadline, the wider that band. YES/NO pools start at $0 — if only one side has bets by the
+        deadline, the market cancels and money is refunded in full.
       </p>
 
       <form onSubmit={onSubmit} className="bg-[#12121c]/95 border border-white/10 rounded-2xl p-6 space-y-5">
@@ -140,13 +143,13 @@ export function OnchainCreateMarketPage() {
 
         <div>
           <div className="flex items-baseline justify-between mb-1.5">
-            <label className="text-sm text-white/60">Target price, $ (max {formatUsd(MAX_TARGET_PRICE_USD, 0)})</label>
+            <label className="text-sm text-white/60">Target price, $</label>
             {currentPriceUsd != null && <span className="text-[11px] text-white/40">now {formatUsd(currentPriceUsd)}</span>}
           </div>
           <input
             type="number"
-            min={1}
-            max={MAX_TARGET_PRICE_USD}
+            min={minRange ?? 0}
+            max={maxRange ?? undefined}
             step="0.01"
             value={target}
             onChange={(e) => setTarget(e.target.value)}
@@ -174,8 +177,8 @@ export function OnchainCreateMarketPage() {
           </div>
           {minRange != null && maxRange != null && minGapUsd != null && (
             <p className="text-[11px] text-white/30 mt-1.5">
-              Recommended for this duration: {formatUsd(minRange)}–{formatUsd(maxRange)}, at least {formatUsd(minGapUsd)} away
-              from the current price. Not yet enforced on-chain — a good-faith guide, not a hard limit.
+              Allowed for this duration: {formatUsd(minRange)}–{formatUsd(maxRange)}, at least {formatUsd(minGapUsd)} away
+              from the current price. Enforced on-chain — the transaction will revert outside this range.
             </p>
           )}
         </div>
