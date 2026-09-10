@@ -1,10 +1,10 @@
 import { type FormEvent, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { parseUnits } from 'viem'
 import { useAccount, useChainId, useReadContract, useWriteContract } from 'wagmi'
 import { waitForTransactionReceipt } from 'wagmi/actions'
 import { robinhoodMainnet, wagmiConfig } from '@/chain/config'
-import { DEFAULT_PRICE_FEED_ADDRESS, DEFAULT_PRICE_FEED_LABEL, PREDICTION_MARKET_ADDRESS, aggregatorV3Abi, predictionMarketAbi } from '@/chain/contracts'
+import { ALLOWLISTED_FEEDS, PREDICTION_MARKET_ADDRESS, aggregatorV3Abi, feedAddressForTicker, predictionMarketAbi } from '@/chain/contracts'
 import { formatUsd } from '@/lib/format'
 
 const MAX_TARGET_PRICE_USD = 500
@@ -17,17 +17,23 @@ const DURATION_PRESETS = [
 
 export function OnchainCreateMarketPage() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { isConnected } = useAccount()
   const chainId = useChainId()
   const { writeContractAsync } = useWriteContract()
 
+  // Arriving from a "Create Prediction" button on a specific token's card
+  // (e.g. /onchain/create?feed=NVDA) preselects that ticker; otherwise
+  // default to the first allowlisted one.
+  const preselected = feedAddressForTicker(searchParams.get('feed') ?? '')
+  const [feedAddress, setFeedAddress] = useState(preselected ?? ALLOWLISTED_FEEDS[0].address)
   const [target, setTarget] = useState('400')
   const [durationIdx, setDurationIdx] = useState(1)
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const feedDecimals = useReadContract({
-    address: DEFAULT_PRICE_FEED_ADDRESS,
+    address: feedAddress,
     abi: aggregatorV3Abi,
     functionName: 'decimals',
   })
@@ -57,7 +63,7 @@ export function OnchainCreateMarketPage() {
         address: PREDICTION_MARKET_ADDRESS,
         abi: predictionMarketAbi,
         functionName: 'createMarket',
-        args: [DEFAULT_PRICE_FEED_ADDRESS, targetScaled, deadline, 0n, 0n],
+        args: [feedAddress, targetScaled, deadline, 0n, 0n],
       })
       await waitForTransactionReceipt(wagmiConfig, { hash })
 
@@ -89,9 +95,24 @@ export function OnchainCreateMarketPage() {
         <form onSubmit={onSubmit} className="bg-[#12121c]/95 border border-white/10 rounded-2xl p-6 space-y-5">
           <div>
             <label className="block text-sm text-white/60 mb-1.5">Price feed</label>
-            <div className="w-full rounded-lg bg-black/30 border border-white/10 px-3 py-2 text-sm font-semibold">{DEFAULT_PRICE_FEED_LABEL}</div>
+            <div className="grid grid-cols-3 gap-2">
+              {ALLOWLISTED_FEEDS.map((f) => (
+                <button
+                  type="button"
+                  key={f.ticker}
+                  onClick={() => setFeedAddress(f.address)}
+                  className={`rounded-lg px-3 py-2 text-sm font-semibold border transition-colors ${
+                    feedAddress === f.address
+                      ? 'bg-[#C6FF3D]/15 border-[#C6FF3D]/50 text-[#C6FF3D]'
+                      : 'border-white/10 text-white/60 hover:border-white/30 hover:text-white'
+                  }`}
+                >
+                  {f.ticker}
+                </button>
+              ))}
+            </div>
             <p className="text-[11px] text-white/30 mt-1">
-              The only allowlisted feed right now — only the contract owner can add feeds.
+              Only allowlisted feeds can settle a market — only the contract owner can add more.
             </p>
           </div>
 

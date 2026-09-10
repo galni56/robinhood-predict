@@ -5,6 +5,7 @@ import { Footer } from '@/components/Footer'
 import { Navbar } from '@/components/Navbar'
 import { OnchainLayout } from '@/components/OnchainLayout'
 import { RealNavbar } from '@/components/RealNavbar'
+import { TickerTape } from '@/components/TickerTape'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import { AddressDetailPage } from '@/pages/AddressDetailPage'
 import { ArchivePage } from '@/pages/ArchivePage'
@@ -42,7 +43,14 @@ export default function App() {
     <div className="min-h-screen flex flex-col">
       <ChainEngine />
       <DisclaimerBanner />
-      {isRealMode ? <RealNavbar /> : <Navbar />}
+      {isRealMode ? (
+        <>
+          <RealNavbar />
+          <TickerTape />
+        </>
+      ) : (
+        <Navbar />
+      )}
 
       <main className="flex-1">
         <Routes>

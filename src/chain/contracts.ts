@@ -8,15 +8,26 @@ export const PREDICTION_MARKET_ADDRESS = (import.meta.env.VITE_MARKET_ADDRESS ??
 export const BET_TOKEN_ADDRESS = (import.meta.env.VITE_BET_TOKEN_ADDRESS ??
   '0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168') as Address
 
-// The only price feed the owner has allowlisted so far (real Chainlink
-// Robinhood TSLA/USD feed, verified on-chain — see contracts/CLAUDE.md).
-// `createMarket` is permissionless, but the feed it settles against must
-// already be owner-allowlisted, and there's no on-chain way to enumerate
-// allowlisted feeds (it's a mapping, not a list) — so the create-market UI
-// offers this one until more feeds get allowlisted.
-export const DEFAULT_PRICE_FEED_ADDRESS = (import.meta.env.VITE_PRICE_FEED_ADDRESS ??
-  '0x4A1166a659A55625345e9515b32adECea5547C38') as Address
-export const DEFAULT_PRICE_FEED_LABEL = 'TSLA'
+// Price feeds the owner has allowlisted so far (real Chainlink Robinhood
+// feeds, each verified on-chain via decimals()/description()/latestRoundData()
+// before allowlisting — see contracts/CLAUDE.md). `createMarket` is
+// permissionless, but the feed it settles against must already be
+// owner-allowlisted, and there's no on-chain way to enumerate allowlisted
+// feeds (it's a mapping, not a list) — so the create-market UI can only
+// offer tickers from this hardcoded list until more get allowlisted (see
+// contracts/script/AllowlistFeed.s.sol).
+export const ALLOWLISTED_FEEDS = [
+  { ticker: 'TSLA', address: '0x4A1166a659A55625345e9515b32adECea5547C38' as Address },
+  { ticker: 'NVDA', address: '0x379EC4f7C378F34a1B47E4F3cbeBCbAC3E8E9F15' as Address },
+  { ticker: 'AAPL', address: '0x6B22A786bAa607d76728168703a39Ea9C99f2cD0' as Address },
+  { ticker: 'MSFT', address: '0x45C3C877C15E6BA2EBB19eA114Ea508d14C1Af2E' as Address },
+  { ticker: 'GOOGL', address: '0xF6f373a037c30F0e5010d854385cA89185AE638b' as Address },
+  { ticker: 'AMZN', address: '0xD5a1508ceD74c084eBf3cBe853e2C968fB2a651C' as Address },
+] as const
+
+export function feedAddressForTicker(ticker: string): Address | undefined {
+  return ALLOWLISTED_FEEDS.find((f) => f.ticker.toLowerCase() === ticker.toLowerCase())?.address
+}
 
 /** Block the contract was deployed at, if known — narrows `getLogs` scans
  * (leaderboard/activity feed) instead of scanning from genesis, which can

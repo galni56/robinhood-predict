@@ -18,6 +18,20 @@ export default defineConfig({
   preview: {
     allowedHosts: ['.trycloudflare.com'],
   },
+  // Mirrors the nginx reverse-proxy on the VPS (/api/robinhood/ ->
+  // https://api.robinhood.com/rhj/) so `npm run dev` behaves the same as
+  // prod — the browser can't call api.robinhood.com directly (no CORS
+  // headers on that API), so both dev and prod proxy it server-side under
+  // our own origin instead.
+  server: {
+    proxy: {
+      '/api/robinhood': {
+        target: 'https://api.robinhood.com/rhj',
+        changeOrigin: true,
+        rewrite: (p) => p.replace(/^\/api\/robinhood/, ''),
+      },
+    },
+  },
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {

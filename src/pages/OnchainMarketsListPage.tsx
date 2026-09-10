@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { formatUnits } from 'viem'
 import { useReadContract, useReadContracts } from 'wagmi'
 import { AwaitingCounterBetsBadge, CancelledBadge } from '@/components/Pills'
+import { TokenBrowser } from '@/components/TokenBrowser'
 import {
   PREDICTION_MARKET_ADDRESS,
   aggregatorV3Abi,
@@ -225,6 +226,8 @@ export function OnchainMarketsListPage() {
           })}
         </div>
       )}
+
+      <TokenBrowser />
     </div>
   )
 }
