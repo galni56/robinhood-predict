@@ -1,5 +1,16 @@
-import type { ReactNode } from 'react'
+import type { MouseEvent, ReactNode } from 'react'
 import { Link } from 'react-router-dom'
+
+// The app uses HashRouter (routes live in the URL hash, e.g. "#/whitepaper"),
+// which a plain same-page anchor link (href="#section-id") conflicts with --
+// clicking one replaces the whole hash, so the router reads "section-id" as
+// a brand new (unmatched) route instead of scrolling. Scrolling manually and
+// preventing the default navigation keeps the in-page jump without touching
+// the URL the router is watching.
+function scrollToSection(e: MouseEvent, id: string) {
+  e.preventDefault()
+  document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
 
 const SECTIONS = [
   { id: 'overview', label: '1. Overview' },
@@ -20,7 +31,12 @@ export function WhitepaperPage() {
         <div className="sticky top-20 space-y-1 text-sm">
           <p className="text-xs font-bold tracking-wider text-white/40 uppercase mb-2">Contents</p>
           {SECTIONS.map((s) => (
-            <a key={s.id} href={`#${s.id}`} className="block py-1 text-white/50 hover:text-white transition-colors">
+            <a
+              key={s.id}
+              href={`#${s.id}`}
+              onClick={(e) => scrollToSection(e, s.id)}
+              className="block py-1 text-white/50 hover:text-white transition-colors"
+            >
               {s.label}
             </a>
           ))}

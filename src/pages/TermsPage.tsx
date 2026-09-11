@@ -1,4 +1,12 @@
-import type { ReactNode } from 'react'
+import type { MouseEvent, ReactNode } from 'react'
+
+// See the same helper/comment in WhitepaperPage.tsx -- HashRouter uses the
+// URL hash for routing, so a plain href="#id" anchor breaks navigation
+// instead of just scrolling. Scroll manually and prevent the default.
+function scrollToSection(e: MouseEvent, id: string) {
+  e.preventDefault()
+  document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
 
 export function TermsPage() {
   return (
@@ -16,7 +24,7 @@ export function TermsPage() {
       <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
         This is a template, not reviewed by a lawyer. It is not a substitute for real legal review, which is a
         deliberately open item even though the product itself is already live with real funds — see the{' '}
-        <a href="#launch-status" className="underline">
+        <a href="#launch-status" onClick={(e) => scrollToSection(e, 'launch-status')} className="underline">
           §9 note
         </a>{' '}
         below.
