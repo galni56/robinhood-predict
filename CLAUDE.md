@@ -139,6 +139,20 @@ lessons" section below.
   last good answer instead of erroring. Requires `VITE_RPC_URL=/api/rpc/`
   at VPS build time (see rule 3 above) — GitHub Pages has no proxy
   available and is unaffected/unfixed either way.
+- **Feed prices are now pre-fetched by us, not read live per-visitor.**
+  `predictx-feed-poller.service` (systemd) polls all 27 allowlisted
+  Chainlink feeds on its own schedule and writes a snapshot nginx serves at
+  `/api/feed-cache/prices.json`; the frontend (`useFeedSnapshot()` in
+  `src/chain/feedCache.ts`) reads that instead of polling the chain itself
+  in the 4 pages that show a feed's price. This is a step beyond the
+  reactive caching above — request volume to the RPC for feed prices is
+  now fixed (one poller, one schedule) regardless of how many people are
+  on the site, instead of scaling with concurrent users. Keep
+  `poll-feeds.mjs`'s `FEEDS` list in sync with `ALLOWLISTED_FEEDS` in
+  `src/chain/contracts.ts` by hand. A second service,
+  `predictx-cache-warmer.service`, does the equivalent for the Robinhood
+  ticker-price API — proactively re-curling it every ~10s so the nginx
+  cache above never goes cold waiting for a real visitor to refill it.
 - **A private GitHub repo silently kills GitHub Pages.** Free-tier Pages
   doesn't serve from a private repo, and flipping the repo back to public
   doesn't auto-resume it — it needs Settings → Pages reconfigured once
