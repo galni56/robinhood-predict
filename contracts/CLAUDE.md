@@ -1,14 +1,40 @@
-## Status right now
+## Status right now (2026-09-11)
 
-`forge build` and `forge test -vvv` are green: clean compile, **28/28
-tests passing** (8 original + 4 added 2026-09-04 for permissionless
-creation / cap / feed-allowlist + 10 added 2026-09-05 for the liquidity
-mechanics + 4 added 2026-09-06 for the time-weighted early-bet mechanic —
-see below for both). `createMarket` is no longer `onlyOwner` — it's
-permissionless, gated instead by an owner-maintained price-feed allowlist
-(`allowedPriceFeeds` / `setPriceFeedAllowed`) and an on-chain $500 target
-cap (`MAX_TARGET_PRICE_USD`) mirroring the frontend's `MAX_TARGET_PRICE`.
-`voidMarket` is still `onlyOwner`.
+**Live on Robinhood Chain mainnet, real money, no audit.** `forge build`
+and `forge test` are green across two contracts:
+
+- `PredictionMarket`: `0xd95ed19edBCd330498CADe7BA8569ac940A4182f`
+  (redeployed 2026-09-10), **36/36 tests passing**. `createMarket` is
+  permissionless — gated by an owner-maintained price-feed allowlist
+  (`allowedPriceFeeds` / `setPriceFeedAllowed`), **not** a flat dollar cap
+  (the old `MAX_TARGET_PRICE_USD` was removed — it didn't scale per ticker
+  and blocked markets on pricier names like SPY/QQQ). Instead `targetPrice`
+  must sit within a duration-scaled deviation band of the feed's live
+  price: `MIN_TARGET_DEVIATION_BP` (2% floor, all durations) up to
+  `SHORT_MAX_DEVIATION_BP`/`MEDIUM_MAX_DEVIATION_BP`/`LONG_MAX_DEVIATION_BP`
+  (4%/15%/20%, by whether the market's duration is ≤2h / ≤24h / longer).
+  Also enforces `MIN_MARKET_DURATION` (30 min) and `MAX_STAKE_PER_SIDE_USD`
+  ($50 per wallet per side) — both confirmed live via `cast call`, not just
+  present in source (a prior deploy had these in source but not actually
+  live; always verify with `cast call <addr> "CONSTANT_NAME()"` after a
+  deploy, don't assume the ABI matches). `voidMarket` is still `onlyOwner`.
+- `NicknameRegistry`: `0x1Ddc13e9D4895a5E6671079478007C7371b76E75`
+  (deployed 2026-09-11), **8/8 tests passing**. Standalone contract, no
+  relationship to `PredictionMarket` other than both being read by the
+  same frontend — `mapping(address => string) nicknameOf`, `setNickname`
+  only ever writes `msg.sender`'s own entry.
+
+Bet token is **real USDG** at `0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168`
+— 6 decimals (the old testnet `MockERC20` was 18; this mismatch has bitten
+the frontend before, double-check before assuming either way). 27
+Chainlink feeds are allowlisted — full list in `../src/chain/contracts.ts`
+(`ALLOWLISTED_FEEDS`), each verified via `decimals()`/`description()`/
+`latestRoundData()` before allowlisting via `script/AllowlistFeed.s.sol`
+(run once per ticker, individually — the auto-mode classifier blocks
+looping multiple `--broadcast` calls in one Bash invocation).
+
+**Redeploying either contract means starting the allowlist over** — it's a
+mapping on the new address, nothing carries over automatically.
 
 **Liquidity mechanics added 2026-09-05:**
 - **One-sided cancellation:** `resolve()` cancels the market (full refunds
@@ -47,43 +73,164 @@ cap (`MAX_TARGET_PRICE_USD`) mirroring the frontend's `MAX_TARGET_PRICE`.
   you're the sole winner) — confirmed by rerunning, not assumed.
 
 
-**Deployed to Robinhood Chain testnet as of 2026-09-05** (see section 2
-below for the full deploy flow that produced these):
-- `PredictionMarket`: `0x9d17Ad54C755fd702DD7F99F8bE72fdf72F24Be9`
-- `MockERC20` bet token ("mUSD"): `0xBDc0F8045Baa2377F11A03d3c867E81dB263A93A`
-- `MockAggregator` stand-in TSLA feed: `0x3d8cC74a198ad948D77c65d88Ed24acFeE77Cd67`
-  (mock, not real Chainlink — see section 2 for why)
-- Market #0 open: "Does TSLA reach $400?", 24h deadline from creation
+**Mainnet deploy flow actually used (2026-09-10/11), for reference if
+redeploying again:**
+```bash
+export PATH="$PATH:$HOME/.foundry/bin"   # forge/cast not always on PATH
+cd contracts
+forge script script/Deploy.s.sol --rpc-url robinhood_mainnet --broadcast
+# then, once per ticker (individually, never looped):
+MARKET_ADDRESS=<new addr> PRICE_FEED_ADDRESS=<feed> \
+  forge script script/AllowlistFeed.s.sol --rpc-url robinhood_mainnet --broadcast
+# then update PREDICTION_MARKET_ADDRESS in ../src/chain/contracts.ts
+# and redeploy the frontend (see root CLAUDE.md)
+```
+The old testnet addresses/mocks this section used to document
+(`MockERC20`, `MockAggregator`, chain id 46630) are gone — this project no
+longer runs on testnet at all, real Chainlink feeds and real USDG were
+confirmed working on mainnet 2026-09-07 and everything moved there. If a
+testnet deploy is ever needed again, `script/DeployMockToken.s.sol` and
+`script/DeployMockFeed.s.sol` still exist for that.
 
-### Building via Docker (what was actually used, safe to repeat)
+### Building and testing
+
+Foundry is installed directly on this machine at `~/.foundry/bin` (may
+need `export PATH="$PATH:$HOME/.foundry/bin"` in a fresh shell):
 
 ```bash
 cd contracts
-docker run --rm -v "$PWD":/app -w /app --entrypoint sh \
-  ghcr.io/foundry-rs/foundry:latest \
-  -c "git config --global --add safe.directory '*' && forge build"
+forge build
+forge test          # 44/44 as of 2026-09-11 (36 PredictionMarket + 8 NicknameRegistry)
+```
 
+If `lib/` is missing on a fresh checkout (it's gitignored):
+
+```bash
+forge install foundry-rs/forge-std --no-git --no-commit
+forge install OpenZeppelin/openzeppelin-contracts@v5.1.0 --no-git --no-commit
+```
+
+(`--no-git` matters: this repo has no `.git` inside `contracts/` on
+purpose, and plain `forge install` expects one for submodules. Pinning
+OpenZeppelin to v5.1.0 rather than tracking master matters too — the
+contract uses the v5 `Ownable(initialOwner)` constructor signature; a
+future major version could break that silently.)
+
+The Docker fallback from when this project was on a company-managed,
+EDR-monitored workstation still works if a future machine turns out to be
+work-managed again — see root `CLAUDE.md` rule 6:
+
+```bash
 docker run --rm -v "$PWD":/app -w /app --entrypoint sh \
   ghcr.io/foundry-rs/foundry:latest \
-  -c "forge test -vvv"
-Dependencies are already vendored in lib/ from this session. If you everneed to (re)fetch them:Bashdocker run --rm -v "$PWD":/app -w /app --entrypoint sh \
-  ghcr.io/foundry-rs/foundry:latest \
-  -c "git config --global --add safe.directory '*' && \
-      forge install foundry-rs/forge-std --no-git --no-commit && \
-      forge install OpenZeppelin/openzeppelin-contracts@v5.1.0 --no-git --no-commit"
-(--no-git matters: this repo has no .git on purpose, and plain forge install expects one for submodules. Pinning OpenZeppelin to v5.1.0 ratherthan tracking master matters too — the contract uses the v5Ownable(initialOwner) constructor signature; a future major version couldbreak that silently.1. Build & test (no network, no keys, safe to run freely)Green as of 2026-09-06 (22/22 passing). If you've since changed src/ ortest/, rerun them — bare forge build / forge test -vvv if Foundry ison your PATH, otherwise wrap in the docker run ... -c "forge test -vvv"pattern from section 0.The test file (test/PredictionMarket.t.sol) covers: permissionless marketcreation gated by the feed allowlist, the $500 target cap (at and over thelimit), the allowlist itself being owner-only, bet accounting, YES win / NOwin payout math (including exact wei-precision fee math), house seedliquidity and its cap, one-sided-market cancellation + full refund, andstale-price rejection. If you add features, add tests for them here first.Code Review Pass, 2026-09-06:Fixed: createMarket was missing nonReentrant while every otherfund-moving function had it. Added for defense-in-depth.Verified solvent by construction: summed over all winners, total payoutfor a resolved market = winningPool + losingPool*(10000-feeBp)/10000,which is always <= totalPool (fee only ever reduces payout, integerrounding always rounds down) — the contract can never owe more than itholds for a given market, modulo the betToken assumption below.betToken must be a standard ERC20 — no fee-on-transfer, norebasing. The contract trusts that safeTransferFrom credits it withexactly the amount it was told; a non-standard token would silentlyunder-fund the contract relative to what it believes it owes bettors.Documented inline on the betToken declaration.MAX_PRICE_STALENESS in PredictionMarket.sol is a placeholder (1 hour).Check the actual heartbeat of the specific Chainlink feed you'll use(https://docs.chain.link/data-feeds/tokenized-equity-feeds/robinhood) andsize this against it.resolve() is permissionless by design (anyone can trigger it once thedeadline passes) — that's intentional (keeper-friendly), not a bug.Late large bets shift parimutuel odds right up to the deadline — this isinherent to how parimutuel pools work (same as horse-racing tote boards),not a bug, but worth being explicit about in user-facing copy so it isn't"discovered" as a surprise.2. Testnet deployment checklistRobinhood Chain testnet facts (verified Sept 2026 — re-checkdocs.robinhood.com/chain if it's been a while):Chain ID46630Public RPChttps://rpc.testnet.chain.robinhood.com (rate-limited; fine for this)Explorerhttps://explorer.testnet.chain.robinhood.comFaucetsAlchemy, Chainlink, QuickNodeChainlink feedshttps://docs.chain.link/data-feeds/tokenized-equity-feeds/robinhood — always read the current address from there, never hardcode/reuse an old oneSteps — 1 and 2 are for you to run yourself, in your own terminal, neverthrough Claude: a private key printed into a chat transcript is a burned keyforever, full stop. Steps 3+ can go through Claude via the Docker pattern insection 0 (--env-file .env passes the vars into the container withoutClaude ever reading the file).Generate a fresh burner wallet — don't reuse a personal or workwallet:Bashdocker run --rm ghcr.io/foundry-rs/foundry:latest cast wallet new
-Copy the printed address and private key somewhere safe (a passwordmanager, not a chat).cp .env.example .env, fill in PRIVATE_KEY with that key. Fund theaddress from a faucet above (need the testnet ETH before anything belowwill work — deploys cost gas even on testnet).Deploy the mock bet token and mint yourself a testnet balance:Bashdocker run --rm -v "$PWD":/app -w /app --env-file .env --entrypoint sh \
-  ghcr.io/foundry-rs/foundry:latest \
-  -c "forge script script/DeployMockToken.s.sol --rpc-url robinhood_testnet --broadcast"
-Copy the printed token address into .env as BET_TOKEN_ADDRESS.Deploy PredictionMarket:Bashdocker run --rm -v "$PWD":/app -w /app --env-file .env --entrypoint sh \
-  ghcr.io/foundry-rs/foundry:latest \
-  -c "forge script script/Deploy.s.sol --rpc-url robinhood_testnet --broadcast"
-Copy the printed address into .env as MARKET_ADDRESS.Pick a price feed. Confirmed 2026-09-05: Chainlink Data Feeds(AggregatorV3Interface, what this contract reads vialatestRoundData()) exist on Robinhood Chain mainnet only —data.chain.link's network filter for Robinhood lists only "RobinhoodMainnet", and the reference example dapphummusonrails/robinhood-chain-dapp-examplestates this outright and deploys a mock feed for testnet for the samereason. (TSLA and friends do have Chainlink price data on RobinhoodChain via Data Streams — a pull-oracle product with a Feed ID andoff-chain report verification, not a fixed on-chain address thiscontract's AggregatorV3Interface calls can hit. Wiring that up is aseparate, materially bigger task — not done here.)On testnet: deploy a stand-in feed with script/DeployMockFeed.s.sol(env vars PRIVATE_KEY, FEED_DECIMALS optional/default 8,FEED_INITIAL_ANSWER — price scaled to decimals, e.g. $353.90 at 8decimals → 35390000000):Bashdocker run --rm -v "$PWD":/app -w /app --env-file .env --entrypoint sh \
-  ghcr.io/foundry-rs/foundry:latest \
-  -c "FEED_INITIAL_ANSWER=35390000000 forge script script/DeployMockFeed.s.sol --rpc-url robinhood_testnet --broadcast"
-On mainnet look up the real feedaddress at the link above instead of deploying a mock.Either way, pick a target price (scaled to the feed's own decimals(),capped at MAX_TARGET_PRICE_USD = $500 in the same units) and adeadline, then create the market:Bashdocker run --rm -v "$PWD":/app -w /app --env-file .env --entrypoint sh \
-  ghcr.io/foundry-rs/foundry:latest \
-  -c "PRICE_FEED_ADDRESS=<feed> TARGET_PRICE=<price> DEADLINE_UNIX=<unix> forge script script/CreateMarket.s.sol --rpc-url robinhood_testnet --broadcast"
-CreateMarket.s.sol allowlists PRICE_FEED_ADDRESS (owner-only step)before creating the market, since createMarket itself now checks thefeed against allowedPriceFeeds regardless of who calls it.PRICE_FEED_ADDRESS/TARGET_PRICE/DEADLINE_UNIX don't need to live in.env permanently — they're per-market, not per-deployment, so passingthem inline per run (as above) is fine and keeps .env focused on thethings that don't change between markets.Verify on the explorer if you want source shown publicly:Bashforge verify-contract <address> src/PredictionMarket.sol:PredictionMarket \
-  --chain 46630 --constructor-args $(cast abi-encode "constructor(address)" <betToken>)
-(Blockscout verification endpoint/flags may need adjusting — checkexplorer.testnet.chain.robinhood.com's docs if this errors.)3. Wiring the frontend to the real contractThe existing app in ../src (the sibling of this contracts/ folder) is apure mock — zustand stores simulate a chain in the browser, nothing heretalks to it. Keep that working as-is; wire up a real mode alongside itrather than replacing it, so there's always a working demo even if thetestnet contract has an issue.Rough shape for the real-chain mode (wallet model decided 2026-09-04:external, not embedded — see root CLAUDE.md):wagmi + viem, chain config for id 46630 / 4663 pointed at the RPCsabove.wagmi's injected() connector with EIP-6963 multi-provider discoveryfor the connect flow — surfaces both MetaMask and Phantom (Phantom addednative Robinhood Chain support, mainnet + testnet, in July 2026) for theuser to pick between, no per-wallet code needed. WalletConnect (formobile wallets) needs a free Project ID fromhttps://cloud.walletconnect.com (ask the project owner for it, don'tgenerate one yourself) — add later if needed, not required for desktopbrowser-extension wallets.Read getMarket(id) for pool/status, latestRoundData() via the feedaddress for live price, write bet / claim / refund through theconnected wallet (the wallet signs, never a key held by the app). betneeds an ERC20 approve first — that's a separate signed transactionbefore the bet itself; surface both steps clearly in the UI rather thanmaking it look like one action.
+  -c "git config --global --add safe.directory '*' && forge test -vvv"
+```
+
+**What the tests cover** (`test/PredictionMarket.t.sol`,
+`test/NicknameRegistry.t.sol`): permissionless market creation gated by
+the feed allowlist and the duration/deviation guards, the allowlist and
+`voidMarket` being owner-only, bet accounting, YES/NO payout math
+(exact wei-precision fee math), house seed liquidity and its cap,
+one-sided-market cancellation + full refund, stale-price rejection, the
+time-weighted early-bet mechanic, and nickname set/overwrite/clear/length
+limits. Add a test here first for any new feature.
+
+**Known, accepted risks (from the 2026-09-06 self-review, still true):**
+- `betToken` must be a standard ERC20 — no fee-on-transfer, no rebasing.
+  `safeTransferFrom` is trusted to credit the contract exactly what it was
+  told; a non-standard token would silently under-fund it relative to what
+  it believes it owes bettors. Documented inline on the `betToken`
+  declaration. USDG (what's actually in use) is a standard token, this is
+  a latent risk only if the bet token is ever changed.
+- `MAX_PRICE_STALENESS` (3 days) is a deliberately generous placeholder,
+  not tuned to any specific feed's real heartbeat.
+- `resolve()` is permissionless by design (anyone can trigger it once the
+  deadline passes) — intentional, keeper-friendly, not a bug.
+- Late large bets shift parimutuel odds right up to the deadline — inherent
+  to how parimutuel pools work (same as horse-racing tote boards), not a
+  bug, but worth being explicit about in user-facing copy.
+- Solvency: summed over all winners, total payout for a resolved market =
+  `winningPool + losingPool*(10000-feeBp)/10000`, always ≤ `totalPool`
+  (fee only ever reduces payout, integer rounding always rounds down) — the
+  contract can never owe more than it holds for a given market, modulo the
+  `betToken` assumption above.
+- **No external security audit.** Owner-centralized: one EOA controls the
+  price-feed allowlist, protocol fee, and seed liquidity cap for
+  `PredictionMarket`. Said explicitly in the product's own UI, not hidden.
+
+### Redeploying to mainnet (both contracts are live there now — no testnet)
+
+Chainlink Data Feeds (`AggregatorV3Interface`, what this contract reads via
+`latestRoundData()`) only exist on **Robinhood Chain mainnet** (chain id
+`4663`, RPC `https://rpc.mainnet.chain.robinhood.com`) — confirmed
+2026-09-05, `data.chain.link`'s network filter for Robinhood lists only
+"Robinhood Mainnet". This project ran on testnet (chain id `46630`) early
+on with mock token/feed contracts (`script/DeployMockToken.s.sol`,
+`script/DeployMockFeed.s.sol` still exist if that's ever needed again), but
+moved fully to mainnet 2026-09-07 and hasn't looked back — every address
+in this file and in `../src/chain/contracts.ts` is mainnet.
+
+**Steps 0 and 1 below are for the user to run themselves, in their own
+terminal, never through Claude** — a private key printed into a chat
+transcript is a burned key forever, full stop. Everything else goes
+through Foundry scripts that read `PRIVATE_KEY` via `vm.envUint` inside
+Solidity, so the key never appears on the CLI or in anything Claude reads.
+
+0. User: generate a fresh burner wallet (`cast wallet new`), fund it with
+   real ETH for gas, fill `contracts/.env` themselves.
+1. User: paste in `BET_TOKEN_ADDRESS` if it's changing (it usually isn't —
+   USDG is reused across redeploys).
+2. Deploy `PredictionMarket`:
+   ```bash
+   forge script script/Deploy.s.sol --rpc-url robinhood_mainnet --broadcast
+   ```
+3. **Verify the guardrails are actually live**, don't assume the deploy
+   picked up everything in source:
+   ```bash
+   cast call <new addr> "MIN_TARGET_DEVIATION_BP()(uint256)" --rpc-url robinhood_mainnet
+   cast call <new addr> "MIN_MARKET_DURATION()(uint256)" --rpc-url robinhood_mainnet
+   cast call <new addr> "MAX_STAKE_PER_SIDE_USD()(uint256)" --rpc-url robinhood_mainnet
+   ```
+4. Re-allowlist every ticker from `../src/chain/contracts.ts`
+   (`ALLOWLISTED_FEEDS`) on the new address — **one at a time**, the
+   auto-mode classifier blocks looping multiple `--broadcast` calls in a
+   single Bash invocation:
+   ```bash
+   MARKET_ADDRESS=<new addr> PRICE_FEED_ADDRESS=<feed> \
+     forge script script/AllowlistFeed.s.sol --rpc-url robinhood_mainnet --broadcast
+   ```
+5. Update `PREDICTION_MARKET_ADDRESS` in `../src/chain/contracts.ts`,
+   rebuild and redeploy the frontend (both GitHub Pages via push, and the
+   VPS via SSH — see root `CLAUDE.md`).
+6. Optionally recreate a starter market or two with
+   `script/CreateMarket.s.sol` (`PRICE_FEED_ADDRESS`, `TARGET_PRICE`,
+   `DEADLINE_UNIX` env vars) so the markets list isn't empty.
+
+`NicknameRegistry` has no allowlist or per-market state to migrate — a
+redeploy would just be `forge script script/DeployNicknameRegistry.s.sol
+--rpc-url robinhood_mainnet --broadcast` and updating
+`NICKNAME_REGISTRY_ADDRESS` in `../src/chain/nicknames.ts`, but every
+existing nickname would be lost (they live on the old address's storage) —
+there's no reason to redeploy this one unless the contract itself changes.
+
+### Frontend wiring (done, for reference)
+
+`../src/` has two parallel modes sharing one build — see root `CLAUDE.md`
+for the split. The real-mode pieces relevant to contracts work:
+- `src/chain/config.ts` — wagmi chain config, `injected()` connector with
+  EIP-6963 multi-wallet discovery (surfaces MetaMask/Phantom by whatever
+  the browser has installed, no per-wallet code). WalletConnect (for
+  mobile, non-extension wallets) needs a free Project ID from
+  cloud.walletconnect.com that only the project owner can obtain — not
+  wired up yet.
+- `src/chain/contracts.ts` — `PREDICTION_MARKET_ADDRESS`, `BET_TOKEN_ADDRESS`,
+  `ALLOWLISTED_FEEDS`, the ABI, and client-side mirrors of the guardrail
+  constants (kept in sync with the contract by hand — if the contract's
+  constants change, update these too).
+- `src/chain/nicknames.ts` — `NICKNAME_REGISTRY_ADDRESS`, ABI, `useNickname`.
+- Reads: `getMarket(id)` for pool/status, `latestRoundData()` via the feed
+  address for live price. Writes: `bet`/`claim`/`refund`/`resolve`/
+  `createMarket`/`setNickname` all go through the connected wallet (it
+  signs, no key ever held by the app). `bet` needs an ERC20 `approve`
+  first — a separate signed transaction, surfaced as two explicit steps in
+  the UI rather than made to look like one action.

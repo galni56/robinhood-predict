@@ -1,4 +1,11 @@
-# PredictX — mock prediction market for tokenized stocks
+# PredictX ("Prophet") — mock prediction market for tokenized stocks
+
+> **This file documents the mock/demo side only.** The real product —
+> live on Robinhood Chain mainnet with real money, branded **Prophet** —
+> is at **https://prophetmarkets.fun**. Start with
+> [`CLAUDE.md`](./CLAUDE.md) for the full picture; this README covers just
+> the simulated demo described below, reachable in the live app via "Try
+> the demo" / `/demo`.
 
 **Live demo:** https://galni56.github.io/robinhood-predict/
 
@@ -7,10 +14,13 @@ this tokenized stock reach $100 before the deadline — YES/NO?") wired to a
 simulated blockchain ("RHChain testnet") so every price move, bet and payout
 is visible as an on-chain transaction in a built-in block explorer.
 
-**Everything here is mock.** There is no real backend, no real blockchain, no
-real brokerage, no real funds, and no affiliation with Robinhood Markets,
-Inc. Prices are a random walk generated in the browser; accounts, balances,
-blocks and transactions all live in `localStorage` on your own machine.
+**Everything on this page describes the mock mode.** No real backend, no
+real blockchain, no real brokerage, no real funds, and no affiliation with
+Robinhood Markets, Inc. — for that side of the app. Prices are a random
+walk generated in the browser; accounts, balances, blocks and transactions
+all live in `localStorage` on your own machine. The *real* mode (default
+homepage, `/onchain/*`) is a completely different, real thing — see
+`CLAUDE.md`.
 
 ## Stack
 

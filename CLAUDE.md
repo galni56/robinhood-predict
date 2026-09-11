@@ -1,67 +1,152 @@
-# PredictX — project context for Claude
+# Prophet (PredictX) — project context for Claude
 
 Read this first on a new machine/session. It's the map — deeper detail
-lives in [`README.md`](./README.md) (frontend architecture),
+lives in [`README.md`](./README.md) (mock-side frontend architecture),
 [`contracts/CLAUDE.md`](./contracts/CLAUDE.md) (contract build/test/deploy),
-and [`ROADMAP.md`](./ROADMAP.md) (phased plan + open decisions). This file
-is the orientation + the operating rules learned the hard way — read those
-rules before running anything.
+and [`ROADMAP.md`](./ROADMAP.md) (history + what's next). This file is the
+orientation + the operating rules learned the hard way — read those rules
+before running anything, especially anything that touches mainnet.
+
+**Naming note:** the product is branded **Prophet** everywhere a user sees
+it (domain, page titles, navbars, footer — renamed from "PredictX"
+2026-09-11). The repo, npm package, and internal contract/file names still
+say `robinhood-predict` / `PredictX` in places — that's just not renamed at
+the code level, it's the same project. Don't be thrown by the mismatch.
 
 ## What this is
 
-A prediction market where users bet YES/NO on whether a tokenized stock
-(on Robinhood Chain — a real EVM L2 Robinhood launched for tokenized
-equities) reaches a target price before a deadline. Two parts:
+A **live, real-money** prediction market on Robinhood Chain (a real EVM L2
+Robinhood launched for tokenized equities, chain id 4663). Users connect a
+real wallet (MetaMask/Phantom) and bet real USDG on whether a tokenized
+stock reaches a target price before a deadline — parimutuel payouts, no
+bookmaker. This is **not a demo product** — it has real users, real money,
+and no external security audit. Treat every contract interaction
+accordingly: think before broadcasting, confirm with the user when unsure.
 
-- **Frontend** (`src/`) — React/TS/Vite, fully mock, deployed and live
-  right now: **https://galni56.github.io/robinhood-predict/**
-- **Contracts** (`contracts/`) — Solidity, written and tested, **not
-  deployed anywhere yet**
+Two parts, both live:
+
+- **Real mode** (`src/pages/Onchain*.tsx`, `src/chain/`) — reads/writes the
+  actual mainnet contracts via `wagmi`/`viem`. This is the homepage (`/`)
+  and everything under `/onchain/*`.
+- **Mock demo** (everything else — `src/store/`, `src/market/`, the
+  non-Onchain pages) — the original fully-client-side simulated version,
+  now reachable via "Try the demo" / `/demo`. Still fully intact and
+  useful as a no-wallet-needed walkthrough. See `README.md` for how it
+  works (zustand stores, `ChainEngine`, simulated blocks/prices).
+
+**Live URLs:**
+- **https://prophetmarkets.fun** — the real product, self-hosted VPS,
+  primary/canonical
+- **https://galni56.github.io/robinhood-predict/** — GitHub Pages mirror,
+  auto-deploys on push to `main`. Same code, same real mainnet contracts.
 
 Repo: **https://github.com/galni56/robinhood-predict** (public, owner's
-personal GitHub account, not a company account)
+personal GitHub account). GitHub Pages silently stops serving if this repo
+ever goes private again — it happened once (2026-09-11), see the "Ops
+lessons" section below.
 
-## Status snapshot
+## Status snapshot (2026-09-11)
 
 | Piece | Status |
 |---|---|
-| Frontend | Fully working, live on GitHub Pages, auto-deploys on push to `main` via `.github/workflows/deploy.yml` |
-| Contracts | Compile clean, 28/28 Foundry tests pass (Foundry installed directly on this machine — see rule 2 below, this is not the original company-managed workstation). Includes parimutuel liquidity mechanics (2026-09-05: one-sided-market cancellation, owner house seed liquidity capped $50, protocol fee taken only from losing-pool winnings) and a time-weighted early-bet mechanic (2026-09-06: betting closes at 2/3 of a market's life, a winning bet's share of the losing pool decays from 2x to 0.5x the later it's placed — see `ROADMAP.md` §3.5, and §3.6 for the fuller AMM-based fix parked for later). Self-review pass done 2026-09-06 (added a missing `nonReentrant`, documented the `betToken`-must-be-standard-ERC20 assumption and the owner-centralization risk) — still **not** an external audit, see `contracts/CLAUDE.md` |
-| Contract ↔ frontend | **First real connection landed 2026-09-05**, expanded 2026-09-06 to multiple routes: `/onchain` (list all markets), `/onchain/:id` (detail — was the only page before), `/onchain/create` (real `createMarket` tx). Wallet-connect + bet/claim/refund/resolve wired up (`wagmi` + `viem`), alongside the still-fully-intact mock app on every other route. Read paths verified live in a browser; **no wallet-signed transaction has been tried with a real MetaMask/Phantom session yet** — see `ROADMAP.md` §3 |
-| Contract ↔ frontend parity | **Fixed.** `createMarket` is now permissionless with an on-chain $500 cap (`MAX_TARGET_PRICE_USD`) mirroring the frontend, plus an owner-maintained price-feed allowlist (`setPriceFeedAllowed`) so permissionless creation can't be used to rig a market with a fake feed |
-| Testnet deploy | **Live**, redeployed 2026-09-06 to pick up the early-bet mechanic: `PredictionMarket` at `0xE1BA3CBD9D6e5B88af2a3d283D11d7c88e4eC4a7` (2% protocol fee), bet token at `0xBDc0F8045Baa2377F11A03d3c867E81dB263A93A` (reused, unchanged), one market open (TSLA reach $400, fresh 24h deadline). Price feed is a mock (`MockAggregator`, also reused), not real Chainlink — see `ROADMAP.md` §2 for why (Chainlink Data Feeds only exist on Robinhood Chain **mainnet**, confirmed 2026-09-05) |
+| `PredictionMarket` contract | **Live on mainnet**, redeployed 2026-09-10 at `0xd95ed19edBCd330498CADe7BA8569ac940A4182f`. No flat dollar cap on target price — instead a duration-scaled deviation band (2% floor; 4%/15%/20% ceiling for short/medium/long durations) genuinely enforced on-chain, plus min market duration (30 min) and max stake per wallet per side ($50). 2% protocol fee, taken only from the losing pool's contribution to a winner's payout. 36/36 Foundry tests pass. |
+| `NicknameRegistry` contract | **Live on mainnet** at `0x1Ddc13e9D4895a5E6671079478007C7371b76E75` (deployed 2026-09-11). Standalone from PredictionMarket on purpose. `setNickname(string)` — anyone can set their own, 24-char max, no admin override. 8/8 tests pass. `src/chain/nicknames.ts` + `src/components/AddressLabel.tsx` (the one place addresses should render through) wire it into the leaderboard, recent bets, and per-market bet lists. |
+| Bet token | Real USDG at `0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168`, **6 decimals** (not 18 — the old testnet mock token was 18, this has tripped up the frontend before, double-check before assuming). USDG only for now; ETH support is a known, explicitly-flagged gap (see Roadmap). |
+| Price feeds | 27 real Chainlink feeds allowlisted (owner-only step, `setPriceFeedAllowed`) — full list with addresses in `src/chain/contracts.ts` (`ALLOWLISTED_FEEDS`). Each was verified on-chain (`decimals()`/`description()`/`latestRoundData()`) before allowlisting — always do this for a new one, never trust a pasted address blind. |
+| Markets | 11 live as of this writing (TSLA + NVDA/AAPL/MSFT/GOOGL/AMZN/META/PLTR/SPY/QQQ seeded with 30-day deadlines so the site doesn't look empty, plus one real user-created market). `createMarket` is fully permissionless — anyone with an allowlisted feed can open one. |
+| Frontend ↔ contract | Fully wired: connect, browse (no wallet needed), create market, bet (approve + bet), claim, refund, resolve, view a market's own bet history, leaderboard, nicknames. Verified working with real wallets and real transactions, not just simulated. |
+| Hosting | VPS (`prophetmarkets.fun`) + GitHub Pages, both auto-serving real mainnet data. nginx on the VPS proxies Robinhood Chain's own read-only price/catalog REST API (`/api/robinhood/*`) with 15s server-side caching — see "Ops lessons" below for why that caching exists and a past outage it fixed. |
+| Audit | **None.** Said explicitly in the UI disclaimer banner on every real-mode page. Owner-centralized (one EOA controls the price-feed allowlist, protocol fee, and seed liquidity) — a known, accepted risk for this stage. |
 
 ## Critical operating rules (learned through actual friction — read before acting)
 
-1. **Never handle a private key.** Not generate it, not read it, not put it in a message. If a command would print one (`cast wallet new`, anything reading `contracts/.env`), the user runs it themselves in their own terminal — never through a Claude tool call. Same for GitHub tokens: auth via `gh auth login` (browser device-code flow), never a pasted token.
-2. **Confirm the state of the current machine before installing anything — don't assume either way.** The project was originally built on a company-managed, EDR-monitored workstation, where Foundry was deliberately kept Docker-only and installing anything new required asking first:
+1. **Never handle a private key.** Not generate it, not read it, not put it
+   in a message. A command that would print one runs in the user's own
+   terminal, never through a Claude tool call. Foundry scripts read
+   `PRIVATE_KEY` via `vm.envUint` inside Solidity so it never touches the
+   CLI or a chat transcript. Same for GitHub tokens: `gh auth login`
+   (browser device-code flow), never a pasted token.
+2. **Every contract interaction here is real mainnet money**, not a
+   testnet dry run. Before a `--broadcast`, know what it costs and what it
+   does. The auto-mode classifier blocks a private key appearing on the
+   CLI outright, and also blocks *looping* multiple `--broadcast` calls in
+   one Bash invocation — run each one as its own separate tool call
+   instead (this has worked reliably every time it's been tried). If a
+   deploy/broadcast gets blocked twice in a row, stop and ask the user
+   rather than finding a workaround.
+3. **VPS SSH uses a non-default port.** `ssh -i ~/.ssh/predictx_vps -p
+   22022 root@104.207.90.56` — port `22022`, not `22`. Guessing the
+   default port here just looks like the server is down and wastes real
+   time (happened once). Full deploy command:
    ```bash
-   docker run --rm -v "$PWD":/app -w /app --entrypoint sh \
-     ghcr.io/foundry-rs/foundry:latest \
-     -c "git config --global --add safe.directory '*' && forge test -vvv"
+   ssh -i ~/.ssh/predictx_vps -p 22022 root@104.207.90.56 \
+     "cd /opt/robinhood-predict && git pull origin main && VITE_BASE_PATH=/ npm run build"
+   ```
+   `VITE_BASE_PATH=/` matters — the default `base` in `vite.config.ts` is
+   `/robinhood-predict/` (for GitHub Pages), and the VPS serves from the
+   domain root, so every asset 404s without the override.
+4. **Screenshot structural/visual frontend changes before shipping them.**
+   Use the `run-frontend` skill (Playwright against the local dev server)
+   to verify a layout/component change actually renders correctly before
+   pushing to prod — this project has a specific bad memory of shipping an
+   unreviewed structural change that had to be reverted.
+5. **`git commit -m` breaks on apostrophes** in this shell setup. Use
+   `git commit -F <file>` (heredoc) for anything non-trivial.
+6. **Confirm the machine before installing anything new** — don't assume
+   either way. This machine has Foundry installed directly (confirmed
+   non-work-managed); a Docker fallback pattern is in `contracts/CLAUDE.md`
+   if a future machine turns out to be work-managed.
+7. **Ask before git init / npm install / a new dev server or tool** the
+   first time in a session. Once something is already set up, routine
+   edits don't need re-confirmation, but a genuinely new install/service
+   does.
 
-```
+## Ops lessons worth knowing before touching infra
 
-As of the 2026-09-04 session, work moved to a machine the user confirmed is **not** company-managed, so Foundry was installed directly:
+- **nginx `proxy_pass` with a literal hostname resolves DNS once, at
+  config-load time.** The `/api/robinhood/` proxy to `api.robinhood.com`
+  used to be written that way; a transient DNS hiccup during a routine
+  reload made nginx refuse to start *at all*, taking the whole site down
+  for ~7 hours before anyone noticed. Fixed by deferring resolution to
+  request time: `resolver 8.8.8.8 1.1.1.1 valid=300s;` + `set
+  $robinhood_backend api.robinhood.com;` + `proxy_pass
+  https://$robinhood_backend;` with the path rewritten explicitly via
+  `rewrite ... break` (a variable in `proxy_pass` stops nginx from
+  auto-stripping the location prefix, so you have to do it yourself).
+  Apply this pattern to any *other* external proxy added later.
+- **That same endpoint now has response caching** (`proxy_cache`, 15s TTL,
+  matching Robinhood's own server-side cache window) because each
+  connected browser tab independently polls ~30 tickers every 15s
+  (`useCorePrices()` in `src/chain/robinhoodApi.ts`) — without server-side
+  caching, request volume to Robinhood's API scales with concurrent
+  *users*, not distinct tickers, and blows past their 60 req/s limit at
+  realistic traffic. `useCorePrices()`'s dedup only solves the
+  *within-one-tab* version of this problem; the nginx cache is what
+  solves it across users.
+- **A private GitHub repo silently kills GitHub Pages.** Free-tier Pages
+  doesn't serve from a private repo, and flipping the repo back to public
+  doesn't auto-resume it — it needs Settings → Pages reconfigured once
+  manually. Also breaks the VPS's `git pull` if it's using anonymous
+  HTTPS (which it is).
 
-```bash
-curl -L [https://foundry.paradigm.xyz](https://foundry.paradigm.xyz) | bash && foundryup
-forge install foundry-rs/forge-std --no-git --no-commit
-forge install OpenZeppelin/openzeppelin-contracts@v5.1.0 --no-git --no-commit
+## Roadmap / what's next
 
-```
+Full history in [`ROADMAP.md`](./ROADMAP.md). Known, explicitly-flagged
+gaps as of this writing:
 
-This was done since `lib/` is gitignored and not vendored on a fresh checkout — confirmed with the user first. The Docker path above still works and is the fallback if a future machine turns out to be work-managed again. Rule 1 (never handle private keys) and rule 4 (ask before a new install/tool/server) are unaffected either way — those aren't about EDR policy, they hold regardless of machine.
-3. **`git commit -m` breaks on apostrophes** in this shell setup (e.g. "authStore's" mid-sentence closes the quote early and corrupts the command). Write the message to a temp file and use `git commit -F <file>` for anything non-trivial, or just avoid contractions/apostrophes in `-m` strings.
-4. **Ask before git init / npm install / dev servers** the first time in a session — the user has pushed back hard on unprompted execution of these before. Once a repo is already set up (like this one now), normal edits don't need re-confirmation each time, but a *new* install/tool/server does.
-
-## Roadmap
-
-Full detail in [`ROADMAP.md`](https://www.google.com/search?q=./ROADMAP.md). Short version, in order:
-
-1. ~~Fix contract/frontend parity~~ **done** (`onlyOwner` removed from `createMarket`, $500 cap added on-chain, rigged-feed risk mitigated via an owner-maintained price-feed allowlist)
-2. ~~Deploy to Robinhood Chain testnet~~ **done 2026-09-05** — live at the addresses in the Status snapshot above. Price feed is a mock (`MockAggregator`) since real Chainlink Data Feeds don't exist on this testnet yet (mainnet-only); real Chainlink integration for tokenized equities is Data Streams there, a separate follow-up task
-3. Wire the frontend to the real contract (wallet model decided: external, MetaMask + Phantom via `wagmi injected()`)
+- **ETH as a second bet currency** — discussed, not started. The clean
+  path is a second, parallel `PredictionMarket` deployment with WETH as
+  `betToken` (the contract already supports any ERC20, no code change
+  needed) rather than a same-contract multi-currency rewrite — keeps the
+  well-tested pool/fee/claim logic untouched, at the cost of ETH markets
+  and USDG markets being separate liquidity pools.
+- **WalletConnect** for mobile Safari / non-extension wallets — needs a
+  free Project ID from cloud.walletconnect.com that only the project
+  owner can obtain, not started.
+- **Chainlink price history** — `latestRoundData()` has no backfill, so
+  the market-card sparkline only shows real polled data since the page
+  was opened, not a market's full lifetime.
+- No external security audit yet — said explicitly in-product, not hidden.
 
 ## Local dev
 
@@ -69,11 +154,9 @@ Full detail in [`ROADMAP.md`](https://www.google.com/search?q=./ROADMAP.md). Sho
 npm install
 npm run dev        # frontend, http://localhost:5173
 npm run build      # what CI runs — check this passes before pushing
-
 ```
 
 Contracts: see `contracts/CLAUDE.md` for the full build/test/deploy flow.
-Foundry is installed directly on this machine (confirmed non-work); the
-Docker path there still works if that ever changes.
-
-```
+Foundry is installed directly on this machine at `~/.foundry/bin` (not
+always on `PATH` in a fresh shell — `export PATH="$PATH:$HOME/.foundry/bin"`
+if `forge`/`cast` aren't found).
