@@ -149,8 +149,8 @@ export function OnchainCreateMarketPage() {
           </div>
           <input
             type="number"
-            min={minRange ?? 0}
-            max={maxRange ?? undefined}
+            min={minRange != null ? minRange.toFixed(2) : 0}
+            max={maxRange != null ? maxRange.toFixed(2) : undefined}
             step="0.01"
             value={target}
             onChange={(e) => setTarget(e.target.value)}
