@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { formatUnits, parseAbiItem } from 'viem'
 import { useAccount, usePublicClient, useReadContract, useReadContracts } from 'wagmi'
+import { truncateAddress } from '@/components/AddressLabel'
 import { SideBadge, StatusBadge } from '@/components/Pills'
+import { SetNicknameModal } from '@/components/SetNicknameModal'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
 import {
   BET_TOKEN_ADDRESS,
@@ -13,16 +15,13 @@ import {
   erc20Abi,
   predictionMarketAbi,
 } from '@/chain/contracts'
+import { useNickname } from '@/chain/nicknames'
 import { formatUsd } from '@/lib/format'
 import type { MarketSide } from '@/types'
 
 const BET_TOKEN_DECIMALS = 6 // USDG's real decimals (old testnet mock token was 18)
 
 const CLAIMED_EVENT = parseAbiItem('event Claimed(uint256 indexed id, address indexed user, uint256 payout)')
-
-function truncateAddress(addr: string) {
-  return `${addr.slice(0, 6)}…${addr.slice(-4)}`
-}
 
 interface Position {
   id: bigint
@@ -44,6 +43,8 @@ function StatCard({ label, value, valueClassName = '' }: { label: string; value:
 
 export function OnchainPortfolioPage() {
   const { address, isConnected } = useAccount()
+  const nickname = useNickname(address)
+  const [nicknameModalOpen, setNicknameModalOpen] = useState(false)
 
   const marketCount = useReadContract({
     address: PREDICTION_MARKET_ADDRESS,
@@ -163,14 +164,26 @@ export function OnchainPortfolioPage() {
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight mb-1">Your on-chain portfolio</h1>
-        <p className="text-white/40 text-xs font-mono break-all">{address}</p>
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight mb-1">
+            {nickname.data ? nickname.data : 'Your on-chain portfolio'}
+          </h1>
+          <p className="text-white/40 text-xs font-mono break-all">{address}</p>
+        </div>
+        <button
+          onClick={() => setNicknameModalOpen(true)}
+          className="shrink-0 text-xs px-3 py-1.5 rounded-full border border-white/10 text-white/60 hover:text-white hover:border-white/30 transition-colors"
+        >
+          {nickname.data ? 'Edit nickname' : 'Set nickname'}
+        </button>
       </div>
+
+      {nicknameModalOpen && <SetNicknameModal onClose={() => setNicknameModalOpen(false)} />}
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <StatCard label="Balance" value={balance.data != null ? `$${formatUnits(balance.data, BET_TOKEN_DECIMALS)}` : '…'} />
-        <StatCard label="Wallet" value={address ? truncateAddress(address) : '—'} />
+        <StatCard label="Wallet" value={address ? (nickname.data || truncateAddress(address)) : '—'} />
         <StatCard label="Win rate" value={winRate != null ? `${winRate.toFixed(0)}%` : '—'} />
         <StatCard label="Current streak" value={streakWon == null ? '—' : `${currentStreak}${streakWon ? 'W' : 'L'}`} />
         <StatCard label="Total wagered" value={`$${formatUnits(totalWagered, BET_TOKEN_DECIMALS)}`} />

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { formatUnits, parseAbiItem } from 'viem'
 import { usePublicClient } from 'wagmi'
+import { AddressLabel } from '@/components/AddressLabel'
 import { SideBadge } from '@/components/Pills'
 import { robinhoodMainnet } from '@/chain/config'
 import { DEPLOY_BLOCK, MarketSideOnchain, PREDICTION_MARKET_ADDRESS } from '@/chain/contracts'
@@ -29,10 +30,6 @@ interface BetLog {
   amount: bigint
   txHash: `0x${string}`
   blockNumber: bigint
-}
-
-function truncateAddress(addr: string) {
-  return `${addr.slice(0, 6)}…${addr.slice(-4)}`
 }
 
 /** Side-rail widgets for the real markets list, mirroring the mock app's
@@ -140,7 +137,7 @@ export function OnchainMarketsSidebar() {
                   className="flex items-center gap-2 text-sm rounded-lg px-2 py-1.5 hover:bg-white/5 transition-colors"
                 >
                   <span className="w-4 text-white/30 text-xs font-mono text-center">{i + 1}</span>
-                  <span className="font-mono text-xs truncate flex-1">{truncateAddress(s.address)}</span>
+                  <AddressLabel address={s.address} link={false} className="font-mono text-xs truncate flex-1" />
                   <span className={`font-mono text-xs ${net >= 0n ? 'text-emerald-400' : 'text-rose-400'}`}>
                     {net >= 0n ? '+' : ''}
                     {formatUsd(Number(formatUnits(net, BET_TOKEN_DECIMALS)), 0)}
@@ -164,16 +161,19 @@ export function OnchainMarketsSidebar() {
               <div key={log.txHash + log.id.toString()} className="flex items-center justify-between gap-2 text-xs px-2 py-1.5 rounded-lg bg-black/20">
                 <div className="flex items-center gap-1.5 min-w-0">
                   <SideBadge side={log.side === MarketSideOnchain.YES ? 'YES' : 'NO'} />
+                  <AddressLabel address={log.user} className="font-mono text-white/60 hover:text-white truncate" />
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="font-mono text-white/70">{formatUnits(log.amount, BET_TOKEN_DECIMALS)} USDG</span>
                   <a
                     href={`${robinhoodMainnet.blockExplorers.default.url}/tx/${log.txHash}`}
                     target="_blank"
                     rel="noreferrer"
-                    className="font-mono text-white/50 hover:text-white truncate"
+                    className="font-mono text-white/40 hover:text-white"
                   >
                     {shortHash(log.txHash)}
                   </a>
                 </div>
-                <span className="font-mono text-white/70 shrink-0">{formatUnits(log.amount, BET_TOKEN_DECIMALS)} USDG</span>
               </div>
             ))
           )}

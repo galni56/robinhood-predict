@@ -105,7 +105,7 @@ export function OnchainLandingPage() {
   return (
     <div>
       {/* Hero */}
-      <section className="max-w-[1240px] mx-auto px-4 pt-10 pb-6">
+      <section className="max-w-[1500px] mx-auto px-4 pt-10 pb-6">
         <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-[#0e0e18] px-6 py-12 sm:px-12 sm:py-16">
           <div className="pointer-events-none absolute -top-24 -left-24 w-72 h-72 rounded-full bg-[#C6FF3D]/20 blur-3xl" />
           <div className="pointer-events-none absolute -bottom-24 -right-16 w-72 h-72 rounded-full bg-[#8FBF1F]/15 blur-3xl" />
@@ -194,7 +194,7 @@ export function OnchainLandingPage() {
 
       {/* How it works */}
       <section className="border-t border-white/10 bg-[#0c0c16]/60">
-        <div className="max-w-[1240px] mx-auto px-4 py-16">
+        <div className="max-w-[1500px] mx-auto px-4 py-16">
           <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-center mb-2">How it works</h2>
           <p className="text-white/40 text-sm text-center mb-10">Four steps, start to settlement.</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
@@ -210,7 +210,7 @@ export function OnchainLandingPage() {
       </section>
 
       {/* Why Prophet */}
-      <section className="max-w-[1240px] mx-auto px-4 py-16">
+      <section className="max-w-[1500px] mx-auto px-4 py-16">
         <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-center mb-2">Why Prophet</h2>
         <p className="text-white/40 text-sm text-center mb-10">Mechanics designed around one idea: reward conviction, not luck of timing.</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
@@ -226,7 +226,7 @@ export function OnchainLandingPage() {
       {/* Live markets preview */}
       {preview.length > 0 && (
         <section className="border-t border-white/10 bg-[#0c0c16]/60">
-          <div className="max-w-[1240px] mx-auto px-4 py-16">
+          <div className="max-w-[1500px] mx-auto px-4 py-16">
             <div className="flex items-center justify-between mb-8 flex-wrap gap-3">
               <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">On the board right now</h2>
               <Link to="/onchain" className="text-sm text-[#C6FF3D] hover:underline">

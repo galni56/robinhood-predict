@@ -4,6 +4,7 @@ import { formatUnits, parseAbiItem, parseUnits } from 'viem'
 import { useAccount, useChainId, useDisconnect, usePublicClient, useReadContract, useSwitchChain, useWriteContract } from 'wagmi'
 import { waitForTransactionReceipt } from 'wagmi/actions'
 import { robinhoodMainnet, wagmiConfig } from '@/chain/config'
+import { AddressLabel } from '@/components/AddressLabel'
 import { SideBadge } from '@/components/Pills'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
 import {
@@ -25,6 +26,9 @@ import { shortHash } from '@/lib/hash'
 
 const BET_TOKEN_DECIMALS = 6 // USDG's real decimals (old testnet mock token was 18)
 
+const MARKET_CREATED_EVENT = parseAbiItem(
+  'event MarketCreated(uint256 indexed id, address indexed priceFeed, int256 targetPrice, uint256 deadline)',
+)
 const BET_PLACED_EVENT = parseAbiItem(
   'event BetPlaced(uint256 indexed id, address indexed user, uint8 side, uint256 amount, uint256 weightBp)',
 )
@@ -35,10 +39,6 @@ interface MarketBet {
   amount: bigint
   txHash: `0x${string}`
   blockNumber: bigint
-}
-
-function truncateAddress(addr: string) {
-  return `${addr.slice(0, 6)}…${addr.slice(-4)}`
 }
 
 type TxState = { label: string } | null
@@ -90,6 +90,36 @@ export function OnchainMarketPage() {
   }
   useEffect(() => {
     refetchMarketBets()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [publicClient, id])
+
+  // MarketCreated doesn't carry a creator field (see PredictionMarket.sol),
+  // so the only way to know who created a market is the `from` of the
+  // transaction that emitted it -- one extra call beyond a plain log scan,
+  // but only once per market (not polled).
+  const [creator, setCreator] = useState<`0x${string}` | null | undefined>(undefined)
+  useEffect(() => {
+    if (!publicClient) return
+    let cancelled = false
+    publicClient
+      .getLogs({
+        address: PREDICTION_MARKET_ADDRESS,
+        event: MARKET_CREATED_EVENT,
+        args: { id: MARKET_ID },
+        fromBlock: DEPLOY_BLOCK,
+        toBlock: 'latest',
+      })
+      .then(async (logs) => {
+        if (cancelled || logs.length === 0) return
+        const tx = await publicClient.getTransaction({ hash: logs[0].transactionHash })
+        if (!cancelled) setCreator(tx.from)
+      })
+      .catch(() => {
+        if (!cancelled) setCreator(null)
+      })
+    return () => {
+      cancelled = true
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [publicClient, id])
 
@@ -313,7 +343,15 @@ export function OnchainMarketPage() {
       <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight mt-4 mb-1">
         {ticker ?? '…'} reach {targetPriceUsd != null ? formatUsd(targetPriceUsd) : '…'}?
       </h1>
-      <p className="text-white/30 text-sm mb-5">On-chain market #{MARKET_ID.toString()}</p>
+      <p className="text-white/30 text-sm mb-5 flex items-center gap-1.5 flex-wrap">
+        <span>On-chain market #{MARKET_ID.toString()}</span>
+        {creator && (
+          <>
+            <span>· created by</span>
+            <AddressLabel address={creator} className="text-white/40 hover:text-white/70" />
+          </>
+        )}
+      </p>
 
       {/* Market data is a public read — shown regardless of wallet connection. */}
       {market.isLoading ? (
@@ -372,14 +410,7 @@ export function OnchainMarketPage() {
                 className="flex items-center gap-3 text-xs bg-[#12121c]/95 border border-white/10 rounded-lg px-3 py-2"
               >
                 <SideBadge side={b.side === MarketSideOnchain.YES ? 'YES' : 'NO'} />
-                <a
-                  href={`${robinhoodMainnet.blockExplorers.default.url}/address/${b.user}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="font-mono text-white/70 hover:text-white"
-                >
-                  {truncateAddress(b.user)}
-                </a>
+                <AddressLabel address={b.user} className="font-mono text-white/70 hover:text-white" />
                 <span className="font-mono text-white/50">{formatUnits(b.amount, BET_TOKEN_DECIMALS)} USDG</span>
                 <a
                   href={`${robinhoodMainnet.blockExplorers.default.url}/tx/${b.txHash}`}

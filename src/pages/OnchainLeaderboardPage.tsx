@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { formatUnits, parseAbiItem } from 'viem'
 import { usePublicClient } from 'wagmi'
+import { AddressLabel } from '@/components/AddressLabel'
 import { SideBadge } from '@/components/Pills'
 import { robinhoodMainnet } from '@/chain/config'
 import { DEPLOY_BLOCK, MarketSideOnchain, PREDICTION_MARKET_ADDRESS } from '@/chain/contracts'
@@ -152,14 +153,7 @@ export function OnchainLeaderboardPage() {
                   className="flex items-center gap-3 text-sm bg-[#12121c]/95 border border-white/10 rounded-lg px-3 py-2.5"
                 >
                   <span className="w-5 text-white/30 text-center font-mono text-xs">{i + 1}</span>
-                  <a
-                    href={`${robinhoodMainnet.blockExplorers.default.url}/address/${s.address}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="font-mono text-xs text-white/70 hover:text-white truncate"
-                  >
-                    {s.address}
-                  </a>
+                  <AddressLabel address={s.address} className="font-mono text-xs text-white/70 hover:text-white truncate" />
                   <span className="text-white/40 text-xs shrink-0">{s.bets} bets</span>
                   <span
                     className={`ml-auto font-mono text-xs shrink-0 ${net >= 0n ? 'text-[#C6FF3D]' : 'text-rose-400'}`}
@@ -191,6 +185,7 @@ export function OnchainLeaderboardPage() {
                   #{log.id.toString()}
                 </Link>
                 <SideBadge side={log.side === MarketSideOnchain.YES ? 'YES' : 'NO'} />
+                <AddressLabel address={log.user} className="font-mono text-xs text-white/60 hover:text-white truncate" />
                 <span className="font-mono text-xs">{formatUnits(log.amount, BET_TOKEN_DECIMALS)} USDG</span>
                 <a
                   href={`${robinhoodMainnet.blockExplorers.default.url}/tx/${log.txHash}`}

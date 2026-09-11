@@ -2,27 +2,27 @@ import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { useAccount, useDisconnect } from 'wagmi'
 import { AddressAvatar } from '@/components/AddressAvatar'
+import { AddressLabel } from '@/components/AddressLabel'
+import { SetNicknameModal } from '@/components/SetNicknameModal'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
 import { robinhoodMainnet } from '@/chain/config'
-
-function truncateAddress(addr: string) {
-  return `${addr.slice(0, 6)}…${addr.slice(-4)}`
-}
 
 /** Wallet connect entry point for the real (mainnet) side — replaces a
  * generic "Connect Wallet" button with the actual installed wallets shown
  * immediately (icon + name each, via EIP-6963 discovery — wagmi's
  * `injected()` connector populates `connector.icon` from what the wallet
  * extension itself announces), one click to connect. When connected, shows
- * an address-derived avatar (see AddressAvatar) instead of a raw string, and
- * an account menu (portfolio, copy address, view on explorer, disconnect) —
- * there's no backend/profile system here, so this menu is the closest thing
- * to a "личный кабинет" a wallet-only app has. */
+ * an address-derived avatar (see AddressAvatar) plus its nickname if one's
+ * set (see AddressLabel/NicknameRegistry), and an account menu (portfolio,
+ * set nickname, copy address, view on explorer, disconnect) — there's no
+ * backend/profile system here, so this menu is the closest thing to a
+ * "личный кабинет" a wallet-only app has. */
 export function ConnectWalletButton() {
   const { address, isConnected } = useAccount()
   const { disconnect } = useDisconnect()
   const [open, setOpen] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [nicknameModalOpen, setNicknameModalOpen] = useState(false)
 
   if (isConnected && address) {
     return (
@@ -32,7 +32,7 @@ export function ConnectWalletButton() {
           className="flex items-center gap-2 pl-1.5 pr-3 py-1.5 rounded-full border border-white/10 hover:border-white/30 transition-colors"
         >
           <AddressAvatar address={address} size={22} />
-          <span className="font-mono text-xs text-white/80">{truncateAddress(address)}</span>
+          <AddressLabel address={address} link={false} className="font-mono text-xs text-white/80" />
         </button>
         {open && (
           <>
@@ -45,6 +45,15 @@ export function ConnectWalletButton() {
               >
                 Your portfolio
               </NavLink>
+              <button
+                onClick={() => {
+                  setOpen(false)
+                  setNicknameModalOpen(true)
+                }}
+                className="w-full text-left px-3 py-2 text-white/70 hover:bg-white/5 hover:text-white"
+              >
+                Set nickname
+              </button>
               <button
                 onClick={async () => {
                   await navigator.clipboard.writeText(address)
@@ -77,6 +86,7 @@ export function ConnectWalletButton() {
             </div>
           </>
         )}
+        {nicknameModalOpen && <SetNicknameModal onClose={() => setNicknameModalOpen(false)} />}
       </div>
     )
   }

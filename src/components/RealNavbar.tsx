@@ -25,7 +25,7 @@ export function RealNavbar() {
 
   return (
     <header className="sticky top-0 z-20 border-b border-white/10 bg-[#0a0a12]/95 xl:bg-[#0a0a12]/85 xl:backdrop-blur">
-      <div className="max-w-[1240px] mx-auto px-4 h-14 flex items-center gap-4 xl:gap-6">
+      <div className="max-w-[1500px] mx-auto px-4 h-14 flex items-center gap-4 xl:gap-6">
         <NavLink to="/" className="flex items-center gap-2 font-extrabold shrink-0">
           <img src={`${import.meta.env.BASE_URL}ProphetMarkets_fun.png`} alt="" className="w-4 h-4 rounded-sm shrink-0" />
           Prophet
