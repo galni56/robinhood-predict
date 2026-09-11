@@ -42,29 +42,60 @@ export function useRobinhoodAssets() {
   })
 }
 
+async function fetchPrices(symbols: string[]) {
+  const settled = await Promise.allSettled(
+    symbols.map(async (symbol) => {
+      const res = await fetch(`${API_BASE}/prices/${symbol}`)
+      if (!res.ok) throw new Error(`${symbol}: ${res.status}`)
+      const data = (await res.json()) as { quotes: RobinhoodQuote[] }
+      return data.quotes[0]
+    }),
+  )
+  const byTicker = new Map<string, RobinhoodQuote>()
+  for (const r of settled) {
+    if (r.status === 'fulfilled' && r.value) byTicker.set(r.value.tokenSymbol, r.value)
+  }
+  return byTicker
+}
+
 /** Live bid/ask/volume for a specific set of tickers. The API is per-symbol
  * (no batch endpoint), so this fires one request per ticker in parallel.
  * Refetches every 15s to match the API's own server-side cache window —
- * polling faster just re-fetches the same cached value. */
+ * polling faster just re-fetches the same cached value.
+ *
+ * The query key includes `symbols` itself, so two callers passing
+ * different arrays (even with overlapping tickers) get separate cache
+ * entries and separate requests — fine for a genuinely different symbol
+ * set (e.g. search results), wasteful for a set that's shown elsewhere
+ * unchanged. Use `useCorePrices()` below for the common/shared set instead
+ * of passing `CORE_TICKERS` here. */
 export function useRobinhoodPrices(symbols: string[]) {
   return useQuery({
     queryKey: ['robinhood-prices', symbols],
-    queryFn: async () => {
-      const settled = await Promise.allSettled(
-        symbols.map(async (symbol) => {
-          const res = await fetch(`${API_BASE}/prices/${symbol}`)
-          if (!res.ok) throw new Error(`${symbol}: ${res.status}`)
-          const data = (await res.json()) as { quotes: RobinhoodQuote[] }
-          return data.quotes[0]
-        }),
-      )
-      const byTicker = new Map<string, RobinhoodQuote>()
-      for (const r of settled) {
-        if (r.status === 'fulfilled' && r.value) byTicker.set(r.value.tokenSymbol, r.value)
-      }
-      return byTicker
-    },
+    queryFn: () => fetchPrices(symbols),
     enabled: symbols.length > 0,
+    refetchInterval: 15_000,
+  })
+}
+
+// The tickers shown by default in more than one place at once (ticker tape,
+// token browser's empty-search view) — kept as one list so every consumer
+// shares the query below instead of each firing its own duplicate requests
+// for the same symbols every 15s.
+export const CORE_TICKERS = [
+  'TSLA', 'NVDA', 'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'META', 'AVGO', 'CRWD', 'SNOW',
+  'INTC', 'TSM', 'SPY', 'QQQ', 'GLD', 'NFLX', 'AMD', 'ADBE', 'ORCL', 'CSCO',
+  'IBM', 'WDAY', 'SHOP', 'COIN', 'PLTR', 'SNAP', 'RDDT', 'SOFI', 'DELL', 'PANW',
+]
+
+/** Prices for CORE_TICKERS on a fixed query key (not parameterized by any
+ * caller-supplied array), so every component using this hook shares the
+ * exact same React Query cache entry — one set of requests every 15s no
+ * matter how many places on screen show these tickers. */
+export function useCorePrices() {
+  return useQuery({
+    queryKey: ['robinhood-prices-core'],
+    queryFn: () => fetchPrices(CORE_TICKERS),
     refetchInterval: 15_000,
   })
 }

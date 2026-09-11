@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ALLOWLISTED_FEEDS } from '@/chain/contracts'
-import { useRobinhoodAssets, useRobinhoodPrices } from '@/chain/robinhoodApi'
+import { useCorePrices, useRobinhoodAssets, useRobinhoodPrices } from '@/chain/robinhoodApi'
 import { formatUsd } from '@/lib/format'
 
 // Shown when the search box is empty, instead of pulling live prices for
@@ -26,7 +26,13 @@ export function TokenBrowser() {
   }, [query, assets.data])
 
   const visibleTickers = matches ?? DEFAULT_TICKERS
-  const prices = useRobinhoodPrices(visibleTickers)
+  // No search: DEFAULT_TICKERS is a subset of CORE_TICKERS, so reuse the
+  // shared cache (also used by TickerTape) instead of firing duplicate
+  // requests for the same symbols. Searching for something outside that
+  // core set genuinely needs its own fetch.
+  const corePrices = useCorePrices()
+  const searchPrices = useRobinhoodPrices(matches ?? [])
+  const prices = matches ? searchPrices : corePrices
   const prevByTicker = useRef<Map<string, number>>(new Map())
 
   useEffect(() => {

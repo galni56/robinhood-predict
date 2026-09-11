@@ -24,15 +24,15 @@ export function RealNavbar() {
   const [mobileOpen, setMobileOpen] = useState(false)
 
   return (
-    <header className="sticky top-0 z-20 border-b border-white/10 bg-[#0a0a12]/95 lg:bg-[#0a0a12]/85 lg:backdrop-blur">
-      <div className="max-w-6xl mx-auto px-4 h-14 flex items-center gap-4 lg:gap-6">
+    <header className="sticky top-0 z-20 border-b border-white/10 bg-[#0a0a12]/95 xl:bg-[#0a0a12]/85 xl:backdrop-blur">
+      <div className="max-w-6xl mx-auto px-4 h-14 flex items-center gap-4 xl:gap-6">
         <NavLink to="/" className="flex items-center gap-2 font-extrabold shrink-0">
           <span className="w-2.5 h-2.5 rounded-full bg-gradient-to-br from-[#C6FF3D] to-emerald-400 shadow-[0_0_10px_2px_rgba(198,255,61,0.55)]" />
           PredictX
           <span className="text-white/30 font-normal text-xs hidden sm:inline">on Robinhood Chain (mainnet)</span>
         </NavLink>
 
-        <nav className="hidden lg:flex items-center gap-1 text-sm">
+        <nav className="hidden xl:flex items-center gap-1 text-sm shrink-0">
           {links.map((l) => (
             <NavLink
               key={l.to}
@@ -40,7 +40,7 @@ export function RealNavbar() {
               end={l.end}
               className={({ isActive }) =>
                 clsx(
-                  'px-3 py-1.5 rounded-full transition-colors font-medium',
+                  'px-3 py-1.5 rounded-full transition-colors font-medium whitespace-nowrap',
                   isActive ? 'bg-[#C6FF3D]/15 text-[#C6FF3D]' : 'text-white/60 hover:text-white hover:bg-white/5',
                 )
               }
@@ -52,7 +52,7 @@ export function RealNavbar() {
             to="/onchain/create"
             className={({ isActive }) =>
               clsx(
-                'px-3 py-1.5 rounded-full transition-colors font-medium text-emerald-300',
+                'px-3 py-1.5 rounded-full transition-colors font-medium text-emerald-300 whitespace-nowrap',
                 isActive ? 'bg-emerald-500/15' : 'hover:bg-emerald-500/10',
               )
             }
@@ -63,13 +63,13 @@ export function RealNavbar() {
             href={robinhoodMainnet.blockExplorers.default.url}
             target="_blank"
             rel="noreferrer"
-            className="px-3 py-1.5 rounded-full transition-colors font-medium text-white/40 hover:text-white hover:bg-white/5"
+            className="px-3 py-1.5 rounded-full transition-colors font-medium text-white/40 hover:text-white hover:bg-white/5 whitespace-nowrap"
           >
             Chain explorer ↗
           </a>
         </nav>
 
-        <div className="ml-auto hidden lg:flex items-center gap-3">
+        <div className="ml-auto hidden xl:flex items-center gap-3">
           <NavLink
             to="/demo"
             className="text-xs px-2.5 py-1.5 rounded-full border border-white/10 text-white/50 hover:text-white hover:border-white/30 transition-colors"
@@ -81,7 +81,7 @@ export function RealNavbar() {
 
         {/* Mobile / narrow-desktop: everything collapses behind one toggle,
             except the wallet button itself — that stays one tap away. */}
-        <div className="ml-auto flex lg:hidden items-center gap-2">
+        <div className="ml-auto flex xl:hidden items-center gap-2">
           <ConnectWalletButton />
           <button
             onClick={() => setMobileOpen((v) => !v)}
@@ -97,7 +97,7 @@ export function RealNavbar() {
       </div>
 
       {mobileOpen && (
-        <div className="lg:hidden border-t border-white/10 bg-[#0a0a12] px-4 py-3 space-y-1">
+        <div className="xl:hidden border-t border-white/10 bg-[#0a0a12] px-4 py-3 space-y-1">
           {links.map((l) => (
             <NavLink
               key={l.to}

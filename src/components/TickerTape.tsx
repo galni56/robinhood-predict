@@ -1,20 +1,15 @@
 import { useEffect, useRef } from 'react'
-import { useRobinhoodPrices } from '@/chain/robinhoodApi'
+import { CORE_TICKERS, useCorePrices } from '@/chain/robinhoodApi'
 import { formatUsd } from '@/lib/format'
-
-// 30 recognizable tickers from Robinhood's ~194-token catalog, just for this
-// strip — not tied to which feeds are allowlisted for actual betting.
-const TAPE_TICKERS = [
-  'TSLA', 'NVDA', 'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'META', 'AVGO', 'CRWD', 'SNOW',
-  'INTC', 'TSM', 'SPY', 'QQQ', 'GLD', 'NFLX', 'AMD', 'ADBE', 'ORCL', 'CSCO',
-  'IBM', 'WDAY', 'SHOP', 'COIN', 'PLTR', 'SNAP', 'RDDT', 'SOFI', 'DELL', 'PANW',
-]
 
 /** Horizontal auto-scrolling price strip — 30 tickers, live bid price,
  * colored by whether it just ticked up or down since the last 15s poll
- * (compared client-side, since the API gives a snapshot, not history). */
+ * (compared client-side, since the API gives a snapshot, not history).
+ * Shares its price cache with TokenBrowser's default view via
+ * useCorePrices() — see robinhoodApi.ts — instead of firing its own
+ * duplicate requests for the same tickers. */
 export function TickerTape() {
-  const prices = useRobinhoodPrices(TAPE_TICKERS)
+  const prices = useCorePrices()
   const prevByTicker = useRef<Map<string, number>>(new Map())
 
   useEffect(() => {
@@ -28,7 +23,7 @@ export function TickerTape() {
     return <div className="border-y border-white/10 bg-[#0a0a12] h-10" />
   }
 
-  const items = TAPE_TICKERS.map((ticker) => {
+  const items = CORE_TICKERS.map((ticker) => {
     const q = prices.data.get(ticker)
     if (!q) return null
     const bid = Number(q.bid)
