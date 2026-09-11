@@ -67,6 +67,17 @@ export function RealNavbar() {
           >
             Chain explorer ↗
           </a>
+          <NavLink
+            to="/whitepaper"
+            className={({ isActive }) =>
+              clsx(
+                'px-3 py-1.5 rounded-full transition-colors font-medium whitespace-nowrap',
+                isActive ? 'bg-[#C6FF3D]/15 text-[#C6FF3D]' : 'text-white/40 hover:text-white hover:bg-white/5',
+              )
+            }
+          >
+            Whitepaper
+          </NavLink>
         </nav>
 
         <div className="ml-auto hidden xl:flex items-center gap-3">
@@ -129,6 +140,18 @@ export function RealNavbar() {
           >
             Chain explorer ↗
           </a>
+          <NavLink
+            to="/whitepaper"
+            onClick={() => setMobileOpen(false)}
+            className={({ isActive }) =>
+              clsx(
+                'block px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                isActive ? 'bg-[#C6FF3D]/15 text-[#C6FF3D]' : 'text-white/40 hover:bg-white/5 hover:text-white',
+              )
+            }
+          >
+            Whitepaper
+          </NavLink>
           <NavLink
             to="/demo"
             onClick={() => setMobileOpen(false)}

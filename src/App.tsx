@@ -1,4 +1,5 @@
 import { Route, Routes, useLocation } from 'react-router-dom'
+import { AnimatedBackground } from '@/components/AnimatedBackground'
 import { ChainEngine } from '@/components/ChainEngine'
 import { DisclaimerBanner } from '@/components/DisclaimerBanner'
 import { Footer } from '@/components/Footer'
@@ -37,11 +38,17 @@ export default function App() {
   const { pathname } = useLocation()
   // Real mode ("/" and everything under /onchain) gets its own full-size
   // navbar (RealNavbar) pointed at real routes — the mock Navbar's links
-  // and its Log in/Sign up don't apply to a wallet-based flow.
-  const isRealMode = pathname === '/' || pathname.startsWith('/onchain')
+  // and its Log in/Sign up don't apply to a wallet-based flow. Whitepaper
+  // and Terms are shared/neutral pages linked from both modes, but default
+  // to real mode too -- a real-mode visitor clicking through to either used
+  // to land on the mock navbar with no way back to real "/", only a route
+  // to mock pages ("testnet"). Mock-mode visitors can still get back to the
+  // demo via RealNavbar's own "Demo" link.
+  const isRealMode = pathname === '/' || pathname.startsWith('/onchain') || pathname === '/whitepaper' || pathname === '/terms'
 
   return (
     <div className="min-h-screen flex flex-col">
+      <AnimatedBackground />
       <ChainEngine />
       <DisclaimerBanner />
       {isRealMode ? (
