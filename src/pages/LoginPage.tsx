@@ -37,8 +37,8 @@ export function LoginPage() {
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-2 font-extrabold text-lg mb-1">
-            <span className="w-2.5 h-2.5 rounded-full bg-gradient-to-br from-[#C6FF3D] to-emerald-400 shadow-[0_0_8px_2px_rgba(198,255,61,0.55)]" />
-            PredictX
+            <img src={`${import.meta.env.BASE_URL}ProphetMarkets_fun.png`} alt="" className="w-4 h-4 rounded-sm shrink-0" />
+            Prophet
           </div>
           <p className="text-white/40 text-sm">
             {state?.reopenBet

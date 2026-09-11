@@ -170,9 +170,9 @@ export function LandingPage() {
         </div>
       </section>
 
-      {/* Why PredictX */}
+      {/* Why Prophet */}
       <section className="max-w-6xl mx-auto px-4 py-16">
-        <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-center mb-2">Why PredictX</h2>
+        <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-center mb-2">Why Prophet</h2>
         <p className="text-white/40 text-sm text-center mb-10">Mechanics designed around one idea: reward conviction, not luck of timing.</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
           {FEATURES.map((f) => (

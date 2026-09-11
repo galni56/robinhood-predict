@@ -4,7 +4,7 @@
  * scales cleanly to any size, no image asset to ship or fail to load. */
 export function HeroMark({ className = '' }: { className?: string }) {
   return (
-    <svg viewBox="0 0 400 400" className={className} role="img" aria-label="PredictX">
+    <svg viewBox="0 0 400 400" className={className} role="img" aria-label="Prophet">
       <defs>
         <linearGradient id="hm-grad" x1="0" y1="1" x2="1" y2="0">
           <stop offset="0%" stopColor="#8FBF1F" />

@@ -153,7 +153,7 @@ export function OnchainLandingPage() {
             <div className="relative flex flex-col items-center">
               <img
                 src={`${import.meta.env.BASE_URL}ProphetMarkets_fun.png`}
-                alt="PredictX"
+                alt="Prophet"
                 className="w-full max-w-sm drop-shadow-[0_0_60px_rgba(198,255,61,0.25)]"
                 style={{
                   WebkitMaskImage: 'radial-gradient(ellipse 62% 62% at center, black 60%, transparent 100%)',
@@ -209,9 +209,9 @@ export function OnchainLandingPage() {
         </div>
       </section>
 
-      {/* Why PredictX */}
+      {/* Why Prophet */}
       <section className="max-w-[1240px] mx-auto px-4 py-16">
-        <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-center mb-2">Why PredictX</h2>
+        <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-center mb-2">Why Prophet</h2>
         <p className="text-white/40 text-sm text-center mb-10">Mechanics designed around one idea: reward conviction, not luck of timing.</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
           {FEATURES.map((f) => (

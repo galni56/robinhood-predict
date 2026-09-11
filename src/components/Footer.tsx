@@ -31,8 +31,8 @@ export function Footer() {
       <div className="max-w-[1240px] mx-auto px-4 py-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
         <div className="lg:col-span-2 max-w-sm">
           <div className="flex items-center gap-2 font-extrabold">
-            <span className="w-2.5 h-2.5 rounded-full bg-gradient-to-br from-[#C6FF3D] to-emerald-400 shadow-[0_0_8px_2px_rgba(198,255,61,0.55)]" />
-            PredictX
+            <img src={`${import.meta.env.BASE_URL}ProphetMarkets_fun.png`} alt="" className="w-4 h-4 rounded-sm shrink-0" />
+            Prophet
           </div>
           <p className="text-white/40 text-sm mt-3">
             Parimutuel prediction markets for tokenized stocks. Pick YES or NO on a target price, bet early for a
@@ -69,7 +69,7 @@ export function Footer() {
 
       <div className="border-t border-white/5">
         <div className="max-w-[1240px] mx-auto px-4 py-4 flex flex-wrap items-center justify-between gap-2 text-xs text-white/30">
-          <span>© {new Date().getFullYear()} PredictX. Demo project, not a registered financial service.</span>
+          <span>© {new Date().getFullYear()} Prophet. Demo project, not a registered financial service.</span>
           <span>
             {isOnchain
               ? 'Real mode: Robinhood Chain mainnet, real USDG. Not affiliated with Robinhood Markets, Inc. Contract has not had an external security audit.'

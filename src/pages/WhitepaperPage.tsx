@@ -32,7 +32,7 @@ export function WhitepaperPage() {
       <article className="min-w-0 space-y-12">
         <div>
           <p className="text-xs font-bold tracking-[0.2em] text-[#C6FF3D]/80 uppercase mb-2">Whitepaper</p>
-          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight">PredictX: parimutuel prediction markets for tokenized stocks</h1>
+          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight">Prophet: parimutuel prediction markets for tokenized stocks</h1>
           <p className="text-white/40 text-sm mt-3">
             Version 0.3 · Draft for {RHCHAIN_META.name}. This document describes how the product works today. It is
             not audited, not legal or investment advice, and describes a demo/testnet system — see{' '}
@@ -45,7 +45,7 @@ export function WhitepaperPage() {
 
         <Section id="overview" title="1. Overview">
           <p>
-            PredictX lets anyone bet on whether a tokenized stock will reach a target price before a deadline.
+            Prophet lets anyone bet on whether a tokenized stock will reach a target price before a deadline.
             Markets are two-sided (YES / NO), settle parimutuel — everyone on the losing side funds the payout to
             everyone on the winning side, in proportion to their stake — and require no bookmaker to set odds. The
             pool itself is the price discovery mechanism.
