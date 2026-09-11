@@ -1,7 +1,5 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { RHCHAIN_META } from '@/market/tokens'
-import { MAX_SEED_LIQUIDITY, MAX_TARGET_PRICE, PROTOCOL_FEE_BP } from '@/store/marketStore'
 
 const SECTIONS = [
   { id: 'overview', label: '1. Overview' },
@@ -34,8 +32,8 @@ export function WhitepaperPage() {
           <p className="text-xs font-bold tracking-[0.2em] text-[#C6FF3D]/80 uppercase mb-2">Whitepaper</p>
           <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight">Prophet: parimutuel prediction markets for tokenized stocks</h1>
           <p className="text-white/40 text-sm mt-3">
-            Version 0.3 · Draft for {RHCHAIN_META.name}. This document describes how the product works today. It is
-            not audited, not legal or investment advice, and describes a demo/testnet system — see{' '}
+            Version 1.0 · Robinhood Chain mainnet. This document describes the real, live product — real wallet,
+            real USDG, real money. It is not audited, and not legal or investment advice — see{' '}
             <Link to="/terms" className="text-[#C6FF3D] hover:underline">
               Terms of Service
             </Link>{' '}
@@ -51,21 +49,23 @@ export function WhitepaperPage() {
             pool itself is the price discovery mechanism.
           </p>
           <p>
-            The product ships as two parallel implementations of the same rules: a fully client-side mock (this
-            site, on every route except <code className="text-[#C6FF3D]">/onchain/*</code>) for a zero-friction
-            demo, and a Solidity contract deployed to {RHCHAIN_META.name} for real (test-value) on-chain
-            settlement. Both enforce identical math — target price caps, fee structure, and the weighting mechanic
-            described below.
+            The live product is a Solidity contract deployed to Robinhood Chain <strong>mainnet</strong>, settling
+            real USDG against real Chainlink price feeds. A separate, fully client-side mock demo (reachable via
+            "Try the demo") mirrors the same rules with simulated prices and no wallet, for anyone who wants to see
+            how it works before risking real funds — but it's a different implementation, not a sandboxed version
+            of the same contract.
           </p>
         </Section>
 
         <Section id="markets" title="2. How a market works">
           <p>Every market has:</p>
           <ul className="list-disc pl-5 space-y-1">
-            <li>a <strong>token</strong> and a <strong>target price</strong> (capped at {formatUsdInline(MAX_TARGET_PRICE)}),</li>
+            <li>a <strong>token</strong> and a <strong>target price</strong> — not capped at a flat dollar amount,
+              but required to sit within a band of the live price that scales with how far out the deadline is (see §6);</li>
             <li>a <strong>deadline</strong>, after which the market can be resolved against a live price feed,</li>
             <li>two pools, <strong>YES</strong> and <strong>NO</strong>, that anyone can stake into — once each, per
-              side, per market (no adding to an existing position or hedging both sides beyond one bet each).</li>
+              side, per market (no adding to an existing position or hedging both sides beyond one bet each), capped
+              at $50 per wallet per side.</li>
           </ul>
           <p>
             At resolution, the price feed decides the outcome. Winners receive their principal back in full, plus a
@@ -91,10 +91,10 @@ export function WhitepaperPage() {
 
         <Section id="fees" title="4. Fees">
           <p>
-            A protocol fee of <strong>{formatPctInline(PROTOCOL_FEE_BP)}</strong> is taken — and only ever taken —
-            from the winnings portion of a payout (the losing-pool share), never from a winner's own principal and
-            never from a losing bet (there's nothing further to take from a loss; the stake is already gone to the
-            winning side). There is no fee on losing bets, on refunds, or on cancelled markets.
+            A protocol fee of <strong>2%</strong> is taken — and only ever taken — from the winnings portion of a
+            payout (the losing-pool share), never from a winner's own principal and never from a losing bet
+            (there's nothing further to take from a loss; the stake is already gone to the winning side). There is
+            no fee on losing bets, on refunds, or on cancelled markets.
           </p>
         </Section>
 
@@ -107,44 +107,56 @@ export function WhitepaperPage() {
           </p>
         </Section>
 
-        <Section id="creation" title="6. Market creation">
+        <Section id="creation" title="6. Market creation & guardrails">
           <p>
-            Market creation is permissionless — any account can open one, not just curators. To keep that from
-            being abused to rig a market against a fake or manipulated price source, the price feed a market
-            settles against must already be on an owner-maintained allowlist. An admin may also seed a market with
-            initial liquidity (capped at {formatUsdInline(MAX_SEED_LIQUIDITY)} combined across both sides) so it
-            doesn't have to open at literally zero pools.
+            Market creation is permissionless — any wallet can open one, not just curators. Two guardrails keep that
+            from being abused:
+          </p>
+          <ul className="list-disc pl-5 space-y-1">
+            <li>
+              The price feed a market settles against must already be on an owner-maintained allowlist — permissionless
+              creation, but not against an arbitrary or fake price source.
+            </li>
+            <li>
+              The target price must sit within a band of the feed's live price at creation, scaled by how far out
+              the deadline is: at least 2% away in every case, and no more than 4% away for a market closing within
+              2 hours, 15% within 24 hours, or 20% for anything longer. A market can't be created trivially
+              guaranteed to resolve one way, and can't be created effectively impossible to hit either.
+            </li>
+            <li>Every market also has a 30-minute minimum duration.</li>
+          </ul>
+          <p>
+            The contract owner may also seed a market with initial liquidity (capped at $50 combined across both
+            sides) so it doesn't have to open at literally zero pools.
           </p>
         </Section>
 
         <Section id="architecture" title="7. Architecture">
           <p>
-            The mock app (everything under <code className="text-[#C6FF3D]">/markets</code>,{' '}
-            <code className="text-[#C6FF3D]">/portfolio</code>, etc.) runs entirely in your browser — a simulated
-            chain, simulated price feeds, and localStorage-backed accounts, with zero backend. It exists to make the
-            mechanics playable without a wallet or test funds.
-          </p>
-          <p>
             The real implementation is a Solidity contract (OpenZeppelin's <code className="text-[#C6FF3D]">Ownable</code>,{' '}
-            <code className="text-[#C6FF3D]">ReentrancyGuard</code>, <code className="text-[#C6FF3D]">SafeERC20</code>) deployed to{' '}
-            {RHCHAIN_META.name}, reading prices through a Chainlink-compatible{' '}
-            <code className="text-[#C6FF3D]">AggregatorV3Interface</code>. It is wired into the{' '}
+            <code className="text-[#C6FF3D]">ReentrancyGuard</code>, <code className="text-[#C6FF3D]">SafeERC20</code>) live on{' '}
+            Robinhood Chain mainnet, reading prices through Chainlink's{' '}
+            <code className="text-[#C6FF3D]">AggregatorV3Interface</code>. It's wired into the{' '}
             <Link to="/onchain" className="text-[#C6FF3D] hover:underline">
-              live testnet section
+              real mode
             </Link>{' '}
             of this site via a standard browser wallet connection (MetaMask or Phantom) — no custodial wallet, no
-            key ever touches this app.
+            key ever touches this app; every transaction is signed in your own wallet extension.
+          </p>
+          <p>
+            A separate mock app (everything under <code className="text-[#C6FF3D]">/demo</code>) runs entirely in
+            your browser instead — a simulated chain, simulated price feeds, and localStorage-backed accounts, with
+            zero backend and zero real funds. It's a different, parallel implementation of similar rules, not a
+            sandboxed mode of the real contract.
           </p>
         </Section>
 
         <Section id="roadmap" title="8. Roadmap">
-          <p>In rough order:</p>
+          <p>Known, explicitly open items, in rough priority order:</p>
           <ul className="list-disc pl-5 space-y-1">
-            <li>External security audit of the contract before any real-value usage.</li>
-            <li>
-              Real Chainlink price feeds once Data Streams support for tokenized equities lands on this testnet
-              (Data Feeds currently only exist on mainnet).
-            </li>
+            <li>External security audit of the contract — not done yet, and the highest-priority open item given real funds are already at stake.</li>
+            <li>ETH as a second bet currency, alongside USDG.</li>
+            <li>WalletConnect support, for mobile wallets that aren't a desktop browser extension.</li>
             <li>
               An AMM-style continuous-pricing mode as an alternative to parimutuel settlement, for markets that want
               a live, tradeable price instead of a resolve-at-deadline payout.
@@ -155,16 +167,17 @@ export function WhitepaperPage() {
 
         <Section id="risks" title="9. Risks & disclaimers">
           <p>
-            This is a demo and testnet product. mUSD and every balance in the mock app have no real-world value. The
-            on-chain contract runs on a public <em>testnet</em> — its tokens are test assets, not real money, and
-            the contract has not undergone an external security audit. Nothing here is financial, investment, or
-            legal advice, and none of it should be treated as an offer to trade a real financial product.
-            Legal/regulatory review has been deliberately deferred and is not resolved by this document existing —
-            see the full{' '}
+            Real mode is a live product on Robinhood Chain mainnet — USDG and every balance there is real, and can
+            be genuinely gained or lost. The contract has not undergone an external security audit (an internal
+            self-review only), and is owner-centralized: a single address controls the price-feed allowlist and the
+            protocol fee. Nothing here is financial, investment, or legal advice, and none of it should be treated
+            as an offer to trade a regulated financial product. Legal/regulatory review has been deliberately
+            deferred and is not resolved by this document existing — see the full{' '}
             <Link to="/terms" className="text-[#C6FF3D] hover:underline">
               Terms of Service
             </Link>
-            .
+            . The separate mock demo (<code className="text-[#C6FF3D]">/demo</code>) is simulated and involves no
+            real funds — everything in this section is about real mode specifically.
           </p>
         </Section>
       </article>
@@ -179,12 +192,4 @@ function Section({ id, title, children }: { id: string; title: string; children:
       <div className="text-white/60 text-sm leading-relaxed space-y-3">{children}</div>
     </section>
   )
-}
-
-function formatUsdInline(n: number) {
-  return `$${n.toLocaleString('en-US')}`
-}
-
-function formatPctInline(bp: number) {
-  return `${(bp / 100).toFixed(bp % 100 === 0 ? 0 : 1)}%`
 }

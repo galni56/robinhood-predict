@@ -23,7 +23,7 @@ const resourceLinks = [
 
 export function Footer() {
   const { pathname } = useLocation()
-  const isOnchain = pathname === '/' || pathname.startsWith('/onchain')
+  const isOnchain = pathname === '/' || pathname.startsWith('/onchain') || pathname === '/whitepaper' || pathname === '/terms'
   const productLinks = isOnchain ? realModeLinks : mockModeLinks
 
   return (
