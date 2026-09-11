@@ -20,6 +20,7 @@ import { MarketDetailPage } from '@/pages/MarketDetailPage'
 import { MarketsPage } from '@/pages/MarketsPage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 import { OnchainCreateMarketPage } from '@/pages/OnchainCreateMarketPage'
+import { OnchainArchivePage } from '@/pages/OnchainArchivePage'
 import { OnchainLeaderboardPage } from '@/pages/OnchainLeaderboardPage'
 import { OnchainMarketPage } from '@/pages/OnchainMarketPage'
 import { OnchainMarketsListPage } from '@/pages/OnchainMarketsListPage'
@@ -65,6 +66,7 @@ export default function App() {
             <Route path="create" element={<OnchainCreateMarketPage />} />
             <Route path="portfolio" element={<OnchainPortfolioPage />} />
             <Route path="leaderboard" element={<OnchainLeaderboardPage />} />
+            <Route path="archive" element={<OnchainArchivePage />} />
             <Route path=":id" element={<OnchainMarketPage />} />
           </Route>
 

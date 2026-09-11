@@ -8,6 +8,7 @@ const links = [
   { to: '/onchain', label: 'Markets', end: true },
   { to: '/onchain/portfolio', label: 'Portfolio' },
   { to: '/onchain/leaderboard', label: 'Leaderboard' },
+  { to: '/onchain/archive', label: 'Archive' },
 ]
 
 /** Full-size navbar for the real (mainnet) side of the site — the landing
