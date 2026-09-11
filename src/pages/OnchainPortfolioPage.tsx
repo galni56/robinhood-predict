@@ -1,19 +1,28 @@
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { formatUnits } from 'viem'
-import { useAccount, useReadContract, useReadContracts } from 'wagmi'
+import { formatUnits, parseAbiItem } from 'viem'
+import { useAccount, usePublicClient, useReadContract, useReadContracts } from 'wagmi'
 import { SideBadge, StatusBadge } from '@/components/Pills'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
 import {
   BET_TOKEN_ADDRESS,
+  DEPLOY_BLOCK,
   MarketSideOnchain,
   MarketStatusOnchain,
   PREDICTION_MARKET_ADDRESS,
   erc20Abi,
   predictionMarketAbi,
 } from '@/chain/contracts'
+import { formatUsd } from '@/lib/format'
 import type { MarketSide } from '@/types'
 
 const BET_TOKEN_DECIMALS = 6 // USDG's real decimals (old testnet mock token was 18)
+
+const CLAIMED_EVENT = parseAbiItem('event Claimed(uint256 indexed id, address indexed user, uint256 payout)')
+
+function truncateAddress(addr: string) {
+  return `${addr.slice(0, 6)}…${addr.slice(-4)}`
+}
 
 interface Position {
   id: bigint
@@ -24,11 +33,11 @@ interface Position {
   hasClaimed: boolean
 }
 
-function StatCard({ label, value }: { label: string; value: string }) {
+function StatCard({ label, value, valueClassName = '' }: { label: string; value: string; valueClassName?: string }) {
   return (
     <div className="rounded-2xl border border-white/10 bg-[#12121c]/95 p-4">
       <div className="text-white/40 text-xs mb-1">{label}</div>
-      <div className="text-xl font-mono font-semibold">{value}</div>
+      <div className={`text-xl font-mono font-semibold ${valueClassName}`}>{value}</div>
     </div>
   )
 }
@@ -69,6 +78,35 @@ export function OnchainPortfolioPage() {
     query: { enabled: !!address },
   })
 
+  // Total actually paid out to this wallet across every market it's ever
+  // claimed from — read from the contract's own Claimed events (filtered
+  // to this address), same technique as the leaderboard. Not derivable
+  // from getMarket()/stakes() alone, since those don't track payout size.
+  const client = usePublicClient()
+  const [totalClaimed, setTotalClaimed] = useState<bigint | null>(null)
+  useEffect(() => {
+    if (!client || !address) return
+    let cancelled = false
+    client
+      .getLogs({
+        address: PREDICTION_MARKET_ADDRESS,
+        event: CLAIMED_EVENT,
+        args: { user: address },
+        fromBlock: DEPLOY_BLOCK,
+        toBlock: 'latest',
+      })
+      .then((logs) => {
+        if (cancelled) return
+        setTotalClaimed(logs.reduce((sum, log) => sum + (log.args.payout ?? 0n), 0n))
+      })
+      .catch(() => {
+        if (!cancelled) setTotalClaimed(0n)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [client, address])
+
   if (!isConnected) {
     return (
       <div className="max-w-2xl mx-auto px-4 py-8">
@@ -95,9 +133,33 @@ export function OnchainPortfolioPage() {
   const openPositions = positions.filter((p) => p.status === MarketStatusOnchain.Open)
   const settledPositions = positions.filter((p) => p.status !== MarketStatusOnchain.Open)
   const decidedPositions = settledPositions.filter((p) => p.status === MarketStatusOnchain.Resolved)
-  const wins = decidedPositions.filter((p) => (outcome(p) === 'YES' && p.yesStake > 0n) || (outcome(p) === 'NO' && p.noStake > 0n))
+  const wonPosition = (p: Position) => (outcome(p) === 'YES' && p.yesStake > 0n) || (outcome(p) === 'NO' && p.noStake > 0n)
+  const wins = decidedPositions.filter(wonPosition)
   const winRate = decidedPositions.length > 0 ? (wins.length / decidedPositions.length) * 100 : null
   const totalWagered = positions.reduce((sum, p) => sum + p.yesStake + p.noStake, 0n)
+
+  // Most recent decided markets first (higher id = created later), counting
+  // consecutive same-outcome results back from there.
+  const streakOrder = [...decidedPositions].sort((a, b) => (a.id > b.id ? -1 : a.id < b.id ? 1 : 0))
+  let currentStreak = 0
+  let streakWon: boolean | null = null
+  for (const p of streakOrder) {
+    const won = wonPosition(p)
+    if (streakWon === null) {
+      streakWon = won
+      currentStreak = 1
+    } else if (won === streakWon) {
+      currentStreak++
+    } else {
+      break
+    }
+  }
+
+  // Understates true P&L while bets are still open (principal counted as
+  // "out" until a market resolves and is claimed) -- same caveat as the
+  // leaderboard, and for the same reason: claimed is only ever known once
+  // you've actually called claim().
+  const netPnl = totalClaimed != null ? totalClaimed - totalWagered : null
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
@@ -108,9 +170,17 @@ export function OnchainPortfolioPage() {
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <StatCard label="Balance" value={balance.data != null ? `$${formatUnits(balance.data, BET_TOKEN_DECIMALS)}` : '…'} />
-        <StatCard label="Total wagered" value={`$${formatUnits(totalWagered, BET_TOKEN_DECIMALS)}`} />
+        <StatCard label="Wallet" value={address ? truncateAddress(address) : '—'} />
         <StatCard label="Win rate" value={winRate != null ? `${winRate.toFixed(0)}%` : '—'} />
-        <StatCard label="Positions" value={String(positions.length)} />
+        <StatCard label="Current streak" value={streakWon == null ? '—' : `${currentStreak}${streakWon ? 'W' : 'L'}`} />
+        <StatCard label="Total wagered" value={`$${formatUnits(totalWagered, BET_TOKEN_DECIMALS)}`} />
+        <StatCard label="Total won" value={totalClaimed != null ? `$${formatUnits(totalClaimed, BET_TOKEN_DECIMALS)}` : '…'} />
+        <StatCard
+          label="Net P&L"
+          value={netPnl != null ? `${netPnl >= 0n ? '+' : ''}${formatUsd(Number(formatUnits(netPnl, BET_TOKEN_DECIMALS)))}` : '…'}
+          valueClassName={netPnl == null ? '' : netPnl >= 0n ? 'text-[#C6FF3D]' : 'text-rose-400'}
+        />
+        <StatCard label="Total bets" value={String(positions.length)} />
       </div>
 
       <div>

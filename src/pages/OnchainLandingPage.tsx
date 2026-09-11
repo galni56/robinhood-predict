@@ -9,6 +9,7 @@ import {
   MarketStatusOnchain,
   tickerFromFeedDescription,
 } from '@/chain/contracts'
+import { useRobinhoodAssets } from '@/chain/robinhoodApi'
 import { formatUsd } from '@/lib/format'
 
 const STEPS = [
@@ -94,6 +95,7 @@ export function OnchainLandingPage() {
     })
     .filter((m): m is NonNullable<typeof m> => m != null && m.status === MarketStatusOnchain.Open)
 
+  const assets = useRobinhoodAssets()
   const preview = openMarkets.slice(0, 3)
   const heroMarket = openMarkets[0]
   const heroTicker = heroMarket ? tickerFor(descByFeed.get(heroMarket.priceFeed)) : undefined
@@ -161,6 +163,7 @@ export function OnchainLandingPage() {
                 </span>
                 <span className="uppercase tracking-[0.15em] font-bold text-white/50">live on Robinhood Chain mainnet</span>
                 <span>· {openMarkets.length} market{openMarkets.length === 1 ? '' : 's'} open</span>
+                <span>· ~{assets.data?.length ?? 194} tokenized stocks</span>
               </div>
             </div>
           </div>

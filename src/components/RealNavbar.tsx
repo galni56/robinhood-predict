@@ -74,7 +74,7 @@ export function RealNavbar() {
             to="/demo"
             className="text-xs px-2.5 py-1.5 rounded-full border border-white/10 text-white/50 hover:text-white hover:border-white/30 transition-colors"
           >
-            Try the demo →
+            Demo →
           </NavLink>
           <ConnectWalletButton />
         </div>
@@ -134,7 +134,7 @@ export function RealNavbar() {
             onClick={() => setMobileOpen(false)}
             className="block px-3 py-2 rounded-lg text-sm font-medium text-white/50 hover:bg-white/5"
           >
-            Try the demo →
+            Demo →
           </NavLink>
         </div>
       )}

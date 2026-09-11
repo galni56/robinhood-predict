@@ -25,7 +25,12 @@ export function TokenBrowser() {
       .map((a) => a.tokenSymbol)
   }, [query, assets.data])
 
-  const visibleTickers = matches ?? DEFAULT_TICKERS
+  // Allowlisted tickers (the ones you can actually create a prediction on)
+  // sort first, so "Not allowlisted yet" cards don't crowd out the
+  // actionable ones above the fold.
+  const visibleTickers = [...(matches ?? DEFAULT_TICKERS)].sort(
+    (a, b) => Number(ALLOWLISTED_TICKERS.has(b)) - Number(ALLOWLISTED_TICKERS.has(a)),
+  )
   // No search: DEFAULT_TICKERS is a subset of CORE_TICKERS, so reuse the
   // shared cache (also used by TickerTape) instead of firing duplicate
   // requests for the same symbols. Searching for something outside that
