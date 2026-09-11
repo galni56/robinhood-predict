@@ -4,6 +4,7 @@ import { formatUnits, parseAbiItem, parseUnits } from 'viem'
 import { useAccount, useChainId, useDisconnect, usePublicClient, useReadContract, useSwitchChain, useWriteContract } from 'wagmi'
 import { waitForTransactionReceipt } from 'wagmi/actions'
 import { robinhoodMainnet, wagmiConfig } from '@/chain/config'
+import { useFeedSnapshot } from '@/chain/feedCache'
 import { AddressLabel } from '@/components/AddressLabel'
 import { SideBadge } from '@/components/Pills'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
@@ -134,19 +135,28 @@ export function OnchainMarketPage() {
 
   const feedAddress = market.data?.priceFeed
 
+  // See src/chain/feedCache.ts -- a backend poller keeps this snapshot
+  // fresh; the on-chain reads below only need to run (and poll) when this
+  // market's feed isn't in it.
+  const feedSnapshot = useFeedSnapshot()
+  const snapEntry = feedAddress ? feedSnapshot.data?.[feedAddress] : undefined
+
   const feedDecimals = useReadContract({
     address: feedAddress,
     abi: aggregatorV3Abi,
     functionName: 'decimals',
-    query: { enabled: !!feedAddress },
+    query: { enabled: !!feedAddress && !snapEntry },
   })
 
   const feedPrice = useReadContract({
     address: feedAddress,
     abi: aggregatorV3Abi,
     functionName: 'latestRoundData',
-    query: { enabled: !!feedAddress, refetchInterval: 2_000 },
+    query: { enabled: !!feedAddress && !snapEntry, refetchInterval: 2_000 },
   })
+
+  const effectiveDecimals = snapEntry?.decimals ?? feedDecimals.data
+  const effectivePriceAnswer = snapEntry ? BigInt(snapEntry.answer) : feedPrice.data?.[1]
 
   const feedDescription = useReadContract({
     address: feedAddress,
@@ -196,14 +206,14 @@ export function OnchainMarketPage() {
   })
 
   const targetPriceUsd = useMemo(() => {
-    if (!market.data || feedDecimals.data == null) return null
-    return Number(formatUnits(market.data.targetPrice, feedDecimals.data))
-  }, [market.data, feedDecimals.data])
+    if (!market.data || effectiveDecimals == null) return null
+    return Number(formatUnits(market.data.targetPrice, effectiveDecimals))
+  }, [market.data, effectiveDecimals])
 
   const currentPriceUsd = useMemo(() => {
-    if (!feedPrice.data || feedDecimals.data == null) return null
-    return Number(formatUnits(feedPrice.data[1], feedDecimals.data))
-  }, [feedPrice.data, feedDecimals.data])
+    if (effectivePriceAnswer == null || effectiveDecimals == null) return null
+    return Number(formatUnits(effectivePriceAnswer, effectiveDecimals))
+  }, [effectivePriceAnswer, effectiveDecimals])
 
   // Colors the price by whether it just ticked up or down since the last
   // poll (not by distance from target) — ref so recording it never itself

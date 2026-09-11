@@ -14,6 +14,7 @@ import {
   bettingWindowEndSeconds,
   tickerFromFeedDescription,
 } from '@/chain/contracts'
+import { useFeedSnapshot } from '@/chain/feedCache'
 import { formatCountdown, formatUsd } from '@/lib/format'
 import type { PricePoint } from '@/types'
 
@@ -75,21 +76,42 @@ export function OnchainMarketsListPage() {
     ),
   )
 
+  // A backend service polls every allowlisted feed's price on its own
+  // schedule and serves the snapshot from our own origin (see
+  // src/chain/feedCache.ts) -- when it's available, that's what drives
+  // live prices here instead of this page polling the chain itself. The
+  // on-chain reads below stay as a fallback (a feed missing from the
+  // snapshot, or the endpoint being unavailable, e.g. GitHub Pages), which
+  // is why their own polling only turns on when the snapshot isn't.
+  const feedSnapshot = useFeedSnapshot()
+
   const feedDecimals = useReadContracts({
     contracts: feedAddresses.map((addr) => ({ address: addr, abi: aggregatorV3Abi, functionName: 'decimals' }) as const),
     query: { enabled: feedAddresses.length > 0 },
   })
   const feedPrices = useReadContracts({
     contracts: feedAddresses.map((addr) => ({ address: addr, abi: aggregatorV3Abi, functionName: 'latestRoundData' }) as const),
-    query: { enabled: feedAddresses.length > 0, refetchInterval: 2_000 },
+    query: { enabled: feedAddresses.length > 0, refetchInterval: feedSnapshot.data ? false : 2_000 },
   })
   const feedDescriptions = useReadContracts({
     contracts: feedAddresses.map((addr) => ({ address: addr, abi: aggregatorV3Abi, functionName: 'description' }) as const),
     query: { enabled: feedAddresses.length > 0 },
   })
 
-  const decimalsByFeed = new Map(feedAddresses.map((addr, i) => [addr, feedDecimals.data?.[i]?.status === 'success' ? feedDecimals.data[i].result : undefined]))
-  const priceByFeed = new Map(feedAddresses.map((addr, i) => [addr, feedPrices.data?.[i]?.status === 'success' ? feedPrices.data[i].result : undefined]))
+  const decimalsByFeed = new Map(
+    feedAddresses.map((addr, i) => {
+      const snap = feedSnapshot.data?.[addr]
+      if (snap) return [addr, snap.decimals] as const
+      return [addr, feedDecimals.data?.[i]?.status === 'success' ? feedDecimals.data[i].result : undefined] as const
+    }),
+  )
+  const priceByFeed = new Map(
+    feedAddresses.map((addr, i) => {
+      const snap = feedSnapshot.data?.[addr]
+      if (snap) return [addr, [0n, BigInt(snap.answer), 0n, BigInt(snap.updatedAt), 0n] as const] as const
+      return [addr, feedPrices.data?.[i]?.status === 'success' ? feedPrices.data[i].result : undefined] as const
+    }),
+  )
   const descByFeed = new Map(feedAddresses.map((addr, i) => [addr, feedDescriptions.data?.[i]?.status === 'success' ? feedDescriptions.data[i].result : undefined]))
 
   // Runs after render, so the render just above still compared against last
@@ -108,7 +130,7 @@ export function OnchainMarketsListPage() {
       }
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [feedPrices.data])
+  }, [feedPrices.data, feedSnapshot.data])
 
   const filteredIds = ids.filter((_id, i) => {
     if (filter === 'ALL') return true

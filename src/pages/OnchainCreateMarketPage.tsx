@@ -14,6 +14,7 @@ import {
   recommendedMinDeviationUsd,
   recommendedTargetRange,
 } from '@/chain/contracts'
+import { readSnapshotPrice, useFeedSnapshot } from '@/chain/feedCache'
 import { formatUsd, shortTxError } from '@/lib/format'
 
 const DURATION_PRESETS = [
@@ -40,6 +41,12 @@ export function OnchainCreateMarketPage() {
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // feedDecimals is also read directly on-chain (not just from the
+  // snapshot below) because it feeds parseUnits() for the actual
+  // createMarket transaction at submit time -- real-money-adjacent values
+  // stay on the authoritative on-chain path. The snapshot only drives the
+  // displayed/prefilled current price, which can safely lag a couple of
+  // seconds behind the chain.
   const feedDecimals = useReadContract({
     address: feedAddress,
     abi: aggregatorV3Abi,
@@ -50,8 +57,10 @@ export function OnchainCreateMarketPage() {
     abi: aggregatorV3Abi,
     functionName: 'latestRoundData',
   })
+  const feedSnapshot = useFeedSnapshot()
   const currentPriceUsd =
-    feedPrice.data && feedDecimals.data != null ? Number(formatUnits(feedPrice.data[1], feedDecimals.data)) : null
+    readSnapshotPrice(feedSnapshot.data, feedAddress) ??
+    (feedPrice.data && feedDecimals.data != null ? Number(formatUnits(feedPrice.data[1], feedDecimals.data)) : null)
 
   // Pre-fill the target with the live price whenever the ticker changes (not
   // on every price poll, or the user's own edits would keep getting

@@ -9,6 +9,7 @@ import {
   MarketStatusOnchain,
   tickerFromFeedDescription,
 } from '@/chain/contracts'
+import { useFeedSnapshot } from '@/chain/feedCache'
 import { useRobinhoodAssets } from '@/chain/robinhoodApi'
 import { formatUsd } from '@/lib/format'
 
@@ -50,7 +51,7 @@ const FEATURES = [
   },
   {
     title: 'Not a demo',
-    body: 'This is a real Solidity contract live on Robinhood Chain mainnet — permissionless market creation, an owner-maintained price-feed allowlist, and a $500 target-price cap. Real USDG, real wallet, real transactions.',
+    body: 'This is a real Solidity contract live on Robinhood Chain mainnet — permissionless market creation, an owner-maintained price-feed allowlist, and a target price bounded relative to the live price. Real USDG, real wallet, real transactions.',
   },
 ] as const
 
@@ -71,6 +72,11 @@ export function OnchainLandingPage() {
   const feedAddresses = Array.from(
     new Set((markets.data ?? []).map((r) => (r.status === 'success' ? r.result.priceFeed : undefined)).filter((a): a is `0x${string}` => !!a)),
   )
+  // See src/chain/feedCache.ts -- a backend poller keeps this snapshot
+  // fresh, so this page only reads the chain directly for a feed the
+  // snapshot doesn't have.
+  const feedSnapshot = useFeedSnapshot()
+
   const feedDecimals = useReadContracts({
     contracts: feedAddresses.map((addr) => ({ address: addr, abi: aggregatorV3Abi, functionName: 'decimals' }) as const),
     query: { enabled: feedAddresses.length > 0 },
@@ -83,8 +89,20 @@ export function OnchainLandingPage() {
     contracts: feedAddresses.map((addr) => ({ address: addr, abi: aggregatorV3Abi, functionName: 'description' }) as const),
     query: { enabled: feedAddresses.length > 0 },
   })
-  const decimalsByFeed = new Map(feedAddresses.map((addr, i) => [addr, feedDecimals.data?.[i]?.status === 'success' ? feedDecimals.data[i].result : undefined]))
-  const priceByFeed = new Map(feedAddresses.map((addr, i) => [addr, feedPrices.data?.[i]?.status === 'success' ? feedPrices.data[i].result : undefined]))
+  const decimalsByFeed = new Map(
+    feedAddresses.map((addr, i) => {
+      const snap = feedSnapshot.data?.[addr]
+      if (snap) return [addr, snap.decimals] as const
+      return [addr, feedDecimals.data?.[i]?.status === 'success' ? feedDecimals.data[i].result : undefined] as const
+    }),
+  )
+  const priceByFeed = new Map(
+    feedAddresses.map((addr, i) => {
+      const snap = feedSnapshot.data?.[addr]
+      if (snap) return [addr, [0n, BigInt(snap.answer), 0n, BigInt(snap.updatedAt), 0n] as const] as const
+      return [addr, feedPrices.data?.[i]?.status === 'success' ? feedPrices.data[i].result : undefined] as const
+    }),
+  )
   const descByFeed = new Map(feedAddresses.map((addr, i) => [addr, feedDescriptions.data?.[i]?.status === 'success' ? feedDescriptions.data[i].result : undefined]))
   const tickerFor = tickerFromFeedDescription
 
