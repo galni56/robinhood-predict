@@ -30,6 +30,13 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (p) => p.replace(/^\/api\/robinhood/, ''),
       },
+      // Mirrors the VPS's /api/rpc proxy (see src/chain/config.ts) so a dev
+      // session with VITE_RPC_URL=/api/rpc/ set locally behaves the same way.
+      '/api/rpc': {
+        target: 'https://rpc.mainnet.chain.robinhood.com',
+        changeOrigin: true,
+        rewrite: (p) => p.replace(/^\/api\/rpc/, ''),
+      },
     },
   },
   plugins: [react(), tailwindcss()],

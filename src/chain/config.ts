@@ -11,7 +11,15 @@ export const robinhoodMainnet = defineChain({
   name: 'Robinhood Chain',
   nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
   rpcUrls: {
-    default: { http: ['https://rpc.mainnet.chain.robinhood.com'] },
+    // Direct browser calls to the real RPC URL are CORS-fine on a normal
+    // response, but a 429 (rate limit) response has no CORS headers, which
+    // the browser then reports as a blocked-by-CORS error with no usable
+    // status for retry logic to act on -- confirmed live 2026-09-11 when
+    // real traffic started tripping it. VITE_RPC_URL lets the VPS build
+    // point this at our own nginx proxy (/api/rpc, same-origin, cached and
+    // resilient to upstream 429s) instead; GitHub Pages has no server-side
+    // proxy available, so it keeps hitting Robinhood directly, unchanged.
+    default: { http: [import.meta.env.VITE_RPC_URL ?? 'https://rpc.mainnet.chain.robinhood.com'] },
   },
   blockExplorers: {
     default: { name: 'Explorer', url: 'https://robinhoodchain.blockscout.com' },
