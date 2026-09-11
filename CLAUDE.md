@@ -80,11 +80,16 @@ lessons" section below.
    time (happened once). Full deploy command:
    ```bash
    ssh -i ~/.ssh/predictx_vps -p 22022 root@104.207.90.56 \
-     "cd /opt/robinhood-predict && git pull origin main && VITE_BASE_PATH=/ npm run build"
+     "cd /opt/robinhood-predict && git pull origin main && VITE_BASE_PATH=/ VITE_RPC_URL=/api/rpc/ npm run build"
    ```
-   `VITE_BASE_PATH=/` matters — the default `base` in `vite.config.ts` is
-   `/robinhood-predict/` (for GitHub Pages), and the VPS serves from the
-   domain root, so every asset 404s without the override.
+   Both env vars matter: `VITE_BASE_PATH=/` — the default `base` in
+   `vite.config.ts` is `/robinhood-predict/` (for GitHub Pages), and the
+   VPS serves from the domain root, so every asset 404s without the
+   override. `VITE_RPC_URL=/api/rpc/` (trailing slash required) — points
+   wagmi's RPC transport at the VPS's own nginx proxy instead of calling
+   Robinhood's RPC directly from the browser; omitting it silently
+   regresses to the direct URL, which is exposed to the CORS-masked-429
+   failure mode in "Ops lessons" below.
 4. **Screenshot structural/visual frontend changes before shipping them.**
    Use the `run-frontend` skill (Playwright against the local dev server)
    to verify a layout/component change actually renders correctly before
@@ -123,6 +128,17 @@ lessons" section below.
   realistic traffic. `useCorePrices()`'s dedup only solves the
   *within-one-tab* version of this problem; the nginx cache is what
   solves it across users.
+- **Direct browser calls to Robinhood's RPC (`rpc.mainnet.chain.robinhood.com`)
+  hit the same CORS-masks-429 problem, separately from the price API.** A
+  429 (rate limit) response has no CORS headers, so the browser reports it
+  as a CORS failure with no usable HTTP status for wagmi/viem's retry logic
+  — every market read fails at once when this happens. Fixed the same way:
+  `/api/rpc/` on the VPS's nginx, same lazy-DNS pattern, cached by
+  `proxy_cache_key "$request_body"` (2s TTL) with `proxy_cache_use_stale`
+  covering `http_429` specifically, so a rate-limited call degrades to the
+  last good answer instead of erroring. Requires `VITE_RPC_URL=/api/rpc/`
+  at VPS build time (see rule 3 above) — GitHub Pages has no proxy
+  available and is unaffected/unfixed either way.
 - **A private GitHub repo silently kills GitHub Pages.** Free-tier Pages
   doesn't serve from a private repo, and flipping the repo back to public
   doesn't auto-resume it — it needs Settings → Pages reconfigured once
