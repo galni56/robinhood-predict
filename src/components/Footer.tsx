@@ -28,7 +28,7 @@ export function Footer() {
 
   return (
     <footer className="border-t border-white/10 bg-[#08080e]">
-      <div className="max-w-6xl mx-auto px-4 py-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+      <div className="max-w-[1240px] mx-auto px-4 py-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
         <div className="lg:col-span-2 max-w-sm">
           <div className="flex items-center gap-2 font-extrabold">
             <span className="w-2.5 h-2.5 rounded-full bg-gradient-to-br from-[#C6FF3D] to-emerald-400 shadow-[0_0_8px_2px_rgba(198,255,61,0.55)]" />
@@ -68,7 +68,7 @@ export function Footer() {
       </div>
 
       <div className="border-t border-white/5">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex flex-wrap items-center justify-between gap-2 text-xs text-white/30">
+        <div className="max-w-[1240px] mx-auto px-4 py-4 flex flex-wrap items-center justify-between gap-2 text-xs text-white/30">
           <span>© {new Date().getFullYear()} PredictX. Demo project, not a registered financial service.</span>
           <span>
             {isOnchain

@@ -25,7 +25,7 @@ export function RealNavbar() {
 
   return (
     <header className="sticky top-0 z-20 border-b border-white/10 bg-[#0a0a12]/95 xl:bg-[#0a0a12]/85 xl:backdrop-blur">
-      <div className="max-w-6xl mx-auto px-4 h-14 flex items-center gap-4 xl:gap-6">
+      <div className="max-w-[1240px] mx-auto px-4 h-14 flex items-center gap-4 xl:gap-6">
         <NavLink to="/" className="flex items-center gap-2 font-extrabold shrink-0">
           <span className="w-2.5 h-2.5 rounded-full bg-gradient-to-br from-[#C6FF3D] to-emerald-400 shadow-[0_0_10px_2px_rgba(198,255,61,0.55)]" />
           PredictX

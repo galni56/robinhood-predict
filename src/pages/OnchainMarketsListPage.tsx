@@ -121,7 +121,7 @@ export function OnchainMarketsListPage() {
   })
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8">
+    <div className="max-w-[1240px] mx-auto px-4 py-8">
       <div className="mb-6 rounded-xl border border-sky-500/30 bg-sky-500/10 px-4 py-3 text-sm text-sky-200">
         ⛓️ This is <b>real mode</b> — markets are read directly from the deployed contract on Robinhood Chain mainnet.
       </div>

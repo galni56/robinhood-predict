@@ -38,7 +38,7 @@ export function StatusBadge({ status }: { status: 'pending' | 'confirmed' }) {
 
 export function AwaitingCounterBetsBadge() {
   return (
-    <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30">
+    <span className="text-[11px] font-medium px-2.5 py-1 leading-none whitespace-nowrap rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30">
       Awaiting Counter-Bets
     </span>
   )
