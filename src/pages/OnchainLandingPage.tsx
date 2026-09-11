@@ -155,6 +155,10 @@ export function OnchainLandingPage() {
                 src={`${import.meta.env.BASE_URL}ProphetMarkets_fun.png`}
                 alt="PredictX"
                 className="w-full max-w-sm drop-shadow-[0_0_60px_rgba(198,255,61,0.25)]"
+                style={{
+                  WebkitMaskImage: 'radial-gradient(ellipse 62% 62% at center, black 60%, transparent 100%)',
+                  maskImage: 'radial-gradient(ellipse 62% 62% at center, black 60%, transparent 100%)',
+                }}
               />
               <div className="flex items-center gap-2 text-xs text-white/40 mt-2">
                 <span className="relative flex h-2 w-2">

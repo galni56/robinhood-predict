@@ -2,7 +2,9 @@ import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { formatUnits } from 'viem'
 import { useReadContract, useReadContracts } from 'wagmi'
+import { OnchainMarketsSidebar } from '@/components/OnchainMarketsSidebar'
 import { AwaitingCounterBetsBadge, CancelledBadge } from '@/components/Pills'
+import { Sparkline } from '@/components/PriceChart'
 import { TokenBrowser } from '@/components/TokenBrowser'
 import {
   PREDICTION_MARKET_ADDRESS,
@@ -13,6 +15,15 @@ import {
   tickerFromFeedDescription,
 } from '@/chain/contracts'
 import { formatCountdown, formatUsd } from '@/lib/format'
+import type { PricePoint } from '@/types'
+
+// How many 2s polls of real price history to keep per feed for the card
+// sparkline -- 90 points is 3 minutes, enough to show a real trend without
+// growing unbounded on a page left open a long time. This is genuinely
+// polled data, not simulated -- it just only covers however long this page
+// has been open, not the market's full lifetime (Chainlink's
+// latestRoundData() has no history endpoint to backfill from).
+const PRICE_HISTORY_LENGTH = 90
 
 type StatusFilter = 'ALL' | 'OPEN' | 'RESOLVED' | 'CANCELLED'
 
@@ -29,6 +40,10 @@ export function OnchainMarketsListPage() {
   // "did it just tick up or down", not by distance from the target — a ref
   // (not state) so updating it never itself triggers a re-render.
   const prevPriceByFeed = useRef<Map<string, number>>(new Map())
+  // Real prices accumulated client-side since this page was opened, for the
+  // card sparkline — also a ref, piggybacking on the same effect below; the
+  // next 2s poll's re-render is what actually shows the appended point.
+  const priceHistoryByFeed = useRef<Map<string, PricePoint[]>>(new Map())
 
   const marketCount = useReadContract({
     address: PREDICTION_MARKET_ADDRESS,
@@ -84,7 +99,12 @@ export function OnchainMarketsListPage() {
       const decimals = decimalsByFeed.get(addr)
       const price = priceByFeed.get(addr)
       if (decimals != null && price) {
-        prevPriceByFeed.current.set(addr, Number(formatUnits(price[1], decimals)))
+        const usd = Number(formatUnits(price[1], decimals))
+        prevPriceByFeed.current.set(addr, usd)
+        const series = priceHistoryByFeed.current.get(addr) ?? []
+        series.push({ t: Date.now(), price: usd })
+        if (series.length > PRICE_HISTORY_LENGTH) series.shift()
+        priceHistoryByFeed.current.set(addr, series)
       }
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -122,6 +142,8 @@ export function OnchainMarketsListPage() {
         </Link>
       </div>
 
+      <div className="flex gap-6 items-start">
+        <div className="flex-1 min-w-0">
       <div className="flex gap-1 mb-6">
         {STATUS_FILTERS.map((f) => (
           <button
@@ -194,9 +216,18 @@ export function OnchainMarketsListPage() {
                   </div>
                 </div>
 
-                <p className="text-xs text-white/50 mb-3">
+                <p className="text-xs text-white/50 mb-2">
                   {ticker ?? 'This market'} reach {targetUsd != null ? formatUsd(targetUsd) : '…'}?
                 </p>
+
+                {(() => {
+                  const series = priceHistoryByFeed.current.get(m.priceFeed) ?? []
+                  return series.length > 1 ? (
+                    <div className="mb-2">
+                      <Sparkline data={series} color={tickedUp ? '#2dd888' : '#ff5577'} />
+                    </div>
+                  ) : null
+                })()}
 
                 <div className="h-1.5 rounded-full bg-rose-500/25 overflow-hidden">
                   <div className="h-full bg-emerald-400" style={{ width: `${yesPct}%` }} />
@@ -228,6 +259,12 @@ export function OnchainMarketsListPage() {
       )}
 
       <TokenBrowser />
+        </div>
+
+        <aside className="hidden lg:block w-72 shrink-0 sticky top-20">
+          <OnchainMarketsSidebar />
+        </aside>
+      </div>
     </div>
   )
 }
