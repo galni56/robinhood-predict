@@ -1,7 +1,6 @@
 import { Link } from 'react-router-dom'
 import { formatUnits } from 'viem'
 import { useReadContract, useReadContracts } from 'wagmi'
-import { HeroMark } from '@/components/HeroMark'
 import { AwaitingCounterBetsBadge, CancelledBadge } from '@/components/Pills'
 import {
   PREDICTION_MARKET_ADDRESS,
@@ -150,7 +149,11 @@ export function OnchainLandingPage() {
             </div>
 
             <div className="relative flex flex-col items-center">
-              <HeroMark className="w-full max-w-sm drop-shadow-[0_0_60px_rgba(198,255,61,0.25)]" />
+              <img
+                src={`${import.meta.env.BASE_URL}ProphetMarkets_fun.png`}
+                alt="PredictX"
+                className="w-full max-w-sm drop-shadow-[0_0_60px_rgba(198,255,61,0.25)]"
+              />
               <div className="flex items-center gap-2 text-xs text-white/40 mt-2">
                 <span className="relative flex h-2 w-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#C6FF3D]/60" />
