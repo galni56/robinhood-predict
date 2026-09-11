@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { formatUnits, parseUnits } from 'viem'
-import { useAccount, useChainId, useDisconnect, useReadContract, useSwitchChain, useWriteContract } from 'wagmi'
+import { formatUnits, parseAbiItem, parseUnits } from 'viem'
+import { useAccount, useChainId, useDisconnect, usePublicClient, useReadContract, useSwitchChain, useWriteContract } from 'wagmi'
 import { waitForTransactionReceipt } from 'wagmi/actions'
 import { robinhoodMainnet, wagmiConfig } from '@/chain/config'
+import { SideBadge } from '@/components/Pills'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
 import {
   BET_TOKEN_ADDRESS,
   BP_DENOMINATOR,
+  DEPLOY_BLOCK,
   MarketSideOnchain,
   MarketStatusOnchain,
   PREDICTION_MARKET_ADDRESS,
@@ -19,8 +21,25 @@ import {
   tickerFromFeedDescription,
 } from '@/chain/contracts'
 import { formatCountdown, formatUsd, shortTxError } from '@/lib/format'
+import { shortHash } from '@/lib/hash'
 
 const BET_TOKEN_DECIMALS = 6 // USDG's real decimals (old testnet mock token was 18)
+
+const BET_PLACED_EVENT = parseAbiItem(
+  'event BetPlaced(uint256 indexed id, address indexed user, uint8 side, uint256 amount, uint256 weightBp)',
+)
+
+interface MarketBet {
+  user: `0x${string}`
+  side: number
+  amount: bigint
+  txHash: `0x${string}`
+  blockNumber: bigint
+}
+
+function truncateAddress(addr: string) {
+  return `${addr.slice(0, 6)}…${addr.slice(-4)}`
+}
 
 type TxState = { label: string } | null
 
@@ -37,6 +56,42 @@ export function OnchainMarketPage() {
   const [amount, setAmount] = useState('10')
   const [tx, setTx] = useState<TxState>(null)
   const [error, setError] = useState<string | null>(null)
+
+  // Who bet what on THIS market, scanned from the contract's own BetPlaced
+  // events (filtered to this market's id) -- public data, shown regardless
+  // of wallet connection, same as the pool totals above.
+  const publicClient = usePublicClient()
+  const [marketBets, setMarketBets] = useState<MarketBet[] | null>(null)
+  async function refetchMarketBets() {
+    if (!publicClient) return
+    try {
+      const logs = await publicClient.getLogs({
+        address: PREDICTION_MARKET_ADDRESS,
+        event: BET_PLACED_EVENT,
+        args: { id: MARKET_ID },
+        fromBlock: DEPLOY_BLOCK,
+        toBlock: 'latest',
+      })
+      setMarketBets(
+        logs
+          .filter((log) => log.args.user && log.args.side != null && log.args.amount != null)
+          .map((log) => ({
+            user: log.args.user!,
+            side: log.args.side!,
+            amount: log.args.amount!,
+            txHash: log.transactionHash,
+            blockNumber: log.blockNumber,
+          }))
+          .sort((a, b) => (a.blockNumber > b.blockNumber ? -1 : a.blockNumber < b.blockNumber ? 1 : 0)),
+      )
+    } catch {
+      setMarketBets((prev) => prev ?? [])
+    }
+  }
+  useEffect(() => {
+    refetchMarketBets()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [publicClient, id])
 
   const onRightChain = chainId === robinhoodMainnet.id
 
@@ -131,7 +186,15 @@ export function OnchainMarketPage() {
   }, [currentPriceUsd])
 
   async function refetchAll() {
-    await Promise.all([market.refetch(), betTokenBalance.refetch(), allowance.refetch(), myStakeYes.refetch(), myStakeNo.refetch(), hasClaimed.refetch()])
+    await Promise.all([
+      market.refetch(),
+      betTokenBalance.refetch(),
+      allowance.refetch(),
+      myStakeYes.refetch(),
+      myStakeNo.refetch(),
+      hasClaimed.refetch(),
+      refetchMarketBets(),
+    ])
   }
 
   async function handleBet() {
@@ -294,6 +357,43 @@ export function OnchainMarketPage() {
           </div>
         </div>
       )}
+
+      <div className="mb-5">
+        <h2 className="text-sm font-bold mb-2">Bets on this market</h2>
+        {marketBets == null ? (
+          <p className="text-white/40 text-xs">Scanning chain…</p>
+        ) : marketBets.length === 0 ? (
+          <p className="text-white/30 text-xs">No bets placed yet.</p>
+        ) : (
+          <div className="space-y-1.5">
+            {marketBets.map((b) => (
+              <div
+                key={b.txHash}
+                className="flex items-center gap-3 text-xs bg-[#12121c]/95 border border-white/10 rounded-lg px-3 py-2"
+              >
+                <SideBadge side={b.side === MarketSideOnchain.YES ? 'YES' : 'NO'} />
+                <a
+                  href={`${robinhoodMainnet.blockExplorers.default.url}/address/${b.user}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-mono text-white/70 hover:text-white"
+                >
+                  {truncateAddress(b.user)}
+                </a>
+                <span className="font-mono text-white/50">{formatUnits(b.amount, BET_TOKEN_DECIMALS)} USDG</span>
+                <a
+                  href={`${robinhoodMainnet.blockExplorers.default.url}/tx/${b.txHash}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="ml-auto shrink-0 font-mono px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-[#C6FF3D]/90 hover:bg-white/10 transition-colors"
+                >
+                  {shortHash(b.txHash)}
+                </a>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {!isConnected ? (
         <WalletOptionsList />
