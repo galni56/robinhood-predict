@@ -318,10 +318,17 @@ export function OnchainMarketsListPage() {
                   ) : null
                 })()}
 
-                {/* Clickable, not just informational -- picking a side here
-                    jumps straight to the market page with that side
-                    preselected, same shortcut chroma.markets' card buttons
-                    give instead of a plain progress bar. */}
+                {/* The bar shows which side the pool actually favors right now;
+                    the buttons below are the click target -- picking one jumps
+                    straight to the market page with that side preselected. */}
+                <div className="h-1.5 rounded-full bg-rose-500/25 overflow-hidden">
+                  <div className="h-full bg-emerald-400" style={{ width: `${yesPct}%` }} />
+                </div>
+                <div className="flex justify-between text-[11px] text-white/40 mt-1 mb-2">
+                  <span>YES {yesPct.toFixed(1)}%</span>
+                  <span>NO {(100 - yesPct).toFixed(1)}%</span>
+                </div>
+
                 <div className="grid grid-cols-2 gap-1.5">
                   <button
                     disabled={!canBet}
@@ -331,7 +338,7 @@ export function OnchainMarketsListPage() {
                     }}
                     className="rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 disabled:hover:bg-emerald-500/15 disabled:cursor-not-allowed border border-emerald-500/30 text-emerald-400 text-xs font-bold py-1.5 transition-colors"
                   >
-                    YES {yesPct.toFixed(0)}%
+                    Bet YES
                   </button>
                   <button
                     disabled={!canBet}
@@ -341,7 +348,7 @@ export function OnchainMarketsListPage() {
                     }}
                     className="rounded-lg bg-rose-500/15 hover:bg-rose-500/25 disabled:hover:bg-rose-500/15 disabled:cursor-not-allowed border border-rose-500/30 text-rose-400 text-xs font-bold py-1.5 transition-colors"
                   >
-                    NO {(100 - yesPct).toFixed(0)}%
+                    Bet NO
                   </button>
                 </div>
 
