@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { formatUnits, parseAbiItem, parseUnits } from 'viem'
 import { useAccount, useChainId, useDisconnect, usePublicClient, useReadContract, useSwitchChain, useWriteContract } from 'wagmi'
 import { waitForTransactionReceipt } from 'wagmi/actions'
@@ -54,7 +54,12 @@ export function OnchainMarketPage() {
   const { switchChain, isPending: isSwitching } = useSwitchChain()
   const { writeContractAsync } = useWriteContract()
 
-  const [side, setSide] = useState<'YES' | 'NO'>('YES')
+  // Arriving from a YES/NO button on the markets-list card (e.g.
+  // /onchain/9?side=NO) preselects that side instead of always defaulting
+  // to YES, so the click there actually carries through instead of landing
+  // on a coin flip.
+  const [searchParams] = useSearchParams()
+  const [side, setSide] = useState<'YES' | 'NO'>(searchParams.get('side') === 'NO' ? 'NO' : 'YES')
   const [amount, setAmount] = useState('10')
   const [tx, setTx] = useState<TxState>(null)
   const [error, setError] = useState<string | null>(null)

@@ -8,9 +8,9 @@ import {
   aggregatorV3Abi,
   predictionMarketAbi,
   MarketStatusOnchain,
+  feedAddressForTicker,
   tickerFromFeedDescription,
 } from '@/chain/contracts'
-import { robinhoodMainnet } from '@/chain/config'
 import { useFeedSnapshot } from '@/chain/feedCache'
 import { useRobinhoodAssets } from '@/chain/robinhoodApi'
 import { formatUsd } from '@/lib/format'
@@ -417,38 +417,40 @@ export function OnchainLandingPage() {
         {filteredAssets.length > 0 ? (
           <div className="flex flex-wrap justify-center gap-2">
             {filteredAssets.map((a) => {
-              const deployment = a.deployments.find((d) => d.chainId === robinhoodMainnet.id)
-              const pillClass =
-                'flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/10 bg-[#12121c]/95 text-sm text-white/60 font-mono hover:-translate-y-0.5 hover:text-white hover:border-[#C6FF3D]/30 hover:bg-[#181829] transition-all'
+              const hasFeed = !!feedAddressForTicker(a.tokenSymbol)
               const dot = (
                 <span
                   className="w-1.5 h-1.5 rounded-full shrink-0"
-                  style={{ background: `hsl(${hueForTicker(a.tokenSymbol)} 70% 60%)` }}
+                  style={{ background: hasFeed ? `hsl(${hueForTicker(a.tokenSymbol)} 70% 60%)` : 'transparent', border: hasFeed ? undefined : '1px solid rgba(255,255,255,0.25)' }}
                 />
               )
               const label = a.tokenName.replace(/\s*•\s*Robinhood Token$/i, '')
 
-              // Link to the token's own contract on the chain explorer when we
-              // have its address -- every one of the 194 assets gets a link
-              // this way, not just the 27 with an allowlisted price feed, so
-              // clicking never implies anything about market-creation eligibility.
-              if (deployment) {
+              // Every ticker with an allowlisted Chainlink feed can actually
+              // become a market -- send it straight to market creation,
+              // prefilled, instead of an inert link. One without a feed yet
+              // simply can't be created against, so it stays a plain (but
+              // clearly-labelled, not just dead) pill instead of pretending
+              // to be clickable.
+              if (hasFeed) {
                 return (
-                  <a
+                  <Link
                     key={a.tokenSymbol}
-                    href={`${robinhoodMainnet.blockExplorers.default.url}/address/${deployment.contractAddress}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    title={`${label} — view contract on the chain explorer ↗`}
-                    className={pillClass}
+                    to={`/onchain/create?feed=${a.tokenSymbol}`}
+                    title={`Create a market for ${label}`}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/10 bg-[#12121c]/95 text-sm text-white/60 font-mono hover:-translate-y-0.5 hover:text-white hover:border-[#C6FF3D]/30 hover:bg-[#181829] transition-all"
                   >
                     {dot}
                     {a.tokenSymbol}
-                  </a>
+                  </Link>
                 )
               }
               return (
-                <span key={a.tokenSymbol} title={label} className={`${pillClass} cursor-default`}>
+                <span
+                  key={a.tokenSymbol}
+                  title={`${label} — no price feed yet. Robinhood hasn't shipped one for this stock, so a market can't be created until they do.`}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/5 border-dashed bg-white/[0.02] text-sm text-white/30 font-mono cursor-default"
+                >
                   {dot}
                   {a.tokenSymbol}
                 </span>

@@ -5,13 +5,11 @@ import { usePublicClient } from 'wagmi'
 import { AddressLabel } from '@/components/AddressLabel'
 import { SideBadge } from '@/components/Pills'
 import { robinhoodMainnet } from '@/chain/config'
+import { useBetLogs } from '@/chain/betLogs'
 import { DEPLOY_BLOCK, MarketSideOnchain, PREDICTION_MARKET_ADDRESS } from '@/chain/contracts'
 import { formatUsd } from '@/lib/format'
 import { shortHash } from '@/lib/hash'
 
-const BET_PLACED_EVENT = parseAbiItem(
-  'event BetPlaced(uint256 indexed id, address indexed user, uint8 side, uint256 amount, uint256 weightBp)',
-)
 const CLAIMED_EVENT = parseAbiItem('event Claimed(uint256 indexed id, address indexed user, uint256 payout)')
 
 const BET_TOKEN_DECIMALS = 6 // USDG's real decimals
@@ -23,34 +21,22 @@ interface UserStats {
   bets: number
 }
 
-interface BetLog {
-  id: bigint
-  user: `0x${string}`
-  side: number
-  amount: bigint
-  txHash: `0x${string}`
-  blockNumber: bigint
-}
-
 /** Side-rail widgets for the real markets list, mirroring the mock app's
  * MarketsSidebar (top-5 mini leaderboard + recent-bets feed) but built from
  * the contract's own BetPlaced/Claimed events via getLogs -- same technique
  * as OnchainLeaderboardPage, just condensed. Real data, not simulated. */
 export function OnchainMarketsSidebar() {
   const client = usePublicClient()
+  const betLogs = useBetLogs()
   const [stats, setStats] = useState<UserStats[] | null>(null)
-  const [recent, setRecent] = useState<BetLog[] | null>(null)
 
   useEffect(() => {
-    if (!client) return
+    if (!client || !betLogs.data) return
     let cancelled = false
 
     async function run() {
       try {
-        const [betLogs, claimLogs] = await Promise.all([
-          client!.getLogs({ address: PREDICTION_MARKET_ADDRESS, event: BET_PLACED_EVENT, fromBlock: DEPLOY_BLOCK, toBlock: 'latest' }),
-          client!.getLogs({ address: PREDICTION_MARKET_ADDRESS, event: CLAIMED_EVENT, fromBlock: DEPLOY_BLOCK, toBlock: 'latest' }),
-        ])
+        const claimLogs = await client!.getLogs({ address: PREDICTION_MARKET_ADDRESS, event: CLAIMED_EVENT, fromBlock: DEPLOY_BLOCK, toBlock: 'latest' })
         if (cancelled) return
 
         const byUser = new Map<string, UserStats>()
@@ -63,10 +49,9 @@ export function OnchainMarketsSidebar() {
           }
           return s
         }
-        for (const log of betLogs) {
-          if (!log.args.user || log.args.amount == null) continue
-          const s = get(log.args.user)
-          s.staked += log.args.amount
+        for (const log of betLogs.data!) {
+          const s = get(log.user)
+          s.staked += log.amount
           s.bets += 1
         }
         for (const log of claimLogs) {
@@ -82,26 +67,9 @@ export function OnchainMarketsSidebar() {
           })
           .slice(0, 5)
 
-        const recentBets: BetLog[] = betLogs
-          .filter((log) => log.args.id != null && log.args.user && log.args.side != null && log.args.amount != null)
-          .map((log) => ({
-            id: log.args.id!,
-            user: log.args.user!,
-            side: log.args.side!,
-            amount: log.args.amount!,
-            txHash: log.transactionHash,
-            blockNumber: log.blockNumber,
-          }))
-          .sort((a, b) => (a.amount > b.amount ? -1 : a.amount < b.amount ? 1 : 0))
-          .slice(0, 8)
-
         setStats(ranked)
-        setRecent(recentBets)
       } catch {
-        if (!cancelled) {
-          setStats([])
-          setRecent([])
-        }
+        if (!cancelled) setStats([])
       }
     }
 
@@ -109,7 +77,9 @@ export function OnchainMarketsSidebar() {
     return () => {
       cancelled = true
     }
-  }, [client])
+  }, [client, betLogs.data])
+
+  const recent = betLogs.data == null ? null : [...betLogs.data].sort((a, b) => (a.amount > b.amount ? -1 : a.amount < b.amount ? 1 : 0)).slice(0, 8)
 
   return (
     <div className="space-y-5">

@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { formatUnits } from 'viem'
 import { useReadContract, useReadContracts } from 'wagmi'
+import { LiveBetsTicker } from '@/components/LiveBetsTicker'
 import { OnchainMarketsSidebar } from '@/components/OnchainMarketsSidebar'
 import { AwaitingCounterBetsBadge, CancelledBadge } from '@/components/Pills'
 import { Sparkline } from '@/components/PriceChart'
@@ -12,11 +13,18 @@ import {
   predictionMarketAbi,
   MarketStatusOnchain,
   bettingWindowEndSeconds,
+  tickerForFeedAddress,
   tickerFromFeedDescription,
 } from '@/chain/contracts'
 import { useFeedSnapshot } from '@/chain/feedCache'
 import { formatCountdown, formatUsd } from '@/lib/format'
 import type { PricePoint } from '@/types'
+
+// A coarse, purely-cosmetic split for the asset-type filter below -- most
+// allowlisted feeds are single stocks, these few are index/commodity ETFs.
+// Update alongside ALLOWLISTED_FEEDS in src/chain/contracts.ts if that list
+// grows to include another ETF.
+const ETF_TICKERS = new Set(['QQQ', 'SPY', 'EWY', 'SLV', 'USO'])
 
 // How many 2s polls of real price history to keep per feed for the card
 // sparkline -- 90 points is 3 minutes, enough to show a real trend without
@@ -27,6 +35,7 @@ import type { PricePoint } from '@/types'
 const PRICE_HISTORY_LENGTH = 90
 
 type StatusFilter = 'ALL' | 'OPEN' | 'RESOLVED' | 'CANCELLED'
+type AssetFilter = 'ALL' | 'STOCKS' | 'ETFS'
 
 const STATUS_FILTERS: { key: StatusFilter; label: string }[] = [
   { key: 'ALL', label: 'All' },
@@ -35,8 +44,16 @@ const STATUS_FILTERS: { key: StatusFilter; label: string }[] = [
   { key: 'CANCELLED', label: 'Cancelled' },
 ]
 
+const ASSET_FILTERS: { key: AssetFilter; label: string }[] = [
+  { key: 'ALL', label: 'All assets' },
+  { key: 'STOCKS', label: 'Single stocks' },
+  { key: 'ETFS', label: 'ETFs' },
+]
+
 export function OnchainMarketsListPage() {
+  const navigate = useNavigate()
   const [filter, setFilter] = useState<StatusFilter>('ALL')
+  const [assetFilter, setAssetFilter] = useState<AssetFilter>('ALL')
   // Tracks each feed's previously-seen price so a card can color itself by
   // "did it just tick up or down", not by distance from the target — a ref
   // (not state) so updating it never itself triggers a re-render.
@@ -114,6 +131,18 @@ export function OnchainMarketsListPage() {
   )
   const descByFeed = new Map(feedAddresses.map((addr, i) => [addr, feedDescriptions.data?.[i]?.status === 'success' ? feedDescriptions.data[i].result : undefined]))
 
+  // Ticker per market id, resolved instantly for an allowlisted feed
+  // (tickerForFeedAddress) rather than waiting on the live description()
+  // read -- also used below to drive the asset-type filter and to label
+  // entries in the live bets ticker.
+  const tickerByMarketId = new Map<string, string>()
+  ids.forEach((id, i) => {
+    const result = markets.data?.[i]
+    if (result?.status !== 'success') return
+    const t = tickerForFeedAddress(result.result.priceFeed) ?? tickerFromFeedDescription(descByFeed.get(result.result.priceFeed))
+    if (t) tickerByMarketId.set(id.toString(), t)
+  })
+
   // Runs after render, so the render just above still compared against last
   // poll's prices before this commits the new ones for the next comparison.
   useEffect(() => {
@@ -141,6 +170,12 @@ export function OnchainMarketsListPage() {
       if (filter === 'OPEN') return status === MarketStatusOnchain.Open
       if (filter === 'RESOLVED') return status === MarketStatusOnchain.Resolved
       return status === MarketStatusOnchain.Cancelled
+    })
+    .filter((id) => {
+      if (assetFilter === 'ALL') return true
+      const ticker = tickerByMarketId.get(id.toString())
+      const isEtf = !!ticker && ETF_TICKERS.has(ticker)
+      return assetFilter === 'ETFS' ? isEtf : !isEtf
     })
     // Newest first -- a higher id was created later. Otherwise a market
     // created today can land at the very end of a long list, indistinguishable
@@ -170,22 +205,41 @@ export function OnchainMarketsListPage() {
         </Link>
       </div>
 
+      <LiveBetsTicker tickerByMarketId={tickerByMarketId} />
+
       <div className="flex gap-6 items-start">
         <div className="flex-1 min-w-0">
-      <div className="flex gap-1 mb-6">
-        {STATUS_FILTERS.map((f) => (
-          <button
-            key={f.key}
-            onClick={() => setFilter(f.key)}
-            className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
-              filter === f.key
-                ? 'bg-white/10 border-white/20 text-white'
-                : 'border-white/10 text-white/50 hover:text-white hover:border-white/30'
-            }`}
-          >
-            {f.label}
-          </button>
-        ))}
+      <div className="flex flex-wrap items-center justify-between gap-y-2 mb-6">
+        <div className="flex gap-1">
+          {STATUS_FILTERS.map((f) => (
+            <button
+              key={f.key}
+              onClick={() => setFilter(f.key)}
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
+                filter === f.key
+                  ? 'bg-white/10 border-white/20 text-white'
+                  : 'border-white/10 text-white/50 hover:text-white hover:border-white/30'
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+        <div className="flex gap-1">
+          {ASSET_FILTERS.map((f) => (
+            <button
+              key={f.key}
+              onClick={() => setAssetFilter(f.key)}
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
+                assetFilter === f.key
+                  ? 'bg-[#C6FF3D]/10 border-[#C6FF3D]/40 text-[#C6FF3D]'
+                  : 'border-white/10 text-white/50 hover:text-white hover:border-white/30'
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {marketCount.isLoading ? (
@@ -208,8 +262,7 @@ export function OnchainMarketsListPage() {
             const m = result.result
             const decimals = decimalsByFeed.get(m.priceFeed)
             const price = priceByFeed.get(m.priceFeed)
-            const rawDesc = descByFeed.get(m.priceFeed)
-            const ticker = tickerFromFeedDescription(rawDesc)
+            const ticker = tickerByMarketId.get(id.toString())
             const targetUsd = decimals != null ? Number(formatUnits(m.targetPrice, decimals)) : null
             const currentUsd = decimals != null && price ? Number(formatUnits(price[1], decimals)) : null
             const deadlineMs = Number(m.deadline) * 1000
@@ -221,11 +274,19 @@ export function OnchainMarketsListPage() {
             // flashing red for a market that hasn't actually moved down.
             const tickedUp = currentUsd == null || prevUsd == null ? true : currentUsd >= prevUsd
 
+            const canBet = m.status === MarketStatusOnchain.Open
+            function goToMarket(side?: 'YES' | 'NO') {
+              navigate(`/onchain/${id}${side ? `?side=${side}` : ''}`)
+            }
+
             return (
-              <Link
+              <div
                 key={id.toString()}
-                to={`/onchain/${id}`}
-                className="group relative bg-[#12121c]/95 border border-white/10 rounded-2xl p-4 hover:border-[#C6FF3D]/30 hover:bg-[#181829]/95 hover:shadow-[0_0_28px_-14px_rgba(198,255,61,0.9)] transition-all"
+                role="link"
+                tabIndex={0}
+                onClick={() => goToMarket()}
+                onKeyDown={(e) => e.key === 'Enter' && goToMarket()}
+                className="group relative bg-[#12121c]/95 border border-white/10 rounded-2xl p-4 hover:border-[#C6FF3D]/30 hover:bg-[#181829]/95 hover:shadow-[0_0_28px_-14px_rgba(198,255,61,0.9)] transition-all cursor-pointer"
               >
                 <div className="flex items-start justify-between mb-2">
                   <div>
@@ -257,12 +318,31 @@ export function OnchainMarketsListPage() {
                   ) : null
                 })()}
 
-                <div className="h-1.5 rounded-full bg-rose-500/25 overflow-hidden">
-                  <div className="h-full bg-emerald-400" style={{ width: `${yesPct}%` }} />
-                </div>
-                <div className="flex justify-between text-[11px] text-white/40 mt-1">
-                  <span>YES {yesPct.toFixed(1)}%</span>
-                  <span>NO {(100 - yesPct).toFixed(1)}%</span>
+                {/* Clickable, not just informational -- picking a side here
+                    jumps straight to the market page with that side
+                    preselected, same shortcut chroma.markets' card buttons
+                    give instead of a plain progress bar. */}
+                <div className="grid grid-cols-2 gap-1.5">
+                  <button
+                    disabled={!canBet}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      goToMarket('YES')
+                    }}
+                    className="rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 disabled:hover:bg-emerald-500/15 disabled:cursor-not-allowed border border-emerald-500/30 text-emerald-400 text-xs font-bold py-1.5 transition-colors"
+                  >
+                    YES {yesPct.toFixed(0)}%
+                  </button>
+                  <button
+                    disabled={!canBet}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      goToMarket('NO')
+                    }}
+                    className="rounded-lg bg-rose-500/15 hover:bg-rose-500/25 disabled:hover:bg-rose-500/15 disabled:cursor-not-allowed border border-rose-500/30 text-rose-400 text-xs font-bold py-1.5 transition-colors"
+                  >
+                    NO {(100 - yesPct).toFixed(0)}%
+                  </button>
                 </div>
 
                 <div className="mt-3 flex items-center justify-between text-xs">
@@ -280,7 +360,7 @@ export function OnchainMarketsListPage() {
                 {awaitingCounterBets && (
                   <p className="mt-2 text-[11px] text-amber-400/80">Refunded in full if nobody takes the other side.</p>
                 )}
-              </Link>
+              </div>
             )
           })}
         </div>
