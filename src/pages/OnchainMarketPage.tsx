@@ -20,6 +20,7 @@ import {
   currentWeightBp,
   erc20Abi,
   predictionMarketAbi,
+  tickerForFeedAddress,
   tickerFromFeedDescription,
 } from '@/chain/contracts'
 import { formatCountdown, formatUsd, shortTxError } from '@/lib/format'
@@ -158,13 +159,18 @@ export function OnchainMarketPage() {
   const effectiveDecimals = snapEntry?.decimals ?? feedDecimals.data
   const effectivePriceAnswer = snapEntry ? BigInt(snapEntry.answer) : feedPrice.data?.[1]
 
+  // Resolves instantly, no network call, for every allowlisted feed (which
+  // is every feed a market can actually be created against) -- avoids an
+  // extra description() round trip that used to leave the page's own title
+  // showing "…" for a beat after the market itself had already loaded.
+  const staticTicker = tickerForFeedAddress(feedAddress)
   const feedDescription = useReadContract({
     address: feedAddress,
     abi: aggregatorV3Abi,
     functionName: 'description',
-    query: { enabled: !!feedAddress },
+    query: { enabled: !!feedAddress && !staticTicker },
   })
-  const ticker = tickerFromFeedDescription(feedDescription.data)
+  const ticker = staticTicker ?? tickerFromFeedDescription(feedDescription.data)
 
   const betTokenBalance = useReadContract({
     address: BET_TOKEN_ADDRESS,
@@ -350,22 +356,56 @@ export function OnchainMarketPage() {
       <Link to="/onchain" className="text-sm text-white/40 hover:text-white/70">
         ← All on-chain markets
       </Link>
-      <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight mt-4 mb-1">
-        {ticker ?? '…'} reach {targetPriceUsd != null ? formatUsd(targetPriceUsd) : '…'}?
-      </h1>
-      <p className="text-white/30 text-sm mb-5 flex items-center gap-1.5 flex-wrap">
-        <span>On-chain market #{MARKET_ID.toString()}</span>
-        {creator && (
-          <>
-            <span>· created by</span>
-            <AddressLabel address={creator} className="text-white/40 hover:text-white/70" />
-          </>
-        )}
-      </p>
+
+      {/* A skeleton that mirrors the loaded layout's shape, rather than a
+          bare "…" title or "Loading market…" line, so navigating to a market
+          reads as "this is loading" instead of "this is broken/empty" for
+          the beat before the first useReadContract call resolves. */}
+      {!market.data ? (
+        <>
+          <div className="h-8 sm:h-9 w-72 max-w-full rounded-lg bg-white/5 animate-pulse mt-4 mb-2" />
+          <div className="h-4 w-40 rounded bg-white/5 animate-pulse mb-5" />
+        </>
+      ) : (
+        <>
+          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight mt-4 mb-1">
+            {ticker ?? '…'} reach {targetPriceUsd != null ? formatUsd(targetPriceUsd) : '…'}?
+          </h1>
+          <p className="text-white/30 text-sm mb-5 flex items-center gap-1.5 flex-wrap">
+            <span>On-chain market #{MARKET_ID.toString()}</span>
+            {creator && (
+              <>
+                <span>· created by</span>
+                <AddressLabel address={creator} className="text-white/40 hover:text-white/70" />
+              </>
+            )}
+          </p>
+        </>
+      )}
 
       {/* Market data is a public read — shown regardless of wallet connection. */}
       {market.isLoading ? (
-        <p className="text-white/50">Loading market…</p>
+        <div className="rounded-2xl border border-white/10 bg-[#12121c]/95 p-5 space-y-3 mb-5 animate-pulse">
+          <div className="flex items-center justify-between">
+            <div className="h-3 w-14 rounded bg-white/10" />
+            <div className="h-3 w-24 rounded bg-white/10" />
+          </div>
+          <div className="flex items-baseline justify-between">
+            <div className="space-y-2">
+              <div className="h-7 w-24 rounded bg-white/10" />
+              <div className="h-3 w-20 rounded bg-white/5" />
+            </div>
+            <div className="space-y-2 text-right">
+              <div className="h-7 w-24 rounded bg-white/10 ml-auto" />
+              <div className="h-3 w-14 rounded bg-white/5 ml-auto" />
+            </div>
+          </div>
+          <div className="h-2 rounded-full bg-white/10" />
+          <div className="flex justify-between">
+            <div className="h-3 w-16 rounded bg-white/5" />
+            <div className="h-3 w-16 rounded bg-white/5" />
+          </div>
+        </div>
       ) : !market.data ? (
         <p className="text-rose-400">Market not found.</p>
       ) : (
@@ -409,7 +449,11 @@ export function OnchainMarketPage() {
       <div className="mb-5">
         <h2 className="text-sm font-bold mb-2">Bets on this market</h2>
         {marketBets == null ? (
-          <p className="text-white/40 text-xs">Scanning chain…</p>
+          <div className="space-y-1.5 animate-pulse">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="h-8 rounded-lg bg-white/5" />
+            ))}
+          </div>
         ) : marketBets.length === 0 ? (
           <p className="text-white/30 text-xs">No bets placed yet.</p>
         ) : (

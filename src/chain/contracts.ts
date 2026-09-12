@@ -52,6 +52,19 @@ export function feedAddressForTicker(ticker: string): Address | undefined {
   return ALLOWLISTED_FEEDS.find((f) => f.ticker.toLowerCase() === ticker.toLowerCase())?.address
 }
 
+const TICKER_BY_FEED_ADDRESS = new Map(ALLOWLISTED_FEEDS.map((f) => [f.address.toLowerCase(), f.ticker]))
+
+/** Instant, no-network ticker lookup for an allowlisted feed -- every market
+ * created through this app uses one of these, so this resolves the ticker
+ * synchronously instead of waiting on a live `description()` chain read
+ * (which otherwise adds a full extra round trip before a market page can
+ * show its own title). Falls back to undefined for a feed outside the
+ * allowlist; callers should still fall back to tickerFromFeedDescription()
+ * off a live read in that case. */
+export function tickerForFeedAddress(address?: Address): string | undefined {
+  return address ? TICKER_BY_FEED_ADDRESS.get(address.toLowerCase()) : undefined
+}
+
 /** Block the contract was deployed at, if known — narrows `getLogs` scans
  * (leaderboard/activity feed) instead of scanning from genesis, which can
  * hit RPC range limits or rate limits on a public endpoint. Defaults to 0
