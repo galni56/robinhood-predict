@@ -10,6 +10,7 @@ import {
   MarketStatusOnchain,
   tickerFromFeedDescription,
 } from '@/chain/contracts'
+import { robinhoodMainnet } from '@/chain/config'
 import { useFeedSnapshot } from '@/chain/feedCache'
 import { useRobinhoodAssets } from '@/chain/robinhoodApi'
 import { formatUsd } from '@/lib/format'
@@ -55,20 +56,28 @@ const STEPS = [
 
 const FEATURES = [
   {
-    title: 'Parimutuel, not house odds',
-    body: "There's no bookmaker setting a line. Winners split what losers staked, in proportion to their weighted stake — the pool sets the price, not a spread.",
+    tag: '0% VIG',
+    color: '#38BDF8',
+    title: 'No spread. No vig. No middleman.',
+    body: "Every sportsbook, every prediction platform, most of DeFi — they all bake a spread into the price before you even click a button. Prophet doesn't. There's no market maker quietly skimming the top and no house edge disguised as odds. Winners split exactly what losers staked, pool against pool, in proportion to weighted stake. The pool is the price. Nothing else touches it.",
   },
   {
-    title: 'Early conviction pays more',
-    body: 'A bet placed the instant a market opens carries 2x weight; wait until betting is about to close and it decays to 0.5x. Sniping the obvious outcome earns less than committing early.',
+    tag: '2X → 0.5X',
+    color: '#FBBF24',
+    title: 'Early conviction is priced in — literally',
+    body: "Most platforms treat every dollar the same whether you bet the second a market opens or the second before it locks. Prophet doesn't. Bet inside the first two-thirds of the window and your stake carries up to 2x weight toward the payout; wait until the crowd has already piled in and that decays down to 0.5x. Being right isn't enough here — being right early is what actually gets paid.",
   },
   {
-    title: 'No one-sided traps',
-    body: 'If a market reaches its deadline with bets on only one side, it cancels automatically and every stake is refunded in full — no fee, no loss.',
+    tag: '100% REFUND',
+    color: '#34D399',
+    title: 'Your capital never gets trapped in a dead market',
+    body: "If a market hits its deadline and only one side ever placed a bet, there's no outcome to force. It cancels on-chain automatically and every wallet gets its full stake back — no protocol fee, no dispute process, no support ticket to file. Dead markets don't hold your money hostage here.",
   },
   {
-    title: 'Not a demo',
-    body: 'This is a real Solidity contract live on Robinhood Chain mainnet — permissionless market creation, an owner-maintained price-feed allowlist, and a target price bounded relative to the live price. Real USDG, real wallet, real transactions.',
+    tag: 'LIVE ON MAINNET',
+    color: '#C6FF3D',
+    title: 'Not a testnet. Not a simulation. Not a promise.',
+    body: 'This is a live Solidity contract deployed on Robinhood Chain mainnet, settling real USDG against real Chainlink price feeds in real time. Permissionless market creation, an owner-maintained feed allowlist, deviation-bounded targets — every rule on this page is running on-chain right now, not sitting in a deck waiting to ship.',
   },
 ] as const
 
@@ -285,13 +294,39 @@ export function OnchainLandingPage() {
 
       {/* Why Prophet */}
       <section className="max-w-[1500px] mx-auto px-4 py-16">
-        <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-center mb-2">Why Prophet</h2>
-        <p className="text-white/40 text-sm text-center mb-10">Mechanics designed around one idea: reward conviction, not luck of timing.</p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+        <p className="flex items-center justify-center gap-2 text-xs font-bold tracking-[0.2em] text-[#C6FF3D]/80 uppercase mb-4">
+          <span className="w-1.5 h-1.5 rounded-full bg-[#C6FF3D]" />
+          The Prophet difference
+        </p>
+        <h2 className="text-2xl sm:text-4xl font-extrabold tracking-tight text-center mb-3">
+          Why <span className="bg-gradient-to-r from-[#C6FF3D] to-[#8FBF1F] bg-clip-text text-transparent">Prophet</span>
+        </h2>
+        <p className="text-white/40 text-sm sm:text-base text-center mb-12 max-w-xl mx-auto">
+          No spread. No stale markets. No trust required — just math that settles itself, on-chain, in the open.
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           {FEATURES.map((f) => (
-            <div key={f.title} className="bg-[#12121c]/95 border border-white/10 rounded-2xl p-6 hover:border-[#C6FF3D]/30 transition-colors">
-              <h3 className="font-bold mb-2">{f.title}</h3>
-              <p className="text-white/50 text-sm">{f.body}</p>
+            <div
+              key={f.title}
+              className="group relative overflow-hidden rounded-3xl p-7 transition-transform duration-200 hover:-translate-y-1"
+              style={{
+                background: `linear-gradient(160deg, ${f.color}17, #0d0d16 60%)`,
+                border: `1px solid ${f.color}40`,
+                boxShadow: `0 0 50px -24px ${f.color}99`,
+              }}
+            >
+              <div
+                className="pointer-events-none absolute -top-12 -right-12 w-44 h-44 rounded-full blur-3xl transition-opacity duration-200 opacity-20 group-hover:opacity-30"
+                style={{ background: f.color }}
+              />
+              <span
+                className="relative inline-block font-mono text-[11px] font-bold tracking-widest px-2.5 py-1 rounded-full mb-5"
+                style={{ color: f.color, border: `1px solid ${f.color}55`, background: `${f.color}1a` }}
+              >
+                {f.tag}
+              </span>
+              <h3 className="relative text-xl font-extrabold tracking-tight mb-3">{f.title}</h3>
+              <p className="relative text-white/55 text-sm leading-relaxed">{f.body}</p>
             </div>
           ))}
         </div>
@@ -381,19 +416,44 @@ export function OnchainLandingPage() {
 
         {filteredAssets.length > 0 ? (
           <div className="flex flex-wrap justify-center gap-2">
-            {filteredAssets.map((a) => (
-              <span
-                key={a.tokenSymbol}
-                title={a.tokenName.replace(/\s*•\s*Robinhood Token$/i, '')}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/10 bg-[#12121c]/95 text-sm text-white/60 font-mono cursor-default hover:-translate-y-0.5 hover:text-white hover:border-[#C6FF3D]/30 hover:bg-[#181829] transition-all"
-              >
+            {filteredAssets.map((a) => {
+              const deployment = a.deployments.find((d) => d.chainId === robinhoodMainnet.id)
+              const pillClass =
+                'flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/10 bg-[#12121c]/95 text-sm text-white/60 font-mono hover:-translate-y-0.5 hover:text-white hover:border-[#C6FF3D]/30 hover:bg-[#181829] transition-all'
+              const dot = (
                 <span
                   className="w-1.5 h-1.5 rounded-full shrink-0"
                   style={{ background: `hsl(${hueForTicker(a.tokenSymbol)} 70% 60%)` }}
                 />
-                {a.tokenSymbol}
-              </span>
-            ))}
+              )
+              const label = a.tokenName.replace(/\s*•\s*Robinhood Token$/i, '')
+
+              // Link to the token's own contract on the chain explorer when we
+              // have its address -- every one of the 194 assets gets a link
+              // this way, not just the 27 with an allowlisted price feed, so
+              // clicking never implies anything about market-creation eligibility.
+              if (deployment) {
+                return (
+                  <a
+                    key={a.tokenSymbol}
+                    href={`${robinhoodMainnet.blockExplorers.default.url}/address/${deployment.contractAddress}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    title={`${label} — view contract on the chain explorer ↗`}
+                    className={pillClass}
+                  >
+                    {dot}
+                    {a.tokenSymbol}
+                  </a>
+                )
+              }
+              return (
+                <span key={a.tokenSymbol} title={label} className={`${pillClass} cursor-default`}>
+                  {dot}
+                  {a.tokenSymbol}
+                </span>
+              )
+            })}
           </div>
         ) : (
           <p className="text-center text-white/30 text-sm py-10">No stocks match "{stockQuery}".</p>
