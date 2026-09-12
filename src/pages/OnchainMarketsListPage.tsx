@@ -132,15 +132,21 @@ export function OnchainMarketsListPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [feedPrices.data, feedSnapshot.data])
 
-  const filteredIds = ids.filter((_id, i) => {
-    if (filter === 'ALL') return true
-    const result = markets.data?.[i]
-    if (!result || result.status !== 'success') return false
-    const status = result.result.status
-    if (filter === 'OPEN') return status === MarketStatusOnchain.Open
-    if (filter === 'RESOLVED') return status === MarketStatusOnchain.Resolved
-    return status === MarketStatusOnchain.Cancelled
-  })
+  const filteredIds = ids
+    .filter((_id, i) => {
+      if (filter === 'ALL') return true
+      const result = markets.data?.[i]
+      if (!result || result.status !== 'success') return false
+      const status = result.result.status
+      if (filter === 'OPEN') return status === MarketStatusOnchain.Open
+      if (filter === 'RESOLVED') return status === MarketStatusOnchain.Resolved
+      return status === MarketStatusOnchain.Cancelled
+    })
+    // Newest first -- a higher id was created later. Otherwise a market
+    // created today can land at the very end of a long list, indistinguishable
+    // from one that's been sitting there for weeks (this confused a real
+    // tester once: their new market was easy to miss below an older one).
+    .sort((a, b) => (a > b ? -1 : a < b ? 1 : 0))
 
   return (
     <div className="max-w-[1500px] mx-auto px-4 py-8">

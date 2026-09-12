@@ -112,9 +112,13 @@ export function OnchainLandingPage() {
       return r?.status === 'success' ? { id, ...r.result } : null
     })
     .filter((m): m is NonNullable<typeof m> => m != null && m.status === MarketStatusOnchain.Open)
+    // Newest first -- a higher id was created later, since ids increment
+    // sequentially. Otherwise the preview here (and the hero market below)
+    // always shows the same oldest handful forever as more get created.
+    .sort((a, b) => (a.id > b.id ? -1 : a.id < b.id ? 1 : 0))
 
   const assets = useRobinhoodAssets()
-  const preview = openMarkets.slice(0, 3)
+  const preview = openMarkets.slice(0, 9)
   const heroMarket = openMarkets[0]
   const heroTicker = heroMarket ? tickerFor(descByFeed.get(heroMarket.priceFeed)) : undefined
   const heroDecimals = heroMarket ? decimalsByFeed.get(heroMarket.priceFeed) : undefined
@@ -291,6 +295,28 @@ export function OnchainLandingPage() {
           </div>
         </section>
       )}
+
+      {/* Every tokenized stock on the chain -- names only, no price/status.
+          Deliberately not the same component as TokenBrowser (used on the
+          markets list) -- that one shows live price + allowlist status per
+          ticker; this is just "here's what exists on Robinhood Chain". */}
+      <section className="max-w-[1500px] mx-auto px-4 py-16">
+        <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-center mb-2">Browse tokenized stocks</h2>
+        <p className="text-white/40 text-sm text-center mb-10">
+          Every tokenized stock on Robinhood Chain — {assets.data?.length ?? 194} and counting.
+        </p>
+        <div className="flex flex-wrap justify-center gap-2">
+          {(assets.data ?? []).map((a) => (
+            <span
+              key={a.tokenSymbol}
+              title={a.tokenName.replace(/\s*•\s*Robinhood Token$/i, '')}
+              className="px-3 py-1.5 rounded-full border border-white/10 bg-[#12121c]/95 text-sm text-white/60"
+            >
+              {a.tokenSymbol}
+            </span>
+          ))}
+        </div>
+      </section>
 
       {/* Final CTA */}
       <section className="max-w-4xl mx-auto px-4 py-20 text-center">
