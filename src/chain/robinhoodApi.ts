@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient, type QueryClient, type QueryKey } from '@tanstack/react-query'
 import { ALLOWLISTED_FEEDS } from '@/chain/contracts'
 
 // Robinhood Chain's own read-only REST API (see docs.robinhood.com/chain/stock-token-apis)
@@ -43,20 +43,39 @@ export function useRobinhoodAssets() {
   })
 }
 
-async function fetchPrices(symbols: string[]) {
-  const settled = await Promise.allSettled(
+/** Fetches one ticker per request in parallel and merges each quote onto
+ * `previous` (last known-good data) as soon as it lands, publishing every
+ * intermediate state through `publish`. Without this, the whole grid sat on
+ * "…" until the single slowest of ~50 parallel requests settled — now each
+ * ticker paints the moment its own request resolves, and a slow/failed
+ * ticker no longer blocks (or blanks) the rest. */
+async function fetchPrices(
+  symbols: string[],
+  previous: Map<string, RobinhoodQuote> | undefined,
+  publish: (byTicker: Map<string, RobinhoodQuote>) => void,
+) {
+  const byTicker = new Map(previous ?? [])
+  await Promise.allSettled(
     symbols.map(async (symbol) => {
       const res = await fetch(`${API_BASE}/prices/${symbol}`)
       if (!res.ok) throw new Error(`${symbol}: ${res.status}`)
       const data = (await res.json()) as { quotes: RobinhoodQuote[] }
-      return data.quotes[0]
+      const quote = data.quotes[0]
+      if (quote) {
+        byTicker.set(quote.tokenSymbol, quote)
+        publish(new Map(byTicker))
+      }
     }),
   )
-  const byTicker = new Map<string, RobinhoodQuote>()
-  for (const r of settled) {
-    if (r.status === 'fulfilled' && r.value) byTicker.set(r.value.tokenSymbol, r.value)
-  }
   return byTicker
+}
+
+/** Wires `fetchPrices`' progressive updates into the given query's cache
+ * entry, so each ticker re-renders as soon as its own request resolves
+ * instead of the whole query waiting on the slowest one. */
+function fetchPricesForQuery(queryClient: QueryClient, queryKey: QueryKey, symbols: string[]) {
+  const previous = queryClient.getQueryData<Map<string, RobinhoodQuote>>(queryKey)
+  return fetchPrices(symbols, previous, (byTicker) => queryClient.setQueryData(queryKey, byTicker))
 }
 
 /** Live bid/ask/volume for a specific set of tickers. The API is per-symbol
@@ -71,9 +90,11 @@ async function fetchPrices(symbols: string[]) {
  * unchanged. Use `useCorePrices()` below for the common/shared set instead
  * of passing `CORE_TICKERS` here. */
 export function useRobinhoodPrices(symbols: string[]) {
+  const queryClient = useQueryClient()
+  const queryKey = ['robinhood-prices', symbols]
   return useQuery({
-    queryKey: ['robinhood-prices', symbols],
-    queryFn: () => fetchPrices(symbols),
+    queryKey,
+    queryFn: () => fetchPricesForQuery(queryClient, queryKey, symbols),
     enabled: symbols.length > 0,
     refetchInterval: 15_000,
   })
@@ -98,9 +119,11 @@ export const CORE_TICKERS = Array.from(new Set([...RECOGNIZABLE_TICKERS, ...ALLO
  * exact same React Query cache entry — one set of requests every 15s no
  * matter how many places on screen show these tickers. */
 export function useCorePrices() {
+  const queryClient = useQueryClient()
+  const queryKey = ['robinhood-prices-core']
   return useQuery({
-    queryKey: ['robinhood-prices-core'],
-    queryFn: () => fetchPrices(CORE_TICKERS),
+    queryKey,
+    queryFn: () => fetchPricesForQuery(queryClient, queryKey, CORE_TICKERS),
     refetchInterval: 15_000,
   })
 }
