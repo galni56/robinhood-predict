@@ -119,22 +119,6 @@ export function TermsPage() {
           the protocol fee, which is a real trust assumption you're making by using it.
         </p>
       </Section>
-
-      <Section title="10. Contact">
-        <p>
-          This is an independent project, not affiliated with Robinhood Markets, Inc. Questions or issues can be
-          filed against the project's{' '}
-          <a
-            href="https://github.com/galni56/robinhood-predict"
-            target="_blank"
-            rel="noreferrer"
-            className="text-[#C6FF3D] hover:underline"
-          >
-            GitHub repository
-          </a>
-          .
-        </p>
-      </Section>
     </div>
   )
 }
