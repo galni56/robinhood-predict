@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { formatUnits } from 'viem'
 import { useReadContract, useReadContracts } from 'wagmi'
@@ -54,6 +55,15 @@ const FEATURES = [
     body: 'This is a real Solidity contract live on Robinhood Chain mainnet — permissionless market creation, an owner-maintained price-feed allowlist, and a target price bounded relative to the live price. Real USDG, real wallet, real transactions.',
   },
 ] as const
+
+// A stable-per-ticker hue so each pill in the "Browse tokenized stocks"
+// section gets a distinct-but-consistent color dot -- purely decorative,
+// no meaning attached to the color itself.
+function hueForTicker(sym: string) {
+  let h = 0
+  for (let i = 0; i < sym.length; i++) h = (h * 31 + sym.charCodeAt(i)) % 360
+  return h
+}
 
 export function OnchainLandingPage() {
   const marketCount = useReadContract({
@@ -118,6 +128,12 @@ export function OnchainLandingPage() {
     .sort((a, b) => (a.id > b.id ? -1 : a.id < b.id ? 1 : 0))
 
   const assets = useRobinhoodAssets()
+  const [stockQuery, setStockQuery] = useState('')
+  const filteredAssets = (assets.data ?? []).filter((a) => {
+    const q = stockQuery.trim().toLowerCase()
+    if (!q) return true
+    return a.tokenSymbol.toLowerCase().includes(q) || a.tokenName.toLowerCase().includes(q)
+  })
   const preview = openMarkets.slice(0, 9)
   const heroMarket = openMarkets[0]
   const heroTicker = heroMarket ? tickerFor(descByFeed.get(heroMarket.priceFeed)) : undefined
@@ -302,20 +318,50 @@ export function OnchainLandingPage() {
           ticker; this is just "here's what exists on Robinhood Chain". */}
       <section className="max-w-[1500px] mx-auto px-4 py-16">
         <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-center mb-2">Browse tokenized stocks</h2>
-        <p className="text-white/40 text-sm text-center mb-10">
+        <p className="text-white/40 text-sm text-center mb-6">
           Every tokenized stock on Robinhood Chain — {assets.data?.length ?? 194} and counting.
         </p>
-        <div className="flex flex-wrap justify-center gap-2">
-          {(assets.data ?? []).map((a) => (
-            <span
-              key={a.tokenSymbol}
-              title={a.tokenName.replace(/\s*•\s*Robinhood Token$/i, '')}
-              className="px-3 py-1.5 rounded-full border border-white/10 bg-[#12121c]/95 text-sm text-white/60"
-            >
-              {a.tokenSymbol}
-            </span>
-          ))}
+
+        <div className="max-w-sm mx-auto mb-8">
+          <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-black/30 px-4 py-2.5 focus-within:border-[#C6FF3D]/50 transition-colors">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="text-white/30 shrink-0">
+              <circle cx="11" cy="11" r="7" />
+              <path d="M21 21l-4.3-4.3" />
+            </svg>
+            <input
+              value={stockQuery}
+              onChange={(e) => setStockQuery(e.target.value)}
+              placeholder="Search by ticker or name…"
+              className="flex-1 bg-transparent outline-none text-sm font-mono placeholder:font-sans placeholder:text-white/30"
+            />
+            {stockQuery && (
+              <button onClick={() => setStockQuery('')} className="text-white/30 hover:text-white text-xs font-semibold shrink-0">
+                Clear
+              </button>
+            )}
+          </div>
+          <p className="text-center text-[11px] text-white/30 mt-2 font-mono">{filteredAssets.length} shown</p>
         </div>
+
+        {filteredAssets.length > 0 ? (
+          <div className="flex flex-wrap justify-center gap-2">
+            {filteredAssets.map((a) => (
+              <span
+                key={a.tokenSymbol}
+                title={a.tokenName.replace(/\s*•\s*Robinhood Token$/i, '')}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/10 bg-[#12121c]/95 text-sm text-white/60 font-mono cursor-default hover:-translate-y-0.5 hover:text-white hover:border-[#C6FF3D]/30 hover:bg-[#181829] transition-all"
+              >
+                <span
+                  className="w-1.5 h-1.5 rounded-full shrink-0"
+                  style={{ background: `hsl(${hueForTicker(a.tokenSymbol)} 70% 60%)` }}
+                />
+                {a.tokenSymbol}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <p className="text-center text-white/30 text-sm py-10">No stocks match "{stockQuery}".</p>
+        )}
       </section>
 
       {/* Final CTA */}
