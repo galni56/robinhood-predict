@@ -17,23 +17,39 @@ import { formatUsd } from '@/lib/format'
 const STEPS = [
   {
     n: '01',
-    title: 'Pick a market',
-    body: "Every market asks one thing: will this tokenized stock hit a target price before its deadline? Browse what's open or create your own.",
+    color: '#C6FF3D',
+    title: 'Markets target a real ticker and price',
+    body: "Anyone can create a market: pick an allowlisted Chainlink feed (TSLA, NVDA, whatever's live), a target price, and a deadline. The target has to sit within an allowed deviation from the live price — 2% to 20%, depending on how long the market runs — so nobody can set up a guaranteed win or an impossible long shot.",
   },
   {
     n: '02',
-    title: 'Call YES or NO',
-    body: 'Stake USDG on either side. Bet inside the first two-thirds of the window and your share of the payout is weighted up to 2x — the earlier, the bigger.',
+    color: '#38BDF8',
+    title: 'Stake USDG on YES or NO',
+    body: "Every bet goes into one shared pool per side — there's no bookmaker setting a line and no fixed odds. The live YES/NO split of the pool is the price, and it moves in real time as people bet.",
   },
   {
     n: '03',
-    title: 'Market settles',
-    body: "When the deadline hits, the Chainlink price feed decides it. If only one side ever placed a bet, the market cancels instead and everyone's stake comes back in full.",
+    color: '#FBBF24',
+    title: 'Betting early carries more weight',
+    body: 'A bet placed in the first two-thirds of the betting window counts up to 2x; the closer to the cutoff, the more that decays, down to 0.5x right before betting closes. Conviction early is worth more than sniping the obvious side at the last second.',
   },
   {
     n: '04',
-    title: 'Winners split the pool',
-    body: "Parimutuel payout: your principal always comes back, plus your weighted share of the losing side's pool, minus a small protocol fee on winnings only.",
+    color: '#A78BFA',
+    title: 'The Chainlink feed decides the outcome',
+    body: "At the deadline, the contract reads the feed's latestRoundData() directly and checks it against the target. No human calls it, no committee, no admin override — it's the same feed the whole time, on-chain.",
+  },
+  {
+    n: '05',
+    color: '#FB7185',
+    title: 'One-sided markets cancel automatically',
+    body: 'If a market reaches its deadline with bets on only one side, it cancels instead of settling — every stake comes back in full, no protocol fee taken. Conviction on one side alone never just gets swallowed.',
+  },
+  {
+    n: '06',
+    color: '#34D399',
+    title: 'Winners split the losing pool',
+    body: 'Payouts are parimutuel: your own stake always comes back first, then your weighted share of what the losing side staked — minus a 2% protocol fee that only ever applies to winnings, never to your principal.',
   },
 ] as const
 
@@ -232,15 +248,35 @@ export function OnchainLandingPage() {
 
       {/* How it works */}
       <section className="border-t border-white/10 bg-[#0c0c16]/60">
-        <div className="max-w-[1500px] mx-auto px-4 py-16">
+        <div className="max-w-3xl mx-auto px-4 py-16">
           <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-center mb-2">How it works</h2>
-          <p className="text-white/40 text-sm text-center mb-10">Four steps, start to settlement.</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            {STEPS.map((s) => (
-              <div key={s.n} className="bg-[#12121c]/95 border border-white/10 rounded-2xl p-5">
-                <div className="text-[#C6FF3D]/60 font-mono text-sm mb-3">{s.n}</div>
-                <h3 className="font-bold mb-2">{s.title}</h3>
-                <p className="text-white/50 text-sm">{s.body}</p>
+          <p className="text-white/40 text-sm text-center mb-12">Six steps, start to settlement.</p>
+          <div>
+            {STEPS.map((s, i) => (
+              <div key={s.n} className="relative flex gap-5 pb-10 last:pb-0">
+                {i < STEPS.length - 1 && (
+                  <div
+                    className="absolute left-6 top-12 bottom-0 w-px"
+                    style={{ background: `linear-gradient(180deg, ${s.color}66, transparent)` }}
+                  />
+                )}
+                <div
+                  className="relative z-10 shrink-0 w-12 h-12 rounded-2xl flex items-center justify-center font-mono font-bold text-sm"
+                  style={{
+                    background: `${s.color}1a`,
+                    border: `1px solid ${s.color}55`,
+                    color: s.color,
+                    boxShadow: `0 0 24px -8px ${s.color}99`,
+                  }}
+                >
+                  {s.n}
+                </div>
+                <div className="pt-1.5">
+                  <h3 className="font-bold text-base mb-1.5" style={{ color: s.color }}>
+                    {s.title}
+                  </h3>
+                  <p className="text-white/50 text-sm leading-relaxed">{s.body}</p>
+                </div>
               </div>
             ))}
           </div>
