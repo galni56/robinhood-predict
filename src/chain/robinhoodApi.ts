@@ -29,7 +29,7 @@ export interface RobinhoodQuote {
 
 /** Full token catalog (~194 tickers) — name, symbol, contract address, logo.
  * Static-ish (assets rarely get added/removed), so cached for a while. */
-export function useRobinhoodAssets() {
+export function useRobinhoodAssets(enabled = true) {
   return useQuery({
     queryKey: ['robinhood-assets'],
     queryFn: async () => {
@@ -39,6 +39,7 @@ export function useRobinhoodAssets() {
       return data.assets
     },
     staleTime: 10 * 60_000,
+    enabled,
   })
 }
 

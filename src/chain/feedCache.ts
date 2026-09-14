@@ -21,7 +21,7 @@ export interface FeedSnapshotEntry {
 
 type FeedSnapshot = Record<string, FeedSnapshotEntry>
 
-export function useFeedSnapshot() {
+export function useFeedSnapshot(enabled = true) {
   return useQuery({
     queryKey: ['feed-snapshot'],
     queryFn: async () => {
@@ -31,6 +31,7 @@ export function useFeedSnapshot() {
     },
     refetchInterval: 2_000,
     retry: 1,
+    enabled,
   })
 }
 

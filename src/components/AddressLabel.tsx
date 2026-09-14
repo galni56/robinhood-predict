@@ -1,5 +1,5 @@
 import type { Address } from 'viem'
-import { robinhoodMainnet } from '@/chain/config'
+import { isLocalAssetRace, robinhoodMainnet } from '@/chain/config'
 import { useNickname } from '@/chain/nicknames'
 
 export function truncateAddress(addr: string) {
@@ -20,7 +20,7 @@ export function AddressLabel({
   className?: string
   link?: boolean
 }) {
-  const nickname = useNickname(address)
+  const nickname = useNickname(address, !isLocalAssetRace)
   const label = nickname.data && nickname.data.length > 0 ? nickname.data : truncateAddress(address)
 
   if (!link) return <span className={className}>{label}</span>

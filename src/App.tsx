@@ -26,6 +26,9 @@ import { OnchainLeaderboardPage } from '@/pages/OnchainLeaderboardPage'
 import { OnchainMarketPage } from '@/pages/OnchainMarketPage'
 import { OnchainMarketsListPage } from '@/pages/OnchainMarketsListPage'
 import { OnchainPortfolioPage } from '@/pages/OnchainPortfolioPage'
+import { OnchainRacePage } from '@/pages/OnchainRacePage'
+import { OnchainCreateRacePage } from '@/pages/OnchainCreateRacePage'
+import { OnchainRacesListPage } from '@/pages/OnchainRacesListPage'
 import { PortfolioPage } from '@/pages/PortfolioPage'
 import { PublicProfilePage } from '@/pages/PublicProfilePage'
 import { RegisterPage } from '@/pages/RegisterPage'
@@ -33,6 +36,7 @@ import { SettingsPage } from '@/pages/SettingsPage'
 import { TermsPage } from '@/pages/TermsPage'
 import { TxDetailPage } from '@/pages/TxDetailPage'
 import { WhitepaperPage } from '@/pages/WhitepaperPage'
+import { isLocalAssetRace } from '@/chain/config'
 
 export default function App() {
   const { pathname } = useLocation()
@@ -45,6 +49,7 @@ export default function App() {
   // to mock pages ("testnet"). Mock-mode visitors can still get back to the
   // demo via RealNavbar's own "Demo" link.
   const isRealMode = pathname === '/' || pathname.startsWith('/onchain') || pathname === '/whitepaper' || pathname === '/terms'
+  const isLocalRaceRoute = isLocalAssetRace && pathname.startsWith('/onchain/races')
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -54,7 +59,7 @@ export default function App() {
       {isRealMode ? (
         <>
           <RealNavbar />
-          <TickerTape />
+          {!isLocalRaceRoute && <TickerTape />}
         </>
       ) : (
         <Navbar />
@@ -74,6 +79,9 @@ export default function App() {
             <Route path="portfolio" element={<OnchainPortfolioPage />} />
             <Route path="leaderboard" element={<OnchainLeaderboardPage />} />
             <Route path="archive" element={<OnchainArchivePage />} />
+            <Route path="races" element={<OnchainRacesListPage />} />
+            <Route path="races/create" element={<OnchainCreateRacePage />} />
+            <Route path="races/:raceId" element={<OnchainRacePage />} />
             <Route path=":id" element={<OnchainMarketPage />} />
           </Route>
 

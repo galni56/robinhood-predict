@@ -26,14 +26,28 @@ export const robinhoodMainnet = defineChain({
   },
 })
 
+export const localAnvil = defineChain({
+  id: 31_337,
+  name: 'Local Anvil',
+  nativeCurrency: { name: 'Local Test Ether', symbol: 'ETH', decimals: 18 },
+  rpcUrls: {
+    default: { http: [import.meta.env.VITE_LOCAL_RPC_URL ?? 'http://127.0.0.1:8545'] },
+  },
+  testnet: true,
+})
+
+export const isLocalAssetRace = import.meta.env.VITE_ASSET_RACE_NETWORK === 'local'
+export const assetRaceChain = isLocalAssetRace ? localAnvil : robinhoodMainnet
+
 // `injected()` auto-discovers every EIP-6963-announcing wallet in the
 // browser (MetaMask, Phantom, etc.) rather than hardcoding one — the
 // connect UI lists whichever of these the user actually has installed.
 export const wagmiConfig = createConfig({
-  chains: [robinhoodMainnet],
+  chains: [robinhoodMainnet, localAnvil],
   connectors: [injected()],
   transports: {
     [robinhoodMainnet.id]: http(),
+    [localAnvil.id]: http(),
   },
 })
 

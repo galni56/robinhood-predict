@@ -32,12 +32,12 @@ export const nicknameRegistryAbi = [
   },
 ] as const
 
-export function useNickname(address?: Address) {
+export function useNickname(address?: Address, enabled = true) {
   return useReadContract({
     address: NICKNAME_REGISTRY_ADDRESS,
     abi: nicknameRegistryAbi,
     functionName: 'nicknameOf',
     args: address ? [address] : undefined,
-    query: { enabled: !!address },
+    query: { enabled: enabled && !!address },
   })
 }

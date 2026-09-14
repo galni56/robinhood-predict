@@ -1,11 +1,12 @@
 import { useState } from 'react'
-import { NavLink } from 'react-router-dom'
+import { NavLink, useLocation } from 'react-router-dom'
 import clsx from 'clsx'
-import { robinhoodMainnet } from '@/chain/config'
+import { isLocalAssetRace, robinhoodMainnet } from '@/chain/config'
 import { ConnectWalletButton } from '@/components/ConnectWalletButton'
 
 const links = [
   { to: '/onchain', label: 'Markets', end: true },
+  { to: '/onchain/races', label: 'Races' },
   { to: '/onchain/portfolio', label: 'Portfolio' },
   { to: '/onchain/leaderboard', label: 'Leaderboard' },
   { to: '/onchain/archive', label: 'Archive' },
@@ -22,6 +23,8 @@ const links = [
  * wallet shouldn't be buried an extra tap deep. */
 export function RealNavbar() {
   const [mobileOpen, setMobileOpen] = useState(false)
+  const { pathname } = useLocation()
+  const localRaceRoute = isLocalAssetRace && pathname.startsWith('/onchain/races')
 
   return (
     <header className="sticky top-0 z-20 border-b border-white/10 bg-[#0a0a12]/95 xl:bg-[#0a0a12]/85 xl:backdrop-blur">
@@ -29,7 +32,9 @@ export function RealNavbar() {
         <NavLink to="/" className="flex items-center gap-2 font-extrabold shrink-0">
           <img src={`${import.meta.env.BASE_URL}ProphetMarkets_fun.png`} alt="" className="w-4 h-4 rounded-sm shrink-0" />
           Prophet
-          <span className="text-white/30 font-normal text-xs hidden sm:inline">on Robinhood Chain (mainnet)</span>
+          <span className="text-white/30 font-normal text-xs hidden sm:inline">
+            {localRaceRoute ? 'on Local Anvil (test only)' : 'on Robinhood Chain (mainnet)'}
+          </span>
         </NavLink>
 
         <nav className="hidden xl:flex items-center gap-1 text-sm shrink-0">
@@ -59,14 +64,25 @@ export function RealNavbar() {
           >
             + Market
           </NavLink>
-          <a
+          <NavLink
+            to="/onchain/races/create"
+            className={({ isActive }) =>
+              clsx(
+                'px-3 py-1.5 rounded-full transition-colors font-medium text-[#C6FF3D] whitespace-nowrap',
+                isActive ? 'bg-[#C6FF3D]/15' : 'hover:bg-[#C6FF3D]/10',
+              )
+            }
+          >
+            + Race
+          </NavLink>
+          {!localRaceRoute && <a
             href={robinhoodMainnet.blockExplorers.default.url}
             target="_blank"
             rel="noreferrer"
             className="px-3 py-1.5 rounded-full transition-colors font-medium text-white/40 hover:text-white hover:bg-white/5 whitespace-nowrap"
           >
             Chain explorer ↗
-          </a>
+          </a>}
           <NavLink
             to="/whitepaper"
             className={({ isActive }) =>
@@ -143,14 +159,21 @@ export function RealNavbar() {
           >
             + Create market
           </NavLink>
-          <a
+          <NavLink
+            to="/onchain/races/create"
+            onClick={() => setMobileOpen(false)}
+            className="block px-3 py-2 rounded-lg text-sm font-medium text-[#C6FF3D] hover:bg-[#C6FF3D]/10"
+          >
+            + Create Race
+          </NavLink>
+          {!localRaceRoute && <a
             href={robinhoodMainnet.blockExplorers.default.url}
             target="_blank"
             rel="noreferrer"
             className="block px-3 py-2 rounded-lg text-sm font-medium text-white/40 hover:bg-white/5"
           >
             Chain explorer ↗
-          </a>
+          </a>}
           <NavLink
             to="/whitepaper"
             onClick={() => setMobileOpen(false)}
