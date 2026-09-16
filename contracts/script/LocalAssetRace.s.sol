@@ -13,26 +13,6 @@ abstract contract LocalAssetRaceBase is Script {
     uint256 internal constant TOKEN_UNIT = 1 ether;
     uint256 internal constant PRICE_UNIT = 1e8;
 
-    bytes32 internal constant NVDA = bytes32("NVDA");
-    bytes32 internal constant TSLA = bytes32("TSLA");
-    bytes32 internal constant AAPL = bytes32("AAPL");
-    bytes32 internal constant META = bytes32("META");
-    bytes32 internal constant AMD = bytes32("AMD");
-    bytes32 internal constant COIN = bytes32("COIN");
-    bytes32 internal constant MSTR = bytes32("MSTR");
-    bytes32 internal constant AMZN = bytes32("AMZN");
-    bytes32 internal constant MSFT = bytes32("MSFT");
-    bytes32 internal constant GOOGL = bytes32("GOOGL");
-    bytes32 internal constant NVDA_ORACLE_ID = keccak256("LOCAL_NVDA_USD");
-    bytes32 internal constant TSLA_ORACLE_ID = keccak256("LOCAL_TSLA_USD");
-    bytes32 internal constant AAPL_ORACLE_ID = keccak256("LOCAL_AAPL_USD");
-    bytes32 internal constant META_ORACLE_ID = keccak256("LOCAL_META_USD");
-    bytes32 internal constant AMD_ORACLE_ID = keccak256("LOCAL_AMD_USD");
-    bytes32 internal constant COIN_ORACLE_ID = keccak256("LOCAL_COIN_USD");
-    bytes32 internal constant MSTR_ORACLE_ID = keccak256("LOCAL_MSTR_USD");
-    bytes32 internal constant AMZN_ORACLE_ID = keccak256("LOCAL_AMZN_USD");
-    bytes32 internal constant MSFT_ORACLE_ID = keccak256("LOCAL_MSFT_USD");
-    bytes32 internal constant GOOGL_ORACLE_ID = keccak256("LOCAL_GOOGL_USD");
     modifier localOnly() {
         require(block.chainid == LOCAL_CHAIN_ID, "local Anvil only");
         _;
@@ -43,20 +23,16 @@ abstract contract LocalAssetRaceBase is Script {
         view
         returns (AssetRace.CandidateInput[] memory candidates)
     {
+        string[] memory stockSymbols = _stockSymbols();
         string[] memory memeSymbols = _memeSymbols();
-        candidates = new AssetRace.CandidateInput[](10 + memeSymbols.length);
-        candidates[0] = _candidate(AssetRace.RaceCategory.STOCK, NVDA, oracle, NVDA_ORACLE_ID);
-        candidates[1] = _candidate(AssetRace.RaceCategory.STOCK, TSLA, oracle, TSLA_ORACLE_ID);
-        candidates[2] = _candidate(AssetRace.RaceCategory.STOCK, AAPL, oracle, AAPL_ORACLE_ID);
-        candidates[3] = _candidate(AssetRace.RaceCategory.STOCK, META, oracle, META_ORACLE_ID);
-        candidates[4] = _candidate(AssetRace.RaceCategory.STOCK, AMD, oracle, AMD_ORACLE_ID);
-        candidates[5] = _candidate(AssetRace.RaceCategory.STOCK, COIN, oracle, COIN_ORACLE_ID);
-        candidates[6] = _candidate(AssetRace.RaceCategory.STOCK, MSTR, oracle, MSTR_ORACLE_ID);
-        candidates[7] = _candidate(AssetRace.RaceCategory.STOCK, AMZN, oracle, AMZN_ORACLE_ID);
-        candidates[8] = _candidate(AssetRace.RaceCategory.STOCK, MSFT, oracle, MSFT_ORACLE_ID);
-        candidates[9] = _candidate(AssetRace.RaceCategory.STOCK, GOOGL, oracle, GOOGL_ORACLE_ID);
+        candidates = new AssetRace.CandidateInput[](stockSymbols.length + memeSymbols.length);
+        for (uint256 i = 0; i < stockSymbols.length; ++i) {
+            candidates[i] = _candidate(
+                AssetRace.RaceCategory.STOCK, _assetId(stockSymbols[i]), oracle, _stockOracleId(stockSymbols[i])
+            );
+        }
         for (uint256 i = 0; i < memeSymbols.length; ++i) {
-            candidates[10 + i] = _candidate(
+            candidates[stockSymbols.length + i] = _candidate(
                 AssetRace.RaceCategory.MEME, _assetId(memeSymbols[i]), oracle, _memeOracleId(memeSymbols[i])
             );
         }
@@ -73,16 +49,18 @@ abstract contract LocalAssetRaceBase is Script {
             oracle: address(oracle),
             oracleId: oracleId,
             expectedDecimals: PRICE_DECIMALS,
-            maxPriceAge: 1 days
+            maxPriceAge: 1 days,
+            maxEndpointLag: 5 minutes
         });
     }
 
-    function _platformAssetIds() internal pure returns (bytes32[] memory assetIds) {
+    function _platformAssetIds() internal view returns (bytes32[] memory assetIds) {
+        string[] memory symbols = _stockSymbols();
+        require(symbols.length >= 4, "need four local Stock assets");
         assetIds = new bytes32[](4);
-        assetIds[0] = NVDA;
-        assetIds[1] = TSLA;
-        assetIds[2] = AAPL;
-        assetIds[3] = META;
+        for (uint256 i = 0; i < assetIds.length; ++i) {
+            assetIds[i] = _assetId(symbols[i]);
+        }
     }
 
     function _memePlatformAssetIds() internal view returns (bytes32[] memory assetIds) {
@@ -135,51 +113,32 @@ abstract contract LocalAssetRaceBase is Script {
 
     function _setPrices(MockRaceOracle oracle, string memory scenario) internal {
         bytes32 scenarioHash = keccak256(bytes(scenario));
-        uint256[10] memory stockPrices;
+        uint256[13] memory stockPrices;
 
         if (scenarioHash == keccak256("start")) {
-            stockPrices = [uint256(100), 100, 100, 100, 100, 100, 100, 100, 100, 100];
+            stockPrices = [uint256(100), 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100];
         } else if (scenarioHash == keccak256("winner")) {
-            stockPrices = [uint256(102), 105, 99, 103, 101, 98, 104, 100, 106, 99];
+            stockPrices = [uint256(102), 105, 99, 103, 101, 98, 104, 100, 106, 99, 104, 102, 101];
         } else if (scenarioHash == keccak256("negative")) {
-            stockPrices = [uint256(98), 99, 96, 97, 95, 94, 93, 92, 91, 90];
+            stockPrices = [uint256(98), 99, 96, 97, 95, 94, 93, 92, 91, 90, 98, 97, 96];
         } else if (scenarioHash == keccak256("tie")) {
-            stockPrices = [uint256(105), 105, 99, 103, 105, 98, 104, 100, 106, 99];
+            stockPrices = [uint256(105), 105, 99, 103, 105, 98, 104, 100, 106, 99, 104, 102, 101];
         } else {
             revert("scenario must be start, winner, negative, or tie");
         }
 
         bytes32 observationId = bytes32(block.timestamp);
-        oracle.setObservation(
-            NVDA_ORACLE_ID, stockPrices[0] * PRICE_UNIT, PRICE_DECIMALS, block.timestamp, observationId
-        );
-        oracle.setObservation(
-            TSLA_ORACLE_ID, stockPrices[1] * PRICE_UNIT, PRICE_DECIMALS, block.timestamp, observationId
-        );
-        oracle.setObservation(
-            AAPL_ORACLE_ID, stockPrices[2] * PRICE_UNIT, PRICE_DECIMALS, block.timestamp, observationId
-        );
-        oracle.setObservation(
-            META_ORACLE_ID, stockPrices[3] * PRICE_UNIT, PRICE_DECIMALS, block.timestamp, observationId
-        );
-        oracle.setObservation(
-            AMD_ORACLE_ID, stockPrices[4] * PRICE_UNIT, PRICE_DECIMALS, block.timestamp, observationId
-        );
-        oracle.setObservation(
-            COIN_ORACLE_ID, stockPrices[5] * PRICE_UNIT, PRICE_DECIMALS, block.timestamp, observationId
-        );
-        oracle.setObservation(
-            MSTR_ORACLE_ID, stockPrices[6] * PRICE_UNIT, PRICE_DECIMALS, block.timestamp, observationId
-        );
-        oracle.setObservation(
-            AMZN_ORACLE_ID, stockPrices[7] * PRICE_UNIT, PRICE_DECIMALS, block.timestamp, observationId
-        );
-        oracle.setObservation(
-            MSFT_ORACLE_ID, stockPrices[8] * PRICE_UNIT, PRICE_DECIMALS, block.timestamp, observationId
-        );
-        oracle.setObservation(
-            GOOGL_ORACLE_ID, stockPrices[9] * PRICE_UNIT, PRICE_DECIMALS, block.timestamp, observationId
-        );
+        string[] memory stockSymbols = _stockSymbols();
+        require(stockSymbols.length == stockPrices.length, "expected thirteen local Stock assets");
+        for (uint256 i = 0; i < stockSymbols.length; ++i) {
+            oracle.setObservation(
+                _stockOracleId(stockSymbols[i]),
+                stockPrices[i] * PRICE_UNIT,
+                PRICE_DECIMALS,
+                block.timestamp,
+                observationId
+            );
+        }
         string[] memory memeSymbols = _memeSymbols();
         for (uint256 i = 0; i < memeSymbols.length; ++i) {
             uint256 price = 100;
@@ -192,8 +151,16 @@ abstract contract LocalAssetRaceBase is Script {
         }
     }
 
+    function _stockSymbols() internal view returns (string[] memory) {
+        return vm.envString("LOCAL_STOCK_SYMBOLS", ",");
+    }
+
     function _memeSymbols() internal view returns (string[] memory) {
         return vm.envString("LOCAL_MEME_SYMBOLS", ",");
+    }
+
+    function _stockOracleId(string memory symbol) internal pure returns (bytes32) {
+        return keccak256(abi.encodePacked("LOCAL_", symbol, "_USD"));
     }
 
     function _memeOracleId(string memory symbol) internal pure returns (bytes32) {
@@ -289,8 +256,10 @@ contract CreateLocalCommunityRace is LocalAssetRaceBase {
             initialAssetIds[0] = _assetId(memeSymbols[0]);
             initialAssetIds[1] = _assetId(memeSymbols[2]);
         } else {
-            initialAssetIds[0] = NVDA;
-            initialAssetIds[1] = META;
+            string[] memory stockSymbols = _stockSymbols();
+            require(stockSymbols.length >= 4, "need four local Stock assets");
+            initialAssetIds[0] = _assetId(stockSymbols[0]);
+            initialAssetIds[1] = _assetId(stockSymbols[3]);
         }
 
         vm.startBroadcast();
@@ -376,14 +345,26 @@ contract ManageLocalAssetRace is LocalAssetRaceBase {
         bytes32 actionHash = keccak256(bytes(action));
 
         vm.startBroadcast();
-        if (actionHash == keccak256("start")) race.startRace(raceId);
-        else if (actionHash == keccak256("open-betting")) race.openBetting(raceId);
-        else if (actionHash == keccak256("resolve")) race.resolveRace(raceId);
-        else if (actionHash == keccak256("cancel-unstarted")) race.cancelUnstartedRace(raceId);
-        else if (actionHash == keccak256("void-expired")) race.voidExpiredRace(raceId);
-        else if (actionHash == keccak256("claim")) race.claim(raceId);
-        else if (actionHash == keccak256("refund")) race.refund(raceId);
-        else revert("unknown local race action");
+        if (actionHash == keccak256("start")) {
+            race.startRace(raceId);
+        } else if (actionHash == keccak256("open-betting")) {
+            race.openBetting(raceId);
+        } else if (actionHash == keccak256("capture-end")) {
+            bytes[] memory proofs = new bytes[](race.getRace(raceId).candidateCount);
+            race.captureEndSnapshots(raceId, proofs);
+        } else if (actionHash == keccak256("resolve")) {
+            race.resolveRace(raceId);
+        } else if (actionHash == keccak256("cancel-unstarted")) {
+            race.cancelUnstartedRace(raceId);
+        } else if (actionHash == keccak256("void-expired")) {
+            race.voidExpiredRace(raceId);
+        } else if (actionHash == keccak256("claim")) {
+            race.claim(raceId);
+        } else if (actionHash == keccak256("refund")) {
+            race.refund(raceId);
+        } else {
+            revert("unknown local race action");
+        }
         vm.stopBroadcast();
 
         console.log("LOCAL_RACE_ACTION", action);

@@ -77,6 +77,7 @@ contract AssetRace is Ownable, ReentrancyGuard {
         bytes32 oracleId;
         uint8 expectedDecimals;
         uint64 maxPriceAge;
+        uint64 maxEndpointLag;
     }
 
     struct ApprovedAsset {
@@ -87,6 +88,7 @@ contract AssetRace is Ownable, ReentrancyGuard {
         bytes32 oracleId;
         uint8 expectedDecimals;
         uint64 maxPriceAge;
+        uint64 maxEndpointLag;
     }
 
     struct CommunityPolicyInput {
@@ -118,6 +120,7 @@ contract AssetRace is Ownable, ReentrancyGuard {
         uint8 candidateCount;
         uint8 activeCount;
         uint8 winningAssetIndex;
+        bool endSnapshotsCaptured;
         uint256 minStake;
         uint256 maxStakePerWallet;
         uint256 totalPool;
@@ -138,6 +141,7 @@ contract AssetRace is Ownable, ReentrancyGuard {
         bytes32 oracleId;
         uint8 expectedDecimals;
         uint64 maxPriceAge;
+        uint64 maxEndpointLag;
         bool active;
         uint256 pool;
         uint256 startPrice;
@@ -177,6 +181,11 @@ contract AssetRace is Ownable, ReentrancyGuard {
     error InvalidOracleTimestamp();
     error InvalidRaceStatus();
     error InvalidReturnInput();
+    error InvalidEndpointProofCount();
+    error InvalidStartProofCount();
+    error InvalidStartProofType();
+    error EndSnapshotsAlreadyCaptured();
+    error EndSnapshotsNotCaptured();
     error NoWinningPosition();
     error OraclePriceStale();
     error OracleTimestampSkew();
@@ -193,6 +202,9 @@ contract AssetRace is Ownable, ReentrancyGuard {
     error StartTooEarly();
     error StartWindowStillOpen();
     error StartWindowExpired();
+    error StartProofRequired();
+    error MixedEndpointProofTypes();
+    error EndpointSourceMismatch();
     error WrongAsset();
 
     IERC20 public immutable betToken;
@@ -222,7 +234,8 @@ contract AssetRace is Ownable, ReentrancyGuard {
         address oracle,
         bytes32 oracleId,
         uint8 expectedDecimals,
-        uint64 maxPriceAge
+        uint64 maxPriceAge,
+        uint64 maxEndpointLag
     );
     event RaceDurationPresetSet(uint64 indexed duration, bool enabled);
     event CommunityPolicySet();
@@ -257,6 +270,7 @@ contract AssetRace is Ownable, ReentrancyGuard {
         bytes32 observationId,
         int256 returnValue
     );
+    event EndSnapshotsCaptured(uint256 indexed raceId);
     event RaceResolved(
         uint256 indexed raceId,
         uint8 indexed winningAssetIndex,
@@ -297,6 +311,7 @@ contract AssetRace is Ownable, ReentrancyGuard {
         approved.oracleId = candidate.oracleId;
         approved.expectedDecimals = candidate.expectedDecimals;
         approved.maxPriceAge = candidate.maxPriceAge;
+        approved.maxEndpointLag = candidate.maxEndpointLag;
 
         emit ApprovedAssetSet(
             candidate.assetId,
@@ -305,7 +320,8 @@ contract AssetRace is Ownable, ReentrancyGuard {
             candidate.oracle,
             candidate.oracleId,
             candidate.expectedDecimals,
-            candidate.maxPriceAge
+            candidate.maxPriceAge,
+            candidate.maxEndpointLag
         );
     }
 
@@ -526,6 +542,12 @@ contract AssetRace is Ownable, ReentrancyGuard {
             RaceAsset storage asset = assets[i];
             if (asset.pool == 0) continue;
 
+            IAssetRaceOracle.EndpointProofType proofType = IAssetRaceOracle(asset.oracle).endpointProofType();
+            if (
+                proofType == IAssetRaceOracle.EndpointProofType.SIGNED_OBSERVATION_PAIR
+                    || proofType == IAssetRaceOracle.EndpointProofType.SIGNED_POOL_BLOCK_PAIR
+            ) revert StartProofRequired();
+
             IAssetRaceOracle.Observation memory observation =
                 IAssetRaceOracle(asset.oracle).latestObservation(asset.oracleId);
             _validateObservation(asset, observation);
@@ -551,6 +573,94 @@ contract AssetRace is Ownable, ReentrancyGuard {
         emit RaceStarted(raceId, race.actualStartTime, race.raceEndTime, activeCount);
     }
 
+    /// @notice Starts a proof-backed race at the predetermined betting cutoff.
+    /// Pool proofs are category-agnostic so the same endpoint architecture can
+    /// be reused without changing settlement economics.
+    function startRaceWithProofs(uint256 raceId, bytes[] calldata proofs) external nonReentrant {
+        Race storage race = _getRace(raceId);
+        if (race.status != RaceStatus.BETTING) revert AlreadyStarted();
+        if (block.timestamp < race.bettingEndTime) revert StartTooEarly();
+        if (block.timestamp > uint256(race.bettingEndTime) + race.startGrace) revert StartWindowExpired();
+
+        RaceAsset[] storage assets = raceAssets[raceId];
+        uint8 activeCount;
+        for (uint8 i = 0; i < assets.length; ++i) {
+            if (assets[i].pool > 0) ++activeCount;
+        }
+
+        if (activeCount < race.minActiveContenders) {
+            race.status = RaceStatus.CANCELLED;
+            emit RaceCancelled(raceId, CancelReason.INSUFFICIENT_ACTIVE_CONTENDERS);
+            return;
+        }
+        if (proofs.length != assets.length) revert InvalidStartProofCount();
+
+        _snapshotProofBackedStart(raceId, race, assets, proofs);
+
+        uint256 endTime = uint256(race.bettingEndTime) + race.raceDuration;
+        if (endTime > type(uint64).max) revert InvalidConfiguration();
+        race.activeCount = activeCount;
+        race.actualStartTime = race.bettingEndTime;
+        race.raceEndTime = uint64(endTime);
+        race.status = RaceStatus.RUNNING;
+
+        emit RaceStarted(raceId, race.actualStartTime, race.raceEndTime, activeCount);
+    }
+
+    function _snapshotProofBackedStart(
+        uint256 raceId,
+        Race storage race,
+        RaceAsset[] storage assets,
+        bytes[] calldata proofs
+    ) private {
+        uint256 minUpdatedAt = type(uint256).max;
+        uint256 maxUpdatedAt;
+        bool requireCommonEndpointSource = _validateStartProofTypes(assets);
+        bytes32 commonEndpointSource;
+        for (uint8 i = 0; i < assets.length; ++i) {
+            RaceAsset storage asset = assets[i];
+            if (asset.pool == 0) continue;
+
+            IAssetRaceOracle.Observation memory observation = IAssetRaceOracle(asset.oracle)
+                .endpointObservation(asset.oracleId, race.bettingEndTime, asset.maxEndpointLag, proofs[i]);
+            _validateEndpointObservation(asset, observation, race.bettingEndTime);
+
+            asset.active = true;
+            asset.startPrice = observation.price;
+            asset.startOracleUpdatedAt = observation.updatedAt;
+            asset.startObservationId = observation.observationId;
+            if (requireCommonEndpointSource) {
+                if (commonEndpointSource == bytes32(0)) commonEndpointSource = observation.observationId;
+                else if (observation.observationId != commonEndpointSource) revert EndpointSourceMismatch();
+            }
+            if (observation.updatedAt < minUpdatedAt) minUpdatedAt = observation.updatedAt;
+            if (observation.updatedAt > maxUpdatedAt) maxUpdatedAt = observation.updatedAt;
+
+            emit StartPriceSnapshotted(raceId, i, observation.price, observation.updatedAt, observation.observationId);
+        }
+        if (maxUpdatedAt - minUpdatedAt > race.maxOracleTimestampSkew) revert OracleTimestampSkew();
+    }
+
+    function _validateStartProofTypes(RaceAsset[] storage assets) private view returns (bool poolProofs) {
+        IAssetRaceOracle.EndpointProofType sharedProofType;
+        for (uint256 i = 0; i < assets.length; ++i) {
+            RaceAsset storage asset = assets[i];
+            if (asset.pool == 0) continue;
+            IAssetRaceOracle.EndpointProofType proofType = IAssetRaceOracle(asset.oracle).endpointProofType();
+            if (
+                proofType != IAssetRaceOracle.EndpointProofType.SIGNED_OBSERVATION_PAIR
+                    && proofType != IAssetRaceOracle.EndpointProofType.SIGNED_POOL_BLOCK_PAIR
+            ) revert InvalidStartProofType();
+            if (sharedProofType == IAssetRaceOracle.EndpointProofType.NONE) sharedProofType = proofType;
+            else if (proofType != sharedProofType) revert MixedEndpointProofTypes();
+            if (
+                proofType == IAssetRaceOracle.EndpointProofType.SIGNED_OBSERVATION_PAIR
+                    && asset.oracleId != asset.assetId
+            ) revert InvalidStartProofType();
+        }
+        poolProofs = sharedProofType == IAssetRaceOracle.EndpointProofType.SIGNED_POOL_BLOCK_PAIR;
+    }
+
     /// @notice Cancels a race that never obtained a valid P0 before its start
     /// grace expired. The timeout is objective and callable by anyone.
     function cancelUnstartedRace(uint256 raceId) external {
@@ -562,31 +672,36 @@ contract AssetRace is Ownable, ReentrancyGuard {
         emit RaceCancelled(raceId, CancelReason.START_WINDOW_EXPIRED);
     }
 
-    /// @notice Atomically freezes every active contender's P1, calculates
-    /// signed fixed-point returns, and resolves a unique winner or voids a tie.
-    function resolveRace(uint256 raceId) external nonReentrant {
+    /// @notice Atomically freezes every active contender's endpoint observation.
+    /// A proof may identify oracle-native observations but cannot provide prices.
+    function captureEndSnapshots(uint256 raceId, bytes[] calldata proofs) external nonReentrant {
         Race storage race = _getRace(raceId);
         if (race.status != RaceStatus.RUNNING) revert InvalidRaceStatus();
         if (block.timestamp < race.raceEndTime) revert ResolutionTooEarly();
+        if (race.endSnapshotsCaptured) revert EndSnapshotsAlreadyCaptured();
         if (block.timestamp > uint256(race.raceEndTime) + race.resolutionGrace) {
             revert ResolutionWindowExpired();
         }
 
         RaceAsset[] storage assets = raceAssets[raceId];
+        if (proofs.length != assets.length) revert InvalidEndpointProofCount();
         uint256 minUpdatedAt = type(uint256).max;
         uint256 maxUpdatedAt;
-        bool leaderSet;
-        bool topTied;
-        uint8 leaderIndex;
-        int256 bestReturn;
+        bool requireCommonEndpointSource = _requiresCommonEndpointSource(assets);
+        bytes32 commonEndpointSource;
 
         for (uint8 i = 0; i < assets.length; ++i) {
             RaceAsset storage asset = assets[i];
             if (!asset.active) continue;
 
-            IAssetRaceOracle.Observation memory observation =
-                IAssetRaceOracle(asset.oracle).latestObservation(asset.oracleId);
-            _validateObservation(asset, observation);
+            IAssetRaceOracle.Observation memory observation = IAssetRaceOracle(asset.oracle)
+                .endpointObservation(asset.oracleId, race.raceEndTime, asset.maxEndpointLag, proofs[i]);
+            _validateEndpointObservation(asset, observation, race.raceEndTime);
+
+            if (requireCommonEndpointSource) {
+                if (commonEndpointSource == bytes32(0)) commonEndpointSource = observation.observationId;
+                else if (observation.observationId != commonEndpointSource) revert EndpointSourceMismatch();
+            }
 
             int256 assetReturn = calculateReturn(asset.startPrice, observation.price);
             asset.endPrice = observation.price;
@@ -596,20 +711,57 @@ contract AssetRace is Ownable, ReentrancyGuard {
             if (observation.updatedAt < minUpdatedAt) minUpdatedAt = observation.updatedAt;
             if (observation.updatedAt > maxUpdatedAt) maxUpdatedAt = observation.updatedAt;
 
-            if (!leaderSet || assetReturn > bestReturn) {
-                leaderSet = true;
-                topTied = false;
-                leaderIndex = i;
-                bestReturn = assetReturn;
-            } else if (assetReturn == bestReturn) {
-                topTied = true;
-            }
-
             emit EndPriceSnapshotted(
                 raceId, i, observation.price, observation.updatedAt, observation.observationId, assetReturn
             );
         }
         if (maxUpdatedAt - minUpdatedAt > race.maxOracleTimestampSkew) revert OracleTimestampSkew();
+        race.endSnapshotsCaptured = true;
+        emit EndSnapshotsCaptured(raceId);
+    }
+
+    function _requiresCommonEndpointSource(RaceAsset[] storage assets) private view returns (bool required) {
+        bool sawNonPoolProof;
+        for (uint256 i = 0; i < assets.length; ++i) {
+            if (!assets[i].active) continue;
+            bool isPoolProof = IAssetRaceOracle(assets[i].oracle).endpointProofType()
+                == IAssetRaceOracle.EndpointProofType.SIGNED_POOL_BLOCK_PAIR;
+            if (isPoolProof) {
+                if (sawNonPoolProof) revert MixedEndpointProofTypes();
+                required = true;
+            } else {
+                if (required) revert MixedEndpointProofTypes();
+                sawNonPoolProof = true;
+            }
+        }
+    }
+
+    /// @notice Finalizes a unique winner or voids a tie using the already
+    /// frozen endpoint snapshots. Once captured, finalization has no deadline.
+    function resolveRace(uint256 raceId) external nonReentrant {
+        Race storage race = _getRace(raceId);
+        if (race.status != RaceStatus.RUNNING) revert InvalidRaceStatus();
+        if (!race.endSnapshotsCaptured) revert EndSnapshotsNotCaptured();
+
+        RaceAsset[] storage assets = raceAssets[raceId];
+        bool leaderSet;
+        bool topTied;
+        uint8 leaderIndex;
+        int256 bestReturn;
+
+        for (uint8 i = 0; i < assets.length; ++i) {
+            RaceAsset storage asset = assets[i];
+            if (!asset.active) continue;
+
+            if (!leaderSet || asset.returnValue > bestReturn) {
+                leaderSet = true;
+                topTied = false;
+                leaderIndex = i;
+                bestReturn = asset.returnValue;
+            } else if (asset.returnValue == bestReturn) {
+                topTied = true;
+            }
+        }
 
         race.resolvedAt = uint64(block.timestamp);
         if (topTied) {
@@ -639,6 +791,7 @@ contract AssetRace is Ownable, ReentrancyGuard {
     function voidExpiredRace(uint256 raceId) external {
         Race storage race = _getRace(raceId);
         if (race.status != RaceStatus.RUNNING) revert InvalidRaceStatus();
+        if (race.endSnapshotsCaptured) revert EndSnapshotsAlreadyCaptured();
         if (block.timestamp <= uint256(race.raceEndTime) + race.resolutionGrace) {
             revert ResolutionWindowStillOpen();
         }
@@ -768,6 +921,7 @@ contract AssetRace is Ownable, ReentrancyGuard {
                     || approved.oracle != candidate.oracle || approved.oracleId != candidate.oracleId
                     || approved.expectedDecimals != candidate.expectedDecimals
                     || approved.maxPriceAge != candidate.maxPriceAge
+                    || approved.maxEndpointLag != candidate.maxEndpointLag
             ) revert AssetNotApproved();
         }
     }
@@ -834,7 +988,8 @@ contract AssetRace is Ownable, ReentrancyGuard {
             oracle: approved.oracle,
             oracleId: approved.oracleId,
             expectedDecimals: approved.expectedDecimals,
-            maxPriceAge: approved.maxPriceAge
+            maxPriceAge: approved.maxPriceAge,
+            maxEndpointLag: approved.maxEndpointLag
         });
 
         RaceAsset[] storage assets = raceAssets[raceId];
@@ -855,7 +1010,8 @@ contract AssetRace is Ownable, ReentrancyGuard {
             candidate.oracle,
             candidate.oracleId,
             candidate.expectedDecimals,
-            candidate.maxPriceAge
+            candidate.maxPriceAge,
+            candidate.maxEndpointLag
         );
     }
 
@@ -866,7 +1022,8 @@ contract AssetRace is Ownable, ReentrancyGuard {
             candidate.oracle,
             candidate.oracleId,
             candidate.expectedDecimals,
-            candidate.maxPriceAge
+            candidate.maxPriceAge,
+            candidate.maxEndpointLag
         );
     }
 
@@ -876,7 +1033,8 @@ contract AssetRace is Ownable, ReentrancyGuard {
         address oracle,
         bytes32 oracleId,
         uint8 expectedDecimals,
-        uint64 maxPriceAge
+        uint64 maxPriceAge,
+        uint64 maxEndpointLag
     ) private {
         RaceAsset[] storage assets = raceAssets[raceId];
         uint8 assetIndex = uint8(assets.length);
@@ -887,6 +1045,7 @@ contract AssetRace is Ownable, ReentrancyGuard {
                 oracleId: oracleId,
                 expectedDecimals: expectedDecimals,
                 maxPriceAge: maxPriceAge,
+                maxEndpointLag: maxEndpointLag,
                 active: false,
                 pool: 0,
                 startPrice: 0,
@@ -912,6 +1071,28 @@ contract AssetRace is Ownable, ReentrancyGuard {
             revert InvalidOracleTimestamp();
         }
         if (block.timestamp - observation.updatedAt > asset.maxPriceAge) revert OraclePriceStale();
+    }
+
+    function _validateEndpointObservation(
+        RaceAsset storage asset,
+        IAssetRaceOracle.Observation memory observation,
+        uint256 targetTimestamp
+    ) private view {
+        if (observation.price == 0 || observation.price > MAX_ORACLE_PRICE) revert InvalidOraclePrice();
+        if (observation.decimals != asset.expectedDecimals) revert InvalidOracleDecimals();
+        if (
+            IAssetRaceOracle(asset.oracle).endpointProofType()
+                == IAssetRaceOracle.EndpointProofType.SIGNED_POOL_BLOCK_PAIR
+        ) {
+            if (observation.updatedAt == 0 || observation.updatedAt >= targetTimestamp) {
+                revert InvalidOracleTimestamp();
+            }
+            return;
+        }
+        if (observation.updatedAt < targetTimestamp || observation.updatedAt > block.timestamp) {
+            revert InvalidOracleTimestamp();
+        }
+        if (observation.updatedAt > targetTimestamp + asset.maxEndpointLag) revert OraclePriceStale();
     }
 
     function _getRace(uint256 raceId) private view returns (Race storage race) {

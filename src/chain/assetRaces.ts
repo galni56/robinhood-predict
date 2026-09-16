@@ -1,7 +1,7 @@
 import { getAddress, hexToString, isAddress, type Address, type Hex } from 'viem'
-import { isLocalAssetRace } from '@/chain/config'
+import { assetRaceNetworkConfigError, isLocalAssetRace } from '@/chain/config'
 import { ALLOWLISTED_FEEDS } from '@/chain/contracts'
-import localMemeAssets from '../../config/local-meme-assets.json'
+import { assetRaceCatalog } from '@/chain/assetRaceRegistry'
 
 export const ASSET_RACE_STATUS = {
   BETTING: 0,
@@ -24,10 +24,11 @@ export const ASSET_RACE_TOKEN_LABEL = isLocalAssetRace ? 'fake USDG' : 'USDG'
 const configuredAddress = import.meta.env.VITE_ASSET_RACE_ADDRESS?.trim()
 
 export const ASSET_RACE_ADDRESS: Address | undefined =
-  configuredAddress && isAddress(configuredAddress) ? getAddress(configuredAddress) : undefined
+  !assetRaceNetworkConfigError && configuredAddress && isAddress(configuredAddress) ? getAddress(configuredAddress) : undefined
 
 export const ASSET_RACE_CONFIG_ERROR =
-  configuredAddress && !ASSET_RACE_ADDRESS ? 'VITE_ASSET_RACE_ADDRESS is not a valid EVM address.' : null
+  assetRaceNetworkConfigError
+  ?? (configuredAddress && !ASSET_RACE_ADDRESS ? 'VITE_ASSET_RACE_ADDRESS is not a valid EVM address.' : null)
 
 export interface AssetRaceData {
   category: number
@@ -46,6 +47,7 @@ export interface AssetRaceData {
   candidateCount: number
   activeCount: number
   winningAssetIndex: number
+  endSnapshotsCaptured: boolean
   minStake: bigint
   maxStakePerWallet: bigint
   totalPool: bigint
@@ -69,6 +71,7 @@ export interface ApprovedRaceAsset {
   oracleId: Hex
   expectedDecimals: number
   maxPriceAge: bigint
+  maxEndpointLag: bigint
   symbol: string
   name: string
   logoUrl?: string
@@ -81,6 +84,7 @@ export interface AssetRaceAsset {
   oracleId: Hex
   expectedDecimals: number
   maxPriceAge: bigint
+  maxEndpointLag: bigint
   active: boolean
   pool: bigint
   startPrice: bigint
@@ -95,6 +99,8 @@ export interface AssetRaceAsset {
   livePrice?: bigint
   liveDecimals?: number
   liveUpdatedAt?: bigint
+  liveProvider?: 'ROBINHOOD_POOL_RPC' | 'ORACLE'
+  liveStale?: boolean
 }
 
 export interface AssetRacePosition {
@@ -151,6 +157,7 @@ export const assetRaceAbi = [
           { name: 'candidateCount', type: 'uint8' },
           { name: 'activeCount', type: 'uint8' },
           { name: 'winningAssetIndex', type: 'uint8' },
+          { name: 'endSnapshotsCaptured', type: 'bool' },
           { name: 'minStake', type: 'uint256' },
           { name: 'maxStakePerWallet', type: 'uint256' },
           { name: 'totalPool', type: 'uint256' },
@@ -194,6 +201,7 @@ export const assetRaceAbi = [
       { name: 'oracleId', type: 'bytes32' },
       { name: 'expectedDecimals', type: 'uint8' },
       { name: 'maxPriceAge', type: 'uint64' },
+      { name: 'maxEndpointLag', type: 'uint64' },
     ],
   },
   {
@@ -249,6 +257,7 @@ export const assetRaceAbi = [
           { name: 'oracleId', type: 'bytes32' },
           { name: 'expectedDecimals', type: 'uint8' },
           { name: 'maxPriceAge', type: 'uint64' },
+          { name: 'maxEndpointLag', type: 'uint64' },
           { name: 'active', type: 'bool' },
           { name: 'pool', type: 'uint256' },
           { name: 'startPrice', type: 'uint256' },
@@ -459,6 +468,7 @@ function previewAsset(
     oracleId: ZERO_BYTES,
     expectedDecimals: 8,
     maxPriceAge: 120n,
+    maxEndpointLag: 120n,
     active: pool > 0n,
     pool,
     startPrice,
@@ -506,6 +516,7 @@ function previewRace(
     candidateCount: assets.length,
     activeCount: status === ASSET_RACE_STATUS.BETTING ? 0 : assets.filter((asset) => asset.active).length,
     winningAssetIndex,
+    endSnapshotsCaptured: status === ASSET_RACE_STATUS.RESOLVED || status === ASSET_RACE_STATUS.VOID,
     minStake: 1_000_000n,
     maxStakePerWallet: 50_000_000n,
     totalPool,
@@ -532,7 +543,7 @@ function previewRace(
 }
 
 export function buildPreviewRaces(nowSeconds = BigInt(Math.floor(Date.now() / 1000))) {
-  const memeSymbols = localMemeAssets.slice(0, 4).map(({ symbol }) => symbol)
+  const memeSymbols = assetRaceCatalog.filter(({ category }) => category === 'MEME').slice(0, 4).map(({ symbol }) => symbol)
 
   return [
     previewRace(0n, ASSET_RACE_STATUS.BETTING, nowSeconds, [

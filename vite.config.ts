@@ -2,6 +2,26 @@ import path from 'node:path'
 import tailwindcss from '@tailwindcss/vite'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
+import { isAddress, zeroAddress } from 'viem'
+
+export function validateAssetRaceProductionBuild(env: Record<string, unknown>) {
+  const network = typeof env.VITE_ASSET_RACE_NETWORK === 'string' ? env.VITE_ASSET_RACE_NETWORK.trim() : ''
+  if (network && !['local', 'robinhood-testnet', 'robinhood-mainnet', 'mainnet'].includes(network)) {
+    throw new Error('Unsupported VITE_ASSET_RACE_NETWORK')
+  }
+  if (network === 'local' || network === 'robinhood-testnet') return
+  if (!network && !env.VITE_ASSET_RACE_ADDRESS) return // Deliberately unconfigured, labelled preview.
+  for (const name of ['VITE_ASSET_RACE_ADDRESS', 'VITE_ASSET_RACE_SIGNED_POOL_ORACLE_ADDRESS']) {
+    const value = env[name]
+    if (typeof value !== 'string' || !isAddress(value.trim()) || value.trim().toLowerCase() === zeroAddress) {
+      throw new Error(`Production Asset Race requires a nonzero ${name}`)
+    }
+  }
+  if (String(env.VITE_ASSET_RACE_ADDRESS).trim().toLowerCase()
+    === String(env.VITE_ASSET_RACE_SIGNED_POOL_ORACLE_ADDRESS).trim().toLowerCase()) {
+    throw new Error('AssetRace and signed oracle must use different contract addresses')
+  }
+}
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -37,9 +57,17 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (p) => p.replace(/^\/api\/rpc/, ''),
       },
+      '/api/asset-race/live': {
+        target: process.env.ASSET_RACE_LIVE_PROXY_URL ?? 'http://127.0.0.1:8787',
+        changeOrigin: true,
+      },
     },
   },
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), {
+    name: 'asset-race-production-config',
+    apply: 'build',
+    configResolved(config) { validateAssetRaceProductionBuild(config.env) },
+  }],
   resolve: {
     alias: {
       '@': path.resolve(import.meta.dirname, './src'),

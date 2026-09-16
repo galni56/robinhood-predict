@@ -1,0 +1,1290 @@
+{
+  "schemaVersion": 1,
+  "marketQuoteUniverses": {
+    "MEME": { "symbol": "WETH", "unit": "ETH_QUOTE", "supportedQuoteKinds": ["WETH", "NATIVE_ETH"], "address": "0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73", "decimals": 18, "chainId": 4663 }
+  },
+  "supportedOracleTypes": ["CHAINLINK_V3", "SIGNED_ROBINHOOD_STOCK", "SIGNED_POOL_BLOCK_PAIR", "DEX_V2_SPOT", "DEX_V3_SPOT", "MOCK_LOCAL"],
+  "networks": {
+    "local": {
+      "chainId": 31337,
+      "label": "Local Anvil",
+      "production": false,
+      "settlementToken": {
+        "symbol": "fake USDG",
+        "address": null,
+        "addressSource": "LOCAL_DEPLOYMENT",
+        "decimals": 18
+      },
+      "allowedOracleTypes": ["MOCK_LOCAL"]
+    },
+    "robinhood-testnet": {
+      "chainId": 46630,
+      "label": "Robinhood Chain Testnet",
+      "production": false,
+      "settlementToken": null,
+      "allowedOracleTypes": []
+    },
+    "robinhood-mainnet": {
+      "chainId": 4663,
+      "label": "Robinhood Chain",
+      "production": true,
+      "settlementToken": {
+        "symbol": "USDG",
+        "address": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "addressSource": "EXISTING_VERIFIED_PROJECT_DEPLOYMENT",
+        "decimals": 6
+      },
+      "allowedOracleTypes": ["CHAINLINK_V3", "SIGNED_POOL_BLOCK_PAIR", "DEX_V2_SPOT", "DEX_V3_SPOT"]
+    }
+  },
+  "validationProfiles": {
+    "LOCAL_MOCK_V1": {
+      "requirePositivePrice": true,
+      "requireExpectedDecimals": true,
+      "requireNonzeroTimestamp": true,
+      "rejectFutureTimestamp": true,
+      "maxPriceAgeSeconds": 86400,
+      "maxEndpointLagSeconds": 300
+    },
+    "CHAINLINK_STOCK_V1": {
+      "requireContractCode": true,
+      "requirePositivePrice": true,
+      "requireExpectedDecimals": true,
+      "requireNonzeroTimestamp": true,
+      "rejectFutureTimestamp": true,
+      "maxPriceAgeSeconds": 3600,
+      "maxEndpointLagSeconds": 60
+    },
+    "SIGNED_ROBINHOOD_STOCK_V1": {
+      "requirePositivePrice": true,
+      "requireExpectedDecimals": true,
+      "requireNonzeroTimestamp": true,
+      "rejectFutureTimestamp": true,
+      "maxPriceAgeSeconds": 60,
+      "maxEndpointLagSeconds": 60
+    },
+    "SIGNED_POOL_BLOCK_PAIR_V1": {
+      "requirePositivePrice": true,
+      "requireExpectedDecimals": true,
+      "requireNonzeroTimestamp": true,
+      "rejectFutureTimestamp": true,
+      "maxPriceAgeSeconds": 60,
+      "maxEndpointLagSeconds": 0
+    }
+  },
+  "poolInfrastructure": {
+    "chainId": 4663,
+    "outputDecimals": 18,
+    "uniswapV3Factory": "0x1f7d7550B1b028f7571E69A784071F0205FD2EfA",
+    "uniswapV4PoolManager": "0x8366a39CC670B4001A1121B8F6A443A643e40951",
+    "uniswapV4StateView": "0xf3334192d15450cdd385c8b70e03f9a6bd9e673b",
+    "uniswapInterfaceMulticall": "0x282a3c4d320cc7f0d5eaf56b8029e4b88338f0a3",
+    "livePollIntervalMs": 1000,
+    "liveStaleAfterMs": 5000
+  },
+  "liveDisplayProfiles": {
+    "DEXSCREENER_STOCK_TOKEN_V1": {
+      "provider": "DEXSCREENER",
+      "chainId": "robinhood",
+      "quoteTokenAddress": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+      "priceField": "priceNative",
+      "pollIntervalMs": 1000,
+      "staleAfterMs": 5000
+    }
+  },
+  "assets": [
+    {
+      "assetId": "NVDA",
+      "symbol": "NVDA",
+      "displayName": "NVIDIA",
+      "category": "STOCK",
+      "canonicalTokenAddress": "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC",
+      "marketSource": { "type": "UNISWAP_V3", "poolIdentifier": "0xd4EB21209C4D6093f80B5b84f5C45cc093EA14a3", "baseToken": "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC", "quoteToken": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168", "baseDecimals": 18, "quoteDecimals": 6, "baseIsToken0": false, "fee": 500, "orientation": "BASE_STOCK_QUOTE_USDG" },
+      "liveDisplay": {
+        "type": "DEXSCREENER_STOCK_TOKEN",
+        "profile": "DEXSCREENER_STOCK_TOKEN_V1",
+        "pairAddress": "0xd4EB21209C4D6093f80B5b84f5C45cc093EA14a3",
+        "baseTokenAddress": "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC",
+        "quoteTokenAddress": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "orientation": "BASE_STOCK_QUOTE_USDG"
+      },
+      "networks": {
+        "local": { "enabled": true, "oracle": { "type": "MOCK_LOCAL", "identifier": "LOCAL_NVDA_USD", "expectedDecimals": 8, "validationProfile": "LOCAL_MOCK_V1" } },
+        "robinhood-testnet": { "enabled": false, "oracle": null, "blocker": "No verified testnet feed; mainnet addresses must not be reused." },
+        "robinhood-mainnet": { "enabled": true, "oracle": { "type": "SIGNED_POOL_BLOCK_PAIR", "identifier": "0x28b1117d38bcf0b69924a2d75043bb306f3272fe110a078f4d54e473f8c60925", "expectedDecimals": 18, "validationProfile": "SIGNED_POOL_BLOCK_PAIR_V1", "provenance": "Exact NVDA StockToken/USDG Uniswap V3 pool state at the deterministic Robinhood Chain endpoint block." } }
+      }
+    },
+    {
+      "assetId": "TSLA",
+      "symbol": "TSLA",
+      "displayName": "Tesla",
+      "category": "STOCK",
+      "canonicalTokenAddress": "0x322F0929c4625eD5bAd873c95208D54E1c003b2d",
+      "marketSource": { "type": "UNISWAP_V3", "poolIdentifier": "0xf4ACdAEEB7022862A763C9B1B885e11191c889E3", "baseToken": "0x322F0929c4625eD5bAd873c95208D54E1c003b2d", "quoteToken": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168", "baseDecimals": 18, "quoteDecimals": 6, "baseIsToken0": true, "fee": 3000, "orientation": "BASE_STOCK_QUOTE_USDG" },
+      "liveDisplay": {
+        "type": "DEXSCREENER_STOCK_TOKEN",
+        "profile": "DEXSCREENER_STOCK_TOKEN_V1",
+        "pairAddress": "0xf4ACdAEEB7022862A763C9B1B885e11191c889E3",
+        "baseTokenAddress": "0x322F0929c4625eD5bAd873c95208D54E1c003b2d",
+        "quoteTokenAddress": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "orientation": "BASE_STOCK_QUOTE_USDG"
+      },
+      "networks": {
+        "local": { "enabled": true, "oracle": { "type": "MOCK_LOCAL", "identifier": "LOCAL_TSLA_USD", "expectedDecimals": 8, "validationProfile": "LOCAL_MOCK_V1" } },
+        "robinhood-testnet": { "enabled": false, "oracle": null, "blocker": "No verified testnet feed; mainnet addresses must not be reused." },
+        "robinhood-mainnet": { "enabled": true, "oracle": { "type": "SIGNED_POOL_BLOCK_PAIR", "identifier": "0x14e1dfbdefeb08594f0852a6449b41554f51dd277f968d2499f7666feebb4aeb", "expectedDecimals": 18, "validationProfile": "SIGNED_POOL_BLOCK_PAIR_V1", "provenance": "Exact TSLA StockToken/USDG Uniswap V3 pool state at the deterministic Robinhood Chain endpoint block." } }
+      }
+    },
+    {
+      "assetId": "AAPL",
+      "symbol": "AAPL",
+      "displayName": "Apple",
+      "category": "STOCK",
+      "canonicalTokenAddress": "0xaF3D76f1834A1d425780943C99Ea8A608f8a93f9",
+      "marketSource": { "type": "UNISWAP_V4", "poolIdentifier": "0xc748f4671a867db48b552f6b7650bf3255e05f80f00e3f7aad1b17ccb7898fdb", "baseToken": "0xaF3D76f1834A1d425780943C99Ea8A608f8a93f9", "quoteToken": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168", "baseDecimals": 18, "quoteDecimals": 6, "baseIsToken0": false, "orientation": "BASE_STOCK_QUOTE_USDG", "poolKey": { "currency0": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168", "currency1": "0xaF3D76f1834A1d425780943C99Ea8A608f8a93f9", "fee": 3000, "tickSpacing": 60, "hooks": "0x0000000000000000000000000000000000000000" } },
+      "liveDisplay": {
+        "type": "DEXSCREENER_STOCK_TOKEN",
+        "profile": "DEXSCREENER_STOCK_TOKEN_V1",
+        "pairAddress": "0xc748f4671a867db48b552f6b7650bf3255e05f80f00e3f7aad1b17ccb7898fdb",
+        "baseTokenAddress": "0xaF3D76f1834A1d425780943C99Ea8A608f8a93f9",
+        "quoteTokenAddress": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "orientation": "BASE_STOCK_QUOTE_USDG"
+      },
+      "networks": {
+        "local": { "enabled": true, "oracle": { "type": "MOCK_LOCAL", "identifier": "LOCAL_AAPL_USD", "expectedDecimals": 8, "validationProfile": "LOCAL_MOCK_V1" } },
+        "robinhood-testnet": { "enabled": false, "oracle": null, "blocker": "No verified testnet feed; mainnet addresses must not be reused." },
+        "robinhood-mainnet": { "enabled": true, "oracle": { "type": "SIGNED_POOL_BLOCK_PAIR", "identifier": "0xcf1e0b77466a71059a45ea4442e02675c3e3d29d64e0d77795262801992cd016", "expectedDecimals": 18, "validationProfile": "SIGNED_POOL_BLOCK_PAIR_V1", "provenance": "Exact AAPL StockToken/USDG Uniswap V4 pool state at the deterministic Robinhood Chain endpoint block." } }
+      }
+    },
+    {
+      "assetId": "META",
+      "symbol": "META",
+      "displayName": "Meta Platforms",
+      "category": "STOCK",
+      "canonicalTokenAddress": "0xc0D6457C16Cc70d6790Dd43521C899C87ce02f35",
+      "marketSource": { "type": "UNISWAP_V4", "poolIdentifier": "0x5875d407a42965b0e768c8925cea290e06fa50603ef34fc99eb92a1050e6ae36", "baseToken": "0xc0D6457C16Cc70d6790Dd43521C899C87ce02f35", "quoteToken": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168", "baseDecimals": 18, "quoteDecimals": 6, "baseIsToken0": false, "orientation": "BASE_STOCK_QUOTE_USDG", "poolKey": { "currency0": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168", "currency1": "0xc0D6457C16Cc70d6790Dd43521C899C87ce02f35", "fee": 3000, "tickSpacing": 60, "hooks": "0x0000000000000000000000000000000000000000" } },
+      "liveDisplay": {
+        "type": "DEXSCREENER_STOCK_TOKEN",
+        "profile": "DEXSCREENER_STOCK_TOKEN_V1",
+        "pairAddress": "0x5875d407a42965b0e768c8925cea290e06fa50603ef34fc99eb92a1050e6ae36",
+        "baseTokenAddress": "0xc0D6457C16Cc70d6790Dd43521C899C87ce02f35",
+        "quoteTokenAddress": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "orientation": "BASE_STOCK_QUOTE_USDG"
+      },
+      "networks": {
+        "local": { "enabled": true, "oracle": { "type": "MOCK_LOCAL", "identifier": "LOCAL_META_USD", "expectedDecimals": 8, "validationProfile": "LOCAL_MOCK_V1" } },
+        "robinhood-testnet": { "enabled": false, "oracle": null, "blocker": "No verified testnet feed; mainnet addresses must not be reused." },
+        "robinhood-mainnet": { "enabled": true, "oracle": { "type": "SIGNED_POOL_BLOCK_PAIR", "identifier": "0xc51029d65db09ba79a026cc509107abb370cf9024739ace218fb1ec9629aec7c", "expectedDecimals": 18, "validationProfile": "SIGNED_POOL_BLOCK_PAIR_V1", "provenance": "Exact META StockToken/USDG Uniswap V4 pool state at the deterministic Robinhood Chain endpoint block." } }
+      }
+    },
+    {
+      "assetId": "AMD",
+      "symbol": "AMD",
+      "displayName": "Advanced Micro Devices",
+      "category": "STOCK",
+      "canonicalTokenAddress": "0x86923f96303D656E4aa86D9d42D1e57ad2023fdC",
+      "tokenVerification": { "chainId": 4663, "symbol": "AMD", "decimals": 18, "codeBytes": 283, "isin": "US0079031078", "registryUid": "0x0000000000000000000000000000000086aeaac3c7d9422c90f6fd41aff0eaf7", "source": "https://api.robinhood.com/rhj/assets", "checkedAt": "2026-09-16" },
+      "marketSource": { "type": "UNISWAP_V4", "poolIdentifier": "0xde9f85fdd9e05a943a52f2c69ffafe3064a3287df03d02c9b431bc92d4781274", "baseToken": "0x86923f96303D656E4aa86D9d42D1e57ad2023fdC", "quoteToken": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168", "baseDecimals": 18, "quoteDecimals": 6, "baseIsToken0": false, "orientation": "BASE_STOCK_QUOTE_USDG", "poolKey": { "currency0": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168", "currency1": "0x86923f96303D656E4aa86D9d42D1e57ad2023fdC", "fee": 10000, "tickSpacing": 200, "hooks": "0x0000000000000000000000000000000000000000" } },
+      "networks": {
+        "local": { "enabled": true, "oracle": { "type": "MOCK_LOCAL", "identifier": "LOCAL_AMD_USD", "expectedDecimals": 8, "validationProfile": "LOCAL_MOCK_V1" } },
+        "robinhood-testnet": { "enabled": false, "oracle": null, "blocker": "No verified testnet feed; mainnet addresses must not be reused." },
+        "robinhood-mainnet": { "enabled": false, "oracle": null, "blocker": "Verified V4 candidate has 1.45% fee-inclusive $25k quote impact. Comparison to the more active, lower-fee V3 alternative was blocked by network approval; best-pool selection remains incomplete." }
+      }
+    },
+    {
+      "assetId": "COIN",
+      "symbol": "COIN",
+      "displayName": "Coinbase",
+      "category": "STOCK",
+      "canonicalTokenAddress": "0x6330D8C3178a418788dF01a47479c0ce7CCF450b",
+      "tokenVerification": { "chainId": 4663, "symbol": "COIN", "decimals": 18, "codeBytes": 283, "isin": "US19260Q1076", "registryUid": "0x00000000000000000000000000000000970b46dbdece4ae4958a53815e62a85a", "source": "https://api.robinhood.com/rhj/assets", "checkedAt": "2026-09-16" },
+      "marketSource": { "type": "UNISWAP_V4", "poolIdentifier": "0x007a13fa152f6dc383cad20a8eaab4e1e2538b606936eae2a424f8aa47d6db31", "baseToken": "0x6330D8C3178a418788dF01a47479c0ce7CCF450b", "quoteToken": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168", "baseDecimals": 18, "quoteDecimals": 6, "baseIsToken0": false, "orientation": "BASE_STOCK_QUOTE_USDG", "poolKey": { "currency0": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168", "currency1": "0x6330D8C3178a418788dF01a47479c0ce7CCF450b", "fee": 10000, "tickSpacing": 200, "hooks": "0x0000000000000000000000000000000000000000" } },
+      "networks": {
+        "local": { "enabled": true, "oracle": { "type": "MOCK_LOCAL", "identifier": "LOCAL_COIN_USD", "expectedDecimals": 8, "validationProfile": "LOCAL_MOCK_V1" } },
+        "robinhood-testnet": { "enabled": false, "oracle": null, "blocker": "No verified testnet feed; mainnet addresses must not be reused." },
+        "robinhood-mainnet": { "enabled": false, "oracle": null, "blocker": "Verified V4 candidate has 1.97% fee-inclusive $25k quote impact and no trades in the sampled latest hour. Conservatively disabled pending spot-manipulation/exposure and sustained-activity review." }
+      }
+    },
+    {
+      "assetId": "MSTR",
+      "symbol": "MSTR",
+      "displayName": "Strategy",
+      "category": "STOCK",
+      "canonicalTokenAddress": "0xec262a75e413fAfD0dF80480274532C79D42da09",
+      "marketSource": { "type": "UNISWAP_V4", "poolIdentifier": "0x319bac87e616a89e241c10aeb8afd4892a852cdd8b373cd9765ecddc40b87cfe", "baseToken": "0xec262a75e413fAfD0dF80480274532C79D42da09", "quoteToken": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168", "baseDecimals": 18, "quoteDecimals": 6, "baseIsToken0": false, "orientation": "BASE_STOCK_QUOTE_USDG", "poolKey": { "currency0": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168", "currency1": "0xec262a75e413fAfD0dF80480274532C79D42da09", "fee": 2500, "tickSpacing": 25, "hooks": "0x0000000000000000000000000000000000000000" } },
+      "liveDisplay": {
+        "type": "DEXSCREENER_STOCK_TOKEN",
+        "profile": "DEXSCREENER_STOCK_TOKEN_V1",
+        "pairAddress": "0x319bac87e616a89e241c10aeb8afd4892a852cdd8b373cd9765ecddc40b87cfe",
+        "baseTokenAddress": "0xec262a75e413fAfD0dF80480274532C79D42da09",
+        "quoteTokenAddress": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "orientation": "BASE_STOCK_QUOTE_USDG"
+      },
+      "networks": {
+        "local": { "enabled": true, "oracle": { "type": "MOCK_LOCAL", "identifier": "LOCAL_MSTR_USD", "expectedDecimals": 8, "validationProfile": "LOCAL_MOCK_V1" } },
+        "robinhood-testnet": { "enabled": false, "oracle": null, "blocker": "No verified testnet feed; mainnet addresses must not be reused." },
+        "robinhood-mainnet": { "enabled": true, "oracle": { "type": "SIGNED_POOL_BLOCK_PAIR", "identifier": "0x9ca90db38e6c1510bd809cf19d1b875106a76a0ef0445186e3f961216eaffff8", "expectedDecimals": 18, "validationProfile": "SIGNED_POOL_BLOCK_PAIR_V1", "provenance": "Exact MSTR StockToken/USDG Uniswap V4 pool state at the deterministic Robinhood Chain endpoint block." } }
+      }
+    },
+    {
+      "assetId": "AMZN",
+      "symbol": "AMZN",
+      "displayName": "Amazon",
+      "category": "STOCK",
+      "canonicalTokenAddress": "0x12f190a9F9d7D37a250758b26824B97CE941bF54",
+      "marketSource": { "type": "UNISWAP_V3", "poolIdentifier": "0x8AC92DA74AB5F3b1d024Dc1943Ad7e15Dc4179Ef", "baseToken": "0x12f190a9F9d7D37a250758b26824B97CE941bF54", "quoteToken": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168", "baseDecimals": 18, "quoteDecimals": 6, "baseIsToken0": true, "fee": 3000, "orientation": "BASE_STOCK_QUOTE_USDG" },
+      "liveDisplay": {
+        "type": "DEXSCREENER_STOCK_TOKEN",
+        "profile": "DEXSCREENER_STOCK_TOKEN_V1",
+        "pairAddress": "0x8AC92DA74AB5F3b1d024Dc1943Ad7e15Dc4179Ef",
+        "baseTokenAddress": "0x12f190a9F9d7D37a250758b26824B97CE941bF54",
+        "quoteTokenAddress": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "orientation": "BASE_STOCK_QUOTE_USDG"
+      },
+      "networks": {
+        "local": { "enabled": true, "oracle": { "type": "MOCK_LOCAL", "identifier": "LOCAL_AMZN_USD", "expectedDecimals": 8, "validationProfile": "LOCAL_MOCK_V1" } },
+        "robinhood-testnet": { "enabled": false, "oracle": null, "blocker": "No verified testnet feed; mainnet addresses must not be reused." },
+        "robinhood-mainnet": { "enabled": true, "oracle": { "type": "SIGNED_POOL_BLOCK_PAIR", "identifier": "0x83779f31cbb18eb49f3386fc4e3822e3802046b043736c0ae7e4731a863fc5d9", "expectedDecimals": 18, "validationProfile": "SIGNED_POOL_BLOCK_PAIR_V1", "provenance": "Exact AMZN StockToken/USDG Uniswap V3 pool state at the deterministic Robinhood Chain endpoint block." } }
+      }
+    },
+    {
+      "assetId": "MSFT",
+      "symbol": "MSFT",
+      "displayName": "Microsoft",
+      "category": "STOCK",
+      "canonicalTokenAddress": "0xe93237C50D904957Cf27E7B1133b510C669c2e74",
+      "marketSource": { "type": "UNISWAP_V3", "poolIdentifier": "0xeb60bCD1D920ad6E102690CCFC6fB488899E1510", "baseToken": "0xe93237C50D904957Cf27E7B1133b510C669c2e74", "quoteToken": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168", "baseDecimals": 18, "quoteDecimals": 6, "baseIsToken0": false, "fee": 3000, "orientation": "BASE_STOCK_QUOTE_USDG" },
+      "liveDisplay": {
+        "type": "DEXSCREENER_STOCK_TOKEN",
+        "profile": "DEXSCREENER_STOCK_TOKEN_V1",
+        "pairAddress": "0xeb60bCD1D920ad6E102690CCFC6fB488899E1510",
+        "baseTokenAddress": "0xe93237C50D904957Cf27E7B1133b510C669c2e74",
+        "quoteTokenAddress": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "orientation": "BASE_STOCK_QUOTE_USDG"
+      },
+      "networks": {
+        "local": { "enabled": true, "oracle": { "type": "MOCK_LOCAL", "identifier": "LOCAL_MSFT_USD", "expectedDecimals": 8, "validationProfile": "LOCAL_MOCK_V1" } },
+        "robinhood-testnet": { "enabled": false, "oracle": null, "blocker": "No verified testnet feed; mainnet addresses must not be reused." },
+        "robinhood-mainnet": { "enabled": true, "oracle": { "type": "SIGNED_POOL_BLOCK_PAIR", "identifier": "0xe5394284179d55981405dd0c12ca82db7727d5f6284161b8e18e98ca44ce644b", "expectedDecimals": 18, "validationProfile": "SIGNED_POOL_BLOCK_PAIR_V1", "provenance": "Exact MSFT StockToken/USDG Uniswap V3 pool state at the deterministic Robinhood Chain endpoint block." } }
+      }
+    },
+    {
+      "assetId": "GOOGL",
+      "symbol": "GOOGL",
+      "displayName": "Alphabet",
+      "category": "STOCK",
+      "canonicalTokenAddress": "0x2e0847E8910a9732eB3fb1bb4b70a580ADAD4FE3",
+      "marketSource": { "type": "UNISWAP_V3", "poolIdentifier": "0x34D0dC122CF9A8Eb296fC5e0D3A233625D7d19b7", "baseToken": "0x2e0847E8910a9732eB3fb1bb4b70a580ADAD4FE3", "quoteToken": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168", "baseDecimals": 18, "quoteDecimals": 6, "baseIsToken0": true, "fee": 500, "orientation": "BASE_STOCK_QUOTE_USDG" },
+      "liveDisplay": {
+        "type": "DEXSCREENER_STOCK_TOKEN",
+        "profile": "DEXSCREENER_STOCK_TOKEN_V1",
+        "pairAddress": "0x34D0dC122CF9A8Eb296fC5e0D3A233625D7d19b7",
+        "baseTokenAddress": "0x2e0847E8910a9732eB3fb1bb4b70a580ADAD4FE3",
+        "quoteTokenAddress": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "orientation": "BASE_STOCK_QUOTE_USDG"
+      },
+      "networks": {
+        "local": { "enabled": true, "oracle": { "type": "MOCK_LOCAL", "identifier": "LOCAL_GOOGL_USD", "expectedDecimals": 8, "validationProfile": "LOCAL_MOCK_V1" } },
+        "robinhood-testnet": { "enabled": false, "oracle": null, "blocker": "No verified testnet feed; mainnet addresses must not be reused." },
+        "robinhood-mainnet": { "enabled": true, "oracle": { "type": "SIGNED_POOL_BLOCK_PAIR", "identifier": "0xd89674e7bcc8ffaa5f72a3baae3318b2958cf11f245a09f60a2e522d10f99301", "expectedDecimals": 18, "validationProfile": "SIGNED_POOL_BLOCK_PAIR_V1", "provenance": "Exact GOOGL StockToken/USDG Uniswap V3 pool state at the deterministic Robinhood Chain endpoint block." } }
+      }
+    },
+    {
+      "assetId": "MU",
+      "symbol": "MU",
+      "displayName": "Micron Technology",
+      "category": "STOCK",
+      "canonicalTokenAddress": "0xfF080c8ce2E5feadaCa0Da81314Ae59D232d4afD",
+      "tokenVerification": { "chainId": 4663, "symbol": "MU", "decimals": 18, "codeBytes": 283, "isin": "US5951121038", "registryUid": "0x000000000000000000000000000000007757415150a94b50a879cdc04dc90664", "source": "https://api.robinhood.com/rhj/assets", "checkedAt": "2026-09-16" },
+      "marketSource": { "type": "UNISWAP_V3", "poolIdentifier": "0xd057B1Bc54917855BBee58eAd58647f47caB35E5", "baseToken": "0xfF080c8ce2E5feadaCa0Da81314Ae59D232d4afD", "quoteToken": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168", "baseDecimals": 18, "quoteDecimals": 6, "baseIsToken0": false, "fee": 3000, "orientation": "BASE_STOCK_QUOTE_USDG" },
+      "liveDisplay": { "type": "DEXSCREENER_STOCK_TOKEN", "profile": "DEXSCREENER_STOCK_TOKEN_V1", "pairAddress": "0xd057B1Bc54917855BBee58eAd58647f47caB35E5", "baseTokenAddress": "0xfF080c8ce2E5feadaCa0Da81314Ae59D232d4afD", "quoteTokenAddress": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168", "orientation": "BASE_STOCK_QUOTE_USDG" },
+      "networks": {
+        "local": { "enabled": true, "oracle": { "type": "MOCK_LOCAL", "identifier": "LOCAL_MU_USD", "expectedDecimals": 8, "validationProfile": "LOCAL_MOCK_V1" } },
+        "robinhood-testnet": { "enabled": false, "oracle": null, "blocker": "No verified testnet source; mainnet addresses must not be reused." },
+        "robinhood-mainnet": { "enabled": true, "oracle": { "type": "SIGNED_POOL_BLOCK_PAIR", "identifier": "0x68b0533a4324eba039d5462e84d900537f3a56e777fac928d50ee373a6f57825", "expectedDecimals": 18, "validationProfile": "SIGNED_POOL_BLOCK_PAIR_V1", "provenance": "Canonical MU token/UID and V3 pool verified onchain; tick-aware Quoter depth and activity screening documented in ASSET_RACE_STOCK_POOL_REVIEW.md." } }
+      }
+    },
+    {
+      "assetId": "NFLX",
+      "symbol": "NFLX",
+      "displayName": "Netflix",
+      "category": "STOCK",
+      "canonicalTokenAddress": "0xE0444EF8BF4eD74f74FD73686e2ddF4C1c5591E8",
+      "tokenVerification": { "chainId": 4663, "symbol": "NFLX", "decimals": 18, "codeBytes": 283, "isin": "US64110L1061", "registryUid": "0x00000000000000000000000000000000500f14b2a92f44d6998e0e2b9cc9387e", "source": "https://api.robinhood.com/rhj/assets", "checkedAt": "2026-09-16" },
+      "marketSource": { "type": "UNISWAP_V3", "poolIdentifier": "0x59895C0302F41aEaa129D2fa2442CEc01E7eF45E", "baseToken": "0xE0444EF8BF4eD74f74FD73686e2ddF4C1c5591E8", "quoteToken": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168", "baseDecimals": 18, "quoteDecimals": 6, "baseIsToken0": false, "fee": 3000, "orientation": "BASE_STOCK_QUOTE_USDG" },
+      "liveDisplay": { "type": "DEXSCREENER_STOCK_TOKEN", "profile": "DEXSCREENER_STOCK_TOKEN_V1", "pairAddress": "0x59895C0302F41aEaa129D2fa2442CEc01E7eF45E", "baseTokenAddress": "0xE0444EF8BF4eD74f74FD73686e2ddF4C1c5591E8", "quoteTokenAddress": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168", "orientation": "BASE_STOCK_QUOTE_USDG" },
+      "networks": {
+        "local": { "enabled": true, "oracle": { "type": "MOCK_LOCAL", "identifier": "LOCAL_NFLX_USD", "expectedDecimals": 8, "validationProfile": "LOCAL_MOCK_V1" } },
+        "robinhood-testnet": { "enabled": false, "oracle": null, "blocker": "No verified testnet source; mainnet addresses must not be reused." },
+        "robinhood-mainnet": { "enabled": true, "oracle": { "type": "SIGNED_POOL_BLOCK_PAIR", "identifier": "0xf1741d3972040c6963abf034fe202f09ee7896136ad14ade648f7843f4f3294f", "expectedDecimals": 18, "validationProfile": "SIGNED_POOL_BLOCK_PAIR_V1", "provenance": "Canonical NFLX token/UID and V3 pool verified onchain; tick-aware Quoter depth and activity screening documented in ASSET_RACE_STOCK_POOL_REVIEW.md." } }
+      }
+    },
+    {
+      "assetId": "TSM",
+      "symbol": "TSM",
+      "displayName": "Taiwan Semiconductor Manufacturing ADR",
+      "category": "STOCK",
+      "canonicalTokenAddress": "0x58FfE4a942d3885bAa22D7520691F611EF09e7AA",
+      "tokenVerification": { "chainId": 4663, "symbol": "TSM", "decimals": 18, "codeBytes": 283, "isin": "US8740391003", "registryUid": "0x000000000000000000000000000000002e890a0884474abd86ba66b19722e827", "source": "https://api.robinhood.com/rhj/assets", "checkedAt": "2026-09-16" },
+      "marketSource": { "type": "UNISWAP_V4", "poolIdentifier": "0x0ba5d53d2f6255f334b7c8ead4f56b6aef5af3402c5e4d11180afd38c6b85fb1", "baseToken": "0x58FfE4a942d3885bAa22D7520691F611EF09e7AA", "quoteToken": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168", "baseDecimals": 18, "quoteDecimals": 6, "baseIsToken0": true, "orientation": "BASE_STOCK_QUOTE_USDG", "poolKey": { "currency0": "0x58FfE4a942d3885bAa22D7520691F611EF09e7AA", "currency1": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168", "fee": 7500, "tickSpacing": 75, "hooks": "0x0000000000000000000000000000000000000000" } },
+      "networks": {
+        "local": { "enabled": true, "oracle": { "type": "MOCK_LOCAL", "identifier": "LOCAL_TSM_USD", "expectedDecimals": 8, "validationProfile": "LOCAL_MOCK_V1" } },
+        "robinhood-testnet": { "enabled": false, "oracle": null, "blocker": "No verified testnet source; mainnet addresses must not be reused." },
+        "robinhood-mainnet": { "enabled": false, "oracle": null, "blocker": "Verified V4 candidate has 1.50% fee-inclusive $25k quote impact, 136 trades/24h and six trades in the sampled latest hour. Conservatively disabled pending stronger sustained activity and spot-manipulation/exposure review." }
+      }
+    },
+    {
+      "assetId": "AI",
+      "maxRecommendedRaceExposureUsd": null,
+      "raceExposureReviewStatus": "PENDING_CURRENT_EXECUTABLE_DEPTH",
+      "symbol": "AI",
+      "displayName": "Artificial Inu",
+      "category": "MEME",
+      "canonicalTokenAddress": "0x2E8c31162b855A2ffa90F6F8634643Ad6F111e18",
+      "productionStatus": "A",
+      "networks": {
+        "local": {
+          "enabled": true,
+          "oracle": {
+            "type": "MOCK_LOCAL",
+            "identifier": "LOCAL_DEMO_AI_USD",
+            "expectedDecimals": 8,
+            "validationProfile": "LOCAL_MOCK_V1"
+          }
+        },
+        "robinhood-testnet": {
+          "enabled": false,
+          "oracle": null,
+          "blocker": "No verified testnet source."
+        },
+        "robinhood-mainnet": {
+          "enabled": true,
+          "oracle": {
+            "type": "SIGNED_POOL_BLOCK_PAIR",
+            "identifier": "0x1d5ce98fb7c91763d17d24aa90ee5ca9efd1cee44ddb5184afa15b978521abbf",
+            "expectedDecimals": 18,
+            "validationProfile": "SIGNED_POOL_BLOCK_PAIR_V1",
+            "provenance": "Canonical project contract + onchain V3 factory/token/decimal verification; recent endpoint reads and tick-aware two-way depth checks documented in ASSET_RACE_MEME_POOL_REVIEW.md."
+          }
+        }
+      },
+      "tokenVerification": {
+        "verifiedAt": "2026-09-16",
+        "chainId": 4663,
+        "name": "Artificial Inu",
+        "symbol": "AI",
+        "decimals": 18,
+        "blockNumber": 64359774,
+        "confidence": "HIGH",
+        "sources": [
+          "https://artificialinu.com/",
+          "https://robinhoodchain.blockscout.com/token/0x2E8c31162b855A2ffa90F6F8634643Ad6F111e18"
+        ],
+        "evidence": "Project website contract reference matches direct RPC ERC20 metadata and established pool identity. Blockscout verification status unavailable (HTTP challenge)."
+      },
+      "marketSource": {
+        "type": "UNISWAP_V3",
+        "poolIdentifier": "0xc4a21f9d6485FC5893DD4A491B320a83DAF4Da1D",
+        "baseToken": "0x2E8c31162b855A2ffa90F6F8634643Ad6F111e18",
+        "quoteToken": "0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73",
+        "baseDecimals": 18,
+        "quoteDecimals": 18,
+        "baseIsToken0": false,
+        "fee": 10000,
+        "orientation": "BASE_TOKEN_QUOTE_TOKEN"
+      }
+    },
+    {
+      "assetId": "CASHCAT",
+      "maxRecommendedRaceExposureUsd": null,
+      "raceExposureReviewStatus": "PENDING_CURRENT_EXECUTABLE_DEPTH",
+      "symbol": "CASHCAT",
+      "displayName": "Cash Cat",
+      "category": "MEME",
+      "canonicalTokenAddress": "0x020bfC650A365f8BB26819deAAbF3E21291018b4",
+      "productionStatus": "A",
+      "networks": {
+        "local": {
+          "enabled": true,
+          "oracle": {
+            "type": "MOCK_LOCAL",
+            "identifier": "LOCAL_DEMO_CASHCAT_USD",
+            "expectedDecimals": 8,
+            "validationProfile": "LOCAL_MOCK_V1"
+          }
+        },
+        "robinhood-testnet": {
+          "enabled": false,
+          "oracle": null,
+          "blocker": "No verified testnet source."
+        },
+        "robinhood-mainnet": {
+          "enabled": true,
+          "oracle": {
+            "type": "SIGNED_POOL_BLOCK_PAIR",
+            "identifier": "0x0b6c1ab4e22cd41c5b003c799c267d2e05904eef58af41fc6550a95d4122e823",
+            "expectedDecimals": 18,
+            "validationProfile": "SIGNED_POOL_BLOCK_PAIR_V1",
+            "provenance": "Canonical project contract + onchain V3 factory/token/decimal verification; recent endpoint reads and tick-aware two-way depth checks documented in ASSET_RACE_MEME_POOL_REVIEW.md."
+          }
+        }
+      },
+      "tokenVerification": {
+        "verifiedAt": "2026-09-16",
+        "chainId": 4663,
+        "name": "Cash Cat",
+        "symbol": "CASHCAT",
+        "decimals": 18,
+        "blockNumber": 64359774,
+        "confidence": "HIGH",
+        "sources": [
+          "https://cashcat.cc/",
+          "https://robinhoodchain.blockscout.com/token/0x020bfC650A365f8BB26819deAAbF3E21291018b4"
+        ],
+        "evidence": "Project website contract reference matches direct RPC ERC20 metadata and established pool identity. Blockscout verification status unavailable (HTTP challenge)."
+      },
+      "marketSource": {
+        "type": "UNISWAP_V3",
+        "poolIdentifier": "0xd42A491087a15E5afd51FEb3606066Cc152d2b09",
+        "baseToken": "0x020bfC650A365f8BB26819deAAbF3E21291018b4",
+        "quoteToken": "0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73",
+        "baseDecimals": 18,
+        "quoteDecimals": 18,
+        "baseIsToken0": true,
+        "fee": 3000,
+        "orientation": "BASE_TOKEN_QUOTE_TOKEN"
+      }
+    },
+    {
+      "assetId": "HOOD",
+      "symbol": "HOOD",
+      "displayName": "GreenHood",
+      "category": "MEME",
+      "canonicalTokenAddress": "0xDAA8f3f54c66E9BE2c44C1B6b566cBD07229CED3",
+      "productionStatus": "A",
+      "networks": {
+        "local": {
+          "enabled": true,
+          "oracle": {
+            "type": "MOCK_LOCAL",
+            "identifier": "LOCAL_DEMO_HOOD_USD",
+            "expectedDecimals": 8,
+            "validationProfile": "LOCAL_MOCK_V1"
+          }
+        },
+        "robinhood-testnet": {
+          "enabled": false,
+          "oracle": null,
+          "blocker": "No verified testnet source."
+        },
+        "robinhood-mainnet": {
+          "enabled": true,
+          "oracle": {
+            "type": "SIGNED_POOL_BLOCK_PAIR",
+            "identifier": "0x1a9ed43da03ccd79c53f79013949f71ce91964f90f22e114521aec3b0d05500c",
+            "expectedDecimals": 18,
+            "validationProfile": "SIGNED_POOL_BLOCK_PAIR_V1",
+            "provenance": "Verified canonical identity, exact source, runtime quotes and common historical endpoints in docs/ASSET_RACE_MEME_CATALOG_EXPANSION.md; explicitly authorized production registry configuration."
+          }
+        }
+      },
+      "tokenVerification": {
+        "verifiedAt": "2026-09-16",
+        "chainId": 4663,
+        "name": "TheGreenHood",
+        "symbol": "HOOD",
+        "decimals": 18,
+        "blockNumber": 64359774,
+        "confidence": "HIGH",
+        "sources": [
+          "https://greenhood.club/",
+          "https://robinhoodchain.blockscout.com/token/0xDAA8f3f54c66E9BE2c44C1B6b566cBD07229CED3"
+        ],
+        "evidence": "Project website contract reference matches direct RPC ERC20 metadata and established pool identity. Blockscout verification status unavailable (HTTP challenge)."
+      },
+      "maxRecommendedRaceExposureUsd": null,
+      "raceExposureReviewStatus": "PENDING_CURRENT_EXECUTABLE_DEPTH",
+      "marketSource": {
+        "type": "UNISWAP_V4",
+        "poolIdentifier": "0xc40d3cac54f587debdcef3887912767656255c9b04f3914ffa70e01370e046f8",
+        "baseToken": "0xDAA8f3f54c66E9BE2c44C1B6b566cBD07229CED3",
+        "quoteToken": "0x0000000000000000000000000000000000000000",
+        "baseDecimals": 18,
+        "quoteDecimals": 18,
+        "baseIsToken0": false,
+        "orientation": "BASE_TOKEN_QUOTE_TOKEN",
+        "quoteKind": "NATIVE_ETH",
+        "poolKey": {
+          "currency0": "0x0000000000000000000000000000000000000000",
+          "currency1": "0xDAA8f3f54c66E9BE2c44C1B6b566cBD07229CED3",
+          "fee": 0,
+          "tickSpacing": 1,
+          "hooks": "0x0000000000000000000000000000000000000000"
+        }
+      }
+    },
+    {
+      "assetId": "AMC",
+      "symbol": "AMC",
+      "displayName": "A Meme Coin",
+      "category": "MEME",
+      "canonicalTokenAddress": null,
+      "productionStatus": "C",
+      "networks": {
+        "local": {
+          "enabled": true,
+          "oracle": {
+            "type": "MOCK_LOCAL",
+            "identifier": "LOCAL_DEMO_AMC_USD",
+            "expectedDecimals": 8,
+            "validationProfile": "LOCAL_MOCK_V1"
+          }
+        },
+        "robinhood-testnet": {
+          "enabled": false,
+          "oracle": null,
+          "blocker": "No verified testnet source."
+        },
+        "robinhood-mainnet": {
+          "enabled": false,
+          "oracle": null,
+          "blocker": "Canonical identity ambiguous: AMC/MEME ticker and contract collision; no authoritative project confirmation."
+        }
+      },
+      "tokenVerification": {
+        "verifiedAt": "2026-09-16",
+        "chainId": 4663,
+        "candidateAddress": "0x385F4f8ae47651ce5F58F5265395a669f8281e18",
+        "name": "A Meme Coin",
+        "symbol": "MEME",
+        "decimals": 18,
+        "confidence": "LOW",
+        "evidence": "Onchain symbol MEME; conflicting AMC contract 0xE0514A254B465C8c804F77230FB1059f84b21E18 and official project confirmation unavailable."
+      }
+    },
+    {
+      "assetId": "BLORB",
+      "symbol": "BLORB",
+      "displayName": "BLORB",
+      "category": "MEME",
+      "canonicalTokenAddress": "0x4d14284aFe559B7c6B9e6FAd6ebAeaA0F6051818",
+      "productionStatus": "A",
+      "networks": {
+        "local": {
+          "enabled": true,
+          "oracle": {
+            "type": "MOCK_LOCAL",
+            "identifier": "LOCAL_DEMO_BLORB_USD",
+            "expectedDecimals": 8,
+            "validationProfile": "LOCAL_MOCK_V1"
+          }
+        },
+        "robinhood-testnet": {
+          "enabled": false,
+          "oracle": null,
+          "blocker": "No verified testnet source."
+        },
+        "robinhood-mainnet": {
+          "enabled": true,
+          "oracle": {
+            "type": "SIGNED_POOL_BLOCK_PAIR",
+            "identifier": "0x990e8b90e21343a894ca19d2c747fd0be268f697a2def219794c8c0a6e709af5",
+            "expectedDecimals": 18,
+            "validationProfile": "SIGNED_POOL_BLOCK_PAIR_V1",
+            "provenance": "Verified canonical identity, exact source, runtime quotes and common historical endpoints in docs/ASSET_RACE_MEME_CATALOG_EXPANSION.md; explicitly authorized production registry configuration."
+          }
+        }
+      },
+      "tokenVerification": {
+        "verifiedAt": "2026-09-16",
+        "chainId": 4663,
+        "name": "BLORB",
+        "symbol": "BLORB",
+        "decimals": 18,
+        "blockNumber": 64359774,
+        "confidence": "HIGH",
+        "sources": [
+          "https://blorbmeme.xyz/",
+          "https://robinhoodchain.blockscout.com/token/0x4d14284aFe559B7c6B9e6FAd6ebAeaA0F6051818"
+        ],
+        "evidence": "Project website contract reference matches direct RPC ERC20 metadata and established pool identity. Blockscout verification status unavailable (HTTP challenge)."
+      },
+      "maxRecommendedRaceExposureUsd": null,
+      "raceExposureReviewStatus": "PENDING_CURRENT_EXECUTABLE_DEPTH",
+      "marketSource": {
+        "type": "UNISWAP_V4",
+        "poolIdentifier": "0x75ef5a3400b9da7bb49e776836995739f1ab0bae029e2e71fe654e52efc56b08",
+        "baseToken": "0x4d14284aFe559B7c6B9e6FAd6ebAeaA0F6051818",
+        "quoteToken": "0x0000000000000000000000000000000000000000",
+        "baseDecimals": 18,
+        "quoteDecimals": 18,
+        "baseIsToken0": false,
+        "orientation": "BASE_TOKEN_QUOTE_TOKEN",
+        "quoteKind": "NATIVE_ETH",
+        "poolKey": {
+          "currency0": "0x0000000000000000000000000000000000000000",
+          "currency1": "0x4d14284aFe559B7c6B9e6FAd6ebAeaA0F6051818",
+          "fee": 0,
+          "tickSpacing": 1,
+          "hooks": "0x0000000000000000000000000000000000000000"
+        }
+      }
+    },
+    {
+      "assetId": "CHUMP",
+      "maxRecommendedRaceExposureUsd": null,
+      "raceExposureReviewStatus": "PENDING_CURRENT_EXECUTABLE_DEPTH",
+      "symbol": "CHUMP",
+      "displayName": "Chump Coin",
+      "category": "MEME",
+      "canonicalTokenAddress": "0x0E0d2C89a5a019FE1cF762e5e33187631DACC21B",
+      "productionStatus": "A",
+      "networks": {
+        "local": {
+          "enabled": true,
+          "oracle": {
+            "type": "MOCK_LOCAL",
+            "identifier": "LOCAL_DEMO_CHUMP_USD",
+            "expectedDecimals": 8,
+            "validationProfile": "LOCAL_MOCK_V1"
+          }
+        },
+        "robinhood-testnet": {
+          "enabled": false,
+          "oracle": null,
+          "blocker": "No verified testnet source."
+        },
+        "robinhood-mainnet": {
+          "enabled": true,
+          "oracle": {
+            "type": "SIGNED_POOL_BLOCK_PAIR",
+            "identifier": "0x8414a3b3eb543542a17a2f8bd40c1e5d231647e2f9abcf696bfdb2237eea1843",
+            "expectedDecimals": 18,
+            "validationProfile": "SIGNED_POOL_BLOCK_PAIR_V1",
+            "provenance": "Canonical project contract + onchain V3 factory/token/decimal verification; recent endpoint reads and tick-aware two-way depth checks documented in ASSET_RACE_MEME_POOL_REVIEW.md."
+          }
+        }
+      },
+      "tokenVerification": {
+        "verifiedAt": "2026-09-16",
+        "chainId": 4663,
+        "name": "Chump Coin",
+        "symbol": "CHUMP",
+        "decimals": 18,
+        "blockNumber": 64359774,
+        "confidence": "HIGH",
+        "sources": [
+          "https://cc21b.meme/",
+          "https://robinhoodchain.blockscout.com/token/0x0E0d2C89a5a019FE1cF762e5e33187631DACC21B"
+        ],
+        "evidence": "Project website contract reference matches direct RPC ERC20 metadata and established pool identity. Blockscout verification status unavailable (HTTP challenge)."
+      },
+      "marketSource": {
+        "type": "UNISWAP_V3",
+        "poolIdentifier": "0x714442e9A611f8561A7dF108D6d925132937cFb8",
+        "baseToken": "0x0E0d2C89a5a019FE1cF762e5e33187631DACC21B",
+        "quoteToken": "0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73",
+        "baseDecimals": 18,
+        "quoteDecimals": 18,
+        "baseIsToken0": false,
+        "fee": 10000,
+        "orientation": "BASE_TOKEN_QUOTE_TOKEN"
+      }
+    },
+    {
+      "assetId": "DEGEN",
+      "symbol": "DEGEN",
+      "displayName": "Degen",
+      "category": "MEME",
+      "canonicalTokenAddress": null,
+      "productionStatus": "C",
+      "networks": {
+        "local": {
+          "enabled": true,
+          "oracle": {
+            "type": "MOCK_LOCAL",
+            "identifier": "LOCAL_DEMO_DEGEN_USD",
+            "expectedDecimals": 8,
+            "validationProfile": "LOCAL_MOCK_V1"
+          }
+        },
+        "robinhood-testnet": {
+          "enabled": false,
+          "oracle": null,
+          "blocker": "No verified testnet source."
+        },
+        "robinhood-mainnet": {
+          "enabled": false,
+          "oracle": null,
+          "blocker": "Robinhood canonical identity/bridge provenance not verified; observed USDG pool has $167 headline liquidity and 2 trades/day."
+        }
+      },
+      "tokenVerification": {
+        "verifiedAt": "2026-09-16",
+        "chainId": 4663,
+        "candidateAddress": "0x0830a9dd26a04e959657ab6788d45f5725590c32",
+        "name": "DEGEN",
+        "symbol": "DEGEN",
+        "decimals": 18,
+        "confidence": "LOW",
+        "evidence": "Established Base project lists a different canonical address; Robinhood bridge/provenance not authoritatively verified."
+      }
+    },
+    {
+      "assetId": "BONER",
+      "symbol": "BONER",
+      "displayName": "Boner Coin",
+      "category": "MEME",
+      "canonicalTokenAddress": "0x98096d17e191B3dA1d5f99a6D7b3584351b11E18",
+      "productionStatus": "A",
+      "networks": {
+        "local": {
+          "enabled": true,
+          "oracle": {
+            "type": "MOCK_LOCAL",
+            "identifier": "LOCAL_DEMO_BONER_USD",
+            "expectedDecimals": 8,
+            "validationProfile": "LOCAL_MOCK_V1"
+          }
+        },
+        "robinhood-testnet": {
+          "enabled": false,
+          "oracle": null,
+          "blocker": "No verified testnet source."
+        },
+        "robinhood-mainnet": {
+          "enabled": true,
+          "oracle": {
+            "type": "SIGNED_POOL_BLOCK_PAIR",
+            "identifier": "0x0d29287131c05dd2ff5f8a0f7a740a3f13d610d37562542604b97364684bb9d1",
+            "expectedDecimals": 18,
+            "validationProfile": "SIGNED_POOL_BLOCK_PAIR_V1",
+            "provenance": "Verified canonical identity, exact source, runtime quotes and common historical endpoints in docs/ASSET_RACE_MEME_CATALOG_EXPANSION.md; explicitly authorized production registry configuration."
+          }
+        }
+      },
+      "tokenVerification": {
+        "verifiedAt": "2026-09-16",
+        "chainId": 4663,
+        "name": "Boner Coin",
+        "symbol": "BONER",
+        "decimals": 18,
+        "blockNumber": 64359774,
+        "confidence": "HIGH",
+        "sources": [
+          "https://boneronlong.xyz/",
+          "https://robinhoodchain.blockscout.com/token/0x98096d17e191B3dA1d5f99a6D7b3584351b11E18"
+        ],
+        "evidence": "Project website contract reference matches direct RPC ERC20 metadata and established pool identity. Blockscout verification status unavailable (HTTP challenge)."
+      },
+      "marketSource": {
+        "type": "UNISWAP_V3",
+        "poolIdentifier": "0xBd5cd6515ca6285941FbC177381dC8ED4844e6b8",
+        "baseToken": "0x98096d17e191B3dA1d5f99a6D7b3584351b11E18",
+        "quoteToken": "0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73",
+        "baseDecimals": 18,
+        "quoteDecimals": 18,
+        "baseIsToken0": false,
+        "orientation": "BASE_TOKEN_QUOTE_TOKEN",
+        "fee": 10000
+      },
+      "maxRecommendedRaceExposureUsd": null,
+      "raceExposureReviewStatus": "PENDING_CURRENT_EXECUTABLE_DEPTH"
+    },
+    {
+      "assetId": "PIPEDOG",
+      "maxRecommendedRaceExposureUsd": null,
+      "raceExposureReviewStatus": "PENDING_CURRENT_EXECUTABLE_DEPTH",
+      "symbol": "PIPEDOG",
+      "displayName": "pipedog",
+      "category": "MEME",
+      "canonicalTokenAddress": "0x5Cb6F181081301b44905F3ae15419112ecaBd8A6",
+      "productionStatus": "A",
+      "networks": {
+        "local": {
+          "enabled": true,
+          "oracle": {
+            "type": "MOCK_LOCAL",
+            "identifier": "LOCAL_DEMO_PIPEDOG_USD",
+            "expectedDecimals": 8,
+            "validationProfile": "LOCAL_MOCK_V1"
+          }
+        },
+        "robinhood-testnet": {
+          "enabled": false,
+          "oracle": null,
+          "blocker": "No verified testnet source."
+        },
+        "robinhood-mainnet": {
+          "enabled": true,
+          "oracle": {
+            "type": "SIGNED_POOL_BLOCK_PAIR",
+            "identifier": "0x28ba0a223e1fbe000dde36dcd785bc9e58011c117bf179ea8f70fb1a7e8ff945",
+            "expectedDecimals": 18,
+            "validationProfile": "SIGNED_POOL_BLOCK_PAIR_V1",
+            "provenance": "Canonical project contract + onchain V3 factory/token/decimal verification; recent endpoint reads and tick-aware two-way depth checks documented in ASSET_RACE_MEME_POOL_REVIEW.md."
+          }
+        }
+      },
+      "tokenVerification": {
+        "verifiedAt": "2026-09-16",
+        "chainId": 4663,
+        "name": "pipedog",
+        "symbol": "PIPEDOG",
+        "decimals": 18,
+        "blockNumber": 64359774,
+        "confidence": "HIGH",
+        "sources": [
+          "https://pipedog.xyz/",
+          "https://robinhoodchain.blockscout.com/token/0x5Cb6F181081301b44905F3ae15419112ecaBd8A6"
+        ],
+        "evidence": "Project website contract reference matches direct RPC ERC20 metadata and established pool identity. Blockscout verification status unavailable (HTTP challenge)."
+      },
+      "marketSource": {
+        "type": "UNISWAP_V3",
+        "poolIdentifier": "0xB7f10f74B39291b9290b779978e19A7637C742D6",
+        "baseToken": "0x5Cb6F181081301b44905F3ae15419112ecaBd8A6",
+        "quoteToken": "0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73",
+        "baseDecimals": 18,
+        "quoteDecimals": 18,
+        "baseIsToken0": false,
+        "fee": 10000,
+        "orientation": "BASE_TOKEN_QUOTE_TOKEN"
+      }
+    },
+    {
+      "assetId": "UBIK",
+      "symbol": "UBIK",
+      "displayName": "ubik",
+      "category": "MEME",
+      "canonicalTokenAddress": "0x812486EAea648819853F8E372dc9f1516C7868Bd",
+      "productionStatus": "C",
+      "networks": {
+        "local": {
+          "enabled": true,
+          "oracle": {
+            "type": "MOCK_LOCAL",
+            "identifier": "LOCAL_DEMO_UBIK_USD",
+            "expectedDecimals": 8,
+            "validationProfile": "LOCAL_MOCK_V1"
+          }
+        },
+        "robinhood-testnet": {
+          "enabled": false,
+          "oracle": null,
+          "blocker": "No verified testnet source."
+        },
+        "robinhood-mainnet": {
+          "enabled": false,
+          "oracle": null,
+          "blocker": "Insufficient authoritative project identity confirmation and weak/new WETH pool (~$7.9k TVL, ~3.6 days; $100 moves spot ~1.45%)."
+        }
+      },
+      "tokenVerification": {
+        "verifiedAt": "2026-09-16",
+        "chainId": 4663,
+        "name": "ubik",
+        "symbol": "UBIK",
+        "decimals": 18,
+        "blockNumber": 64359774,
+        "confidence": "MEDIUM",
+        "sources": [
+          "https://www.ourbit.com/support/articles/17827791513554",
+          "https://robinhoodchain.blockscout.com/token/0x812486EAea648819853F8E372dc9f1516C7868Bd"
+        ],
+        "evidence": "Exact exchange listing and onchain metadata; official project identity not independently confirmed."
+      },
+      "marketSource": {
+        "type": "UNISWAP_V3",
+        "poolIdentifier": "0xBea39772E5c5c2730e56C014b2Ef16185CC02d32",
+        "baseToken": "0x812486EAea648819853F8E372dc9f1516C7868Bd",
+        "quoteToken": "0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73",
+        "baseDecimals": 18,
+        "quoteDecimals": 18,
+        "baseIsToken0": false,
+        "fee": 10000,
+        "orientation": "BASE_TOKEN_QUOTE_TOKEN"
+      }
+    },
+    {
+      "assetId": "TENDIES",
+      "symbol": "TENDIES",
+      "displayName": "TENDIES",
+      "category": "MEME",
+      "canonicalTokenAddress": "0x45242320DBB855EeA8Fd36804C6487E10E97FCF9",
+      "productionStatus": "A",
+      "networks": {
+        "local": {
+          "enabled": true,
+          "oracle": {
+            "type": "MOCK_LOCAL",
+            "identifier": "LOCAL_DEMO_TENDIES_USD",
+            "expectedDecimals": 8,
+            "validationProfile": "LOCAL_MOCK_V1"
+          }
+        },
+        "robinhood-testnet": {
+          "enabled": false,
+          "oracle": null,
+          "blocker": "No verified testnet source."
+        },
+        "robinhood-mainnet": {
+          "enabled": true,
+          "oracle": {
+            "type": "SIGNED_POOL_BLOCK_PAIR",
+            "identifier": "0x74ce9c88f810a0490abaa3814bd9b6287ebb08c9704b55194cea6477fa436db6",
+            "expectedDecimals": 18,
+            "validationProfile": "SIGNED_POOL_BLOCK_PAIR_V1",
+            "provenance": "Verified canonical identity, exact source, runtime quotes and common historical endpoints in docs/ASSET_RACE_MEME_CATALOG_EXPANSION.md; explicitly authorized production registry configuration."
+          }
+        }
+      },
+      "tokenVerification": {
+        "verifiedAt": "2026-09-16",
+        "chainId": 4663,
+        "name": "TENDIES",
+        "symbol": "TENDIES",
+        "decimals": 18,
+        "blockNumber": 64464069,
+        "confidence": "HIGH",
+        "sources": [
+          "https://www.tendies.now/",
+          "https://robinhoodchain.blockscout.com/token/0x45242320DBB855EeA8Fd36804C6487E10E97FCF9"
+        ],
+        "evidence": "Exact contract published by the project website/social matches direct RPC name, symbol, decimals, positive supply and deployed code. Official Uniswap V3 factory, pair ordering and fee verified by the shared engine. Explorer verified-source status remains unverified."
+      },
+      "marketSource": {
+        "type": "UNISWAP_V3",
+        "poolIdentifier": "0x237609918F330ADD285b8bC5f8f2922283D1C4C5",
+        "baseToken": "0x45242320DBB855EeA8Fd36804C6487E10E97FCF9",
+        "quoteToken": "0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73",
+        "baseDecimals": 18,
+        "quoteDecimals": 18,
+        "baseIsToken0": false,
+        "orientation": "BASE_TOKEN_QUOTE_TOKEN",
+        "fee": 10000
+      },
+      "maxRecommendedRaceExposureUsd": null,
+      "raceExposureReviewStatus": "PENDING_CURRENT_EXECUTABLE_DEPTH"
+    },
+    {
+      "assetId": "IF",
+      "symbol": "IF",
+      "displayName": "What If",
+      "category": "MEME",
+      "canonicalTokenAddress": "0x232CDFc415D10b673845D83Dc02ba2eaBe7e30d1",
+      "productionStatus": "A",
+      "networks": {
+        "local": {
+          "enabled": true,
+          "oracle": {
+            "type": "MOCK_LOCAL",
+            "identifier": "LOCAL_DEMO_IF_USD",
+            "expectedDecimals": 8,
+            "validationProfile": "LOCAL_MOCK_V1"
+          }
+        },
+        "robinhood-testnet": {
+          "enabled": false,
+          "oracle": null,
+          "blocker": "No verified testnet source."
+        },
+        "robinhood-mainnet": {
+          "enabled": true,
+          "oracle": {
+            "type": "SIGNED_POOL_BLOCK_PAIR",
+            "identifier": "0x1ce9952c1f1db59f036b30f80892679b1cd25dc19f8c9f616a0b534fc4f6e47e",
+            "expectedDecimals": 18,
+            "validationProfile": "SIGNED_POOL_BLOCK_PAIR_V1",
+            "provenance": "Verified canonical identity, exact source, runtime quotes and common historical endpoints in docs/ASSET_RACE_MEME_CATALOG_EXPANSION.md; explicitly authorized production registry configuration."
+          }
+        }
+      },
+      "tokenVerification": {
+        "verifiedAt": "2026-09-16",
+        "chainId": 4663,
+        "name": "What If",
+        "symbol": "IF",
+        "decimals": 18,
+        "blockNumber": 64464069,
+        "confidence": "HIGH",
+        "sources": [
+          "https://whatifonhood.com/",
+          "https://robinhoodchain.blockscout.com/token/0x232CDFc415D10b673845D83Dc02ba2eaBe7e30d1"
+        ],
+        "evidence": "Exact contract published by the project website/social matches direct RPC name, symbol, decimals, positive supply and deployed code. Official Uniswap V3 factory, pair ordering and fee verified by the shared engine. Explorer verified-source status remains unverified."
+      },
+      "marketSource": {
+        "type": "UNISWAP_V3",
+        "poolIdentifier": "0x39A200271525E9641e799127bdAB299DAeF21953",
+        "baseToken": "0x232CDFc415D10b673845D83Dc02ba2eaBe7e30d1",
+        "quoteToken": "0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73",
+        "baseDecimals": 18,
+        "quoteDecimals": 18,
+        "baseIsToken0": false,
+        "orientation": "BASE_TOKEN_QUOTE_TOKEN",
+        "fee": 10000
+      },
+      "maxRecommendedRaceExposureUsd": null,
+      "raceExposureReviewStatus": "PENDING_CURRENT_EXECUTABLE_DEPTH"
+    },
+    {
+      "assetId": "JUGGERNAUT",
+      "symbol": "JUGGERNAUT",
+      "displayName": "The Juggernaut",
+      "category": "MEME",
+      "canonicalTokenAddress": "0xD7321801CAae694090694Ff55A9323139F043B88",
+      "productionStatus": "A",
+      "networks": {
+        "local": {
+          "enabled": true,
+          "oracle": {
+            "type": "MOCK_LOCAL",
+            "identifier": "LOCAL_DEMO_JUGGERNAUT_USD",
+            "expectedDecimals": 8,
+            "validationProfile": "LOCAL_MOCK_V1"
+          }
+        },
+        "robinhood-testnet": {
+          "enabled": false,
+          "oracle": null,
+          "blocker": "No verified testnet source."
+        },
+        "robinhood-mainnet": {
+          "enabled": true,
+          "oracle": {
+            "type": "SIGNED_POOL_BLOCK_PAIR",
+            "identifier": "0x93065ca654a745f166507e3b83ef65199f541c730fb4943ef1ab8eb749e81d09",
+            "expectedDecimals": 18,
+            "validationProfile": "SIGNED_POOL_BLOCK_PAIR_V1",
+            "provenance": "Verified canonical identity, exact source, runtime quotes and common historical endpoints in docs/ASSET_RACE_MEME_CATALOG_EXPANSION.md; explicitly authorized production registry configuration."
+          }
+        }
+      },
+      "tokenVerification": {
+        "verifiedAt": "2026-09-16",
+        "chainId": 4663,
+        "name": "The Juggernaut",
+        "symbol": "JUGGERNAUT",
+        "decimals": 18,
+        "blockNumber": 64464069,
+        "confidence": "HIGH",
+        "sources": [
+          "https://juggernautrh.com/",
+          "https://robinhoodchain.blockscout.com/token/0xD7321801CAae694090694Ff55A9323139F043B88"
+        ],
+        "evidence": "Exact contract published by the project website/social matches direct RPC name, symbol, decimals, positive supply and deployed code. Official Uniswap V3 factory, pair ordering and fee verified by the shared engine. Explorer verified-source status remains unverified."
+      },
+      "marketSource": {
+        "type": "UNISWAP_V3",
+        "poolIdentifier": "0x588b0785f50063260003B7790C42f1eF74902746",
+        "baseToken": "0xD7321801CAae694090694Ff55A9323139F043B88",
+        "quoteToken": "0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73",
+        "baseDecimals": 18,
+        "quoteDecimals": 18,
+        "baseIsToken0": false,
+        "orientation": "BASE_TOKEN_QUOTE_TOKEN",
+        "fee": 10000
+      },
+      "maxRecommendedRaceExposureUsd": null,
+      "raceExposureReviewStatus": "PENDING_CURRENT_EXECUTABLE_DEPTH"
+    },
+    {
+      "assetId": "MOO",
+      "symbol": "MOO",
+      "displayName": "Memory cow Moo",
+      "category": "MEME",
+      "canonicalTokenAddress": "0xD9dB30BB0D2b8d2eae3826A1372117E058791e18",
+      "productionStatus": "A",
+      "networks": {
+        "local": {
+          "enabled": true,
+          "oracle": {
+            "type": "MOCK_LOCAL",
+            "identifier": "LOCAL_DEMO_MOO_USD",
+            "expectedDecimals": 8,
+            "validationProfile": "LOCAL_MOCK_V1"
+          }
+        },
+        "robinhood-testnet": {
+          "enabled": false,
+          "oracle": null,
+          "blocker": "No verified testnet source."
+        },
+        "robinhood-mainnet": {
+          "enabled": true,
+          "oracle": {
+            "type": "SIGNED_POOL_BLOCK_PAIR",
+            "identifier": "0x640d4df315d78ab0f55e4696aaf2e40005344a8be41520211d949c1981611dfa",
+            "expectedDecimals": 18,
+            "validationProfile": "SIGNED_POOL_BLOCK_PAIR_V1",
+            "provenance": "Verified canonical identity, exact source, runtime quotes and common historical endpoints in docs/ASSET_RACE_MEME_CATALOG_EXPANSION.md; explicitly authorized production registry configuration."
+          }
+        }
+      },
+      "tokenVerification": {
+        "verifiedAt": "2026-09-16",
+        "chainId": 4663,
+        "name": "Memory cow Moo",
+        "symbol": "MOO",
+        "decimals": 18,
+        "blockNumber": 64464069,
+        "confidence": "HIGH",
+        "sources": [
+          "https://x.com/memorycowmoo",
+          "https://robinhoodchain.blockscout.com/token/0xD9dB30BB0D2b8d2eae3826A1372117E058791e18"
+        ],
+        "evidence": "Exact contract published by the project website/social matches direct RPC name, symbol, decimals, positive supply and deployed code. Official Uniswap V3 factory, pair ordering and fee verified by the shared engine. Explorer verified-source status remains unverified."
+      },
+      "marketSource": {
+        "type": "UNISWAP_V3",
+        "poolIdentifier": "0x9036A9406DAC1c252C364D037f489E5F0A752F54",
+        "baseToken": "0xD9dB30BB0D2b8d2eae3826A1372117E058791e18",
+        "quoteToken": "0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73",
+        "baseDecimals": 18,
+        "quoteDecimals": 18,
+        "baseIsToken0": false,
+        "orientation": "BASE_TOKEN_QUOTE_TOKEN",
+        "fee": 10000
+      },
+      "maxRecommendedRaceExposureUsd": null,
+      "raceExposureReviewStatus": "PENDING_CURRENT_EXECUTABLE_DEPTH"
+    },
+    {
+      "assetId": "FRONG",
+      "symbol": "FRONG",
+      "displayName": "frong",
+      "category": "MEME",
+      "canonicalTokenAddress": "0x6245e67affA44a23077f0Ea7f981a8DC743a0c47",
+      "productionStatus": "A",
+      "networks": {
+        "local": {
+          "enabled": true,
+          "oracle": {
+            "type": "MOCK_LOCAL",
+            "identifier": "LOCAL_DEMO_FRONG_USD",
+            "expectedDecimals": 8,
+            "validationProfile": "LOCAL_MOCK_V1"
+          }
+        },
+        "robinhood-testnet": {
+          "enabled": false,
+          "oracle": null,
+          "blocker": "No verified testnet source."
+        },
+        "robinhood-mainnet": {
+          "enabled": true,
+          "oracle": {
+            "type": "SIGNED_POOL_BLOCK_PAIR",
+            "identifier": "0x3526e2e6239348299d45c0f6bd8520dabac6b9656ba12e05bd241d9336928bdd",
+            "expectedDecimals": 18,
+            "validationProfile": "SIGNED_POOL_BLOCK_PAIR_V1",
+            "provenance": "Verified canonical identity, exact source, runtime quotes and common historical endpoints in docs/ASSET_RACE_MEME_CATALOG_EXPANSION.md; explicitly authorized production registry configuration."
+          }
+        }
+      },
+      "tokenVerification": {
+        "verifiedAt": "2026-09-16",
+        "chainId": 4663,
+        "name": "frong",
+        "symbol": "FRONG",
+        "decimals": 18,
+        "blockNumber": 64464069,
+        "confidence": "HIGH",
+        "sources": [
+          "https://frong.io/",
+          "https://robinhoodchain.blockscout.com/token/0x6245e67affA44a23077f0Ea7f981a8DC743a0c47"
+        ],
+        "evidence": "Exact contract published by the project website/social matches direct RPC name, symbol, decimals, positive supply and deployed code. Official Uniswap V3 factory, pair ordering and fee verified by the shared engine. Explorer verified-source status remains unverified."
+      },
+      "marketSource": {
+        "type": "UNISWAP_V4",
+        "poolIdentifier": "0xacea8920877840033f0275c37f9b61550b5326917e948bcf8339714d96f9521a",
+        "baseToken": "0x6245e67affA44a23077f0Ea7f981a8DC743a0c47",
+        "quoteToken": "0x0000000000000000000000000000000000000000",
+        "baseDecimals": 18,
+        "quoteDecimals": 18,
+        "baseIsToken0": false,
+        "orientation": "BASE_TOKEN_QUOTE_TOKEN",
+        "quoteKind": "NATIVE_ETH",
+        "poolKey": {
+          "currency0": "0x0000000000000000000000000000000000000000",
+          "currency1": "0x6245e67affA44a23077f0Ea7f981a8DC743a0c47",
+          "fee": 2500,
+          "tickSpacing": 60,
+          "hooks": "0x0000000000000000000000000000000000000000"
+        }
+      },
+      "maxRecommendedRaceExposureUsd": null,
+      "raceExposureReviewStatus": "PENDING_CURRENT_EXECUTABLE_DEPTH"
+    },
+    {
+      "assetId": "DOGO",
+      "symbol": "DOGO",
+      "displayName": "DogBull",
+      "category": "MEME",
+      "canonicalTokenAddress": "0x77b0AA38451ccDC1b42587E2f80B9879A7f82356",
+      "productionStatus": "A",
+      "networks": {
+        "local": {
+          "enabled": true,
+          "oracle": {
+            "type": "MOCK_LOCAL",
+            "identifier": "LOCAL_DEMO_DOGO_USD",
+            "expectedDecimals": 8,
+            "validationProfile": "LOCAL_MOCK_V1"
+          }
+        },
+        "robinhood-testnet": {
+          "enabled": false,
+          "oracle": null,
+          "blocker": "No verified testnet source."
+        },
+        "robinhood-mainnet": {
+          "enabled": true,
+          "oracle": {
+            "type": "SIGNED_POOL_BLOCK_PAIR",
+            "identifier": "0x41771c74a17cf5742c217f727c445aabab843cfc2e1bc332b8e13b9669a2555f",
+            "expectedDecimals": 18,
+            "validationProfile": "SIGNED_POOL_BLOCK_PAIR_V1",
+            "provenance": "Verified canonical identity, exact source, runtime quotes and common historical endpoints in docs/ASSET_RACE_MEME_CATALOG_EXPANSION.md; explicitly authorized production registry configuration."
+          }
+        }
+      },
+      "tokenVerification": {
+        "verifiedAt": "2026-09-16",
+        "chainId": 4663,
+        "name": "DogBull",
+        "symbol": "DOGO",
+        "decimals": 18,
+        "blockNumber": 64688152,
+        "confidence": "HIGH",
+        "sources": [
+          "https://dogbull.xyz/",
+          "https://robinhoodchain.blockscout.com/token/0x77b0AA38451ccDC1b42587E2f80B9879A7f82356"
+        ],
+        "evidence": "Canonical primary publication, RPC metadata, exact hook-free native V4 pool and two common historical endpoints verified in the current technical catalog review."
+      },
+      "maxRecommendedRaceExposureUsd": null,
+      "raceExposureReviewStatus": "PENDING_CURRENT_EXECUTABLE_DEPTH",
+      "marketSource": {
+        "type": "UNISWAP_V4",
+        "poolIdentifier": "0xbe05adff5cf9a0bfd2f1eeb69458d5dda27e7075d6f49b0458db4b4c1967b6b1",
+        "baseToken": "0x77b0AA38451ccDC1b42587E2f80B9879A7f82356",
+        "quoteToken": "0x0000000000000000000000000000000000000000",
+        "baseDecimals": 18,
+        "quoteDecimals": 18,
+        "baseIsToken0": false,
+        "orientation": "BASE_TOKEN_QUOTE_TOKEN",
+        "quoteKind": "NATIVE_ETH",
+        "poolKey": {
+          "currency0": "0x0000000000000000000000000000000000000000",
+          "currency1": "0x77b0AA38451ccDC1b42587E2f80B9879A7f82356",
+          "fee": 0,
+          "tickSpacing": 1,
+          "hooks": "0x0000000000000000000000000000000000000000"
+        }
+      }
+    }
+  ]
+}

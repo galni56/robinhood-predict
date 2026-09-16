@@ -8,6 +8,10 @@ contract MockRaceOracle is IAssetRaceOracle {
     mapping(bytes32 => Observation) private observations;
     mapping(bytes32 => bool) public shouldRevert;
 
+    function endpointProofType() external pure returns (EndpointProofType) {
+        return EndpointProofType.NONE;
+    }
+
     function setObservation(bytes32 oracleId, uint256 price, uint8 decimals, uint256 updatedAt, bytes32 observationId)
         external
     {
@@ -19,6 +23,16 @@ contract MockRaceOracle is IAssetRaceOracle {
     }
 
     function latestObservation(bytes32 oracleId) external view returns (Observation memory observation) {
+        require(!shouldRevert[oracleId], "mock oracle failure");
+        return observations[oracleId];
+    }
+
+    function endpointObservation(bytes32 oracleId, uint256, uint256, bytes calldata proof)
+        external
+        view
+        returns (Observation memory observation)
+    {
+        require(proof.length == 0, "unexpected endpoint proof");
         require(!shouldRevert[oracleId], "mock oracle failure");
         return observations[oracleId];
     }

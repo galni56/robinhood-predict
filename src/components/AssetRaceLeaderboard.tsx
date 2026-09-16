@@ -1,7 +1,8 @@
 import { formatUnits } from 'viem'
+import { displayedRaceReturnWad } from '@/chain/assetRaceLiveDisplay'
+import { assetRaceCatalogById, assetRaceMemeQuote } from '@/chain/assetRaceRegistry'
 import {
   ASSET_RACE_CATEGORY,
-  calculateReturnWad,
   formatReturnWad,
   type AssetRacePosition,
   type AssetRaceViewModel,
@@ -16,6 +17,9 @@ interface LeaderboardEntry {
   endPrice: bigint
   decimals: number
   updatedAt?: bigint
+  source?: string
+  stale: boolean
+  quoteSymbol?: string
 }
 
 function raceLeaderboardEntries(race: AssetRaceViewModel, final = false): LeaderboardEntry[] {
@@ -24,14 +28,22 @@ function raceLeaderboardEntries(race: AssetRaceViewModel, final = false): Leader
     .map((asset) => ({
       assetIndex: asset.assetIndex,
       symbol: asset.symbol,
-      returnValue: final
-        ? asset.returnValue
-        : calculateReturnWad(asset.startPrice, asset.livePrice ?? asset.startPrice),
+      returnValue: displayedRaceReturnWad({
+        final,
+        officialReturn: asset.returnValue,
+        settlementStartPrice: asset.startPrice,
+        livePrice: asset.livePrice ?? asset.startPrice,
+      }),
       pool: asset.pool,
       startPrice: asset.startPrice,
       endPrice: final ? asset.endPrice : (asset.livePrice ?? asset.startPrice),
-      decimals: asset.expectedDecimals,
+      decimals: final ? asset.expectedDecimals : (asset.liveDecimals ?? asset.expectedDecimals),
       updatedAt: final ? asset.endOracleUpdatedAt : asset.liveUpdatedAt,
+      source: final ? 'FINAL' : asset.liveProvider,
+      stale: !final && !!asset.liveStale,
+      quoteSymbol: race.category === ASSET_RACE_CATEGORY.MEME
+        && assetRaceCatalogById.get(asset.assetId.toLowerCase())?.networks['robinhood-mainnet'].oracle?.identifier?.toLowerCase() === asset.oracleId.toLowerCase()
+        ? assetRaceMemeQuote.symbol : undefined,
     }))
     .sort((a, b) => (a.returnValue > b.returnValue ? -1 : a.returnValue < b.returnValue ? 1 : a.assetIndex - b.assetIndex))
 }
@@ -99,8 +111,10 @@ export function AssetRaceLeaderboard({
               </div>
             </div>
             <div className="mt-2 ml-9 flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-white/35">
-              {entry.startPrice > 0n && <span>P0 ${formatUnits(entry.startPrice, entry.decimals)}</span>}
-              {entry.endPrice > 0n && <span>{final ? 'P1' : 'display'} ${formatUnits(entry.endPrice, entry.decimals)}</span>}
+              {entry.startPrice > 0n && <span>P0 {entry.quoteSymbol ? `${formatUnits(entry.startPrice, entry.decimals)} ${entry.quoteSymbol}` : `$${formatUnits(entry.startPrice, entry.decimals)}`}</span>}
+              {entry.endPrice > 0n && <span>{final ? 'P1' : 'display'} {entry.quoteSymbol ? `${formatUnits(entry.endPrice, entry.decimals)} ${entry.quoteSymbol}` : `$${formatUnits(entry.endPrice, entry.decimals)}`}</span>}
+              {entry.source && <span>{entry.source}</span>}
+              {entry.stale && <span>live display unavailable</span>}
               {freshness != null && <span>updated {freshness}s ago</span>}
             </div>
           </div>

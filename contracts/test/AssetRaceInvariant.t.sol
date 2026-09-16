@@ -35,7 +35,8 @@ contract AssetRaceHandler is Test {
                 oracle: address(oracle),
                 oracleId: oracleId,
                 expectedDecimals: 8,
-                maxPriceAge: 300
+                maxPriceAge: 300,
+                maxEndpointLag: 300
             });
             oracle.setObservation(oracleId, 100e8, 8, block.timestamp, bytes32(uint256(1)));
             race.setApprovedAsset(candidates[i], true);
@@ -116,6 +117,8 @@ contract AssetRaceHandler is Test {
         oracle.setObservation(bytes32(uint256(1)), 110e8, 8, block.timestamp, bytes32(uint256(2)));
         oracle.setObservation(bytes32(uint256(2)), 105e8, 8, block.timestamp, bytes32(uint256(2)));
         oracle.setObservation(bytes32(uint256(3)), 90e8, 8, block.timestamp, bytes32(uint256(2)));
+        bytes[] memory proofs = new bytes[](beforeRace.candidateCount);
+        try race.captureEndSnapshots(raceId, proofs) {} catch {}
         try race.resolveRace(raceId) {} catch {}
         _recordTransition(oldStatus);
     }

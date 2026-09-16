@@ -1,25 +1,10 @@
 import { useMemo } from 'react'
 import { zeroAddress, type Address, type Hex } from 'viem'
 import { useReadContract, useReadContracts } from 'wagmi'
-import { ASSET_RACE_ADDRESS, ASSET_RACE_CATEGORY, assetRaceAbi, symbolForRaceAsset, type ApprovedRaceAsset } from '@/chain/assetRaces'
-import { assetRaceChain, isLocalAssetRace } from '@/chain/config'
+import { ASSET_RACE_ADDRESS, assetRaceAbi, symbolForRaceAsset, type ApprovedRaceAsset } from '@/chain/assetRaces'
+import { assetRaceChain, assetRaceNetworkKey, isLocalAssetRace } from '@/chain/config'
+import { approvedAssetMatchesCatalog, assetRaceCatalogById } from '@/chain/assetRaceRegistry'
 import { useRobinhoodAssets } from '@/chain/robinhoodApi'
-import localMemeAssets from '../../config/local-meme-assets.json'
-
-const FALLBACK_NAMES: Record<string, string> = {
-  NVDA: 'NVIDIA',
-  TSLA: 'Tesla',
-  AAPL: 'Apple',
-  META: 'Meta Platforms',
-  AMD: 'Advanced Micro Devices',
-  COIN: 'Coinbase',
-  MSTR: 'Strategy',
-  AMZN: 'Amazon',
-  MSFT: 'Microsoft',
-  GOOGL: 'Alphabet',
-}
-
-const LOCAL_MEME_NAMES = new Map(localMemeAssets.map((asset) => [asset.symbol, asset.name]))
 
 export function useApprovedRaceAssets() {
   const address = ASSET_RACE_ADDRESS ?? zeroAddress
@@ -57,11 +42,21 @@ export function useApprovedRaceAssets() {
     return ids.flatMap((assetId, index): ApprovedRaceAsset[] => {
       const result = registryQueries.data?.[index]
       if (result?.status !== 'success') return []
-      const [registered, assetEnabled, category, oracle, oracleId, expectedDecimals, maxPriceAge] = result.result
+      const [registered, assetEnabled, category, oracle, oracleId, expectedDecimals, maxPriceAge, maxEndpointLag] = result.result
       if (!registered || !assetEnabled) return []
+      const catalogAsset = assetRaceCatalogById.get(assetId.toLowerCase())
+      if (!catalogAsset || !approvedAssetMatchesCatalog({
+        asset: catalogAsset,
+        network: assetRaceNetworkKey,
+        category,
+        oracle: oracle as Address,
+        oracleId,
+        expectedDecimals,
+        maxPriceAge,
+        maxEndpointLag,
+      })) return []
       const symbol = symbolForRaceAsset(assetId, oracleId, index)
       const item = metadata.get(symbol)
-      const localMemeName = category === ASSET_RACE_CATEGORY.MEME ? LOCAL_MEME_NAMES.get(symbol) : undefined
       return [{
         assetId,
         registered,
@@ -71,8 +66,9 @@ export function useApprovedRaceAssets() {
         oracleId,
         expectedDecimals,
         maxPriceAge,
+        maxEndpointLag,
         symbol,
-        name: localMemeName ?? item?.tokenName.replace(/\s*•\s*Robinhood Token$/i, '') ?? FALLBACK_NAMES[symbol] ?? symbol,
+        name: catalogAsset.displayName ?? item?.tokenName.replace(/\s*•\s*Robinhood Token$/i, '') ?? symbol,
         logoUrl: item?.logoUrl,
       }]
     })

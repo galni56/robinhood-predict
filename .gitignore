@@ -11,6 +11,13 @@ node_modules
 dist
 dist-ssr
 *.local
+.asset-race-stock-observations.json
+.asset-race-stock-observations.json.tmp-*
+
+# Local shared-agent runtime state (map and templates remain trackable)
+/.ai/TASK.md
+/.ai/HANDOFF.md
+/.ai/STATE.md
 
 # Editor directories and files
 .vscode/*

@@ -1,17 +1,23 @@
 #!/usr/bin/env node
 
 import { existsSync, readFileSync } from 'node:fs'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import {
   createPublicClient,
   createWalletClient,
   defineChain,
+  encodeAbiParameters,
   getAddress,
   http,
   isAddress,
   zeroAddress,
 } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
+import { PoolEndpointCollector } from './asset-race-pool-endpoints.mjs'
+import {
+  PoolPriceEngine,
+  poolConfigsFromRegistry,
+} from './asset-race-pool-price-engine.mjs'
 
 const STATUS = {
   BETTING: 0,
@@ -56,6 +62,7 @@ const keeperAbi = [
           { name: 'candidateCount', type: 'uint8' },
           { name: 'activeCount', type: 'uint8' },
           { name: 'winningAssetIndex', type: 'uint8' },
+          { name: 'endSnapshotsCaptured', type: 'bool' },
           { name: 'minStake', type: 'uint256' },
           { name: 'maxStakePerWallet', type: 'uint256' },
           { name: 'totalPool', type: 'uint256' },
@@ -72,6 +79,46 @@ const keeperAbi = [
       },
     ],
   },
+  {
+    type: 'function',
+    name: 'getRaceAssets',
+    stateMutability: 'view',
+    inputs: [{ name: 'raceId', type: 'uint256' }],
+    outputs: [{
+      type: 'tuple[]',
+      components: [
+        { name: 'assetId', type: 'bytes32' },
+        { name: 'oracle', type: 'address' },
+        { name: 'oracleId', type: 'bytes32' },
+        { name: 'expectedDecimals', type: 'uint8' },
+        { name: 'maxPriceAge', type: 'uint64' },
+        { name: 'maxEndpointLag', type: 'uint64' },
+        { name: 'active', type: 'bool' },
+        { name: 'pool', type: 'uint256' },
+        { name: 'startPrice', type: 'uint256' },
+        { name: 'endPrice', type: 'uint256' },
+        { name: 'startOracleUpdatedAt', type: 'uint256' },
+        { name: 'endOracleUpdatedAt', type: 'uint256' },
+        { name: 'startObservationId', type: 'bytes32' },
+        { name: 'endObservationId', type: 'bytes32' },
+        { name: 'returnValue', type: 'int256' },
+      ],
+    }],
+  },
+  {
+    type: 'function',
+    name: 'captureEndSnapshots',
+    stateMutability: 'nonpayable',
+    inputs: [{ name: 'raceId', type: 'uint256' }, { name: 'proofs', type: 'bytes[]' }],
+    outputs: [],
+  },
+  {
+    type: 'function',
+    name: 'startRaceWithProofs',
+    stateMutability: 'nonpayable',
+    inputs: [{ name: 'raceId', type: 'uint256' }, { name: 'proofs', type: 'bytes[]' }],
+    outputs: [],
+  },
   ...['openBetting', 'startRace', 'cancelUnstartedRace', 'resolveRace', 'voidExpiredRace'].map((name) => ({
     type: 'function',
     name,
@@ -80,6 +127,52 @@ const keeperAbi = [
     outputs: [],
   })),
 ]
+
+const endpointOracleAbi = [{
+  type: 'function',
+  name: 'endpointProofType',
+  stateMutability: 'pure',
+  inputs: [],
+  outputs: [{ type: 'uint8' }],
+}]
+
+const trustedSignerAbi = [{
+  type: 'function', name: 'TRUSTED_SIGNER', stateMutability: 'view',
+  inputs: [], outputs: [{ type: 'address' }],
+}]
+
+const chainlinkFeedAbi = [
+  {
+    type: 'function',
+    name: 'latestRoundData',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [
+      { name: 'roundId', type: 'uint80' },
+      { name: 'answer', type: 'int256' },
+      { name: 'startedAt', type: 'uint256' },
+      { name: 'updatedAt', type: 'uint256' },
+      { name: 'answeredInRound', type: 'uint80' },
+    ],
+  },
+  {
+    type: 'function',
+    name: 'getRoundData',
+    stateMutability: 'view',
+    inputs: [{ name: 'roundId', type: 'uint80' }],
+    outputs: [
+      { name: 'roundId', type: 'uint80' },
+      { name: 'answer', type: 'int256' },
+      { name: 'startedAt', type: 'uint256' },
+      { name: 'updatedAt', type: 'uint256' },
+      { name: 'answeredInRound', type: 'uint80' },
+    ],
+  },
+]
+
+const PROOF_TYPE = { NONE: 0, CHAINLINK_ROUND_PAIR: 1, SIGNED_OBSERVATION_PAIR: 2, SIGNED_POOL_BLOCK_PAIR: 3 }
+const ROUND_PHASE_SHIFT = 64n
+const AGGREGATOR_ROUND_MASK = (1n << ROUND_PHASE_SHIFT) - 1n
 
 class KeeperConfigError extends Error {}
 
@@ -96,13 +189,15 @@ Explicit configuration:
   ASSET_RACE_CHAIN_ID=<expected-chain-id>          optional safety check
   ASSET_RACE_KEEPER_ADDRESS=<unlocked-rpc-account> or
   ASSET_RACE_KEEPER_PRIVATE_KEY=<signer-key>
+  ASSET_RACE_SIGNED_POOL_ORACLE_ADDRESS=<deployed-adapter>
+  ASSET_RACE_POOL_PRICE_SIGNER_PRIVATE_KEY=<separate-price-signer-key>
   ASSET_RACE_ALLOW_LIVE=true                       required for non-Anvil writes
-  POLL_INTERVAL_MS=15000                           default
+  POLL_INTERVAL_MS=1000                            default with pool endpoints
   RACE_SCAN_FROM=0                                 default
   DRY_RUN=true                                     simulate and report; never send
   RUN_ONCE=true                                    poll once and exit
 
-The private-key value is read only from the process environment and is never logged.`)
+Private-key values are read only from process environment and are never logged.`)
 }
 
 function readBoolean(name, fallback = false) {
@@ -169,19 +264,40 @@ function resolveConfig() {
     throw new KeeperConfigError('ASSET_RACE_KEEPER_PRIVATE_KEY has an invalid format')
   }
 
+  const signedOracleValue = process.env.ASSET_RACE_SIGNED_POOL_ORACLE_ADDRESS?.trim()
+  const priceSignerPrivateKey = process.env.ASSET_RACE_POOL_PRICE_SIGNER_PRIVATE_KEY?.trim()
+  if (Boolean(signedOracleValue) !== Boolean(priceSignerPrivateKey)) {
+    throw new KeeperConfigError('Signed pool endpoints require both oracle address and pool price signer key')
+  }
+  if (signedOracleValue && !isAddress(signedOracleValue)) {
+    throw new KeeperConfigError('ASSET_RACE_SIGNED_POOL_ORACLE_ADDRESS is invalid')
+  }
+  if (priceSignerPrivateKey && !/^0x[0-9a-fA-F]{64}$/.test(priceSignerPrivateKey)) {
+    throw new KeeperConfigError('ASSET_RACE_POOL_PRICE_SIGNER_PRIVATE_KEY has an invalid format')
+  }
+  const collectorEnabled = Boolean(signedOracleValue)
+
   return {
     address: getAddress(addressValue),
     allowLive: readBoolean('ASSET_RACE_ALLOW_LIVE'),
     dryRun,
     expectedChainId: process.env.ASSET_RACE_CHAIN_ID?.trim(),
     localFallback: !explicitRpcUrl,
-    pollIntervalMs: readNonNegativeInteger('POLL_INTERVAL_MS', 15_000, 1_000),
+    pollIntervalMs: readNonNegativeInteger('POLL_INTERVAL_MS', collectorEnabled ? 1_000 : 15_000, 500),
     privateKey,
+    priceSignerPrivateKey,
     rpcUrl,
     runOnce: readBoolean('RUN_ONCE'),
     scanFrom: BigInt(readNonNegativeInteger('RACE_SCAN_FROM', 0)),
+    signedOracleAddress: signedOracleValue ? getAddress(signedOracleValue) : undefined,
     unlockedAddress: unlockedAddress ? getAddress(unlockedAddress) : undefined,
   }
+}
+
+function productionPoolConfigs() {
+  const registryPath = fileURLToPath(new URL('../config/asset-race-assets.json', import.meta.url))
+  const registry = JSON.parse(readFileSync(registryPath, 'utf8'))
+  return poolConfigsFromRegistry(registry)
 }
 
 function transitionFor(race, now) {
@@ -195,12 +311,130 @@ function transitionFor(race, now) {
     return { functionName: 'startRace', outcome: 'RUNNING/CANCELLED' }
   }
   if (race.status === STATUS.RUNNING && now >= race.raceEndTime) {
+    if (race.endSnapshotsCaptured) {
+      return { functionName: 'resolveRace', outcome: 'RESOLVED/VOID' }
+    }
     if (now > race.raceEndTime + race.resolutionGrace) {
       return { functionName: 'voidExpiredRace', outcome: 'VOID' }
     }
-    return { functionName: 'resolveRace', outcome: 'RESOLVED/VOID' }
+    return { functionName: 'captureEndSnapshots', outcome: 'ENDPOINT CAPTURED' }
   }
   return undefined
+}
+
+function feedAddressFromOracleId(oracleId) {
+  if (!/^0x0{24}[0-9a-fA-F]{40}$/.test(oracleId)) {
+    throw new Error('InvalidChainlinkOracleId')
+  }
+  return getAddress(`0x${oracleId.slice(-40)}`)
+}
+
+async function chainlinkRoundProof(publicClient, oracleId, targetTimestamp) {
+  const feed = feedAddressFromOracleId(oracleId)
+  const latest = await publicClient.readContract({ address: feed, abi: chainlinkFeedAbi, functionName: 'latestRoundData' })
+  const latestRoundId = latest[0]
+  if (latest[3] < targetTimestamp) throw new Error('EndpointObservationNotAvailable')
+
+  const phase = latestRoundId >> ROUND_PHASE_SHIFT
+  let low = 1n
+  let high = latestRoundId & AGGREGATOR_ROUND_MASK
+  while (low < high) {
+    const middle = (low + high) >> 1n
+    const roundId = (phase << ROUND_PHASE_SHIFT) | middle
+    const round = await publicClient.readContract({
+      address: feed,
+      abi: chainlinkFeedAbi,
+      functionName: 'getRoundData',
+      args: [roundId],
+    })
+    if (round[3] >= targetTimestamp) high = middle
+    else low = middle + 1n
+  }
+
+  // The predecessor is in another proxy phase. The adapter intentionally
+  // fails closed until that feed's proxy phase history is independently verified.
+  if (low === 1n) throw new Error('ChainlinkPhaseBoundaryUnsupported')
+  const selectedRoundId = (phase << ROUND_PHASE_SHIFT) | low
+  const previousRoundId = selectedRoundId - 1n
+  return encodeAbiParameters(
+    [{ type: 'uint80' }, { type: 'uint80' }],
+    [selectedRoundId, previousRoundId],
+  )
+}
+
+async function endpointProofsForRace(publicClient, contractAddress, raceId, targetTimestamp, collector) {
+  const assets = await publicClient.readContract({
+    address: contractAddress,
+    abi: keeperAbi,
+    functionName: 'getRaceAssets',
+    args: [raceId],
+  })
+  const proofTypes = await Promise.all(assets.map((asset) => !asset.active ? PROOF_TYPE.NONE : publicClient.readContract({
+      address: asset.oracle,
+      abi: endpointOracleAbi,
+      functionName: 'endpointProofType',
+    })))
+  const active = assets.map((asset, index) => ({ asset, proofType: proofTypes[index] })).filter(({ asset }) => asset.active)
+  const hasPoolProof = active.some(({ proofType }) => proofType === PROOF_TYPE.SIGNED_POOL_BLOCK_PAIR)
+  let poolProofs
+  if (hasPoolProof) {
+    if (active.some(({ proofType }) => proofType !== PROOF_TYPE.SIGNED_POOL_BLOCK_PAIR)) {
+      throw new Error('MixedPoolEndpointProofTypes')
+    }
+    if (!collector) throw new Error('SignedPoolCollectorNotConfigured')
+    if (active.some(({ asset }) => asset.oracle.toLowerCase() !== collector.verifyingContract.toLowerCase())) {
+      throw new Error('UnexpectedSignedPoolOracle')
+    }
+    poolProofs = (await collector.proofsFor(active.map(({ asset }) => asset.oracleId), targetTimestamp)).proofs
+  }
+
+  const proofs = []
+  for (let index = 0; index < assets.length; index += 1) {
+    const asset = assets[index]
+    if (!asset.active) { proofs.push('0x'); continue }
+    const proofType = proofTypes[index]
+    if (proofType === PROOF_TYPE.NONE) proofs.push('0x')
+    else if (proofType === PROOF_TYPE.CHAINLINK_ROUND_PAIR) {
+      proofs.push(await chainlinkRoundProof(publicClient, asset.oracleId, targetTimestamp))
+    } else if (proofType === PROOF_TYPE.SIGNED_OBSERVATION_PAIR) {
+      throw new Error('LegacySignedStockCollectorDisabled')
+    } else if (proofType === PROOF_TYPE.SIGNED_POOL_BLOCK_PAIR) {
+      proofs.push(poolProofs.get(asset.oracleId.toLowerCase()))
+    } else throw new Error('UnsupportedEndpointProofType')
+  }
+  return proofs
+}
+
+async function startCallForRace(publicClient, contractAddress, raceId, race, collector) {
+  const assets = await publicClient.readContract({
+    address: contractAddress,
+    abi: keeperAbi,
+    functionName: 'getRaceAssets',
+    args: [raceId],
+  })
+  const contenders = assets.filter((asset) => asset.pool > 0n)
+  if (contenders.length < race.minActiveContenders) return { functionName: 'startRace', args: [raceId] }
+
+  const proofTypes = await Promise.all(contenders.map((asset) => publicClient.readContract({
+    address: asset.oracle,
+    abi: endpointOracleAbi,
+    functionName: 'endpointProofType',
+  })))
+  const hasSigned = proofTypes.some((proofType) => proofType === PROOF_TYPE.SIGNED_OBSERVATION_PAIR || proofType === PROOF_TYPE.SIGNED_POOL_BLOCK_PAIR)
+  if (!hasSigned) return { functionName: 'startRace', args: [raceId] }
+  if (proofTypes.some((proofType) => proofType !== proofTypes[0])) {
+    throw new Error('MixedStartOracleProofTypes')
+  }
+  if (proofTypes[0] === PROOF_TYPE.SIGNED_OBSERVATION_PAIR) throw new Error('LegacySignedStockCollectorDisabled')
+  if (proofTypes[0] !== PROOF_TYPE.SIGNED_POOL_BLOCK_PAIR) throw new Error('UnsupportedStartProofType')
+  if (!collector) throw new Error('SignedPoolCollectorNotConfigured')
+  if (contenders.some((asset) => asset.oracle.toLowerCase() !== collector.verifyingContract.toLowerCase())) {
+    throw new Error('UnexpectedSignedPoolOracle')
+  }
+
+  const collected = await collector.proofsFor(contenders.map((asset) => asset.oracleId), race.bettingEndTime)
+  const proofs = assets.map((asset) => asset.pool === 0n ? '0x' : collected.proofs.get(asset.oracleId.toLowerCase()))
+  return { functionName: 'startRaceWithProofs', args: [raceId, proofs] }
 }
 
 function safeErrorName(error) {
@@ -213,6 +447,19 @@ function safeErrorName(error) {
   return 'Error'
 }
 
+async function verifySignedPoolOracle(publicClient, oracleAddress, signerAddress) {
+  const [trustedSigner, proofType] = await Promise.all([
+    publicClient.readContract({ address: oracleAddress, abi: trustedSignerAbi, functionName: 'TRUSTED_SIGNER' }),
+    publicClient.readContract({ address: oracleAddress, abi: endpointOracleAbi, functionName: 'endpointProofType' }),
+  ])
+  if (proofType !== PROOF_TYPE.SIGNED_POOL_BLOCK_PAIR) {
+    throw new KeeperConfigError('Configured oracle does not support signed pool endpoints')
+  }
+  if (trustedSigner.toLowerCase() !== signerAddress.toLowerCase()) {
+    throw new KeeperConfigError('Pool price signer does not match oracle TRUSTED_SIGNER')
+  }
+}
+
 async function main() {
   if (process.argv.includes('--help')) {
     printUsage()
@@ -220,8 +467,15 @@ async function main() {
   }
 
   const config = resolveConfig()
-  const publicClient = createPublicClient({ transport: http(config.rpcUrl) })
-  const chainId = await publicClient.getChainId()
+  const preliminaryClient = createPublicClient({ transport: http(config.rpcUrl) })
+  const chainId = await preliminaryClient.getChainId()
+  const chain = defineChain({
+    id: chainId,
+    name: chainId === 31_337 ? 'Local Anvil' : `Asset Race Chain ${chainId}`,
+    nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+    rpcUrls: { default: { http: [config.rpcUrl] } },
+  })
+  const publicClient = createPublicClient({ chain, transport: http(config.rpcUrl, { batch: true }) })
   if (config.expectedChainId && BigInt(config.expectedChainId) !== BigInt(chainId)) {
     throw new KeeperConfigError('RPC chain ID does not match ASSET_RACE_CHAIN_ID')
   }
@@ -236,12 +490,27 @@ async function main() {
   if (config.privateKey) account = privateKeyToAccount(config.privateKey)
   else if (config.unlockedAddress) account = config.unlockedAddress
 
-  const chain = defineChain({
-    id: chainId,
-    name: chainId === 31_337 ? 'Local Anvil' : `Asset Race Chain ${chainId}`,
-    nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
-    rpcUrls: { default: { http: [config.rpcUrl] } },
-  })
+  let collector
+  if (config.signedOracleAddress) {
+    const priceAccount = privateKeyToAccount(config.priceSignerPrivateKey)
+    const keeperAddress = typeof account === 'string' ? account : account?.address
+    if (keeperAddress && keeperAddress.toLowerCase() === priceAccount.address.toLowerCase()) {
+      throw new KeeperConfigError('Price signer and transaction keeper must be separate accounts')
+    }
+    if (chainId !== 4663) throw new KeeperConfigError('Signed production pool endpoints require Robinhood Chain 4663')
+    await verifySignedPoolOracle(publicClient, config.signedOracleAddress, priceAccount.address)
+    const poolConfigs = productionPoolConfigs()
+    if (poolConfigs.length === 0) throw new KeeperConfigError('Registry has no enabled pool-backed Stocks')
+    const engine = new PoolPriceEngine({ client: publicClient, configs: poolConfigs })
+    await engine.verify()
+    collector = new PoolEndpointCollector({
+      account: priceAccount,
+      chainId,
+      engine,
+      verifyingContract: config.signedOracleAddress,
+    })
+  }
+
   const walletClient = config.dryRun
     ? undefined
     : createWalletClient({ account, chain, transport: http(config.rpcUrl) })
@@ -267,15 +536,25 @@ async function main() {
         const transition = transitionFor(race, block.timestamp)
         if (!transition) continue
 
+        let functionName = transition.functionName
+        let args = [raceId]
+        if (functionName === 'startRace') {
+          const startCall = await startCallForRace(publicClient, config.address, raceId, race, collector)
+          functionName = startCall.functionName
+          args = startCall.args
+        } else if (functionName === 'captureEndSnapshots') {
+          args = [raceId, await endpointProofsForRace(publicClient, config.address, raceId, race.raceEndTime, collector)]
+        }
+
         const simulation = await publicClient.simulateContract({
           account: account || zeroAddress,
           address: config.address,
           abi: keeperAbi,
-          functionName: transition.functionName,
-          args: [raceId],
+          functionName,
+          args,
         })
         if (config.dryRun) {
-          console.log(`[dry-run] race #${raceId}: ${transition.functionName} -> ${transition.outcome}`)
+          console.log(`[dry-run] race #${raceId}: ${functionName} -> ${transition.outcome}`)
           continue
         }
 
@@ -288,7 +567,7 @@ async function main() {
           functionName: 'getRace',
           args: [raceId],
         })
-        console.log(`[keeper] race #${raceId}: ${transition.functionName} -> ${STATUS_NAME[updatedRace.status]} (${hash})`)
+        console.log(`[keeper] race #${raceId}: ${functionName} -> ${STATUS_NAME[updatedRace.status]} (${hash})`)
       } catch (error) {
         console.error(`[keeper] race #${raceId}: transition failed (${safeErrorName(error)}); continuing`)
       }
@@ -306,7 +585,9 @@ async function main() {
   } while (!stopping)
 }
 
-main().catch((error) => {
+export { keeperAbi, transitionFor, endpointProofsForRace, startCallForRace, verifySignedPoolOracle }
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main().catch((error) => {
   if (error instanceof KeeperConfigError) console.error(`[keeper] configuration error: ${error.message}`)
   else console.error(`[keeper] stopped (${safeErrorName(error)})`)
   process.exitCode = 1

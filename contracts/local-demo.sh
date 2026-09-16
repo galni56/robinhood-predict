@@ -8,7 +8,7 @@ FORGE="$FOUNDRY_BIN/forge"
 ANVIL="$FOUNDRY_BIN/anvil"
 RPC_URL="${LOCAL_RPC_URL:-http://127.0.0.1:8545}"
 CONFIG_FILE="$CONTRACTS_DIR/.asset-race.local"
-MEME_ASSETS_FILE="$REPO_DIR/config/local-meme-assets.json"
+ASSET_REGISTRY_FILE="$REPO_DIR/config/asset-race-assets.json"
 
 # Public addresses from Anvil's standard local-only development accounts.
 # Private keys are deliberately never stored or handled by this script.
@@ -35,6 +35,7 @@ usage() {
     '  ./local-demo.sh advance <seconds>' \
     '  ./local-demo.sh start [race-id]' \
     '  ./local-demo.sh prices <start|winner|negative|tie>' \
+    '  ./local-demo.sh capture-end [race-id]' \
     '  ./local-demo.sh resolve [race-id]' \
     '  ./local-demo.sh claim-a [race-id]' \
     '  ./local-demo.sh claim-b [race-id]' \
@@ -53,20 +54,26 @@ require_tools() {
   fi
 }
 
-load_meme_symbols() {
+load_asset_symbols() {
+  local category="$1"
+  local expected_count="$2"
   node -e '
     const fs = require("node:fs")
-    const assets = JSON.parse(fs.readFileSync(process.argv[1], "utf8"))
-    if (!Array.isArray(assets) || assets.length !== 20) throw new Error("expected exactly 20 local Meme assets")
-    const symbols = assets.map(({ symbol, name }) => {
-      if (typeof symbol !== "string" || !symbol || Buffer.byteLength(symbol) > 32 || typeof name !== "string" || !name) {
-        throw new Error("invalid local Meme asset")
+    const registry = JSON.parse(fs.readFileSync(process.argv[1], "utf8"))
+    const category = process.argv[2]
+    const expectedCount = Number(process.argv[3])
+    const assets = registry.assets.filter((asset) => asset.category === category && asset.networks?.local?.enabled)
+    if (assets.length !== expectedCount) throw new Error(`expected exactly ${expectedCount} enabled local ${category} assets`)
+    const symbols = assets.map(({ assetId, symbol, displayName, networks }) => {
+      if (assetId !== symbol || typeof symbol !== "string" || !symbol || Buffer.byteLength(symbol) > 32 || typeof displayName !== "string" || !displayName) {
+        throw new Error(`invalid local ${category} asset`)
       }
+      if (networks.local.oracle?.type !== "MOCK_LOCAL") throw new Error(`local ${category} assets must use MOCK_LOCAL`)
       return symbol
     })
-    if (new Set(symbols).size !== symbols.length) throw new Error("duplicate local Meme symbol")
+    if (new Set(symbols).size !== symbols.length) throw new Error(`duplicate local ${category} symbol`)
     process.stdout.write(symbols.join(","))
-  ' "$MEME_ASSETS_FILE"
+  ' "$ASSET_REGISTRY_FILE" "$category" "$expected_count"
 }
 
 require_config() {
@@ -98,7 +105,8 @@ write_config() {
 run_broadcast_script() {
   local contract_name="$1"
   local sender="$2"
-  LOCAL_MEME_SYMBOLS="$LOCAL_MEME_SYMBOLS" "$FORGE" script "script/LocalAssetRace.s.sol:$contract_name" \
+  LOCAL_STOCK_SYMBOLS="$LOCAL_STOCK_SYMBOLS" LOCAL_MEME_SYMBOLS="$LOCAL_MEME_SYMBOLS" \
+    "$FORGE" script "script/LocalAssetRace.s.sol:$contract_name" \
     --rpc-url "$RPC_URL" \
     --broadcast \
     --unlocked \
@@ -106,7 +114,8 @@ run_broadcast_script() {
 }
 
 require_tools
-LOCAL_MEME_SYMBOLS="$(load_meme_symbols)"
+LOCAL_STOCK_SYMBOLS="$(load_asset_symbols STOCK 13)"
+LOCAL_MEME_SYMBOLS="$(load_asset_symbols MEME 10)"
 command_name="${1:-}"
 
 case "$command_name" in
@@ -230,7 +239,7 @@ case "$command_name" in
     write_config
     printf 'Current local race is now #%s.\n' "$LOCAL_RACE_ID"
     ;;
-  open-betting|start|resolve|cancel-unstarted|void-expired|claim-a|claim-b|refund-a|refund-b)
+  open-betting|start|capture-end|resolve|cancel-unstarted|void-expired|claim-a|claim-b|refund-a|refund-b)
     require_config
     race_id="${2:-$LOCAL_RACE_ID}"
     action="$command_name"

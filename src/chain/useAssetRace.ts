@@ -4,8 +4,10 @@ import { useReadContract, useReadContracts } from 'wagmi'
 import { aggregatorV3Abi } from '@/chain/contracts'
 import { assetRaceChain, isLocalAssetRace } from '@/chain/config'
 import { useFeedSnapshot } from '@/chain/feedCache'
+import { useAssetRaceLiveDisplay } from '@/chain/useAssetRaceLiveDisplay'
 import {
   ASSET_RACE_ADDRESS,
+  ASSET_RACE_CATEGORY,
   ASSET_RACE_STATUS,
   RETURN_SCALE,
   assetRaceAbi,
@@ -73,6 +75,11 @@ export function useAssetRace(raceId: bigint | null, walletAddress?: Address) {
       assetsQuery.data as readonly Omit<AssetRaceAsset, 'assetIndex' | 'symbol' | 'feedAddress'>[],
     )
   }, [assetsQuery.data])
+  const raceData = raceQuery.data as AssetRaceData | undefined
+  const poolRaceRunning = !isPreview && !isLocalAssetRace
+    && (raceData?.category === ASSET_RACE_CATEGORY.STOCK || raceData?.category === ASSET_RACE_CATEGORY.MEME)
+    && raceData.status === ASSET_RACE_STATUS.RUNNING
+  const liveDisplay = useAssetRaceLiveDisplay({ enabled: poolRaceRunning })
 
   const feedSnapshot = useFeedSnapshot(!isPreview && !isLocalAssetRace)
   const feedReads = useReadContracts({
@@ -110,11 +117,27 @@ export function useAssetRace(raceId: bigint | null, walletAddress?: Address) {
     const round = direct?.status === 'success' ? direct.result : undefined
     const local = localOracleReads.data?.[index]
     const observation = local?.status === 'success' ? local.result : undefined
+    const dexPrice = liveDisplay.assets[asset.symbol]
+    const usePoolDisplay = poolRaceRunning && dexPrice && !dexPrice.stale
+      && dexPrice.oracleId.toLowerCase() === asset.oracleId.toLowerCase()
     return {
       ...asset,
-      livePrice: observation?.price ?? (snapshot ? BigInt(snapshot.answer) : round?.[1]),
-      liveDecimals: observation?.decimals ?? snapshot?.decimals ?? asset.expectedDecimals,
-      liveUpdatedAt: observation?.updatedAt ?? (snapshot ? BigInt(snapshot.updatedAt) : round?.[3]),
+      livePrice: observation?.price
+        ?? (usePoolDisplay ? BigInt(dexPrice.priceRaw) : undefined)
+        ?? (!poolRaceRunning ? (snapshot ? BigInt(snapshot.answer) : round?.[1]) : undefined),
+      liveDecimals: observation?.decimals
+        ?? (usePoolDisplay ? dexPrice.decimals : undefined)
+        ?? (!poolRaceRunning ? snapshot?.decimals : undefined)
+        ?? asset.expectedDecimals,
+      liveUpdatedAt: observation?.updatedAt
+        ?? (usePoolDisplay ? BigInt(dexPrice.blockTimestamp) : undefined)
+        ?? (!poolRaceRunning ? (snapshot ? BigInt(snapshot.updatedAt) : round?.[3]) : undefined),
+      liveProvider: observation
+        ? 'ORACLE'
+        : usePoolDisplay
+          ? 'ROBINHOOD_POOL_RPC'
+          : undefined,
+      liveStale: poolRaceRunning && !usePoolDisplay,
     }
   })
 
@@ -143,8 +166,8 @@ export function useAssetRace(raceId: bigint | null, walletAddress?: Address) {
 
   const race: AssetRaceViewModel | undefined = isPreview
     ? animatedPreview
-    : raceQuery.data && raceId != null
-      ? { ...(raceQuery.data as AssetRaceData), id: raceId, assets: onchainAssets, source: 'onchain' }
+    : raceData && raceId != null
+      ? { ...raceData, id: raceId, assets: onchainAssets, source: 'onchain' }
       : undefined
 
   async function refetch() {

@@ -7,22 +7,30 @@ import {AggregatorV3Interface} from "../interfaces/AggregatorV3Interface.sol";
 /// and `updatedAt` timestamp to exercise both outcomes and the staleness guard.
 /// Test-only, never deploy this to a real network.
 contract MockAggregator is AggregatorV3Interface {
+    struct StoredRound {
+        int256 answer;
+        uint256 updatedAt;
+        bool exists;
+    }
+
     uint8 private immutable _decimals;
-    int256 private _answer;
-    uint256 private _updatedAt;
     uint80 private _roundId;
+    mapping(uint80 => StoredRound) private _rounds;
 
     constructor(uint8 decimals_, int256 initialAnswer) {
         _decimals = decimals_;
-        _answer = initialAnswer;
-        _updatedAt = block.timestamp;
         _roundId = 1;
+        _rounds[1] = StoredRound({answer: initialAnswer, updatedAt: block.timestamp, exists: true});
     }
 
     function setAnswer(int256 answer_, uint256 updatedAt_) external {
-        _answer = answer_;
-        _updatedAt = updatedAt_;
         _roundId += 1;
+        _rounds[_roundId] = StoredRound({answer: answer_, updatedAt: updatedAt_, exists: true});
+    }
+
+    function setRoundData(uint80 roundId_, int256 answer_, uint256 updatedAt_) external {
+        _roundId = roundId_;
+        _rounds[roundId_] = StoredRound({answer: answer_, updatedAt: updatedAt_, exists: true});
     }
 
     function decimals() external view override returns (uint8) {
@@ -43,7 +51,9 @@ contract MockAggregator is AggregatorV3Interface {
         override
         returns (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound)
     {
-        return (_requestedRoundId, _answer, _updatedAt, _updatedAt, _requestedRoundId);
+        StoredRound memory data = _rounds[_requestedRoundId];
+        require(data.exists, "No data present");
+        return (_requestedRoundId, data.answer, data.updatedAt, data.updatedAt, _requestedRoundId);
     }
 
     function latestRoundData()
@@ -52,6 +62,7 @@ contract MockAggregator is AggregatorV3Interface {
         override
         returns (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound)
     {
-        return (_roundId, _answer, _updatedAt, _updatedAt, _roundId);
+        StoredRound memory data = _rounds[_roundId];
+        return (_roundId, data.answer, data.updatedAt, data.updatedAt, _roundId);
     }
 }

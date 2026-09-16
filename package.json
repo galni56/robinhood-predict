@@ -7,7 +7,16 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "check:asset-race-registry": "node scripts/check-asset-race-registry.mjs",
+    "check:asset-race-stock-pools": "node scripts/check-asset-race-stock-pools.mjs",
+    "check:asset-race-meme-pools": "node scripts/check-asset-race-meme-pools.mjs",
     "keeper:asset-race": "node scripts/asset-race-keeper.mjs",
+    "test:asset-race-keeper": "node --test scripts/asset-race-keeper.test.mjs",
+    "e2e:asset-race-stock": "node scripts/asset-race-stock-e2e.mjs",
+    "e2e:asset-race-meme": "node scripts/asset-race-stock-e2e.mjs --meme",
+    "test:asset-race-collector": "node --test scripts/asset-race-pool-price-engine.test.mjs scripts/asset-race-pool-endpoints.test.mjs scripts/asset-race-native-eth.test.mjs",
+    "live:asset-race": "node scripts/asset-race-live-server.mjs",
+    "test:asset-race-live": "node --experimental-strip-types --test scripts/asset-race-live-prices.test.mjs scripts/asset-race-live-display.test.mjs",
     "lint": "oxlint",
     "preview": "vite preview"
   },

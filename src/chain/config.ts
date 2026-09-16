@@ -1,13 +1,15 @@
 import { defineChain } from 'viem'
 import { createConfig, http } from 'wagmi'
 import { injected } from 'wagmi/connectors'
+import registryJson from '../../config/asset-race-assets.json'
+import type { AssetRaceNetworkKey } from '@/chain/assetRaceRegistry'
 
 // Real Robinhood Chain mainnet — separate from the mock "RHChain" in
 // src/market/tokens.ts, which simulates a chain entirely in the browser.
 // This is the actual chain the deployed PredictionMarket contract lives on
 // (switched from testnet to mainnet 2026-09-07, see ROADMAP.md).
 export const robinhoodMainnet = defineChain({
-  id: 4663,
+  id: registryJson.networks['robinhood-mainnet'].chainId,
   name: 'Robinhood Chain',
   nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
   rpcUrls: {
@@ -27,7 +29,7 @@ export const robinhoodMainnet = defineChain({
 })
 
 export const localAnvil = defineChain({
-  id: 31_337,
+  id: registryJson.networks.local.chainId,
   name: 'Local Anvil',
   nativeCurrency: { name: 'Local Test Ether', symbol: 'ETH', decimals: 18 },
   rpcUrls: {
@@ -36,17 +38,45 @@ export const localAnvil = defineChain({
   testnet: true,
 })
 
-export const isLocalAssetRace = import.meta.env.VITE_ASSET_RACE_NETWORK === 'local'
-export const assetRaceChain = isLocalAssetRace ? localAnvil : robinhoodMainnet
+export const robinhoodTestnet = defineChain({
+  id: registryJson.networks['robinhood-testnet'].chainId,
+  name: 'Robinhood Chain Testnet',
+  nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+  rpcUrls: {
+    default: { http: [import.meta.env.VITE_ROBINHOOD_TESTNET_RPC_URL ?? 'https://rpc.testnet.chain.robinhood.com'] },
+  },
+  blockExplorers: {
+    default: { name: 'Explorer', url: 'https://explorer.testnet.chain.robinhood.com' },
+  },
+  testnet: true,
+})
+
+const configuredAssetRaceNetwork = import.meta.env.VITE_ASSET_RACE_NETWORK?.trim()
+export const assetRaceNetworkConfigError = configuredAssetRaceNetwork
+  && !['local', 'robinhood-testnet', 'robinhood-mainnet', 'mainnet'].includes(configuredAssetRaceNetwork)
+  ? `Unsupported VITE_ASSET_RACE_NETWORK: ${configuredAssetRaceNetwork}`
+  : null
+export const assetRaceNetworkKey: AssetRaceNetworkKey = configuredAssetRaceNetwork === 'local'
+  ? 'local'
+  : configuredAssetRaceNetwork === 'robinhood-testnet'
+    ? 'robinhood-testnet'
+    : 'robinhood-mainnet'
+export const isLocalAssetRace = assetRaceNetworkKey === 'local'
+export const assetRaceChain = assetRaceNetworkKey === 'local'
+  ? localAnvil
+  : assetRaceNetworkKey === 'robinhood-testnet'
+    ? robinhoodTestnet
+    : robinhoodMainnet
 
 // `injected()` auto-discovers every EIP-6963-announcing wallet in the
 // browser (MetaMask, Phantom, etc.) rather than hardcoding one — the
 // connect UI lists whichever of these the user actually has installed.
 export const wagmiConfig = createConfig({
-  chains: [robinhoodMainnet, localAnvil],
+  chains: [robinhoodMainnet, robinhoodTestnet, localAnvil],
   connectors: [injected()],
   transports: {
     [robinhoodMainnet.id]: http(),
+    [robinhoodTestnet.id]: http(),
     [localAnvil.id]: http(),
   },
 })

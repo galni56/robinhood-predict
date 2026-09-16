@@ -101,7 +101,8 @@ contract AssetRaceTest is Test {
                 oracle: address(oracle),
                 oracleId: id,
                 expectedDecimals: DECIMALS,
-                maxPriceAge: 300
+                maxPriceAge: 300,
+                maxEndpointLag: 300
             });
             oracle.setObservation(id, 100e8, DECIMALS, block.timestamp, bytes32(uint256(1)));
             race.setApprovedAsset(candidates[i], true);
@@ -153,7 +154,12 @@ contract AssetRaceTest is Test {
         AssetRace.Race memory data = race.getRace(raceId);
         vm.warp(data.raceEndTime);
         _refresh(uint8(endPrices.length), endPrices, decimals_);
+        race.captureEndSnapshots(raceId, _proofs(data.candidateCount));
         race.resolveRace(raceId);
+    }
+
+    function _proofs(uint8 count) internal pure returns (bytes[] memory proofs) {
+        proofs = new bytes[](count);
     }
 
     function test_CreateRace_StoresFrozenConfigurationAndCandidates() public {
@@ -459,6 +465,27 @@ contract AssetRaceTest is Test {
         assertEq(race.getRaceAsset(id, 0).returnValue, 0.1e18);
     }
 
+    function test_ResolveRace_FinalEndpointBeatsHigherIntraracePeak() public {
+        uint256 id = _create(2);
+        _startWithTwo(id, 2);
+
+        vm.warp(block.timestamp + 30);
+        oracle.setObservation(bytes32(uint256(1)), 150e8, DECIMALS, block.timestamp, bytes32(uint256(20)));
+        oracle.setObservation(bytes32(uint256(2)), 108e8, DECIMALS, block.timestamp, bytes32(uint256(20)));
+
+        vm.warp(race.getRace(id).raceEndTime);
+        uint256[] memory finalPrices = new uint256[](2);
+        finalPrices[0] = 103e8;
+        finalPrices[1] = 110e8;
+        _refresh(2, finalPrices, _uniformDecimals(2));
+        race.captureEndSnapshots(id, _proofs(2));
+        race.resolveRace(id);
+
+        assertEq(race.getRace(id).winningAssetIndex, 1);
+        assertEq(race.getRaceAsset(id, 0).endPrice, 103e8);
+        assertEq(race.getRaceAsset(id, 1).endPrice, 110e8);
+    }
+
     function test_ResolveRace_MixedPositiveAndNegativeWinner() public {
         uint256 id = _create(3);
         _bet(id, alice, 0, UNIT);
@@ -568,6 +595,7 @@ contract AssetRaceTest is Test {
         vm.warp(race.getRace(id).raceEndTime);
         oracle.setObservation(bytes32(uint256(1)), 110e8, 8, block.timestamp, bytes32(uint256(11)));
         oracle.setObservation(bytes32(uint256(2)), 1.05e18, 18, block.timestamp, bytes32(uint256(11)));
+        race.captureEndSnapshots(id, _proofs(2));
         race.resolveRace(id);
         assertEq(race.getRace(id).winningAssetIndex, 0);
     }
@@ -579,12 +607,12 @@ contract AssetRaceTest is Test {
         oracle.setObservation(bytes32(uint256(1)), 110e8, DECIMALS, block.timestamp, bytes32(uint256(11)));
         oracle.setShouldRevert(bytes32(uint256(2)), true);
         vm.expectRevert("mock oracle failure");
-        race.resolveRace(id);
+        race.captureEndSnapshots(id, _proofs(2));
         assertEq(race.getRaceAsset(id, 0).endPrice, 0);
         assertEq(uint8(race.getRace(id).status), uint8(AssetRace.RaceStatus.RUNNING));
     }
 
-    function test_ResolveRace_RejectsStaleP1WithoutPartialSnapshots() public {
+    function test_CaptureEndSnapshots_RejectsObservationBeforeEndpointWithoutPartialSnapshots() public {
         AssetRace.CandidateInput[] memory candidates = _candidates(2);
         candidates[0].maxPriceAge = 5;
         race.setApprovedAsset(candidates[0], true);
@@ -594,8 +622,8 @@ contract AssetRaceTest is Test {
         oracle.setObservation(bytes32(uint256(1)), 110e8, DECIMALS, block.timestamp - 6, bytes32(uint256(11)));
         oracle.setObservation(bytes32(uint256(2)), 90e8, DECIMALS, block.timestamp, bytes32(uint256(11)));
 
-        vm.expectRevert(AssetRace.OraclePriceStale.selector);
-        race.resolveRace(id);
+        vm.expectRevert(AssetRace.InvalidOracleTimestamp.selector);
+        race.captureEndSnapshots(id, _proofs(2));
         assertEq(race.getRaceAsset(id, 0).endPrice, 0);
         assertEq(race.getRaceAsset(id, 1).endPrice, 0);
         assertEq(uint8(race.getRace(id).status), uint8(AssetRace.RaceStatus.RUNNING));
@@ -604,12 +632,12 @@ contract AssetRaceTest is Test {
     function test_ResolveRace_RejectsCrossFeedTimestampSkewWithoutPartialSnapshots() public {
         uint256 id = _create(2);
         _startWithTwo(id, 2);
-        vm.warp(race.getRace(id).raceEndTime);
+        vm.warp(race.getRace(id).raceEndTime + 6);
         oracle.setObservation(bytes32(uint256(1)), 110e8, DECIMALS, block.timestamp - 6, bytes32(uint256(11)));
         oracle.setObservation(bytes32(uint256(2)), 90e8, DECIMALS, block.timestamp, bytes32(uint256(11)));
 
         vm.expectRevert(AssetRace.OracleTimestampSkew.selector);
-        race.resolveRace(id);
+        race.captureEndSnapshots(id, _proofs(2));
         assertEq(race.getRaceAsset(id, 0).endPrice, 0);
         assertEq(race.getRaceAsset(id, 1).endPrice, 0);
         assertEq(uint8(race.getRace(id).status), uint8(AssetRace.RaceStatus.RUNNING));
@@ -625,8 +653,79 @@ contract AssetRaceTest is Test {
         uint256 frozen = race.getRaceAsset(id, 0).endPrice;
 
         vm.expectRevert(AssetRace.InvalidRaceStatus.selector);
+        race.captureEndSnapshots(id, _proofs(2));
+        vm.expectRevert(AssetRace.InvalidRaceStatus.selector);
         race.resolveRace(id);
         assertEq(race.getRaceAsset(id, 0).endPrice, frozen);
+    }
+
+    function test_CapturedEndpointCanResolveArbitrarilyLaterWithoutChangingP1() public {
+        uint256 id = _create(2);
+        _startWithTwo(id, 2);
+        vm.warp(race.getRace(id).raceEndTime);
+        uint256[] memory ends = new uint256[](2);
+        ends[0] = 110e8;
+        ends[1] = 105e8;
+        _refresh(2, ends, _uniformDecimals(2));
+        race.captureEndSnapshots(id, _proofs(2));
+
+        vm.warp(block.timestamp + 365 days);
+        oracle.setObservation(bytes32(uint256(1)), 1e8, DECIMALS, block.timestamp, bytes32(uint256(99)));
+        oracle.setObservation(bytes32(uint256(2)), 999e8, DECIMALS, block.timestamp, bytes32(uint256(99)));
+        vm.expectRevert(AssetRace.EndSnapshotsAlreadyCaptured.selector);
+        race.voidExpiredRace(id);
+        race.resolveRace(id);
+
+        assertEq(race.getRace(id).winningAssetIndex, 0);
+        assertEq(race.getRaceAsset(id, 0).endPrice, 110e8);
+        assertEq(race.getRaceAsset(id, 1).endPrice, 105e8);
+    }
+
+    function test_CapturedEndpointCannotBeOverwrittenBeforeResolve() public {
+        uint256 id = _create(2);
+        _startWithTwo(id, 2);
+        vm.warp(race.getRace(id).raceEndTime);
+        uint256[] memory ends = new uint256[](2);
+        ends[0] = 110e8;
+        ends[1] = 105e8;
+        _refresh(2, ends, _uniformDecimals(2));
+        race.captureEndSnapshots(id, _proofs(2));
+
+        oracle.setObservation(bytes32(uint256(1)), 1e8, DECIMALS, block.timestamp, bytes32(uint256(99)));
+        vm.expectRevert(AssetRace.EndSnapshotsAlreadyCaptured.selector);
+        race.captureEndSnapshots(id, _proofs(2));
+        assertEq(race.getRaceAsset(id, 0).endPrice, 110e8);
+    }
+
+    function test_EndpointCallerCannotSupplyPriceDataToMockAdapter() public {
+        uint256 id = _create(2);
+        _startWithTwo(id, 2);
+        vm.warp(race.getRace(id).raceEndTime);
+        uint256[] memory ends = new uint256[](2);
+        ends[0] = 110e8;
+        ends[1] = 105e8;
+        _refresh(2, ends, _uniformDecimals(2));
+        bytes[] memory proofs = _proofs(2);
+        proofs[0] = abi.encode(uint256(999e8));
+
+        vm.expectRevert("unexpected endpoint proof");
+        race.captureEndSnapshots(id, proofs);
+        assertFalse(race.getRace(id).endSnapshotsCaptured);
+    }
+
+    function test_CaptureRejectsObservationBeyondFrozenEndpointLag() public {
+        AssetRace.CandidateInput[] memory candidates = _candidates(2);
+        candidates[0].maxEndpointLag = 5;
+        race.setApprovedAsset(candidates[0], true);
+        uint256 id = race.createRace(_config(2, 0), candidates);
+        _startWithTwo(id, 2);
+        vm.warp(race.getRace(id).raceEndTime + 6);
+        oracle.setObservation(bytes32(uint256(1)), 110e8, DECIMALS, block.timestamp, bytes32(uint256(11)));
+        oracle.setObservation(bytes32(uint256(2)), 105e8, DECIMALS, block.timestamp, bytes32(uint256(11)));
+
+        vm.expectRevert(AssetRace.OraclePriceStale.selector);
+        race.captureEndSnapshots(id, _proofs(2));
+        assertFalse(race.getRace(id).endSnapshotsCaptured);
     }
 
     function test_EndGraceExpiryVoidsAndRefunds() public {
@@ -635,7 +734,7 @@ contract AssetRaceTest is Test {
         AssetRace.Race memory data = race.getRace(id);
         vm.warp(uint256(data.raceEndTime) + data.resolutionGrace + 1);
 
-        vm.expectRevert(AssetRace.ResolutionWindowExpired.selector);
+        vm.expectRevert(AssetRace.EndSnapshotsNotCaptured.selector);
         race.resolveRace(id);
         vm.prank(charlie);
         race.voidExpiredRace(id);
@@ -769,6 +868,19 @@ contract AssetRaceTest is Test {
         race.claim(id);
     }
 
+    function test_ClaimHasNoDeadlineAfterResolution() public {
+        uint256 id = _create(2);
+        _startWithTwo(id, 2);
+        uint256[] memory ends = new uint256[](2);
+        ends[0] = 110e8;
+        ends[1] = 90e8;
+        _resolve(id, ends, _uniformDecimals(2));
+
+        vm.warp(block.timestamp + 10 * 365 days);
+        vm.prank(alice);
+        assertEq(race.claim(id), 20 * UNIT);
+    }
+
     function test_RefundOnceAndNoFeeOnVoid() public {
         uint256 id = _create(2, 200);
         _startWithTwo(id, 2);
@@ -783,6 +895,17 @@ contract AssetRaceTest is Test {
         vm.prank(alice);
         vm.expectRevert(AssetRace.AlreadySettled.selector);
         race.refund(id);
+    }
+
+    function test_RefundHasNoDeadlineAfterVoid() public {
+        uint256 id = _create(2);
+        _startWithTwo(id, 2);
+        vm.warp(uint256(race.getRace(id).raceEndTime) + race.getRace(id).resolutionGrace + 1);
+        race.voidExpiredRace(id);
+
+        vm.warp(block.timestamp + 10 * 365 days);
+        vm.prank(alice);
+        assertEq(race.refund(id), 10 * UNIT);
     }
 
     function test_AggregatePayoutsNeverExceedRacePoolAndDustStaysUnclassified() public {
@@ -906,12 +1029,16 @@ contract AssetRaceTest is Test {
         }
         _refresh(count, ends, _uniformDecimals(count));
         gasBefore = gasleft();
+        race.captureEndSnapshots(id, _proofs(count));
+        uint256 captureGas = gasBefore - gasleft();
+        gasBefore = gasleft();
         race.resolveRace(id);
         uint256 resolveGas = gasBefore - gasleft();
 
         emit log_named_uint("asset count", count);
         emit log_named_uint("createRace gas", createGas);
         emit log_named_uint("startRace gas", startGas);
+        emit log_named_uint("captureEndSnapshots gas", captureGas);
         emit log_named_uint("resolveRace gas", resolveGas);
     }
 }
@@ -967,7 +1094,8 @@ contract AssetRaceCommunityTest is Test {
             oracle: address(oracle),
             oracleId: bytes32(uint256(index + 1)),
             expectedDecimals: DECIMALS,
-            maxPriceAge: 300
+            maxPriceAge: 300,
+            maxEndpointLag: 300
         });
     }
 
@@ -1135,6 +1263,7 @@ contract AssetRaceCommunityTest is Test {
         changed.oracleId = bytes32(uint256(999));
         changed.expectedDecimals = 18;
         changed.maxPriceAge = 999;
+        changed.maxEndpointLag = 777;
         race.setApprovedAsset(changed, true);
 
         AssetRace.RaceAsset memory afterChange = race.getRaceAsset(id, 0);
@@ -1142,6 +1271,7 @@ contract AssetRaceCommunityTest is Test {
         assertEq(afterChange.oracleId, frozen.oracleId);
         assertEq(afterChange.expectedDecimals, frozen.expectedDecimals);
         assertEq(afterChange.maxPriceAge, frozen.maxPriceAge);
+        assertEq(afterChange.maxEndpointLag, frozen.maxEndpointLag);
     }
 
     function test_CreatorHasNoSettlementOrRegistryPower() public {
@@ -1172,6 +1302,8 @@ contract AssetRaceCommunityTest is Test {
         vm.warp(race.getRace(id).raceEndTime);
         oracle.setObservation(bytes32(uint256(1)), 110e8, DECIMALS, block.timestamp, bytes32(uint256(3)));
         oracle.setObservation(bytes32(uint256(2)), 105e8, DECIMALS, block.timestamp, bytes32(uint256(3)));
+        bytes[] memory proofs = new bytes[](race.getRace(id).candidateCount);
+        race.captureEndSnapshots(id, proofs);
         race.resolveRace(id);
 
         AssetRace.Race memory data = race.getRace(id);

@@ -1,0 +1,42 @@
+import assert from 'node:assert/strict'
+import test from 'node:test'
+import { validateAssetRaceProductionBuild } from '../vite.config.ts'
+import { archiveLookbacks } from './asset-race-archive-options.mjs'
+
+const configured = { VITE_ASSET_RACE_NETWORK: 'robinhood-mainnet',
+  VITE_ASSET_RACE_ADDRESS: '0x1111111111111111111111111111111111111111',
+  VITE_ASSET_RACE_SIGNED_POOL_ORACLE_ADDRESS: '0x2222222222222222222222222222222222222222' }
+
+test('archive probe accepts explicit multiple positive historical lookbacks', () => {
+  assert.deepEqual(archiveLookbacks('60,300,600,3600'), [60n, 300n, 600n, 3600n])
+  assert.deepEqual(archiveLookbacks(), [60n])
+})
+
+test('archive probe rejects empty, negative, fractional, zero and duplicate lookbacks before RPC', () => {
+  for (const raw of ['', '-1', '1.5', '0', '60,60', '60,', 'garbage']) {
+    assert.throws(() => archiveLookbacks(raw), /InvalidArchiveLookbacks/)
+  }
+})
+
+test('mainnet build requires both explicit nonzero contract bindings, never a silent preview', () => {
+  validateAssetRaceProductionBuild(configured)
+  for (const name of ['VITE_ASSET_RACE_ADDRESS', 'VITE_ASSET_RACE_SIGNED_POOL_ORACLE_ADDRESS']) {
+    for (const value of [undefined, '', 'invalid', '0x0000000000000000000000000000000000000000']) {
+      assert.throws(() => validateAssetRaceProductionBuild({ ...configured, [name]: value }), /requires a nonzero/)
+    }
+  }
+})
+
+test('implicit mainnet with a contract cannot omit its oracle; network typos and identical bindings fail', () => {
+  assert.throws(() => validateAssetRaceProductionBuild({ VITE_ASSET_RACE_ADDRESS: configured.VITE_ASSET_RACE_ADDRESS }), /SIGNED_POOL_ORACLE/)
+  assert.throws(() => validateAssetRaceProductionBuild({ ...configured, VITE_ASSET_RACE_NETWORK: 'mainnett' }), /Unsupported/)
+  assert.throws(() => validateAssetRaceProductionBuild({ ...configured,
+    VITE_ASSET_RACE_SIGNED_POOL_ORACLE_ADDRESS: configured.VITE_ASSET_RACE_ADDRESS }), /different contract/)
+})
+
+test('explicit local/testnet builds and deliberately unconfigured labelled preview remain available', () => {
+  validateAssetRaceProductionBuild({})
+  validateAssetRaceProductionBuild({ VITE_ASSET_RACE_NETWORK: 'local' })
+  validateAssetRaceProductionBuild({ VITE_ASSET_RACE_NETWORK: 'robinhood-testnet' })
+  validateAssetRaceProductionBuild({ ...configured, VITE_ASSET_RACE_NETWORK: 'mainnet' })
+})

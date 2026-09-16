@@ -17,7 +17,7 @@ export function AssetRaceLiveView({ race, position, nowMs, tokenDecimals, tokenL
               <span className={`h-2 w-2 animate-pulse rounded-full motion-reduce:animate-none ${meme ? 'bg-fuchsia-400' : 'bg-[#C6FF3D]'}`} /> RACE LIVE
             </div>
             <h2 className="text-2xl font-black">{meme ? 'Who moons the hardest?' : 'Who gains the most?'}</h2>
-            <p className="mt-1 text-sm text-white/45">Live prices are display-only. Final settlement comes from the race contract.</p>
+            <p className="mt-1 text-sm text-white/45">DEX movement is provisional and display-only. Final settlement comes from the race contract.</p>
           </div>
           <div className="text-right">
             <div className="font-mono text-3xl font-black text-white">{nowMs > 0 ? formatCountdown(remainingMs) : '…'}</div>
