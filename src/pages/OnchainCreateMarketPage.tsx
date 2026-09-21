@@ -2,7 +2,7 @@ import { type FormEvent, useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { formatUnits, parseUnits } from 'viem'
 import { useAccount, useChainId, useReadContract, useSwitchChain, useWriteContract } from 'wagmi'
-import { waitForTransactionReceipt } from 'wagmi/actions'
+import { simulateContract, waitForTransactionReceipt } from 'wagmi/actions'
 import { robinhoodMainnet, wagmiConfig } from '@/chain/config'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
 import {
@@ -26,7 +26,7 @@ const DURATION_PRESETS = [
 export function OnchainCreateMarketPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const { isConnected } = useAccount()
+  const { address, isConnected } = useAccount()
   const chainId = useChainId()
   const { switchChain, isPending: isSwitching } = useSwitchChain()
   const { writeContractAsync } = useWriteContract()
@@ -62,13 +62,14 @@ export function OnchainCreateMarketPage() {
     readSnapshotPrice(feedSnapshot.data, feedAddress) ??
     (feedPrice.data && feedDecimals.data != null ? Number(formatUnits(feedPrice.data[1], feedDecimals.data)) : null)
 
-  // Pre-fill the target with the live price whenever the ticker changes (not
-  // on every price poll, or the user's own edits would keep getting
-  // clobbered) — a sensible starting point instead of an arbitrary number.
+  // Pre-fill the target 3% above the live price whenever the ticker changes
+  // (not on every price poll, or the user's own edits would keep getting
+  // clobbered). The live price itself is rejected on-chain (must be >=2% away),
+  // and 3% sits inside the allowed band for every duration preset.
   const prefilledFor = useRef<string | null>(null)
   useEffect(() => {
     if (currentPriceUsd != null && prefilledFor.current !== feedAddress) {
-      setTarget(currentPriceUsd.toFixed(2))
+      setTarget((currentPriceUsd * 1.03).toFixed(2))
       prefilledFor.current = feedAddress
     }
   }, [feedAddress, currentPriceUsd])
@@ -91,6 +92,12 @@ export function OnchainCreateMarketPage() {
       setError(`Target price must be between ${formatUsd(minRange)} and ${formatUsd(maxRange)} for this duration`)
       return
     }
+    if (currentPriceUsd != null && minGapUsd != null && Math.abs(targetNum - currentPriceUsd) < minGapUsd) {
+      setError(
+        `Target is too close to the current price (${formatUsd(currentPriceUsd)}). It must be at least ${formatUsd(minGapUsd)} above or below it.`,
+      )
+      return
+    }
     if (feedDecimals.data == null) {
       setError("Couldn't read the feed's decimals() — try again")
       return
@@ -100,13 +107,19 @@ export function OnchainCreateMarketPage() {
       setPending(true)
       const targetScaled = parseUnits(target, feedDecimals.data)
       const deadline = BigInt(Math.floor(Date.now() / 1000) + DURATION_PRESETS[durationIdx].seconds)
-
-      const hash = await writeContractAsync({
+      const request = {
         address: PREDICTION_MARKET_ADDRESS,
         abi: predictionMarketAbi,
         functionName: 'createMarket',
         args: [feedAddress, targetScaled, deadline, 0n, 0n],
-      })
+      } as const
+
+      // Dry-run against the node first: it returns the contract's real revert
+      // reason (e.g. "target too far from current price"), which the wallet
+      // often hides behind a generic "likely to fail" warning.
+      await simulateContract(wagmiConfig, { ...request, account: address, chainId: robinhoodMainnet.id })
+
+      const hash = await writeContractAsync(request)
       await waitForTransactionReceipt(wagmiConfig, { hash })
 
       navigate('/onchain')
