@@ -52,7 +52,7 @@ export function SetNicknameModal({ onClose }: { onClose: () => void }) {
         >
           <h2 className="text-sm font-bold mb-1">Set your nickname</h2>
           <p className="text-white/40 text-xs mb-3">
-            A real on-chain transaction — public, and visible to everyone wherever your address shows up. Leave blank
+            A real on-chain transaction - public, and visible to everyone wherever your address shows up. Leave blank
             to clear it.
           </p>
           <input

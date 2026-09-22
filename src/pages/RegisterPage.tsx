@@ -87,7 +87,7 @@ export function RegisterPage() {
 
         <p className="text-center text-xs text-white/25 mt-6">
           Signing up instantly credits your wallet with {formatUsd(STARTING_BALANCE)} {RHCHAIN_META.ticker} from the test
-          faucet — also a mock transaction, visible in the explorer.
+          faucet - also a mock transaction, visible in the explorer.
         </p>
       </div>
     </div>

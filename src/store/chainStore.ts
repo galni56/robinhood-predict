@@ -26,7 +26,7 @@ interface ChainState {
   ensureGenesis: () => void
   submitTx: (input: SubmitTxInput) => string
   /** Convenience wrapper around submitTx for crediting a wallet from the
-   * genesis/faucet address — used for the signup grant and for "Add funds".
+   * genesis/faucet address - used for the signup grant and for "Add funds".
    * Not real money; same mock chain as everything else. */
   faucet: (to: string, amount: number, memo: string) => string
   mineBlock: () => void

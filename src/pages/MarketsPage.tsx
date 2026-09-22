@@ -24,7 +24,7 @@ export function MarketsPage() {
 
   const [betTarget, setBetTarget] = useState<{ marketId: string; side: MarketSide } | null>(null)
 
-  // Coming back from /login after clicking a bet button while logged out —
+  // Coming back from /login after clicking a bet button while logged out -
   // reopen the same popup on the same side instead of leaving them stranded.
   useEffect(() => {
     const state = location.state as ReopenBetState | null
@@ -35,7 +35,7 @@ export function MarketsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Open markets only — resolved/cancelled ones live in /archive so this
+  // Open markets only - resolved/cancelled ones live in /archive so this
   // list doesn't fill up with finished stuff over time.
   const list = Object.values(markets)
     .filter((m) => !m.resolved && !m.cancelled)
@@ -47,7 +47,7 @@ export function MarketsPage() {
         <div className="max-w-2xl">
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">All markets</h1>
           <p className="text-white/50 text-sm mt-1.5">
-            {list.length} open right now. Bet YES or NO before the deadline — early bets carry more weight, and a
+            {list.length} open right now. Bet YES or NO before the deadline - early bets carry more weight, and a
             market with only one side ever betting cancels and refunds in full.{' '}
             <Link to="/whitepaper" className="text-[#8B7CF7] hover:underline">
               How the payout math works →

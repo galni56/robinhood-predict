@@ -2,11 +2,11 @@ import { useEffect, useRef } from 'react'
 import { CORE_TICKERS, useCorePrices } from '@/chain/robinhoodApi'
 import { formatUsd } from '@/lib/format'
 
-/** Horizontal auto-scrolling price strip — 30 tickers, live bid price,
+/** Horizontal auto-scrolling price strip - 30 tickers, live bid price,
  * colored by whether it just ticked up or down since the last 15s poll
  * (compared client-side, since the API gives a snapshot, not history).
  * Shares its price cache with TokenBrowser's default view via
- * useCorePrices() — see robinhoodApi.ts — instead of firing its own
+ * useCorePrices() - see robinhoodApi.ts - instead of firing its own
  * duplicate requests for the same tickers. */
 export function TickerTape() {
   const prices = useCorePrices()

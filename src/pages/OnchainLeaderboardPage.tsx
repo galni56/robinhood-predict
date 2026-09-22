@@ -20,7 +20,7 @@ import { formatUsd, shortTxError } from '@/lib/format'
 import { shortHash } from '@/lib/hash'
 
 // viem's `getLogs` wants the specific ABI event item (not the full contract
-// ABI + an event name) — these mirror `BetPlaced`/`Claimed` in
+// ABI + an event name) - these mirror `BetPlaced`/`Claimed` in
 // PredictionMarket.sol exactly.
 const BET_PLACED_EVENT = parseAbiItem(
   'event BetPlaced(uint256 indexed id, address indexed user, uint8 side, uint256 amount, uint256 weightBp)',
@@ -53,11 +53,11 @@ const byNetDesc = (a: UserStats, b: UserStats) => {
 }
 
 /** Real leaderboard + activity feed, built by scanning the contract's own
- * `BetPlaced`/`Claimed` events via `getLogs` — no backend/indexer needed,
+ * `BetPlaced`/`Claimed` events via `getLogs` - no backend/indexer needed,
  * since the contract already emits everything needed to reconstruct this
  * client-side. Net figure is claimed-minus-staked across a user's whole
  * history, so it understates true P&L while bets are still open (principal
- * counted as "out" until settled) — self-corrects as more markets resolve. */
+ * counted as "out" until settled) - self-corrects as more markets resolve. */
 export function OnchainLeaderboardPage() {
   const client = usePublicClient()
   const [stats, setStats] = useState<UserStats[] | null>(null)
@@ -153,7 +153,7 @@ export function OnchainLeaderboardPage() {
       } catch (e) {
         if (cancelled) return
         // Demo mode must never show a dead board because one RPC scan
-        // failed — fall back to the saved session or the demo baseline.
+        // failed - fall back to the saved session or the demo baseline.
         if (isDemoMode()) {
           const saved = loadDemoLeaderboard()
           if (saved && saved.stats.length > 0) {
@@ -193,10 +193,10 @@ export function OnchainLeaderboardPage() {
   }, [client])
 
   // Demo-mode live dynamics: every so often a synthetic bet (and sometimes
-  // a win) lands — stat chips tick mostly upward with occasional small
+  // a win) lands - stat chips tick mostly upward with occasional small
   // corrections, rows below the leader reshuffle as nets move, and a new
   // entry drops into the recent-bets feed. The leader is pinned at #1.
-  // State is mirrored in refs (so mutations are computed OUTSIDE setState —
+  // State is mirrored in refs (so mutations are computed OUTSIDE setState -
   // StrictMode double-invokes updaters and was doubling the growth rate)
   // and persisted to localStorage so a reload picks up where it left off.
   const statsRef = useRef<UserStats[] | null>(null)
@@ -238,7 +238,7 @@ export function OnchainLeaderboardPage() {
 
       // prev is sorted by net desc, so prev[0] is the genuine leader. Wins
       // and corrections below are capped so nobody's net crosses the
-      // leader's — the board stays honestly sorted AND the leader stable.
+      // leader's - the board stays honestly sorted AND the leader stable.
       const next = prev.map((s) => ({ ...s }))
       const leaderNet = netOf(next[0])
       const pickBelowLeader = () => next[Math.min(1 + Math.floor(Math.random() * Math.max(1, next.length - 1)), next.length - 1)]
@@ -297,7 +297,7 @@ export function OnchainLeaderboardPage() {
   const totalStaked = (stats ?? []).reduce((sum, s) => sum + s.staked, 0n)
   const totalBets = (stats ?? []).reduce((sum, s) => sum + s.bets, 0)
   // The board is a top-20: the Players counter keeps counting everyone, the
-  // table shows the best. Demo mode also hides negative nets — the shop
+  // table shows the best. Demo mode also hides negative nets - the shop
   // window shows winners.
   const ranked = (stats ?? []).filter((s) => (isDemoMode() ? s.claimed - s.staked > 0n : true)).slice(0, 20)
 
@@ -309,7 +309,7 @@ export function OnchainLeaderboardPage() {
           <h1 className="font-display text-3xl sm:text-4xl font-bold tracking-tight mb-2">Leaderboard</h1>
           <p className="text-white/40 text-sm">
             Built live from the contract's own <code className="text-[#B3A7FA]">BetPlaced</code>/
-            <code className="text-[#B3A7FA]">Claimed</code> events — no backend, no indexer, just what's actually on
+            <code className="text-[#B3A7FA]">Claimed</code> events - no backend, no indexer, just what's actually on
             the chain. Net is claimed minus staked across a wallet's whole history, so it's a lower bound while bets
             are still open.
           </p>

@@ -8,7 +8,7 @@ import { TOKEN_BY_SYMBOL } from '@/market/tokens'
 import { bettingWindowEnd, currentWeightBp, useMarketStore } from '@/store/marketStore'
 import type { MarketSide } from '@/types'
 
-/** Quick-bet popup opened from a market card in the list — same `BetForm`
+/** Quick-bet popup opened from a market card in the list - same `BetForm`
  * the detail page uses, plus just enough market context (price, odds,
  * countdown) to place a bet without navigating away. */
 export function BetModal({ marketId, initialSide, onClose }: { marketId: string; initialSide: MarketSide; onClose: () => void }) {

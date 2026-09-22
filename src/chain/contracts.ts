@@ -2,8 +2,8 @@ import type { Address } from 'viem'
 
 // PredictionMarket redeployed 2026-09-10 to remove the flat $500 target-price
 // cap and make the anti-griefing guardrails (min duration, target-price
-// deviation band, max stake per side) actually live on-chain — see
-// ROADMAP.md and contracts/CLAUDE.md. Public contract addresses — not
+// deviation band, max stake per side) actually live on-chain - see
+// ROADMAP.md and contracts/CLAUDE.md. Public contract addresses - not
 // secrets. Override via Vite env vars if the contracts get redeployed again.
 export const PREDICTION_MARKET_ADDRESS = (import.meta.env.VITE_MARKET_ADDRESS ??
   '0xd95ed19edBCd330498CADe7BA8569ac940A4182f') as Address
@@ -12,10 +12,10 @@ export const BET_TOKEN_ADDRESS = (import.meta.env.VITE_BET_TOKEN_ADDRESS ??
 
 // Price feeds the owner has allowlisted so far (real Chainlink Robinhood
 // feeds, each verified on-chain via decimals()/description()/latestRoundData()
-// before allowlisting — see contracts/CLAUDE.md). `createMarket` is
+// before allowlisting - see contracts/CLAUDE.md). `createMarket` is
 // permissionless, but the feed it settles against must already be
 // owner-allowlisted, and there's no on-chain way to enumerate allowlisted
-// feeds (it's a mapping, not a list) — so the create-market UI can only
+// feeds (it's a mapping, not a list) - so the create-market UI can only
 // offer tickers from this hardcoded list until more get allowlisted (see
 // contracts/script/AllowlistFeed.s.sol).
 export const ALLOWLISTED_FEEDS = [
@@ -71,7 +71,7 @@ export function tickerForFeedAddress(address?: Address): string | undefined {
   return address ? TICKER_BY_FEED_ADDRESS.get(address.toLowerCase()) : undefined
 }
 
-/** Block the contract was deployed at, if known — narrows `getLogs` scans
+/** Block the contract was deployed at, if known - narrows `getLogs` scans
  * (leaderboard/activity feed) instead of scanning from genesis, which can
  * hit RPC range limits or rate limits on a public endpoint. Defaults to 0
  * (scan everything) when unset; set `VITE_DEPLOY_BLOCK` once the real
@@ -294,7 +294,7 @@ export const aggregatorV3Abi = [
 export const MarketSideOnchain = { YES: 0, NO: 1 } as const
 export const MarketStatusOnchain = { Open: 0, Resolved: 1, Cancelled: 2 } as const
 
-// Mirrors the contract's constants of the same name — betting closes at
+// Mirrors the contract's constants of the same name - betting closes at
 // createdAt + (deadline-createdAt) * BETTING_WINDOW_BP/10000, and a bet's
 // share of the losing pool is weighted from MAX_WEIGHT_BP (right when
 // betting opens) down to MIN_WEIGHT_BP (right as betting closes).
@@ -304,7 +304,7 @@ export const MIN_WEIGHT_BP = 5_000n
 export const BP_DENOMINATOR = 10_000n
 
 // Mirrors the target-price floor/ceiling guard added to createMarket
-// (contracts/src/PredictionMarket.sol) — live on the mainnet contract as of
+// (contracts/src/PredictionMarket.sol) - live on the mainnet contract as of
 // the 2026-09-10 redeploy (verified: MIN_TARGET_DEVIATION_BP() etc. return
 // real values, not a revert). A createMarket tx outside this range will
 // actually revert on-chain, not just get flagged in the UI.
@@ -322,10 +322,10 @@ export function maxDeviationBpForDuration(durationSeconds: number): bigint {
 }
 
 /** Outer [min, max] a target price could be for a given current price +
- * duration — plain numbers (not scaled to feed decimals), for UI display
+ * duration - plain numbers (not scaled to feed decimals), for UI display
  * only. Note this isn't one continuous valid range: the actual rule also
  * excludes a band within MIN_TARGET_DEVIATION_BP of the current price (too
- * close to be a real bet) — see recommendedMinDeviationUsd. */
+ * close to be a real bet) - see recommendedMinDeviationUsd. */
 export function recommendedTargetRange(currentPrice: number, durationSeconds: number): [number, number] {
   const maxBp = maxDeviationBpForDuration(durationSeconds)
   const mult = Number(maxBp) / 10_000
@@ -333,14 +333,14 @@ export function recommendedTargetRange(currentPrice: number, durationSeconds: nu
 }
 
 /** How close (in $) a target may sit to the current price before it's
- * rejected as too close to be a real bet — the excluded band is
+ * rejected as too close to be a real bet - the excluded band is
  * [current - this, current + this]. */
 export function recommendedMinDeviationUsd(currentPrice: number): number {
   return (currentPrice * Number(MIN_TARGET_DEVIATION_BP)) / 10_000
 }
 
 /** Mirrors `PredictionMarket.bettingWindowEnd()` exactly (same truncating
- * integer division) — the unix-seconds timestamp betting closes at. */
+ * integer division) - the unix-seconds timestamp betting closes at. */
 export function bettingWindowEndSeconds(createdAt: bigint, deadline: bigint): bigint {
   return createdAt + ((deadline - createdAt) * BETTING_WINDOW_BP) / BP_DENOMINATOR
 }
@@ -358,8 +358,8 @@ export function currentWeightBp(createdAt: bigint, deadline: bigint, nowSeconds:
 }
 
 /** Chainlink feed descriptions for Robinhood tokenized equities aren't
- * consistently formatted — some are "RHNVDA / USD", others "Robinhood AAPL /
- * USD" — strip either issuer prefix and the " / USD" quote suffix to get a
+ * consistently formatted - some are "RHNVDA / USD", others "Robinhood AAPL /
+ * USD" - strip either issuer prefix and the " / USD" quote suffix to get a
  * bare ticker. */
 export function tickerFromFeedDescription(desc?: string): string | undefined {
   return desc?.replace(/^(Robinhood\s+|RH)/i, '').replace(/\s*\/\s*USD$/i, '')

@@ -1,4 +1,4 @@
-// Deterministic per-address "avatar" — no backend, no image, no library.
+// Deterministic per-address "avatar" - no backend, no image, no library.
 // Same wallet address always renders the same two-tone gradient circle, a
 // common web3 pattern (blockies/Jazzicon do the same thing with more visual
 // complexity) so a connected wallet has a recognizable glanceable identity.

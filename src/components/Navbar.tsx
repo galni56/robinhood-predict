@@ -17,7 +17,7 @@ const links = [
 
 // Full nav + account cluster no longer fits one row once both are always
 // visible (browsing is public now, so there's a "Log in"+"Sign up" pair
-// competing for the same space as the links) — collapse into a hamburger
+// competing for the same space as the links) - collapse into a hamburger
 // below `lg` instead of letting things overflow/cram.
 export function Navbar() {
   const navigate = useNavigate()
@@ -40,7 +40,7 @@ export function Navbar() {
           </span>
         </NavLink>
 
-        {/* Nav is public — browsing markets/leaderboard/archive/explorer needs
+        {/* Nav is public - browsing markets/leaderboard/archive/explorer needs
             no account, only placing a bet or creating a market does. */}
         <nav className="hidden lg:flex items-center gap-1 text-sm">
           {links.map((l) => (

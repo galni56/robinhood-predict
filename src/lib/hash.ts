@@ -1,7 +1,7 @@
 /**
  * Deterministic, dependency-free pseudo-hash used ONLY to make the mock chain
  * look and behave like a real one (stable addresses, unique tx/block hashes).
- * This is NOT cryptography — do not reuse it for anything security-sensitive.
+ * This is NOT cryptography - do not reuse it for anything security-sensitive.
  *
  * Based on cyrb53 (public-domain, Bryc / Fedor Indutny lineage).
  */

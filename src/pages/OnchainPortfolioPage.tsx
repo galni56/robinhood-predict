@@ -80,7 +80,7 @@ export function OnchainPortfolioPage() {
   })
 
   // Total actually paid out to this wallet across every market it's ever
-  // claimed from — read from the contract's own Claimed events (filtered
+  // claimed from - read from the contract's own Claimed events (filtered
   // to this address), same technique as the leaderboard. Not derivable
   // from getMarket()/stakes() alone, since those don't track payout size.
   const client = usePublicClient()
@@ -185,9 +185,9 @@ export function OnchainPortfolioPage() {
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <StatCard label="Balance" value={balance.data != null ? `$${formatUnits(balance.data, BET_TOKEN_DECIMALS)}` : '…'} />
-        <StatCard label="Wallet" value={address ? (nickname.data || truncateAddress(address)) : '—'} />
-        <StatCard label="Win rate" value={winRate != null ? `${winRate.toFixed(0)}%` : '—'} />
-        <StatCard label="Current streak" value={streakWon == null ? '—' : `${currentStreak}${streakWon ? 'W' : 'L'}`} />
+        <StatCard label="Wallet" value={address ? (nickname.data || truncateAddress(address)) : '-'} />
+        <StatCard label="Win rate" value={winRate != null ? `${winRate.toFixed(0)}%` : '-'} />
+        <StatCard label="Current streak" value={streakWon == null ? '-' : `${currentStreak}${streakWon ? 'W' : 'L'}`} />
         <StatCard label="Total wagered" value={`$${formatUnits(totalWagered, BET_TOKEN_DECIMALS)}`} />
         <StatCard label="Total won" value={totalClaimed != null ? `$${formatUnits(totalClaimed, BET_TOKEN_DECIMALS)}` : '…'} />
         <StatCard
@@ -238,11 +238,11 @@ function PositionList({ positions }: { positions: Position[] }) {
             {p.status === MarketStatusOnchain.Open ? (
               <StatusBadge status="pending" />
             ) : p.status === MarketStatusOnchain.Cancelled ? (
-              <span className="text-white/40">cancelled — refundable</span>
+              <span className="text-white/40">cancelled - refundable</span>
             ) : p.hasClaimed ? (
               <span className="text-white/40">claimed</span>
             ) : (outcome(p) === 'YES' && p.yesStake > 0n) || (outcome(p) === 'NO' && p.noStake > 0n) ? (
-              <span className="font-bold text-[#B3A7FA]">won — claim now</span>
+              <span className="font-bold text-[#B3A7FA]">won - claim now</span>
             ) : (
               <span className="text-rose-400">lost</span>
             )}

@@ -1,9 +1,9 @@
 import { mockAddress } from '@/lib/hash'
 import type { Token } from '@/types'
 
-// A recognizable basket of "tokenized stocks" — all mock, prices are rough
+// A recognizable basket of "tokenized stocks" - all mock, prices are rough
 // flavor only and NOT a real feed. (For reference: the real Robinhood Chain
-// lists 2,000+ tokenized names as of mid-2026 — this is a curated subset for
+// lists 2,000+ tokenized names as of mid-2026 - this is a curated subset for
 // a demo, not an attempt to mirror the full catalog.)
 export const TOKENS: Token[] = [
   { symbol: 'xHOOD', name: 'Robinhood Markets Inc.', startPrice: 46.2, accent: 'emerald' },
@@ -38,7 +38,7 @@ export const TOKEN_BY_SYMBOL = new Map(TOKENS.map((t) => [t.symbol, t]))
 export const RHCHAIN_META = {
   name: 'RHChain (testnet)',
   disclaimer:
-    'Mock demo only — not affiliated with Robinhood Markets, Inc. No real chain, feed, funds or accounts are involved.',
+    'Mock demo only - not affiliated with Robinhood Markets, Inc. No real chain, feed, funds or accounts are involved.',
   ticker: 'mUSD',
   blockTimeMs: 6_000,
 }

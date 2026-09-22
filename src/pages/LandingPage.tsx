@@ -14,7 +14,7 @@ const STEPS = [
   {
     n: '02',
     title: 'Call YES or NO',
-    body: 'Stake mUSD on either side. Bet inside the first two-thirds of the window and your share of the payout is weighted up to 2x — the earlier, the bigger.',
+    body: 'Stake mUSD on either side. Bet inside the first two-thirds of the window and your share of the payout is weighted up to 2x - the earlier, the bigger.',
   },
   {
     n: '03',
@@ -31,7 +31,7 @@ const STEPS = [
 const FEATURES = [
   {
     title: 'Parimutuel, not house odds',
-    body: 'There\'s no bookmaker setting a line. Winners split what losers staked, in proportion to their weighted stake — the pool sets the price, not a spread.',
+    body: 'There\'s no bookmaker setting a line. Winners split what losers staked, in proportion to their weighted stake - the pool sets the price, not a spread.',
   },
   {
     title: 'Early conviction pays more',
@@ -39,11 +39,11 @@ const FEATURES = [
   },
   {
     title: 'No one-sided traps',
-    body: 'If a market reaches its deadline with bets on only one side, it cancels automatically and every stake is refunded in full — no fee, no loss.',
+    body: 'If a market reaches its deadline with bets on only one side, it cancels automatically and every stake is refunded in full - no fee, no loss.',
   },
   {
     title: 'Real contract, real mainnet',
-    body: `Alongside this demo, the same mechanics run in a Solidity contract live on Robinhood Chain mainnet — permissionless market creation, an owner-maintained price-feed allowlist, and a $${MAX_TARGET_PRICE} target-price cap.`,
+    body: `Alongside this demo, the same mechanics run in a Solidity contract live on Robinhood Chain mainnet - permissionless market creation, an owner-maintained price-feed allowlist, and a $${MAX_TARGET_PRICE} target-price cap.`,
   },
 ] as const
 
@@ -83,7 +83,7 @@ export function LandingPage() {
               </h1>
               <p className="text-white/50 text-base mt-5 max-w-md">
                 Bet YES or NO on whether a tokenized stock hits a target price before the deadline, on{' '}
-                {RHCHAIN_META.name}. Parimutuel payouts — no bookmaker, no house edge.
+                {RHCHAIN_META.name}. Parimutuel payouts - no bookmaker, no house edge.
               </p>
 
               <div className="mt-8 flex items-center gap-2 rounded-2xl border border-white/15 bg-black/30 p-2 max-w-md">
@@ -100,7 +100,7 @@ export function LandingPage() {
               </div>
 
               <p className="text-xs text-white/40 mt-3 flex items-center gap-1.5">
-                <span className="text-emerald-400">◆</span> No wallet needed to browse — sign up only when you're ready to bet
+                <span className="text-emerald-400">◆</span> No wallet needed to browse - sign up only when you're ready to bet
               </p>
 
               <Link to="/whitepaper" className="inline-block text-sm text-[#8B7CF7] hover:underline mt-4">
@@ -142,7 +142,7 @@ export function LandingPage() {
           </span>
           <span>
             <span className="text-white font-mono font-semibold">{formatPct(PROTOCOL_FEE_BP / 10_000, 0)}</span> protocol
-            fee — winnings only, never your stake
+            fee - winnings only, never your stake
           </span>
           <span>
             <span className="text-white font-mono font-semibold">2x → 0.5x</span> early-bet payout weight
@@ -234,7 +234,7 @@ export function LandingPage() {
       <section className="max-w-4xl mx-auto px-4 py-20 text-center">
         <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight mb-3">Ready to make your first call?</h2>
         <p className="text-white/50 text-sm sm:text-base mb-8 max-w-lg mx-auto">
-          No wallet required to look around — browsing, the leaderboard, and the explorer are open to everyone.
+          No wallet required to look around - browsing, the leaderboard, and the explorer are open to everyone.
           Sign up when you're ready to actually place a bet.
         </p>
         <div className="flex flex-wrap gap-3 justify-center">
@@ -242,7 +242,7 @@ export function LandingPage() {
             to="/register"
             className="text-sm px-6 py-3 rounded-full bg-gradient-to-r from-[#8B7CF7] to-[#6A5AE0] hover:brightness-110 text-black font-semibold transition-all"
           >
-            Sign up — it's free
+            Sign up - it's free
           </Link>
           <Link
             to="/markets"

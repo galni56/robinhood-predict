@@ -37,7 +37,7 @@ import { WhitepaperPage } from '@/pages/WhitepaperPage'
 export default function App() {
   const { pathname } = useLocation()
   // Real mode ("/" and everything under /onchain) gets its own full-size
-  // navbar (RealNavbar) pointed at real routes — the mock Navbar's links
+  // navbar (RealNavbar) pointed at real routes - the mock Navbar's links
   // and its Log in/Sign up don't apply to a wallet-based flow. Whitepaper
   // and Terms are shared/neutral pages linked from both modes, but default
   // to real mode too -- a real-mode visitor clicking through to either used
@@ -77,7 +77,7 @@ export default function App() {
             <Route path=":id" element={<OnchainMarketPage />} />
           </Route>
 
-          {/* Browsing is public — login is only required to place a bet,
+          {/* Browsing is public - login is only required to place a bet,
               create a market, or view account-specific pages (see BetForm). */}
           <Route path="/markets" element={<MarketsPage />} />
           <Route path="/markets/:marketId" element={<MarketDetailPage />} />
@@ -89,7 +89,7 @@ export default function App() {
               </ProtectedRoute>
             }
           />
-          {/* Public — shows a log-in/sign-up CTA itself when logged out. */}
+          {/* Public - shows a log-in/sign-up CTA itself when logged out. */}
           <Route path="/portfolio" element={<PortfolioPage />} />
           <Route
             path="/settings"

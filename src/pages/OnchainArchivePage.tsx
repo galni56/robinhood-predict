@@ -40,7 +40,7 @@ export function OnchainArchivePage() {
 
   // Two reads per settled market (decimals + description) so the price
   // shows in real dollars with the right ticker, same as every other real
-  // page — feed decimals aren't assumed to be 8 across every ticker.
+  // page - feed decimals aren't assumed to be 8 across every ticker.
   const feedMeta = useReadContracts({
     contracts: settled.flatMap(({ m }) => [
       { address: m.priceFeed, abi: aggregatorV3Abi, functionName: 'decimals' } as const,
@@ -55,7 +55,7 @@ export function OnchainArchivePage() {
         <p className="text-sm font-bold text-[#B3A7FA] mb-1">The record</p>
         <h1 className="font-display text-3xl sm:text-4xl font-bold tracking-tight mb-2">Settled markets</h1>
         <p className="text-white/50 text-sm">
-          Every on-chain market that's already resolved or cancelled — real outcomes, real pools, read straight from
+          Every on-chain market that's already resolved or cancelled - real outcomes, real pools, read straight from
           the contract. Nothing here is mock data.
         </p>
       </div>
@@ -94,7 +94,7 @@ export function OnchainArchivePage() {
         })}
         {settled.length === 0 && (
           <p className="text-white/30 text-sm text-center py-12">
-            No settled markets yet — this fills in as open markets resolve or cancel.
+            No settled markets yet - this fills in as open markets resolve or cancel.
           </p>
         )}
       </div>

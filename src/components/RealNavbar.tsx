@@ -11,14 +11,14 @@ const links = [
   { to: '/onchain/archive', label: 'Archive' },
 ]
 
-/** Full-size navbar for the real (mainnet) side of the site — the landing
- * page at "/" and everything under /onchain — mirroring the mock <Navbar>'s
+/** Full-size navbar for the real (mainnet) side of the site - the landing
+ * page at "/" and everything under /onchain - mirroring the mock <Navbar>'s
  * visual size and layout so the real side doesn't look like a stripped-down
  * afterthought. Links go to the real onchain routes instead of the mock
  * ones, and the right side shows ConnectWalletButton (address avatar once
  * connected) plus a "Try the demo" link instead of Log in/Sign up, which
  * don't apply to a wallet-based flow. ConnectWalletButton also appears in
- * the collapsed mobile row, not just the hamburger menu — connecting a
+ * the collapsed mobile row, not just the hamburger menu - connecting a
  * wallet shouldn't be buried an extra tap deep. */
 export function RealNavbar() {
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -29,9 +29,8 @@ export function RealNavbar() {
         <NavLink to="/" className="flex items-center gap-2 shrink-0">
           <img src={`${import.meta.env.BASE_URL}brand/mascot-small.png`} alt="" className="w-9 h-9 shrink-0" />
           <span className="font-display font-bold text-xl leading-none text-[#f7f1e3]">
-            prophet<span className="text-[#8B7CF7]">.</span>
+            prophet markets<span className="text-[#8B7CF7]">.</span>
           </span>
-          <span className="font-normal text-xs hidden sm:inline text-white/30">on Robinhood Chain (mainnet)</span>
         </NavLink>
 
         <nav className="hidden xl:flex items-center gap-1 text-sm shrink-0">
@@ -104,7 +103,7 @@ export function RealNavbar() {
         </div>
 
         {/* Mobile / narrow-desktop: everything collapses behind one toggle,
-            except the wallet button itself — that stays one tap away. */}
+            except the wallet button itself - that stays one tap away. */}
         <div className="ml-auto flex xl:hidden items-center gap-2">
           <ConnectWalletButton />
           <button

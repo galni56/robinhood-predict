@@ -34,7 +34,7 @@ export function OnchainMarketsSidebar() {
 
   useEffect(() => {
     // Demo mode: the leaderboard page owns and evolves this state (see
-    // saveDemoLeaderboard) — read the same snapshot so both widgets and the
+    // saveDemoLeaderboard) - read the same snapshot so both widgets and the
     // full page always agree, and don't depend on the RPC being up.
     if (isDemoMode()) {
       const byNetDesc = (a: UserStats, b: UserStats) => {

@@ -1,6 +1,6 @@
 import { useConnect } from 'wagmi'
 
-/** Shared "pick a wallet" list — icon (from EIP-6963 `connector.icon`) + name,
+/** Shared "pick a wallet" list - icon (from EIP-6963 `connector.icon`) + name,
  * one click to connect. Used both inside ConnectWalletButton's dropdown and
  * inline wherever a page prompts for a wallet before showing its content. */
 export function WalletOptionsList({ onConnect }: { onConnect?: () => void }) {
@@ -8,7 +8,7 @@ export function WalletOptionsList({ onConnect }: { onConnect?: () => void }) {
 
   // wagmi's injected() always adds a generic "Injected" fallback (id
   // 'injected', no real icon) alongside whatever EIP-6963 announces by name
-  // (MetaMask, Phantom, ...) — redundant and non-functional-looking once a
+  // (MetaMask, Phantom, ...) - redundant and non-functional-looking once a
   // real one is already listed, so hide it unless it's the only option.
   const named = allConnectors.filter((c) => c.id !== 'injected')
   const connectors = named.length > 0 ? named : allConnectors
@@ -17,7 +17,7 @@ export function WalletOptionsList({ onConnect }: { onConnect?: () => void }) {
     return (
       <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3.5 text-sm text-white/60">
         <span className="font-bold text-white/80">No wallet found.</span> Install MetaMask or Phantom and reload the
-        page — browsing works without one.
+        page - browsing works without one.
       </div>
     )
   }
@@ -45,7 +45,7 @@ export function WalletOptionsList({ onConnect }: { onConnect?: () => void }) {
         </button>
       ))}
       <p className="text-[11px] text-white/30 pt-1">
-        Browsing is open to everyone — a wallet is only needed to actually bet.
+        Browsing is open to everyone - a wallet is only needed to actually bet.
       </p>
     </div>
   )

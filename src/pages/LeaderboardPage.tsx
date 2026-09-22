@@ -19,7 +19,7 @@ export function LeaderboardPage() {
       <div>
         <h1 className="text-2xl font-semibold">Leaderboard</h1>
         <p className="text-white/50 text-sm mt-1">
-          Ranked by net P&amp;L among everyone who's placed at least one bet — open to any visitor, no account
+          Ranked by net P&amp;L among everyone who's placed at least one bet - open to any visitor, no account
           required to look.
         </p>
       </div>
@@ -65,7 +65,7 @@ export function LeaderboardPage() {
           ))}
           {rows.length === 0 && (
             <div className="text-center py-10">
-              <p className="text-white/40 text-sm mb-3">No one's on the board yet — place the first bet and take the top spot.</p>
+              <p className="text-white/40 text-sm mb-3">No one's on the board yet - place the first bet and take the top spot.</p>
               <Link to="/markets" className="text-[#8B7CF7] hover:underline text-sm">
                 Browse markets →
               </Link>

@@ -8,7 +8,7 @@ import { useAuthStore } from '@/store/authStore'
 import { useChainStore } from '@/store/chainStore'
 import type { MarketSide, PredictionMarket, PricePoint, Position, User, UserStats } from '@/types'
 
-// A real "week" would make the demo boring — compress the resolution
+// A real "week" would make the demo boring - compress the resolution
 // window so the game is actually playable in one sitting. This is clearly
 // surfaced in the UI as a demo timeline, not a real deadline.
 export const DURATION_PRESETS = [
@@ -20,17 +20,17 @@ export const DURATION_PRESETS = [
 /** Business rule from the product spec: no market can target above this. */
 export const MAX_TARGET_PRICE = 500
 
-/** Mirrors the contract's `MAX_SEED_LIQUIDITY_USD` — the most house/admin
+/** Mirrors the contract's `MAX_SEED_LIQUIDITY_USD` - the most house/admin
  * seed liquidity (both sides combined) a market can launch with. */
 export const MAX_SEED_LIQUIDITY = 50
 
 /** Mirrors the contract's protocol fee, in basis points, taken only from the
- * losing pool's contribution to a winner's payout — never from principal. */
+ * losing pool's contribution to a winner's payout - never from principal. */
 export const PROTOCOL_FEE_BP = 200
 const BP_DENOMINATOR = 10_000
 
 /** Mirrors the contract's `BETTING_WINDOW_BP`/`MAX_WEIGHT_BP`/`MIN_WEIGHT_BP`
- * exactly (see contracts/src/PredictionMarket.sol) — betting only stays open
+ * exactly (see contracts/src/PredictionMarket.sol) - betting only stays open
  * for the first 2/3 of a market's life, and a winning bet's share of the
  * losing pool is weighted from 2x (the instant betting opens) down to 0.5x
  * (right as betting closes), rewarding early risk over waiting for the
@@ -56,7 +56,7 @@ export function currentWeightBp(createdAt: number, deadline: number, now: number
 }
 
 const HISTORY_LIMIT = 180
-// Demo-seeded markets are "house" markets too — capped the same as an admin's
+// Demo-seeded markets are "house" markets too - capped the same as an admin's
 // own seed liquidity, split evenly so they open at 50/50 odds.
 const SEED_LIQUIDITY = MAX_SEED_LIQUIDITY / 2
 const SYSTEM_CREATOR = 'system'
@@ -99,7 +99,7 @@ interface MarketState {
 }
 
 /** A flat "$100 target" is meaningless once a token's own price is already
- * above 100 (e.g. NVDA, TSLA) — the market would resolve YES on day one with
+ * above 100 (e.g. NVDA, TSLA) - the market would resolve YES on day one with
  * no real prediction happening. Scale the demo-seeded target relative to
  * each token's own starting price instead, rounded to a "nice" number, while
  * keeping the original "$100 by the deadline" flavor for cheaper tokens. */
@@ -154,7 +154,7 @@ export const useMarketStore = create<MarketState>()(
         set({ prices: nextPrices, history: nextHistory })
 
         // Demo bootstrap: every token should have one open (unresolved)
-        // market at all times, so the demo never runs dry — this tops up on
+        // market at all times, so the demo never runs dry - this tops up on
         // every load (existing open markets are left untouched) and again
         // right after each resolution (see checkResolutions below).
         for (const t of TOKENS) get().ensureOpenMarket(t.symbol)
@@ -167,17 +167,17 @@ export const useMarketStore = create<MarketState>()(
         if (!token) return
         const price = get().prices[symbol] ?? token.startPrice
         // A token already trading above the $500 cap can't have a meaningful
-        // "will it reach $X" market under that cap — skip auto-seeding one
+        // "will it reach $X" market under that cap - skip auto-seeding one
         // rather than spawn something that's already trivially resolved.
         if (price >= MAX_TARGET_PRICE) return
         const target = Math.min(defaultTargetFor(price), MAX_TARGET_PRICE)
-        // Always the longest preset ("month") — the shorter ones stay
+        // Always the longest preset ("month") - the shorter ones stay
         // available for a curator who deliberately wants a fast-resolving
         // market, but auto-seeded ones shouldn't churn every couple minutes.
         const preset = DURATION_PRESETS[DURATION_PRESETS.length - 1]
         const m = makeMarket(symbol, target, Date.now() + preset.ms, SYSTEM_CREATOR, SEED_LIQUIDITY, SEED_LIQUIDITY)
         // House seed needs a tracked position on both sides, same as a real
-        // bet — otherwise this money is invisible to the weighted payout
+        // bet - otherwise this money is invisible to the weighted payout
         // math in forceResolve (which sums positions, not raw pool totals).
         // No real wallet/balance behind "system", so no chain tx here.
         const seedPositions: Position[] = (['YES', 'NO'] as const).map((side) => ({
@@ -211,7 +211,7 @@ export const useMarketStore = create<MarketState>()(
       createMarket: (creator, symbol, targetPrice, durationMs, seed) => {
         // Permissionless: any logged-in user can create a market (not just
         // curators). `role` still matters elsewhere (e.g. force-resolving
-        // someone else's market, and here for seed liquidity) — just not for
+        // someone else's market, and here for seed liquidity) - just not for
         // creation itself.
         const token = TOKENS.find((t) => t.symbol === symbol)
         if (!token) return { ok: false, error: 'Token not found' }
@@ -242,7 +242,7 @@ export const useMarketStore = create<MarketState>()(
 
         const m = makeMarket(symbol, targetPrice, Date.now() + durationMs, creator.id, poolYes, poolNo)
 
-        // Seed liquidity is a real bet from the admin's own wallet — same
+        // Seed liquidity is a real bet from the admin's own wallet - same
         // accounting as `placeBet` (money actually leaves their balance, and
         // it's a tracked position they can win or lose like anyone else),
         // just placed atomically at creation instead of via a separate call.
@@ -289,7 +289,7 @@ export const useMarketStore = create<MarketState>()(
         if (!market) return { ok: false, error: 'Market not found' }
         if (market.resolved) return { ok: false, error: 'Market has already resolved' }
         if (market.cancelled) return { ok: false, error: 'Market was cancelled' }
-        // One bet per side per market — mirrors the contract's `bet()` rule.
+        // One bet per side per market - mirrors the contract's `bet()` rule.
         const alreadyBetThisSide = get().positions.some((p) => p.marketId === marketId && p.userId === user.id && p.side === side)
         if (alreadyBetThisSide) {
           return { ok: false, error: `You already bet ${side === 'YES' ? 'YES' : 'NO'} on this market` }
@@ -352,7 +352,7 @@ export const useMarketStore = create<MarketState>()(
 
         // One-sided market: no genuine two-sided prediction happened (and if
         // the empty side would've "won" there'd be no losing pool to pay a
-        // winner from anyway). Cancel and refund whoever did bet in full —
+        // winner from anyway). Cancel and refund whoever did bet in full -
         // mirrors the contract's `resolve()` short-circuit exactly.
         if (market.poolYes === 0 || market.poolNo === 0) {
           const myPositions = get().positions.filter((p) => p.marketId === marketId && !p.settled)
@@ -375,7 +375,7 @@ export const useMarketStore = create<MarketState>()(
         const losingPool = outcome === 'YES' ? market.poolNo : market.poolYes
 
         const allPositionsForMarket = get().positions.filter((p) => p.marketId === marketId)
-        // Weighted by each bettor's early-bet weight at the time they bet —
+        // Weighted by each bettor's early-bet weight at the time they bet -
         // mirrors the contract's `weightedPoolYes`/`weightedPoolNo`. Every
         // dollar in `poolYes`/`poolNo` must be backed by a tracked position
         // (including seed liquidity) for this sum to match the raw pool.
@@ -389,7 +389,7 @@ export const useMarketStore = create<MarketState>()(
         for (const pos of myPositions) {
           const idx = settledPositions.findIndex((p) => p.id === pos.id)
           if (pos.side === outcome) {
-            // Parimutuel, fee taken only from the losing pool's share —
+            // Parimutuel, fee taken only from the losing pool's share -
             // principal always comes back in full. Mirrors the contract's
             // `claim()` formula exactly (see contracts/src/PredictionMarket.sol).
             const userWeightedStake = (pos.amount * (pos.weightBp ?? BP_DENOMINATOR)) / BP_DENOMINATOR
@@ -419,7 +419,7 @@ export const useMarketStore = create<MarketState>()(
           positions: settledPositions,
         }))
 
-        get().ensureOpenMarket(market.symbol) // keep the demo alive — spawn the next one right away
+        get().ensureOpenMarket(market.symbol) // keep the demo alive - spawn the next one right away
       },
 
       oddsFor: (marketId) => {

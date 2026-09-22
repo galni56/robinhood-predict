@@ -64,7 +64,7 @@ export function TokenBrowser() {
       <p className="text-white/40 text-xs mb-4">
         {query.trim()
           ? `${visibleTickers.length} match${visibleTickers.length === 1 ? '' : 'es'}`
-          : `Showing a few of ~${assets.data?.length ?? 194} tokenized stocks on Robinhood Chain — search for more.`}
+          : `Showing a few of ~${assets.data?.length ?? 194} tokenized stocks on Robinhood Chain - search for more.`}
       </p>
 
       {visibleTickers.length === 0 ? (
