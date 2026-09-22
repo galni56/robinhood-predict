@@ -20,7 +20,7 @@ export function TickerTape() {
   }, [prices.data])
 
   if (!prices.data) {
-    return <div className="border-y border-white/10 bg-[#0a0a12] h-10" />
+    return <div className="border-y border-white/10 bg-[#17111f] h-10" />
   }
 
   const items = CORE_TICKERS.map((ticker) => {
@@ -36,7 +36,7 @@ export function TickerTape() {
   const track = [...items, ...items]
 
   return (
-    <div className="border-y border-white/10 bg-[#0a0a12] overflow-hidden group">
+    <div className="border-y border-white/10 bg-[#17111f] overflow-hidden group">
       <div className="flex w-max animate-[ticker-scroll_60s_linear_infinite] group-hover:[animation-play-state:paused]">
         {track.map((item, i) => (
           <span key={`${item.ticker}-${i}`} className="flex items-center gap-1.5 px-4 py-2 text-xs whitespace-nowrap shrink-0">

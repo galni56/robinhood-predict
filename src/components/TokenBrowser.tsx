@@ -53,12 +53,12 @@ export function TokenBrowser() {
   return (
     <div className="mt-10">
       <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
-        <h2 className="text-xl font-bold">Browse tokenized stocks</h2>
+        <h2 className="font-display text-2xl font-bold">Browse tokenized stocks</h2>
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search by ticker or name…"
-          className="w-full sm:w-64 rounded-lg bg-black/30 border border-white/10 px-3 py-2 text-sm outline-none focus:border-[#C6FF3D]/60 transition-colors"
+          className="w-full sm:w-64 rounded-full bg-white/5 border border-white/10 px-4 py-2 text-sm font-medium outline-none focus:border-[#8B7CF7]/60 transition-colors"
         />
       </div>
       <p className="text-white/40 text-xs mb-4">
@@ -80,7 +80,7 @@ export function TokenBrowser() {
             const canCreate = ALLOWLISTED_TICKERS.has(ticker)
 
             return (
-              <div key={ticker} className="bg-[#12121c]/95 border border-white/10 rounded-2xl p-4 flex items-center justify-between gap-3">
+              <div key={ticker} className="bg-[#241b2f] border border-white/5 rounded-2xl p-4 flex items-center justify-between gap-3 hover:border-[#8B7CF7]/30 transition-colors">
                 <div className="min-w-0">
                   <div className="font-bold">{ticker}</div>
                   <div className="text-white/40 text-xs truncate">{asset?.tokenName.replace(/\s*•\s*Robinhood Token$/i, '') ?? '…'}</div>
@@ -90,7 +90,7 @@ export function TokenBrowser() {
                     {bid != null ? formatUsd(bid) : '…'}
                   </div>
                   {canCreate ? (
-                    <Link to={`/onchain/create?feed=${ticker}`} className="text-[11px] text-[#C6FF3D] hover:underline">
+                    <Link to={`/onchain/create?feed=${ticker}`} className="text-[11px] font-bold text-[#B3A7FA] hover:underline">
                       Create Prediction
                     </Link>
                   ) : (

@@ -1,8 +1,25 @@
 @import 'tailwindcss';
 
 @theme {
-  --font-sans: 'Manrope', system-ui, 'Segoe UI', Roboto, sans-serif;
+  --font-sans: 'Nunito', system-ui, 'Segoe UI', Roboto, sans-serif;
+  --font-display: 'Baloo 2', 'Nunito', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Consolas, monospace;
+
+  /* Prophet brand */
+  --color-plum-950: #17111f;
+  --color-plum-900: #1e1728;
+  --color-plum-800: #2a2135;
+  --color-plum-700: #372b45;
+  --color-grape-500: #6a5ae0;
+  --color-grape-400: #8b7cf7;
+  --color-grape-300: #b3a7fa;
+  --color-cream-100: #f7f1e3;
+  --color-cream-200: #ece2cc;
+  --color-tang-400: #f2a65a;
+  --color-tang-500: #ed8f3a;
+  --color-lav-100: #f2effb;
+  --color-lav-200: #e7e1f8;
+  --color-lav-300: #d8cff2;
 }
 
 :root {
@@ -17,29 +34,29 @@ body,
 
 body {
   margin: 0;
-  /* Static background — deliberately NOT animated and NOT a separate
-     fixed/positioned layer. Two earlier attempts (a Canvas grid, then a
-     `background-position`-animated overlay div) both intermittently failed
-     to composite correctly, leaving page text unpainted on top of them in
-     some renders even though computed styles were fine — a browser
-     layering bug, not a CSS logic bug. Painting the gradient directly as
-     `body`'s own background removes that extra layer entirely, so there is
-     no paint-order ambiguity left to go wrong. Brand lime (#C6FF3D /
-     #8FBF1F) at low opacity — kept subtle so it doesn't compete with the
-     emerald "YES" / rose "NO" semantic colors used throughout the UI. */
+  /* Static background painted directly on body — see git history: extra
+     compositing layers intermittently left text unpainted. Brand purple
+     (#8b7cf7 / #6a5ae0) + a warm orange kiss, kept subtle under content. */
   background:
-    radial-gradient(1200px 700px at 12% -10%, rgba(198, 255, 61, 0.14), transparent 60%),
-    radial-gradient(1000px 650px at 105% 0%, rgba(143, 191, 31, 0.16), transparent 55%),
-    radial-gradient(900px 700px at 50% 115%, rgba(198, 255, 61, 0.1), transparent 55%),
-    #0a0a12;
+    radial-gradient(1200px 700px at 12% -10%, rgba(139, 124, 247, 0.16), transparent 60%),
+    radial-gradient(1000px 650px at 105% 0%, rgba(106, 90, 224, 0.18), transparent 55%),
+    radial-gradient(900px 700px at 50% 115%, rgba(242, 166, 90, 0.1), transparent 55%),
+    #17111f;
   background-attachment: fixed;
-  color: #eef0f6;
+  color: #f4f0fa;
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
 }
 
 ::selection {
-  background: #c6ff3d55;
+  background: #8b7cf766;
+}
+
+h1,
+h2,
+h3,
+.font-display {
+  font-family: var(--font-display);
 }
 
 /* thin scrollbar for tables / explorer lists */
@@ -48,6 +65,39 @@ body {
   width: 6px;
 }
 .scrollbar-thin::-webkit-scrollbar-thumb {
-  background: #34364a;
+  background: #3f3452;
   border-radius: 999px;
+}
+
+/* mascot idle float on the landing hero */
+@keyframes mascot-float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-2deg);
+  }
+  50% {
+    transform: translateY(-14px) rotate(2deg);
+  }
+}
+/* new rows sliding into live lists */
+@keyframes row-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes sparkle-pop {
+  0%,
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.25) rotate(18deg);
+    opacity: 1;
+  }
 }

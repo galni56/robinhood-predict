@@ -24,12 +24,14 @@ export function RealNavbar() {
   const [mobileOpen, setMobileOpen] = useState(false)
 
   return (
-    <header className="sticky top-0 z-20 border-b border-white/10 bg-[#0a0a12]/95 xl:bg-[#0a0a12]/85 xl:backdrop-blur">
-      <div className="max-w-[1500px] mx-auto px-4 h-14 flex items-center gap-4 xl:gap-6">
-        <NavLink to="/" className="flex items-center gap-2 font-extrabold shrink-0">
-          <img src={`${import.meta.env.BASE_URL}ProphetMarkets_fun.png`} alt="" className="w-4 h-4 rounded-sm shrink-0" />
-          Prophet
-          <span className="text-white/30 font-normal text-xs hidden sm:inline">on Robinhood Chain (mainnet)</span>
+    <header className="sticky top-0 z-20 border-b border-white/10 bg-[#17111f]/95 xl:bg-[#17111f]/85 xl:backdrop-blur">
+      <div className="max-w-[1500px] mx-auto px-4 h-16 flex items-center gap-4 xl:gap-6">
+        <NavLink to="/" className="flex items-center gap-2 shrink-0">
+          <img src={`${import.meta.env.BASE_URL}brand/mascot-small.png`} alt="" className="w-9 h-9 shrink-0" />
+          <span className="font-display font-bold text-xl leading-none text-[#f7f1e3]">
+            prophet<span className="text-[#8B7CF7]">.</span>
+          </span>
+          <span className="font-normal text-xs hidden sm:inline text-white/30">on Robinhood Chain (mainnet)</span>
         </NavLink>
 
         <nav className="hidden xl:flex items-center gap-1 text-sm shrink-0">
@@ -40,8 +42,8 @@ export function RealNavbar() {
               end={l.end}
               className={({ isActive }) =>
                 clsx(
-                  'px-3 py-1.5 rounded-full transition-colors font-medium whitespace-nowrap',
-                  isActive ? 'bg-[#C6FF3D]/15 text-[#C6FF3D]' : 'text-white/60 hover:text-white hover:bg-white/5',
+                  'px-3 py-1.5 rounded-full transition-colors font-bold whitespace-nowrap',
+                  isActive ? 'bg-[#8B7CF7]/15 text-[#B3A7FA]' : 'text-white/60 hover:text-white hover:bg-white/5',
                 )
               }
             >
@@ -52,8 +54,8 @@ export function RealNavbar() {
             to="/onchain/create"
             className={({ isActive }) =>
               clsx(
-                'px-3 py-1.5 rounded-full transition-colors font-medium text-emerald-300 whitespace-nowrap',
-                isActive ? 'bg-emerald-500/15' : 'hover:bg-emerald-500/10',
+                'px-3 py-1.5 rounded-full transition-colors font-bold text-[#F2A65A] whitespace-nowrap',
+                isActive ? 'bg-[#F2A65A]/15' : 'hover:bg-[#F2A65A]/10',
               )
             }
           >
@@ -63,7 +65,7 @@ export function RealNavbar() {
             href={robinhoodMainnet.blockExplorers.default.url}
             target="_blank"
             rel="noreferrer"
-            className="px-3 py-1.5 rounded-full transition-colors font-medium text-white/40 hover:text-white hover:bg-white/5 whitespace-nowrap"
+            className="px-3 py-1.5 rounded-full transition-colors font-bold text-white/40 hover:text-white hover:bg-white/5 whitespace-nowrap"
           >
             Chain explorer ↗
           </a>
@@ -71,8 +73,8 @@ export function RealNavbar() {
             to="/whitepaper"
             className={({ isActive }) =>
               clsx(
-                'px-3 py-1.5 rounded-full transition-colors font-medium whitespace-nowrap',
-                isActive ? 'bg-[#C6FF3D]/15 text-[#C6FF3D]' : 'text-white/40 hover:text-white hover:bg-white/5',
+                'px-3 py-1.5 rounded-full transition-colors font-bold whitespace-nowrap',
+                isActive ? 'bg-[#8B7CF7]/15 text-[#B3A7FA]' : 'text-white/40 hover:text-white hover:bg-white/5',
               )
             }
           >
@@ -94,7 +96,7 @@ export function RealNavbar() {
         <div className="ml-auto hidden xl:flex items-center gap-3">
           <NavLink
             to="/demo"
-            className="text-xs px-2.5 py-1.5 rounded-full border border-white/10 text-white/50 hover:text-white hover:border-white/30 transition-colors"
+            className="text-xs px-2.5 py-1.5 rounded-full border border-white/10 text-white/50 hover:text-white hover:border-white/30 transition-colors font-bold"
           >
             Demo →
           </NavLink>
@@ -119,7 +121,7 @@ export function RealNavbar() {
       </div>
 
       {mobileOpen && (
-        <div className="xl:hidden border-t border-white/10 bg-[#0a0a12] px-4 py-3 space-y-1">
+        <div className="xl:hidden border-t border-white/10 bg-[#17111f] px-4 py-3 space-y-1">
           {links.map((l) => (
             <NavLink
               key={l.to}
@@ -128,8 +130,8 @@ export function RealNavbar() {
               onClick={() => setMobileOpen(false)}
               className={({ isActive }) =>
                 clsx(
-                  'block px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-                  isActive ? 'bg-[#C6FF3D]/15 text-[#C6FF3D]' : 'text-white/70 hover:bg-white/5 hover:text-white',
+                  'block px-3 py-2 rounded-lg text-sm font-bold transition-colors',
+                  isActive ? 'bg-[#8B7CF7]/15 text-[#B3A7FA]' : 'text-white/70 hover:bg-white/5 hover:text-white',
                 )
               }
             >
@@ -139,7 +141,7 @@ export function RealNavbar() {
           <NavLink
             to="/onchain/create"
             onClick={() => setMobileOpen(false)}
-            className="block px-3 py-2 rounded-lg text-sm font-medium text-emerald-300 hover:bg-emerald-500/10"
+            className="block px-3 py-2 rounded-lg text-sm font-bold text-[#F2A65A] hover:bg-[#F2A65A]/10"
           >
             + Create market
           </NavLink>
@@ -147,7 +149,7 @@ export function RealNavbar() {
             href={robinhoodMainnet.blockExplorers.default.url}
             target="_blank"
             rel="noreferrer"
-            className="block px-3 py-2 rounded-lg text-sm font-medium text-white/40 hover:bg-white/5"
+            className="block px-3 py-2 rounded-lg text-sm font-bold text-white/40 hover:bg-white/5"
           >
             Chain explorer ↗
           </a>
@@ -156,8 +158,8 @@ export function RealNavbar() {
             onClick={() => setMobileOpen(false)}
             className={({ isActive }) =>
               clsx(
-                'block px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-                isActive ? 'bg-[#C6FF3D]/15 text-[#C6FF3D]' : 'text-white/40 hover:bg-white/5 hover:text-white',
+                'block px-3 py-2 rounded-lg text-sm font-bold transition-colors',
+                isActive ? 'bg-[#8B7CF7]/15 text-[#B3A7FA]' : 'text-white/40 hover:bg-white/5 hover:text-white',
               )
             }
           >
@@ -168,7 +170,7 @@ export function RealNavbar() {
             target="_blank"
             rel="noreferrer"
             onClick={() => setMobileOpen(false)}
-            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-white/40 hover:bg-white/5 hover:text-white"
+            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-bold text-white/40 hover:bg-white/5 hover:text-white"
           >
             <svg viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5">
               <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
@@ -178,7 +180,7 @@ export function RealNavbar() {
           <NavLink
             to="/demo"
             onClick={() => setMobileOpen(false)}
-            className="block px-3 py-2 rounded-lg text-sm font-medium text-white/50 hover:bg-white/5"
+            className="block px-3 py-2 rounded-lg text-sm font-bold text-white/50 hover:bg-white/5"
           >
             Demo →
           </NavLink>

@@ -37,7 +37,7 @@ export function ConnectWalletButton() {
         {open && (
           <>
             <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-            <div className="absolute right-0 top-10 z-20 w-52 rounded-xl border border-white/10 bg-[#151622] shadow-2xl py-1 text-sm">
+            <div className="absolute right-0 top-10 z-20 w-52 rounded-2xl border border-white/10 bg-[#241b2f] shadow-2xl py-1 text-sm">
               <NavLink
                 to="/onchain/portfolio"
                 onClick={() => setOpen(false)}
@@ -95,14 +95,14 @@ export function ConnectWalletButton() {
     <div className="relative">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="text-xs px-3 py-1.5 rounded-full bg-gradient-to-r from-[#C6FF3D] to-[#8FBF1F] hover:brightness-110 text-black font-semibold transition-all"
+        className="text-xs px-4 py-2 rounded-full bg-gradient-to-r from-[#8B7CF7] to-[#6A5AE0] hover:brightness-110 text-white font-bold transition-all shadow-[0_4px_16px_-4px_rgba(106,90,224,0.6)]"
       >
-        Connect wallet
+        Connect wallet ↗
       </button>
       {open && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 top-10 z-20 w-56 rounded-xl border border-white/10 bg-[#151622] shadow-2xl p-1.5">
+          <div className="absolute right-0 top-10 z-20 w-72 rounded-2xl border border-white/10 bg-[#241b2f] shadow-2xl p-2">
             <WalletOptionsList onConnect={() => setOpen(false)} />
           </div>
         </>

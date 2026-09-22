@@ -32,11 +32,11 @@ export function LiveBetsTicker({ tickerByMarketId }: { tickerByMarketId: Map<str
   const track = [...items, ...items]
 
   return (
-    <div className="border-y border-white/10 bg-[#0a0a12] overflow-hidden group mb-6 rounded-xl border-x">
+    <div className="border border-white/5 bg-[#241b2f] overflow-hidden group mb-6 rounded-2xl">
       <div className="flex w-max animate-[ticker-scroll_45s_linear_infinite] group-hover:[animation-play-state:paused]">
         {track.map((item, i) => (
           <span key={`${item.key}-${i}`} className="flex items-center gap-1.5 px-4 py-2 text-xs whitespace-nowrap shrink-0">
-            <span className={item.side === 'YES' ? 'font-bold text-emerald-400' : 'font-bold text-rose-400'}>{item.side}</span>
+            <span className={item.side === 'YES' ? 'font-bold text-[#B3A7FA]' : 'font-bold text-[#F2A65A]'}>{item.side}</span>
             <span className="text-white/50 font-mono">{item.user}</span>
             <span className="text-white/30">bet</span>
             <span className="font-mono text-white/70">{item.amount} USDG</span>

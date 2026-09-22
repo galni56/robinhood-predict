@@ -128,7 +128,7 @@ export function CreateMarketPage() {
 
         <button
           type="submit"
-          className="w-full rounded-lg bg-gradient-to-r from-[#C6FF3D] to-[#8FBF1F] hover:brightness-110 text-black font-semibold py-2 text-sm transition-all"
+          className="w-full rounded-lg bg-gradient-to-r from-[#8B7CF7] to-[#6A5AE0] hover:brightness-110 text-black font-semibold py-2 text-sm transition-all"
         >
           Create market
         </button>

@@ -27,12 +27,14 @@ export function Footer() {
   const productLinks = isOnchain ? realModeLinks : mockModeLinks
 
   return (
-    <footer className="border-t border-white/10 bg-[#08080e]">
+    <footer className="border-t border-white/10 bg-[#120d19]">
       <div className="max-w-[1500px] mx-auto px-4 py-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
         <div className="lg:col-span-2 max-w-sm">
-          <div className="flex items-center gap-2 font-extrabold">
-            <img src={`${import.meta.env.BASE_URL}ProphetMarkets_fun.png`} alt="" className="w-4 h-4 rounded-sm shrink-0" />
-            Prophet
+          <div className="flex items-center gap-2">
+            <img src={`${import.meta.env.BASE_URL}brand/mascot-small.png`} alt="" className="w-7 h-7 shrink-0" />
+            <span className="font-display font-bold text-lg text-[#f7f1e3]">
+              prophet markets<span className="text-[#8B7CF7]">.</span>
+            </span>
           </div>
           <p className="text-white/40 text-sm mt-3">
             Parimutuel prediction markets for tokenized stocks. Pick YES or NO on a target price, bet early for a

@@ -52,7 +52,8 @@ export function OnchainArchivePage() {
   return (
     <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
       <div>
-        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight mb-1">Archive of settled markets</h1>
+        <p className="text-sm font-bold text-[#B3A7FA] mb-1">The record</p>
+        <h1 className="font-display text-3xl sm:text-4xl font-bold tracking-tight mb-2">Settled markets</h1>
         <p className="text-white/50 text-sm">
           Every on-chain market that's already resolved or cancelled — real outcomes, real pools, read straight from
           the contract. Nothing here is mock data.
@@ -73,10 +74,13 @@ export function OnchainArchivePage() {
             <Link
               key={id.toString()}
               to={`/onchain/${id.toString()}`}
-              className="flex flex-wrap items-center gap-3 text-sm bg-[#12121c]/95 hover:bg-[#181829]/95 border border-white/10 rounded-lg px-4 py-3 transition-colors"
+              className="flex flex-wrap items-center gap-3 text-sm bg-[#241b2f] border border-white/5 rounded-xl px-4 py-3 hover:border-[#8B7CF7]/40 transition-colors"
             >
-              <span className="font-semibold min-w-16">{ticker}</span>
-              <span className="text-white/50 flex-1 min-w-40">reach {formatUsd(targetUsd)}?</span>
+              <span className="w-7 h-7 rounded-lg bg-[#f7f1e3] text-[#241a33] grid place-items-center font-display font-bold text-sm shrink-0">
+                {ticker[0]}
+              </span>
+              <span className="font-bold min-w-14">{ticker}</span>
+              <span className="text-white/50 flex-1 min-w-40">Will it reach {formatUsd(targetUsd)}?</span>
               {cancelled ? <CancelledBadge /> : <SideBadge side={m.outcome === MarketSideOnchain.YES ? 'YES' : 'NO'} />}
               <span className="text-white/40 text-xs w-28 text-right">
                 {yesPct.toFixed(1)}% / {(100 - yesPct).toFixed(1)}%

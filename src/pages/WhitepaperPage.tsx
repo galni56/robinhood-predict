@@ -45,12 +45,12 @@ export function WhitepaperPage() {
 
       <article className="min-w-0 space-y-12">
         <div>
-          <p className="text-xs font-bold tracking-[0.2em] text-[#C6FF3D]/80 uppercase mb-2">Whitepaper</p>
+          <p className="text-xs font-bold tracking-[0.2em] text-[#8B7CF7]/80 uppercase mb-2">Whitepaper</p>
           <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight">Prophet: parimutuel prediction markets for tokenized stocks</h1>
           <p className="text-white/40 text-sm mt-3">
             Version 1.0 · Robinhood Chain mainnet. This document describes the real, live product — real wallet,
             real USDG, real money. It is not audited, and not legal or investment advice — see{' '}
-            <Link to="/terms" className="text-[#C6FF3D] hover:underline">
+            <Link to="/terms" className="text-[#8B7CF7] hover:underline">
               Terms of Service
             </Link>{' '}
             §9 for the full disclaimer.
@@ -149,18 +149,18 @@ export function WhitepaperPage() {
 
         <Section id="architecture" title="7. Architecture">
           <p>
-            The real implementation is a Solidity contract (OpenZeppelin's <code className="text-[#C6FF3D]">Ownable</code>,{' '}
-            <code className="text-[#C6FF3D]">ReentrancyGuard</code>, <code className="text-[#C6FF3D]">SafeERC20</code>) live on{' '}
+            The real implementation is a Solidity contract (OpenZeppelin's <code className="text-[#8B7CF7]">Ownable</code>,{' '}
+            <code className="text-[#8B7CF7]">ReentrancyGuard</code>, <code className="text-[#8B7CF7]">SafeERC20</code>) live on{' '}
             Robinhood Chain mainnet, reading prices through Chainlink's{' '}
-            <code className="text-[#C6FF3D]">AggregatorV3Interface</code>. It's wired into the{' '}
-            <Link to="/onchain" className="text-[#C6FF3D] hover:underline">
+            <code className="text-[#8B7CF7]">AggregatorV3Interface</code>. It's wired into the{' '}
+            <Link to="/onchain" className="text-[#8B7CF7] hover:underline">
               real mode
             </Link>{' '}
             of this site via a standard browser wallet connection (MetaMask or Phantom) — no custodial wallet, no
             key ever touches this app; every transaction is signed in your own wallet extension.
           </p>
           <p>
-            A separate mock app (everything under <code className="text-[#C6FF3D]">/demo</code>) runs entirely in
+            A separate mock app (everything under <code className="text-[#8B7CF7]">/demo</code>) runs entirely in
             your browser instead — a simulated chain, simulated price feeds, and localStorage-backed accounts, with
             zero backend and zero real funds. It's a different, parallel implementation of similar rules, not a
             sandboxed mode of the real contract.
@@ -189,10 +189,10 @@ export function WhitepaperPage() {
             protocol fee. Nothing here is financial, investment, or legal advice, and none of it should be treated
             as an offer to trade a regulated financial product. Legal/regulatory review has been deliberately
             deferred and is not resolved by this document existing — see the full{' '}
-            <Link to="/terms" className="text-[#C6FF3D] hover:underline">
+            <Link to="/terms" className="text-[#8B7CF7] hover:underline">
               Terms of Service
             </Link>
-            . The separate mock demo (<code className="text-[#C6FF3D]">/demo</code>) is simulated and involves no
+            . The separate mock demo (<code className="text-[#8B7CF7]">/demo</code>) is simulated and involves no
             real funds — everything in this section is about real mode specifically.
           </p>
         </Section>

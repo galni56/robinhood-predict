@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 
 // Site-wide WebGL2 background — fbm/simplex noise, brand shades only (near-black
-// -> lime #C6FF3D), kept subtle (mixed at low weight) so page content stays
+// -> grape #8B7CF7), kept subtle (mixed at low weight) so page content stays
 // readable. See index.css for why a static CSS gradient was used instead of
 // this kind of layer before: two earlier animated-background attempts (a
 // canvas grid, then a background-position CSS animation) both intermittently
@@ -73,8 +73,8 @@ void main() {
     float d = fbm(p + n + uTime * 0.05);
     n = fbm(p + d);
     n = smoothstep(0.3, 0.8, n);
-    vec3 base = vec3(0.039, 0.039, 0.071);   // #0a0a12, matches body's own dark tone
-    vec3 accent = vec3(0.776, 1.0, 0.239);   // #C6FF3D, brand lime
+    vec3 base = vec3(0.090, 0.067, 0.122);   // #17111f, matches body's own dark tone
+    vec3 accent = vec3(0.545, 0.486, 0.968); // #8B7CF7, brand grape
     fragColor = vec4(mix(base, accent * 0.5, n * 0.16), 1.0);
 }`
 
