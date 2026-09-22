@@ -156,7 +156,7 @@ export function WhitepaperPage() {
             <Link to="/onchain" className="text-[#8B7CF7] hover:underline">
               real mode
             </Link>{' '}
-            of this site via a standard browser wallet connection (MetaMask or Phantom) - no custodial wallet, no
+            of this site via a standard browser wallet connection (MetaMask) - no custodial wallet, no
             key ever touches this app; every transaction is signed in your own wallet extension.
           </p>
           <p>

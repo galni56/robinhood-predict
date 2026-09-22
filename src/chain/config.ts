@@ -69,8 +69,8 @@ export const assetRaceChain = assetRaceNetworkKey === 'local'
     : robinhoodMainnet
 
 // `injected()` auto-discovers every EIP-6963-announcing wallet in the
-// browser (MetaMask, Phantom, etc.) rather than hardcoding one - the
-// connect UI lists whichever of these the user actually has installed.
+// browser (MetaMask, etc.) rather than hardcoding one - the connect UI
+// lists whichever of these the user actually has installed.
 export const wagmiConfig = createConfig({
   chains: [robinhoodMainnet, robinhoodTestnet, localAnvil],
   connectors: [injected()],

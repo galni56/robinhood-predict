@@ -732,8 +732,8 @@ export function OnchainLandingPage() {
             </p>
             <h2 className="font-display text-3xl sm:text-5xl font-bold tracking-tight mb-4">Ready to make your first call?</h2>
             <p className="text-white/50 text-sm sm:text-base mb-9 max-w-lg mx-auto">
-              No wallet required to look around - browsing every market is open to everyone. Connect a wallet (MetaMask
-              or Phantom) when you're ready to actually place a bet.
+              No wallet required to look around - browsing every market is open to everyone. Connect a wallet
+              (MetaMask) when you're ready to actually place a bet.
             </p>
             <div className="flex flex-wrap gap-4 justify-center items-center">
               <Link
