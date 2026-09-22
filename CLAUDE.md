@@ -45,12 +45,13 @@ personal GitHub account). GitHub Pages silently stops serving if this repo
 ever goes private again — it happened once (2026-09-11), see the "Ops
 lessons" section below.
 
-## Status snapshot (2026-09-11)
+## Status snapshot (2026-09-22)
 
 | Piece | Status |
 |---|---|
 | `PredictionMarket` contract | **Live on mainnet**, redeployed 2026-09-10 at `0xd95ed19edBCd330498CADe7BA8569ac940A4182f`. No flat dollar cap on target price — instead a duration-scaled deviation band (2% floor; 4%/15%/20% ceiling for short/medium/long durations) genuinely enforced on-chain, plus min market duration (30 min) and max stake per wallet per side ($50). 2% protocol fee, taken only from the losing pool's contribution to a winner's payout. 36/36 Foundry tests pass. |
 | `NicknameRegistry` contract | **Live on mainnet** at `0x1Ddc13e9D4895a5E6671079478007C7371b76E75` (deployed 2026-09-11). Standalone from PredictionMarket on purpose. `setNickname(string)` — anyone can set their own, 24-char max, no admin override. 8/8 tests pass. `src/chain/nicknames.ts` + `src/components/AddressLabel.tsx` (the one place addresses should render through) wire it into the leaderboard, recent bets, and per-market bet lists. |
+| Asset Race | **Deployed and configured, staged—not publicly launched.** `SignedPoolRaceOracle` is `0x5b0f7e62E0A5fF5C5C02Ad219Afcd086F2618Db7`; `AssetRace` is `0x63E582bb395527CED97F2F94662eA93A7EDf65Ff`. All 10 approved Stocks and 13 approved Memes are registered. No race has been created; the VPS keeper/LIVE services and controlled mainnet rehearsal remain launch gates. See `docs/ASSET_RACE_PREDEPLOY_CHECKLIST.md`. |
 | Bet token | Real USDG at `0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168`, **6 decimals** (not 18 — the old testnet mock token was 18, this has tripped up the frontend before, double-check before assuming). USDG only for now; ETH support is a known, explicitly-flagged gap (see Roadmap). |
 | Price feeds | 27 real Chainlink feeds allowlisted (owner-only step, `setPriceFeedAllowed`) — full list with addresses in `src/chain/contracts.ts` (`ALLOWLISTED_FEEDS`). Each was verified on-chain (`decimals()`/`description()`/`latestRoundData()`) before allowlisting — always do this for a new one, never trust a pasted address blind. |
 | Markets | 11 live as of this writing (TSLA + NVDA/AAPL/MSFT/GOOGL/AMZN/META/PLTR/SPY/QQQ seeded with 30-day deadlines so the site doesn't look empty, plus one real user-created market). `createMarket` is fully permissionless — anyone with an allowlisted feed can open one. |

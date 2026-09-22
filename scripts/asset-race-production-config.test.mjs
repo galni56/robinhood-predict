@@ -8,6 +8,7 @@ const configured = { VITE_ASSET_RACE_NETWORK: 'robinhood-mainnet',
   VITE_ASSET_RACE_ADDRESS: '0x1111111111111111111111111111111111111111',
   VITE_ASSET_RACE_SIGNED_POOL_ORACLE_ADDRESS: '0x2222222222222222222222222222222222222222' }
 const registry = JSON.parse(readFileSync(new URL('../config/asset-race-assets.json', import.meta.url), 'utf8'))
+const pagesWorkflow = readFileSync(new URL('../.github/workflows/deploy.yml', import.meta.url), 'utf8')
 
 test('production LIVE defaults to one shared two-second pool heartbeat', () => {
   assert.equal(registry.poolInfrastructure.livePollIntervalMs, 2_000)
@@ -60,6 +61,22 @@ test('implicit mainnet with a contract cannot omit its oracle; network typos and
   assert.throws(() => validateAssetRaceProductionBuild({ ...configured, VITE_ASSET_RACE_NETWORK: 'mainnett' }), /Unsupported/)
   assert.throws(() => validateAssetRaceProductionBuild({ ...configured,
     VITE_ASSET_RACE_SIGNED_POOL_ORACLE_ADDRESS: configured.VITE_ASSET_RACE_ADDRESS }), /different contract/)
+})
+
+test('GitHub Pages builds against the deployed mainnet contracts without a nonexistent same-origin LIVE service', () => {
+  assert.match(pagesWorkflow, /VITE_ASSET_RACE_NETWORK: robinhood-mainnet/)
+  assert.match(pagesWorkflow, /VITE_ASSET_RACE_ADDRESS: ["']?0x63E582bb395527CED97F2F94662eA93A7EDf65Ff/)
+  assert.match(pagesWorkflow, /VITE_ASSET_RACE_SIGNED_POOL_ORACLE_ADDRESS: ["']?0x5b0f7e62E0A5fF5C5C02Ad219Afcd086F2618Db7/)
+  assert.match(pagesWorkflow, /VITE_ASSET_RACE_LIVE_ENABLED: ["']false["']/)
+})
+
+test('LIVE enablement rejects build-time typos', () => {
+  validateAssetRaceProductionBuild({ ...configured, VITE_ASSET_RACE_LIVE_ENABLED: 'false' })
+  validateAssetRaceProductionBuild({ ...configured, VITE_ASSET_RACE_LIVE_ENABLED: 'true' })
+  assert.throws(
+    () => validateAssetRaceProductionBuild({ ...configured, VITE_ASSET_RACE_LIVE_ENABLED: 'disabled' }),
+    /must be true or false/,
+  )
 })
 
 test('explicit local/testnet builds and deliberately unconfigured labelled preview remain available', () => {

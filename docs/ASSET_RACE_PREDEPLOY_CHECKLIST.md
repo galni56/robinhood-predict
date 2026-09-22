@@ -36,7 +36,7 @@ yet; no race has been created.
   exist; exposure requires matching onchain registration, adapter, decimals18,
   age60/lag0. FRONG keeps exact native source and ETH label. RUNNING missing/stale
   LIVE does not invent mock/underlying prices; Mock reads require local mode.
-- 68 Asset Race JS tests passed across engine/endpoint/native, keeper,
+- 70 Asset Race JS tests passed across engine/endpoint/native, keeper,
   LIVE/display, cache, RPC-budget and configuration paths; registry,
   build/typecheck, lint, syntax/diff also passed.
   Existing lint/bundle warnings remain. No Solidity changed; no Solidity suite
@@ -76,6 +76,10 @@ yet; no race has been created.
   separate keeper and price-signer keys, and the archive RPC loaded from the
   external secret file. `DRY_RUN=true RUN_ONCE=true` exited cleanly with
   `raceCount=0`; it sent no transaction and spent no ETH.
+- Explorer source publication has not been recorded. Receipt status, deployed
+  bytecode and runtime ownership/token/signer/configuration were verified; source
+  publication is a separate remaining transparency step if the chain explorer
+  supports it.
 
 ## B. Operator values/secrets still needed
 
@@ -97,12 +101,14 @@ yet; no race has been created.
 | Settlement token | ASSET_RACE_BET_TOKEN_ADDRESS = canonical USDG in central mainnet registry |
 | Policy/presets | Existing approved economics and runbook timing/preset inputs; age60/lag0/skew0 |
 | Frontend public routing | VITE_RPC_URL public URL or same-origin proxy; VITE_BASE_PATH matched to host |
-| LIVE hosting/proxy | Same-origin /api/asset-race/live; VITE_ASSET_RACE_LIVE_URL if overriding |
+| LIVE hosting/proxy | Same-origin /api/asset-race/live; VITE_ASSET_RACE_LIVE_URL if overriding; Pages disables LIVE until a CORS-safe endpoint exists |
 
 Owner/deployer, keeper and price-signer public addresses are confirmed above and
-pairwise distinct. Contract addresses are confirmed above; production frontend
-and service bindings are not deployed. Secret-bearing runtime values remain
-absent from the repository and agent process.
+pairwise distinct. Contract addresses are confirmed above. GitHub Pages now has
+explicit public mainnet build bindings, with optional LIVE disabled because Pages
+has no same-origin backend. The VPS frontend, keeper and LIVE service bindings
+are not deployed. Secret-bearing runtime values remain absent from the repository
+and agent process.
 
 The operator reports that keeper and price-signer private keys are stored in the
 external mode-`0600` secret file. Their contents were not read by the agent and
@@ -214,10 +220,12 @@ do not verify intended public provider/deployed-address wiring.
 
 ## Verdict / next exact step
 
-Preparation code/guards and sampled one-hour archive coverage are green, but
-actual operator/deployed-address/service wiring remains unverified. Sampled reads
-do not replace production monitoring or a provider SLA. Next: operator supplies
-the distinct public price-signer and keeper addresses, provisions their secrets
-only in the locked-down service, and later repeats the post-deploy read checks
-under separate deployment authorization. Never request private-key contents or
-infer deployment/broadcast authorization.
+Contracts, roles, all23 asset registrations, policy, archive samples, local
+tests, production-shaped build and a zero-write keeper startup are verified.
+GitHub Pages has explicit deployed-address bindings but is not published until
+this branch is reviewed and merged; optional LIVE is intentionally disabled
+there. Remaining launch gates are the separately managed VPS frontend/keeper/LIVE
+services, monitoring, and explicitly authorized tiny mainnet lifecycle rehearsals
+before public races. Sampled reads do not replace production monitoring or a
+provider SLA. Never request private-key contents or infer deployment/broadcast
+authorization.

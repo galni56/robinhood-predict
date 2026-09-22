@@ -51,6 +51,7 @@ ASSET_RACE_LIVE_POLL_INTERVAL_MS=2000
 ASSET_RACE_LIVE_STALE_MS=5000
 ASSET_RACE_LIVE_RPC_URL=https://rpc.mainnet.chain.robinhood.com
 VITE_ASSET_RACE_LIVE_URL=/api/asset-race/live
+VITE_ASSET_RACE_LIVE_ENABLED=true
 ```
 
 Each poll first freezes one latest block, then reads every V3/V4 pool at that
@@ -75,6 +76,14 @@ location /api/asset-race/live {
 
 Do not expose port 8787 publicly. Run the service as an unprivileged user and
 restart it automatically with the existing service manager.
+
+GitHub Pages has no same-origin backend, so its workflow sets
+`VITE_ASSET_RACE_LIVE_ENABLED=false`. It still reads real races and final
+onchain results from the deployed contract, but shows provisional pool movement
+as unavailable and does not open a reconnecting EventSource against a missing
+Pages `/api` route. Enable LIVE there only after a public endpoint has explicit
+CORS support; never expose the archive RPC or a credential-bearing URL to the
+browser.
 
 ## Display semantics and fallback
 

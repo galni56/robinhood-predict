@@ -150,6 +150,9 @@ Frontend build-time configuration:
 - `VITE_ASSET_RACE_NETWORK=robinhood-mainnet`
 - `VITE_ASSET_RACE_ADDRESS=0x63E582bb395527CED97F2F94662eA93A7EDf65Ff`
 - `VITE_ASSET_RACE_SIGNED_POOL_ORACLE_ADDRESS=0x5b0f7e62E0A5fF5C5C02Ad219Afcd086F2618Db7`
+- `VITE_ASSET_RACE_LIVE_ENABLED=true` on the VPS after its same-origin SSE
+  service is healthy; `false` on GitHub Pages until a CORS-safe public endpoint
+  exists
 - the existing production `VITE_RPC_URL`
 
 ## Controlled launch checklist

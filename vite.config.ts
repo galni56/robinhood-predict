@@ -6,8 +6,14 @@ import { isAddress, zeroAddress } from 'viem'
 
 export function validateAssetRaceProductionBuild(env: Record<string, unknown>) {
   const network = typeof env.VITE_ASSET_RACE_NETWORK === 'string' ? env.VITE_ASSET_RACE_NETWORK.trim() : ''
+  const liveEnabled = typeof env.VITE_ASSET_RACE_LIVE_ENABLED === 'string'
+    ? env.VITE_ASSET_RACE_LIVE_ENABLED.trim()
+    : ''
   if (network && !['local', 'robinhood-testnet', 'robinhood-mainnet', 'mainnet'].includes(network)) {
     throw new Error('Unsupported VITE_ASSET_RACE_NETWORK')
+  }
+  if (liveEnabled && !['true', 'false'].includes(liveEnabled)) {
+    throw new Error('VITE_ASSET_RACE_LIVE_ENABLED must be true or false')
   }
   if (network === 'local' || network === 'robinhood-testnet') return
   if (!network && !env.VITE_ASSET_RACE_ADDRESS) return // Deliberately unconfigured, labelled preview.

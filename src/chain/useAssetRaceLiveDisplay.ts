@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { parseAssetRaceLiveSnapshot, type AssetRaceLiveSnapshot } from '@/chain/assetRaceLiveDisplay'
 
 const LIVE_URL = import.meta.env.VITE_ASSET_RACE_LIVE_URL?.trim() || '/api/asset-race/live'
+const LIVE_ENABLED = import.meta.env.VITE_ASSET_RACE_LIVE_ENABLED?.trim() !== 'false'
 
 export function useAssetRaceLiveDisplay({ enabled }: { enabled: boolean }) {
   const [snapshot, setSnapshot] = useState<AssetRaceLiveSnapshot>()
@@ -9,7 +10,7 @@ export function useAssetRaceLiveDisplay({ enabled }: { enabled: boolean }) {
   const [now, setNow] = useState(() => Date.now())
 
   useEffect(() => {
-    if (!enabled) return
+    if (!enabled || !LIVE_ENABLED) return
     const timer = window.setInterval(() => setNow(Date.now()), 1_000)
     const events = new EventSource(LIVE_URL)
     events.onmessage = (event) => {

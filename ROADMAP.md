@@ -42,6 +42,23 @@ plus what's actually still open.
 9. **Rebrand to "Prophet"** (2026-09-11) — user-facing name changed from
    PredictX to match the actual domain; repo/package names unchanged.
 
+## Asset Race staged rollout (2026-09-22)
+
+The deterministic Asset Race contracts are deployed and configured on Robinhood
+Chain mainnet, but the feature is not yet publicly launched. The deployed
+`SignedPoolRaceOracle` is `0x5b0f7e62E0A5fF5C5C02Ad219Afcd086F2618Db7`
+and `AssetRace` is `0x63E582bb395527CED97F2F94662eA93A7EDf65Ff`.
+All 10 approved Stocks and 13 approved Memes are registered; deployment state,
+tests and operational evidence are recorded in
+[`docs/ASSET_RACE_PREDEPLOY_CHECKLIST.md`](./docs/ASSET_RACE_PREDEPLOY_CHECKLIST.md).
+
+Remaining launch gates are the VPS keeper and LIVE services, endpoint/health
+monitoring, controlled tiny-value mainnet Stock and Meme lifecycle rehearsals,
+and review/merge of the feature branch. GitHub Pages is bound to the real
+contracts but keeps provisional LIVE pool movement disabled until a CORS-safe
+public SSE endpoint exists; onchain race state and final results do not depend on
+that display service.
+
 ## Open / explicitly deferred
 
 - **ETH as a second bet currency.** Not started. `PredictionMarket`
