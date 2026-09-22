@@ -1,5 +1,6 @@
 import { useLocation } from 'react-router-dom'
 import { isLocalAssetRace } from '@/chain/config'
+import { AlertIcon, ChainIcon } from '@/components/icons'
 import { RHCHAIN_META } from '@/market/tokens'
 
 export function DisclaimerBanner() {
@@ -8,12 +9,15 @@ export function DisclaimerBanner() {
   const isLocalRaceRoute = isLocalAssetRace && pathname.startsWith('/onchain/races')
 
   return (
-    <div className="bg-amber-500/10 border-b border-amber-500/20 text-amber-200/90 text-xs text-center py-1.5 px-4">
-      {isLocalRaceRoute
-        ? '🧪 LOCAL TEST NETWORK · NO REAL FUNDS — Asset Race transactions use Anvil and fake USDG only.'
-        : isOnchain
-        ? '⛓️ Real mode: actual transactions on Robinhood Chain mainnet via your wallet. Real USDG, real money — contract has not had an external security audit. Betting currency is USDG only for now; ETH support is planned for a future update.'
-        : `⚠️ Demo / prototype running on mock data. ${RHCHAIN_META.disclaimer}`}
+    <div className="flex items-center justify-center gap-2 bg-[#2a1f16] border-b border-[#F2A65A]/20 text-[#F2A65A]/90 text-xs font-medium text-center py-1.5 px-4">
+      {isOnchain && !isLocalRaceRoute ? <ChainIcon className="w-3.5 h-3.5 shrink-0" /> : <AlertIcon className="w-3.5 h-3.5 shrink-0" />}
+      <span>
+        {isLocalRaceRoute
+          ? 'LOCAL TEST NETWORK · NO REAL FUNDS - Asset Race transactions use Anvil and fake USDG only.'
+          : isOnchain
+          ? 'Real mode: actual transactions on Robinhood Chain mainnet via your wallet. Real USDG, real money - contract has not had an external security audit. Betting currency is USDG only for now; ETH support is planned for a future update.'
+          : `Demo / prototype running on mock data. ${RHCHAIN_META.disclaimer}`}
+      </span>
     </div>
   )
 }

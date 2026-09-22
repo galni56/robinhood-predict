@@ -17,7 +17,7 @@ const links = [
 
 // Full nav + account cluster no longer fits one row once both are always
 // visible (browsing is public now, so there's a "Log in"+"Sign up" pair
-// competing for the same space as the links) — collapse into a hamburger
+// competing for the same space as the links) - collapse into a hamburger
 // below `lg` instead of letting things overflow/cram.
 export function Navbar() {
   const navigate = useNavigate()
@@ -33,14 +33,14 @@ export function Navbar() {
     <header className="sticky top-0 z-20 border-b border-white/10 bg-[#0a0a12]/95 lg:bg-[#0a0a12]/85 lg:backdrop-blur">
       <div className="max-w-6xl mx-auto px-4 h-14 flex items-center gap-4 lg:gap-6">
         <NavLink to="/demo" className="flex items-center gap-2 font-extrabold shrink-0">
-          <img src={`${import.meta.env.BASE_URL}ProphetMarkets_fun.png`} alt="" className="w-4 h-4 rounded-sm shrink-0" />
+          <img src={`${import.meta.env.BASE_URL}brand/mascot-small.png`} alt="" className="w-4 h-4 rounded-sm shrink-0" />
           Prophet
           <span className="text-white/30 font-normal text-xs hidden sm:inline">
             on {isOnchain ? 'Robinhood Chain (mainnet)' : RHCHAIN_META.name}
           </span>
         </NavLink>
 
-        {/* Nav is public — browsing markets/leaderboard/archive/explorer needs
+        {/* Nav is public - browsing markets/leaderboard/archive/explorer needs
             no account, only placing a bet or creating a market does. */}
         <nav className="hidden lg:flex items-center gap-1 text-sm">
           {links.map((l) => (
@@ -50,7 +50,7 @@ export function Navbar() {
               className={({ isActive }) =>
                 clsx(
                   'px-3 py-1.5 rounded-full transition-colors font-medium',
-                  isActive ? 'bg-[#C6FF3D]/15 text-[#C6FF3D]' : 'text-white/60 hover:text-white hover:bg-white/5',
+                  isActive ? 'bg-[#8B7CF7]/15 text-[#8B7CF7]' : 'text-white/60 hover:text-white hover:bg-white/5',
                 )
               }
             >
@@ -82,7 +82,7 @@ export function Navbar() {
               )
             }
           >
-            ⛓️ Live mainnet
+            Live mainnet
           </NavLink>
           {user ? (
             <>
@@ -138,7 +138,7 @@ export function Navbar() {
               </NavLink>
               <NavLink
                 to="/register"
-                className="text-sm px-3 py-1.5 rounded-full bg-gradient-to-r from-[#C6FF3D] to-[#8FBF1F] hover:brightness-110 text-black font-semibold transition-all"
+                className="text-sm px-3 py-1.5 rounded-full bg-gradient-to-r from-[#8B7CF7] to-[#6A5AE0] hover:brightness-110 text-black font-semibold transition-all"
               >
                 Sign up
               </NavLink>
@@ -158,7 +158,7 @@ export function Navbar() {
           ) : (
             <NavLink
               to="/register"
-              className="text-xs px-2.5 py-1.5 rounded-full bg-gradient-to-r from-[#C6FF3D] to-[#8FBF1F] text-black font-semibold"
+              className="text-xs px-2.5 py-1.5 rounded-full bg-gradient-to-r from-[#8B7CF7] to-[#6A5AE0] text-black font-semibold"
             >
               Get started
             </NavLink>
@@ -186,7 +186,7 @@ export function Navbar() {
               className={({ isActive }) =>
                 clsx(
                   'block px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-                  isActive ? 'bg-[#C6FF3D]/15 text-[#C6FF3D]' : 'text-white/70 hover:bg-white/5 hover:text-white',
+                  isActive ? 'bg-[#8B7CF7]/15 text-[#8B7CF7]' : 'text-white/70 hover:bg-white/5 hover:text-white',
                 )
               }
             >
@@ -205,7 +205,7 @@ export function Navbar() {
             onClick={() => setMobileOpen(false)}
             className="block px-3 py-2 rounded-lg text-sm font-medium text-sky-300 hover:bg-sky-500/10"
           >
-            ⛓️ Live mainnet
+            Live mainnet
           </NavLink>
 
           <div className="pt-2 mt-2 border-t border-white/10">
@@ -248,7 +248,7 @@ export function Navbar() {
                 <NavLink
                   to="/register"
                   onClick={() => setMobileOpen(false)}
-                  className="flex-1 text-center text-sm px-3 py-2 rounded-lg bg-gradient-to-r from-[#C6FF3D] to-[#8FBF1F] text-black font-semibold"
+                  className="flex-1 text-center text-sm px-3 py-2 rounded-lg bg-gradient-to-r from-[#8B7CF7] to-[#6A5AE0] text-black font-semibold"
                 >
                   Sign up
                 </NavLink>

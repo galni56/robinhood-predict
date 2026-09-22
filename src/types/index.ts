@@ -2,9 +2,9 @@
 // No field here is backed by a real market feed, a real chain, or real funds.
 
 export interface Token {
-  /** e.g. "xHOOD" — the tokenized-stock ticker as it appears on-chain */
+  /** e.g. "xHOOD" - the tokenized-stock ticker as it appears on-chain */
   symbol: string
-  /** e.g. "Robinhood Markets Inc." — underlying company (display only) */
+  /** e.g. "Robinhood Markets Inc." - underlying company (display only) */
   name: string
   /** deterministic mock contract address for this token on RHChain (testnet) */
   contractAddress: string
@@ -22,7 +22,7 @@ export interface PricePoint {
 export type MarketSide = 'YES' | 'NO'
 
 export interface PredictionMarket {
-  /** unique per market — a symbol can have several markets over time (or none) */
+  /** unique per market - a symbol can have several markets over time (or none) */
   id: string
   symbol: string
   question: string
@@ -30,9 +30,9 @@ export interface PredictionMarket {
   createdAt: number
   /** userId of the curator who created it, or "system" for demo-seeded markets */
   createdBy: string
-  deadline: number // unix ms — when the market resolves
+  deadline: number // unix ms - when the market resolves
   resolved: boolean
-  /** true when the deadline passed with a bet on only one side (or neither) —
+  /** true when the deadline passed with a bet on only one side (or neither) -
    * mirrors the contract's one-sided-market cancellation. Mutually exclusive
    * with `resolved`; refunds are full, no fee. */
   cancelled: boolean
@@ -77,11 +77,11 @@ export interface Position {
   settled: boolean
   payout: number | null
   /** Early-bet weight (basis points, 10000 = 1x) at the time this bet was
-   * placed — mirrors the contract's per-bet weight snapshot. Missing on
+   * placed - mirrors the contract's per-bet weight snapshot. Missing on
    * positions persisted before this feature; treat as 10000 (no bonus). */
   weightBp?: number
   /** true when `payout` is a full refund from a cancelled (one-sided) market,
-   * not winnings — kept distinct so the UI doesn't show it as a "win". */
+   * not winnings - kept distinct so the UI doesn't show it as a "win". */
   refunded?: boolean
 }
 
@@ -91,7 +91,7 @@ export interface User {
   id: string
   email: string
   displayName: string
-  /** NOT a real hash — this is a mock demo, plaintext lives only in localStorage on the user's own machine */
+  /** NOT a real hash - this is a mock demo, plaintext lives only in localStorage on the user's own machine */
   mockPassword: string
   walletAddress: string
   createdAt: number

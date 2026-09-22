@@ -11,7 +11,7 @@ export function PublicProfilePage() {
   const { userId = '' } = useParams()
   const user = useAuthStore((s) => s.userById(userId))
   const markets = useMarketStore((s) => s.markets)
-  // Stable function references — called below, not inside the selector (see
+  // Stable function references - called below, not inside the selector (see
   // note in MarketDetailPage.tsx for why that matters).
   const statsForUser = useMarketStore((s) => s.statsForUser)
   const positionsForUser = useMarketStore((s) => s.positionsForUser)
@@ -34,7 +34,7 @@ export function PublicProfilePage() {
           <h1 className="text-2xl font-semibold flex items-center gap-2">
             {user.displayName}
             {user.role === 'admin' && (
-              <span className="text-[11px] px-2 py-0.5 rounded-full bg-[#C6FF3D]/15 text-[#C6FF3D] border border-[#C6FF3D]/30">
+              <span className="text-[11px] px-2 py-0.5 rounded-full bg-[#8B7CF7]/15 text-[#8B7CF7] border border-[#8B7CF7]/30">
                 curator
               </span>
             )}
@@ -45,8 +45,8 @@ export function PublicProfilePage() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Stat label="Win rate" value={stats.totalBets > 0 ? formatPct(stats.winRate) : '—'} />
-        <Stat label="Win streak" value={stats.currentStreak > 0 ? `${stats.currentStreak} 🔥` : '—'} />
+        <Stat label="Win rate" value={stats.totalBets > 0 ? formatPct(stats.winRate) : '-'} />
+        <Stat label="Win streak" value={stats.currentStreak > 0 ? `${stats.currentStreak} 🔥` : '-'} />
         <Stat label="Total bets" value={String(stats.totalBets)} />
         <Stat
           label="Net P&L"
@@ -68,7 +68,7 @@ export function PublicProfilePage() {
             return (
               <div key={p.id} className="flex flex-wrap items-center gap-3 text-sm bg-black/20 border border-white/5 rounded-lg px-3 py-2">
                 <Link to={`/markets/${p.marketId}`} className="font-medium hover:text-emerald-400 min-w-16">
-                  {token?.symbol ?? '—'}
+                  {token?.symbol ?? '-'}
                 </Link>
                 <SideBadge side={p.side} />
                 <span className="font-mono">{formatUsd(p.amount)}</span>

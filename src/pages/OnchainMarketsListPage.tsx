@@ -2,9 +2,10 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { formatUnits } from 'viem'
 import { useReadContract, useReadContracts } from 'wagmi'
+import { ClockIcon } from '@/components/icons'
 import { LiveBetsTicker } from '@/components/LiveBetsTicker'
 import { OnchainMarketsSidebar } from '@/components/OnchainMarketsSidebar'
-import { AwaitingCounterBetsBadge, CancelledBadge } from '@/components/Pills'
+import { CancelledBadge } from '@/components/Pills'
 import { Sparkline } from '@/components/PriceChart'
 import { TokenBrowser } from '@/components/TokenBrowser'
 import {
@@ -16,6 +17,7 @@ import {
   tickerForFeedAddress,
   tickerFromFeedDescription,
 } from '@/chain/contracts'
+import { demoPools, isDemoMode } from '@/chain/demo'
 import { useFeedSnapshot } from '@/chain/feedCache'
 import { formatCountdown, formatUsd } from '@/lib/format'
 import type { PricePoint } from '@/types'
@@ -55,11 +57,11 @@ export function OnchainMarketsListPage() {
   const [filter, setFilter] = useState<StatusFilter>('ALL')
   const [assetFilter, setAssetFilter] = useState<AssetFilter>('ALL')
   // Tracks each feed's previously-seen price so a card can color itself by
-  // "did it just tick up or down", not by distance from the target — a ref
+  // "did it just tick up or down", not by distance from the target - a ref
   // (not state) so updating it never itself triggers a re-render.
   const prevPriceByFeed = useRef<Map<string, number>>(new Map())
   // Real prices accumulated client-side since this page was opened, for the
-  // card sparkline — also a ref, piggybacking on the same effect below; the
+  // card sparkline - also a ref, piggybacking on the same effect below; the
   // next 2s poll's re-render is what actually shows the appended point.
   const priceHistoryByFeed = useRef<Map<string, PricePoint[]>>(new Map())
 
@@ -185,23 +187,21 @@ export function OnchainMarketsListPage() {
 
   return (
     <div className="max-w-[1500px] mx-auto px-4 py-8">
-      <div className="mb-6 rounded-xl border border-sky-500/30 bg-sky-500/10 px-4 py-3 text-sm text-sky-200">
-        ⛓️ This is <b>real mode</b> — markets are read directly from the deployed contract on Robinhood Chain mainnet.
-      </div>
-
       <div className="mb-8 flex items-start justify-between gap-6 flex-wrap">
         <div className="max-w-2xl">
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">On-chain markets</h1>
-          <p className="text-white/50 text-sm mt-1.5">
-            {count} market{count === 1 ? '' : 's'} live on Robinhood Chain mainnet. Bet YES or NO before the deadline —
+          <p className="text-sm font-bold text-[#B3A7FA] mb-1">The board</p>
+          <h1 className="font-display text-3xl sm:text-4xl font-bold tracking-tight">What's your call?</h1>
+          <p className="text-white/50 text-sm mt-2">
+            {count} market{count === 1 ? '' : 's'} live on Robinhood Chain mainnet. Bet YES or NO before the deadline -
             early bets carry more weight, and a market with only one side ever betting cancels and refunds in full.
           </p>
         </div>
         <Link
           to="/onchain/create"
-          className="shrink-0 text-sm px-4 py-2.5 rounded-full bg-gradient-to-r from-[#C6FF3D] to-[#8FBF1F] hover:brightness-110 text-black font-semibold transition-all shadow-[0_0_20px_-6px_rgba(198,255,61,0.7)]"
+          className="shrink-0 inline-flex items-center gap-2.5 text-sm pl-5 pr-2 py-2 rounded-full bg-gradient-to-r from-[#8B7CF7] to-[#6A5AE0] hover:brightness-110 text-white font-bold transition-all shadow-[0_10px_28px_-10px_rgba(106,90,224,0.8)]"
         >
-          + Create market
+          Create market
+          <span className="w-7 h-7 rounded-full bg-white/20 grid place-items-center text-xs">↗</span>
         </Link>
       </div>
 
@@ -210,30 +210,26 @@ export function OnchainMarketsListPage() {
       <div className="flex gap-6 items-start">
         <div className="flex-1 min-w-0">
       <div className="flex flex-wrap items-center justify-between gap-y-2 mb-6">
-        <div className="flex gap-1">
+        <div className="flex gap-1.5">
           {STATUS_FILTERS.map((f) => (
             <button
               key={f.key}
               onClick={() => setFilter(f.key)}
-              className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
-                filter === f.key
-                  ? 'bg-white/10 border-white/20 text-white'
-                  : 'border-white/10 text-white/50 hover:text-white hover:border-white/30'
+              className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-colors ${
+                filter === f.key ? 'bg-[#f7f1e3] text-[#241a33]' : 'text-white/50 hover:text-white hover:bg-white/5'
               }`}
             >
               {f.label}
             </button>
           ))}
         </div>
-        <div className="flex gap-1">
+        <div className="flex gap-1.5">
           {ASSET_FILTERS.map((f) => (
             <button
               key={f.key}
               onClick={() => setAssetFilter(f.key)}
-              className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
-                assetFilter === f.key
-                  ? 'bg-[#C6FF3D]/10 border-[#C6FF3D]/40 text-[#C6FF3D]'
-                  : 'border-white/10 text-white/50 hover:text-white hover:border-white/30'
+              className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-colors ${
+                assetFilter === f.key ? 'bg-[#8B7CF7] text-[#f7f1e3]' : 'text-white/50 hover:text-white hover:bg-white/5'
               }`}
             >
               {f.label}
@@ -247,7 +243,7 @@ export function OnchainMarketsListPage() {
       ) : count === 0 ? (
         <div className="text-center py-16 text-white/40 text-sm">
           No markets yet.{' '}
-          <Link to="/onchain/create" className="text-[#C6FF3D] hover:underline">
+          <Link to="/onchain/create" className="text-[#8B7CF7] hover:underline">
             Create the first one
           </Link>
         </div>
@@ -266,11 +262,11 @@ export function OnchainMarketsListPage() {
             const targetUsd = decimals != null ? Number(formatUnits(m.targetPrice, decimals)) : null
             const currentUsd = decimals != null && price ? Number(formatUnits(price[1], decimals)) : null
             const deadlineMs = Number(m.deadline) * 1000
-            const totalPool = m.poolYes + m.poolNo
-            const yesPct = totalPool > 0n ? Number((m.poolYes * 10000n) / totalPool) / 100 : 50
-            const awaitingCounterBets = m.status === MarketStatusOnchain.Open && (m.poolYes === 0n || m.poolNo === 0n)
+            const pools = isDemoMode() ? demoPools(id) : { poolYes: m.poolYes, poolNo: m.poolNo }
+            const totalPool = pools.poolYes + pools.poolNo
+            const yesPct = totalPool > 0n ? Number((pools.poolYes * 10000n) / totalPool) / 100 : 50
             const prevUsd = prevPriceByFeed.current.get(m.priceFeed)
-            // No prior tick yet (first render) — default to green rather than
+            // No prior tick yet (first render) - default to green rather than
             // flashing red for a market that hasn't actually moved down.
             const tickedUp = currentUsd == null || prevUsd == null ? true : currentUsd >= prevUsd
 
@@ -286,16 +282,20 @@ export function OnchainMarketsListPage() {
                 tabIndex={0}
                 onClick={() => goToMarket()}
                 onKeyDown={(e) => e.key === 'Enter' && goToMarket()}
-                className="group relative bg-[#12121c]/95 border border-white/10 rounded-2xl p-4 hover:border-[#C6FF3D]/30 hover:bg-[#181829]/95 hover:shadow-[0_0_28px_-14px_rgba(198,255,61,0.9)] transition-all cursor-pointer"
+                className="group relative rounded-3xl bg-[#241b2f] border border-white/5 p-5 hover:border-[#8B7CF7]/40 hover:-translate-y-0.5 hover:shadow-[0_20px_50px_-28px_rgba(106,90,224,0.8)] transition-all cursor-pointer"
               >
-                <div className="flex items-start justify-between mb-2">
-                  <div>
-                    <div className="font-bold flex items-center gap-2">
-                      {ticker ?? '…'}
-                      {awaitingCounterBets && <AwaitingCounterBetsBadge />}
-                      {m.status === MarketStatusOnchain.Cancelled && <CancelledBadge />}
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center gap-2.5">
+                    <span className="w-9 h-9 rounded-xl bg-[#f7f1e3] text-[#241a33] grid place-items-center font-display font-bold text-lg shrink-0">
+                      {(ticker ?? '?')[0]}
+                    </span>
+                    <div>
+                      <div className="font-bold text-sm tracking-wide flex items-center gap-2">
+                        {ticker ?? '…'}
+                        {m.status === MarketStatusOnchain.Cancelled && <CancelledBadge />}
+                      </div>
+                      <div className="text-white/35 text-xs font-medium">Market #{id.toString()}</div>
                     </div>
-                    <div className="text-white/40 text-xs">Market #{id.toString()}</div>
                   </div>
                   <div className="text-right">
                     <div className={`font-mono font-semibold ${tickedUp ? 'text-emerald-400' : 'text-rose-400'}`}>
@@ -305,40 +305,56 @@ export function OnchainMarketsListPage() {
                   </div>
                 </div>
 
-                <p className="text-xs text-white/50 mb-2">
-                  {ticker ?? 'This market'} reach {targetUsd != null ? formatUsd(targetUsd) : '…'}?
-                </p>
+                <h3 className="font-display text-xl font-bold leading-snug mb-3 group-hover:text-[#B3A7FA] transition-colors">
+                  Will {ticker ?? 'it'} reach {targetUsd != null ? formatUsd(targetUsd) : '…'}?
+                </h3>
 
                 {(() => {
                   const series = priceHistoryByFeed.current.get(m.priceFeed) ?? []
                   return series.length > 1 ? (
-                    <div className="mb-2">
+                    <div className="mb-3">
                       <Sparkline data={series} color={tickedUp ? '#2dd888' : '#ff5577'} />
                     </div>
                   ) : null
                 })()}
 
-                {/* The bar shows which side the pool actually favors right now;
-                    the buttons below are the click target -- picking one jumps
+                {/* Honest pool state: a split bar only once both sides have
+                    real money in; otherwise one quiet status line. The
+                    buttons below are the click target -- picking one jumps
                     straight to the market page with that side preselected. */}
-                <div className="h-1.5 rounded-full bg-rose-500/25 overflow-hidden">
-                  <div className="h-full bg-emerald-400" style={{ width: `${yesPct}%` }} />
-                </div>
-                <div className="flex justify-between text-[11px] text-white/40 mt-1 mb-2">
-                  <span>YES {yesPct.toFixed(1)}%</span>
-                  <span>NO {(100 - yesPct).toFixed(1)}%</span>
-                </div>
+                {pools.poolYes > 0n && pools.poolNo > 0n ? (
+                  <>
+                    <div className="flex items-center justify-between text-xs font-bold mb-1.5">
+                      <span className="text-[#B3A7FA]">YES {yesPct.toFixed(0)}%</span>
+                      <span className="text-[#F2A65A]">NO {(100 - yesPct).toFixed(0)}%</span>
+                    </div>
+                    <div className="flex h-1.5 gap-0.5 mb-4">
+                      <div className="rounded-full bg-[#8B7CF7]" style={{ width: `${yesPct}%` }} />
+                      <div className="rounded-full bg-[#F2A65A] flex-1" />
+                    </div>
+                  </>
+                ) : (
+                  <p className="flex items-center gap-2 text-xs font-medium text-white/45 mb-4">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#F2A65A] shrink-0" />
+                    {m.status !== MarketStatusOnchain.Open
+                      ? 'Pool never got both sides in.'
+                      : totalPool === 0n
+                        ? 'New market - be the first to call it.'
+                        : 'One side is in - take the other, or it refunds in full.'}
+                  </p>
+                )}
 
-                <div className="grid grid-cols-2 gap-1.5">
+                <div className="grid grid-cols-2 gap-2.5">
                   <button
                     disabled={!canBet}
                     onClick={(e) => {
                       e.stopPropagation()
                       goToMarket('YES')
                     }}
-                    className="rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 disabled:hover:bg-emerald-500/15 disabled:cursor-not-allowed border border-emerald-500/30 text-emerald-400 text-xs font-bold py-1.5 transition-colors"
+                    className="group/btn flex items-center justify-center gap-2 py-2.5 rounded-2xl bg-[#372a4f] text-[#B3A7FA] text-sm font-extrabold hover:bg-[#8B7CF7] hover:text-[#f7f1e3] disabled:opacity-40 disabled:hover:bg-[#372a4f] disabled:hover:text-[#B3A7FA] disabled:cursor-not-allowed transition-colors"
                   >
-                    Bet YES
+                    YES
+                    <span className="opacity-60 transition-transform group-hover/btn:-translate-y-0.5 group-hover/btn:translate-x-0.5">↗</span>
                   </button>
                   <button
                     disabled={!canBet}
@@ -346,27 +362,26 @@ export function OnchainMarketsListPage() {
                       e.stopPropagation()
                       goToMarket('NO')
                     }}
-                    className="rounded-lg bg-rose-500/15 hover:bg-rose-500/25 disabled:hover:bg-rose-500/15 disabled:cursor-not-allowed border border-rose-500/30 text-rose-400 text-xs font-bold py-1.5 transition-colors"
+                    className="group/btn flex items-center justify-center gap-2 py-2.5 rounded-2xl bg-[#3b2a20] text-[#F2A65A] text-sm font-extrabold hover:bg-[#F2A65A] hover:text-[#3b2416] disabled:opacity-40 disabled:hover:bg-[#3b2a20] disabled:hover:text-[#F2A65A] disabled:cursor-not-allowed transition-colors"
                   >
-                    Bet NO
+                    NO
+                    <span className="opacity-60 transition-transform group-hover/btn:translate-y-0.5 group-hover/btn:translate-x-0.5">↘</span>
                   </button>
                 </div>
 
                 <div className="mt-3 flex items-center justify-between text-xs">
-                  <span className="text-white/40">
+                  <span className="inline-flex items-center gap-1.5 text-white/40 font-bold">
+                    {m.status === MarketStatusOnchain.Open && <ClockIcon className="w-3.5 h-3.5" />}
                     {m.status === MarketStatusOnchain.Resolved
-                      ? 'resolved'
+                      ? 'Resolved'
                       : m.status === MarketStatusOnchain.Cancelled
-                        ? 'cancelled'
+                        ? 'Cancelled'
                         : Date.now() < Number(bettingWindowEndSeconds(m.createdAt, m.deadline)) * 1000
-                          ? `⏱ betting: ${formatCountdown(Number(bettingWindowEndSeconds(m.createdAt, m.deadline)) * 1000 - Date.now())}`
-                          : `⏱ resolves: ${formatCountdown(deadlineMs - Date.now())}`}
+                          ? `betting: ${formatCountdown(Number(bettingWindowEndSeconds(m.createdAt, m.deadline)) * 1000 - Date.now())}`
+                          : `resolves: ${formatCountdown(deadlineMs - Date.now())}`}
                   </span>
                 </div>
 
-                {awaitingCounterBets && (
-                  <p className="mt-2 text-[11px] text-amber-400/80">Refunded in full if nobody takes the other side.</p>
-                )}
               </div>
             )
           })}

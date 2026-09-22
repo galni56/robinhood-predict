@@ -52,7 +52,7 @@ export function SetNicknameModal({ onClose }: { onClose: () => void }) {
         >
           <h2 className="text-sm font-bold mb-1">Set your nickname</h2>
           <p className="text-white/40 text-xs mb-3">
-            A real on-chain transaction — public, and visible to everyone wherever your address shows up. Leave blank
+            A real on-chain transaction - public, and visible to everyone wherever your address shows up. Leave blank
             to clear it.
           </p>
           <input
@@ -60,7 +60,7 @@ export function SetNicknameModal({ onClose }: { onClose: () => void }) {
             value={value}
             onChange={(e) => setValue(e.target.value.slice(0, MAX_LENGTH))}
             placeholder="e.g. satoshi"
-            className="w-full rounded-lg bg-black/30 border border-white/10 px-3 py-2 text-sm outline-none focus:border-[#C6FF3D]/60 transition-colors"
+            className="w-full rounded-lg bg-black/30 border border-white/10 px-3 py-2 text-sm outline-none focus:border-[#8B7CF7]/60 transition-colors"
           />
           <p className="text-[11px] text-white/30 mt-1">{value.length}/{MAX_LENGTH}</p>
 
@@ -76,7 +76,7 @@ export function SetNicknameModal({ onClose }: { onClose: () => void }) {
             <button
               onClick={submit}
               disabled={pending}
-              className="flex-1 rounded-lg bg-gradient-to-r from-[#C6FF3D] to-[#8FBF1F] hover:brightness-110 text-black font-semibold py-2 text-sm disabled:opacity-50 transition-all"
+              className="flex-1 rounded-lg bg-gradient-to-r from-[#8B7CF7] to-[#6A5AE0] hover:brightness-110 text-black font-semibold py-2 text-sm disabled:opacity-50 transition-all"
             >
               {pending ? 'Confirm in wallet…' : 'Save'}
             </button>

@@ -15,7 +15,7 @@ export function PortfolioPage() {
   const balance = useChainStore((s) => (user ? s.balanceOf(user.walletAddress) : 0))
   const markets = useMarketStore((s) => s.markets)
   // Select the stable function references, call them below in the render
-  // body — calling them directly inside the selector would return a new
+  // body - calling them directly inside the selector would return a new
   // array/object every time and cause an infinite re-render loop (zustand
   // v5 compares selector results by identity.
   const positionsForUser = useMarketStore((s) => s.positionsForUser)
@@ -38,9 +38,9 @@ export function PortfolioPage() {
           </Link>
           <Link
             to="/register"
-            className="text-sm px-4 py-2 rounded-lg bg-gradient-to-r from-[#C6FF3D] to-[#8FBF1F] hover:brightness-110 text-black font-semibold transition-all"
+            className="text-sm px-4 py-2 rounded-lg bg-gradient-to-r from-[#8B7CF7] to-[#6A5AE0] hover:brightness-110 text-black font-semibold transition-all"
           >
-            Sign up — it's free
+            Sign up - it's free
           </Link>
         </div>
       </div>
@@ -76,8 +76,8 @@ export function PortfolioPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Stat label="Balance" value={formatUsd(balance)} />
         <Stat label="Wallet" value={<AddressPill address={user.walletAddress} to={`/explorer/address/${user.walletAddress}`} />} />
-        <Stat label="Win rate" value={settledPositions.length > 0 ? formatPct(stats.winRate) : '—'} />
-        <Stat label="Current streak" value={stats.currentStreak > 0 ? `${stats.currentStreak} 🔥` : '—'} />
+        <Stat label="Win rate" value={settledPositions.length > 0 ? formatPct(stats.winRate) : '-'} />
+        <Stat label="Current streak" value={stats.currentStreak > 0 ? `${stats.currentStreak} 🔥` : '-'} />
         <Stat label="Total wagered" value={formatUsd(stats.totalWagered)} />
         <Stat label="Total won" value={formatUsd(stats.totalWon)} />
         <Stat label="Net P&L" value={<span className={stats.netProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'}>{stats.netProfit >= 0 ? '+' : ''}{formatUsd(stats.netProfit)}</span>} />
@@ -88,7 +88,7 @@ export function PortfolioPage() {
 
       <div className="bg-[#12121c]/95 border border-white/10 rounded-xl p-4">
         <h2 className="font-medium mb-3">Open bets ({openPositions.length})</h2>
-        <PositionsTable positions={openPositions} markets={markets} empty="No open bets — go check out the markets" />
+        <PositionsTable positions={openPositions} markets={markets} empty="No open bets - go check out the markets" />
       </div>
 
       <div className="bg-[#12121c]/95 border border-white/10 rounded-xl p-4">
@@ -128,7 +128,7 @@ function PositionsTable({
           return (
             <div key={p.id} className="flex flex-wrap items-center gap-3 text-sm bg-black/20 border border-white/5 rounded-lg px-3 py-2">
               <Link to={`/markets/${p.marketId}`} className="font-medium hover:text-emerald-400 min-w-16">
-                {token?.symbol ?? '—'}
+                {token?.symbol ?? '-'}
               </Link>
               <SideBadge side={p.side} />
               <span className="font-mono">{formatUsd(p.amount)}</span>

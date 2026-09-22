@@ -34,8 +34,8 @@ interface Position {
 
 function StatCard({ label, value, valueClassName = '' }: { label: string; value: string; valueClassName?: string }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-[#12121c]/95 p-4">
-      <div className="text-white/40 text-xs mb-1">{label}</div>
+    <div className="rounded-2xl border border-white/5 bg-[#241b2f] p-4">
+      <div className="text-white/40 text-xs font-bold mb-1">{label}</div>
       <div className={`text-xl font-mono font-semibold ${valueClassName}`}>{value}</div>
     </div>
   )
@@ -80,7 +80,7 @@ export function OnchainPortfolioPage() {
   })
 
   // Total actually paid out to this wallet across every market it's ever
-  // claimed from — read from the contract's own Claimed events (filtered
+  // claimed from - read from the contract's own Claimed events (filtered
   // to this address), same technique as the leaderboard. Not derivable
   // from getMarket()/stakes() alone, since those don't track payout size.
   const client = usePublicClient()
@@ -111,7 +111,8 @@ export function OnchainPortfolioPage() {
   if (!isConnected) {
     return (
       <div className="max-w-2xl mx-auto px-4 py-8">
-        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight mb-1">Your on-chain portfolio</h1>
+        <p className="text-sm font-bold text-[#B3A7FA] mb-1">Your account</p>
+        <h1 className="font-display text-3xl sm:text-4xl font-bold tracking-tight mb-1">Your on-chain portfolio</h1>
         <p className="text-white/40 text-sm mb-6">Connect a wallet to see your real stakes across every market.</p>
         <WalletOptionsList />
       </div>
@@ -166,14 +167,15 @@ export function OnchainPortfolioPage() {
     <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight mb-1">
+          <p className="text-sm font-bold text-[#B3A7FA] mb-1">Your account</p>
+          <h1 className="font-display text-3xl sm:text-4xl font-bold tracking-tight mb-1">
             {nickname.data ? nickname.data : 'Your on-chain portfolio'}
           </h1>
           <p className="text-white/40 text-xs font-mono break-all">{address}</p>
         </div>
         <button
           onClick={() => setNicknameModalOpen(true)}
-          className="shrink-0 text-xs px-3 py-1.5 rounded-full border border-white/10 text-white/60 hover:text-white hover:border-white/30 transition-colors"
+          className="shrink-0 text-xs font-bold px-3.5 py-1.5 rounded-full border border-white/10 text-white/60 hover:text-white hover:border-[#8B7CF7]/40 transition-colors"
         >
           {nickname.data ? 'Edit nickname' : 'Set nickname'}
         </button>
@@ -183,26 +185,26 @@ export function OnchainPortfolioPage() {
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <StatCard label="Balance" value={balance.data != null ? `$${formatUnits(balance.data, BET_TOKEN_DECIMALS)}` : '…'} />
-        <StatCard label="Wallet" value={address ? (nickname.data || truncateAddress(address)) : '—'} />
-        <StatCard label="Win rate" value={winRate != null ? `${winRate.toFixed(0)}%` : '—'} />
-        <StatCard label="Current streak" value={streakWon == null ? '—' : `${currentStreak}${streakWon ? 'W' : 'L'}`} />
+        <StatCard label="Wallet" value={address ? (nickname.data || truncateAddress(address)) : '-'} />
+        <StatCard label="Win rate" value={winRate != null ? `${winRate.toFixed(0)}%` : '-'} />
+        <StatCard label="Current streak" value={streakWon == null ? '-' : `${currentStreak}${streakWon ? 'W' : 'L'}`} />
         <StatCard label="Total wagered" value={`$${formatUnits(totalWagered, BET_TOKEN_DECIMALS)}`} />
         <StatCard label="Total won" value={totalClaimed != null ? `$${formatUnits(totalClaimed, BET_TOKEN_DECIMALS)}` : '…'} />
         <StatCard
           label="Net P&L"
           value={netPnl != null ? `${netPnl >= 0n ? '+' : ''}${formatUsd(Number(formatUnits(netPnl, BET_TOKEN_DECIMALS)))}` : '…'}
-          valueClassName={netPnl == null ? '' : netPnl >= 0n ? 'text-[#C6FF3D]' : 'text-rose-400'}
+          valueClassName={netPnl == null ? '' : netPnl >= 0n ? 'text-[#B3A7FA]' : 'text-rose-400'}
         />
         <StatCard label="Total bets" value={String(positions.length)} />
       </div>
 
       <div>
-        <h2 className="font-medium mb-3">Open positions ({openPositions.length})</h2>
+        <h2 className="font-display text-lg font-bold mb-3">Open positions ({openPositions.length})</h2>
         <PositionList positions={openPositions} />
       </div>
 
       <div>
-        <h2 className="font-medium mb-3">Settled ({settledPositions.length})</h2>
+        <h2 className="font-display text-lg font-bold mb-3">Settled ({settledPositions.length})</h2>
         <PositionList positions={settledPositions} />
       </div>
     </div>
@@ -217,7 +219,7 @@ function PositionList({ positions }: { positions: Position[] }) {
         <Link
           key={p.id.toString()}
           to={`/onchain/${p.id}`}
-          className="flex flex-wrap items-center gap-3 text-sm bg-[#12121c]/95 border border-white/10 rounded-xl px-4 py-3 hover:border-[#C6FF3D]/30 hover:bg-[#181829]/95 transition-colors"
+          className="flex flex-wrap items-center gap-3 text-sm bg-[#241b2f] border border-white/5 rounded-xl px-4 py-3 hover:border-[#8B7CF7]/40 transition-colors"
         >
           <span className="font-mono text-white/70">#{p.id.toString()}</span>
           {p.yesStake > 0n && (
@@ -236,11 +238,11 @@ function PositionList({ positions }: { positions: Position[] }) {
             {p.status === MarketStatusOnchain.Open ? (
               <StatusBadge status="pending" />
             ) : p.status === MarketStatusOnchain.Cancelled ? (
-              <span className="text-white/40">cancelled — refundable</span>
+              <span className="text-white/40">cancelled - refundable</span>
             ) : p.hasClaimed ? (
               <span className="text-white/40">claimed</span>
             ) : (outcome(p) === 'YES' && p.yesStake > 0n) || (outcome(p) === 'NO' && p.noStake > 0n) ? (
-              <span className="text-[#C6FF3D]">won — claim now</span>
+              <span className="font-bold text-[#B3A7FA]">won - claim now</span>
             ) : (
               <span className="text-rose-400">lost</span>
             )}

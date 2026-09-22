@@ -12,7 +12,7 @@ const queryClient = new QueryClient()
 // HashRouter (not BrowserRouter): GitHub Pages is static file hosting with no
 // server-side rewrite rule, so a deep link or refresh on e.g. /markets/xyz
 // would 404 with real paths. Hash routing keeps the routed part after `#`,
-// which never leaves the browser — no server involvement needed.
+// which never leaves the browser - no server involvement needed.
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <WagmiProvider config={wagmiConfig}>

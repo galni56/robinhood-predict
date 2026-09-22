@@ -39,12 +39,12 @@ export const useAuthStore = create<AuthState>()(
           return { ok: false, error: 'Password must be at least 6 characters' }
         }
         if (get().users.some((u) => u.email === normalized)) {
-          return { ok: false, error: 'An account with this e-mail already exists (this is a mock — try logging in)' }
+          return { ok: false, error: 'An account with this e-mail already exists (this is a mock - try logging in)' }
         }
 
         const id = mockAddress(`user:${normalized}:${Date.now()}`)
         const name = displayName.trim() || normalized.split('@')[0]
-        // First registered account becomes the demo curator/admin — there's no
+        // First registered account becomes the demo curator/admin - there's no
         // real backend to gate this against, so it's a simple bootstrap rule.
         const isFirstUser = get().users.length === 0
         const user: User = {

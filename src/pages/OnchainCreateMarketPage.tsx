@@ -99,7 +99,7 @@ export function OnchainCreateMarketPage() {
       return
     }
     if (feedDecimals.data == null) {
-      setError("Couldn't read the feed's decimals() — try again")
+      setError("Couldn't read the feed's decimals() - try again")
       return
     }
 
@@ -130,44 +130,68 @@ export function OnchainCreateMarketPage() {
     }
   }
 
-  return (
-    <div className="max-w-lg mx-auto px-4 py-8">
-      <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight mb-1">Create an on-chain market</h1>
-      <p className="text-white/50 text-sm mb-6">
-        A real transaction on mainnet. Target price must sit a reasonable distance from the current price — the
-        further out the deadline, the wider that band. YES/NO pools start at $0 — if only one side has bets by the
-        deadline, the market cancels and money is refunded in full. Betting currency is USDG only for now — ETH
-        support is planned for a future update. Want another token supported? Let us know what you'd like next.
-      </p>
+  const selectedTicker = ALLOWLISTED_FEEDS.find((f) => f.address === feedAddress)?.ticker ?? '…'
+  const targetNumPreview = Number(target)
 
-      <form onSubmit={onSubmit} className="bg-[#12121c]/95 border border-white/10 rounded-2xl p-6 space-y-5">
+  return (
+    <div className="max-w-[1100px] mx-auto px-4 py-8">
+      <div className="grid lg:grid-cols-[400px_1fr] gap-10 items-start">
+        <div className="lg:sticky lg:top-24">
+          <p className="text-sm font-bold text-[#B3A7FA] mb-1">Make a market</p>
+          <h1 className="font-display text-3xl sm:text-4xl font-bold tracking-tight mb-2">Ask the next big question</h1>
+          <p className="text-white/50 text-sm mb-6">
+            A real transaction on mainnet. Target price must sit a reasonable distance from the current price - the
+            further out the deadline, the wider that band. YES/NO pools start at $0 - if only one side has bets by the
+            deadline, the market cancels and money is refunded in full. Betting currency is USDG only for now - ETH
+            support is planned for a future update. Want another token supported? Let us know what you'd like next.
+          </p>
+
+          {/* Live preview: the question this form is about to put on the board */}
+          <div className="rounded-3xl bg-[#e7e1f8] text-[#241a33] px-6 py-6 flex items-center gap-4">
+            <img
+              src={`${import.meta.env.BASE_URL}brand/mascot-small.png`}
+              alt=""
+              className="w-14 shrink-0"
+              style={{ animation: 'mascot-float 5s ease-in-out infinite' }}
+            />
+            <div>
+              <p className="text-[11px] font-bold text-[#241a33]/50 mb-0.5">Your question</p>
+              <p className="font-display text-2xl font-bold leading-snug">
+                Will {selectedTicker} reach {targetNumPreview > 0 ? formatUsd(targetNumPreview) : '…'} in{' '}
+                {DURATION_PRESETS[durationIdx].label}?
+              </p>
+            </div>
+          </div>
+        </div>
+
+      <form onSubmit={onSubmit} className="bg-[#241b2f] border border-white/5 rounded-3xl p-6 sm:p-8 space-y-6">
         <div>
-          <label className="block text-sm text-white/60 mb-1.5">Price feed</label>
-          <div className="grid grid-cols-3 gap-2">
+          <label className="block text-sm font-bold text-white/60 mb-2">Price feed</label>
+          <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
             {ALLOWLISTED_FEEDS.map((f) => (
               <button
                 type="button"
                 key={f.ticker}
                 onClick={() => setFeedAddress(f.address)}
-                className={`rounded-lg px-3 py-2 text-sm font-semibold border transition-colors ${
+                className={`rounded-xl px-3 py-2 text-sm font-bold transition-colors ${
                   feedAddress === f.address
-                    ? 'bg-[#C6FF3D]/15 border-[#C6FF3D]/50 text-[#C6FF3D]'
-                    : 'border-white/10 text-white/60 hover:border-white/30 hover:text-white'
+                    ? 'bg-[#8B7CF7] text-[#f7f1e3]'
+                    : 'bg-white/5 text-white/60 hover:bg-white/10 hover:text-white'
                 }`}
               >
                 {f.ticker}
               </button>
             ))}
           </div>
-          <p className="text-[11px] text-white/30 mt-1">
-            Only allowlisted feeds can settle a market — only the contract owner can add more.
+          <p className="text-[11px] text-white/30 mt-1.5">
+            Only allowlisted feeds can settle a market - only the contract owner can add more.
           </p>
         </div>
 
         <div>
-          <div className="flex items-baseline justify-between mb-1.5">
-            <label className="text-sm text-white/60">Target price, $</label>
-            {currentPriceUsd != null && <span className="text-[11px] text-white/40">now {formatUsd(currentPriceUsd)}</span>}
+          <div className="flex items-baseline justify-between mb-2">
+            <label className="text-sm font-bold text-white/60">Target price, $</label>
+            {currentPriceUsd != null && <span className="text-[11px] font-bold text-[#B3A7FA]">now {formatUsd(currentPriceUsd)}</span>}
           </div>
           <input
             type="number"
@@ -176,22 +200,20 @@ export function OnchainCreateMarketPage() {
             step="0.01"
             value={target}
             onChange={(e) => setTarget(e.target.value)}
-            className="w-full rounded-lg bg-black/30 border border-white/10 px-3 py-2 text-sm font-mono outline-none focus:border-[#C6FF3D]/60 transition-colors"
+            className="w-full rounded-xl bg-white/5 border border-white/10 px-3.5 py-2.5 text-sm font-mono outline-none focus:border-[#8B7CF7]/60 transition-colors"
           />
         </div>
 
         <div>
-          <label className="block text-sm text-white/60 mb-1.5">Deadline</label>
+          <label className="block text-sm font-bold text-white/60 mb-2">Deadline</label>
           <div className="grid grid-cols-3 gap-2">
             {DURATION_PRESETS.map((d, i) => (
               <button
                 type="button"
                 key={d.label}
                 onClick={() => setDurationIdx(i)}
-                className={`rounded-lg px-3 py-2 text-sm font-medium border transition-colors ${
-                  durationIdx === i
-                    ? 'bg-[#C6FF3D]/15 border-[#C6FF3D]/50 text-[#C6FF3D]'
-                    : 'border-white/10 text-white/60 hover:border-white/30 hover:text-white'
+                className={`rounded-xl px-3 py-2 text-sm font-bold transition-colors ${
+                  durationIdx === i ? 'bg-[#F2A65A] text-[#3b2416]' : 'bg-white/5 text-white/60 hover:bg-white/10 hover:text-white'
                 }`}
               >
                 {d.label}
@@ -201,26 +223,26 @@ export function OnchainCreateMarketPage() {
           {minRange != null && maxRange != null && minGapUsd != null && (
             <p className="text-[11px] text-white/30 mt-1.5">
               Allowed for this duration: {formatUsd(minRange)}–{formatUsd(maxRange)}, at least {formatUsd(minGapUsd)} away
-              from the current price. Enforced on-chain — the transaction will revert outside this range.
+              from the current price. Enforced on-chain - the transaction will revert outside this range.
             </p>
           )}
         </div>
 
-        {error && <p className="text-rose-400 text-sm bg-rose-500/10 border border-rose-500/30 rounded-lg px-3 py-2">{error}</p>}
+        {error && <p className="text-rose-400 text-sm bg-rose-500/10 border border-rose-500/30 rounded-xl px-3 py-2">{error}</p>}
 
         {!isConnected ? (
           <div className="pt-1 border-t border-white/10">
-            <p className="text-white/40 text-xs mb-2 mt-4">Connect a wallet to create this market:</p>
+            <p className="text-white/40 text-xs font-bold mb-2 mt-4">Connect a wallet to create this market:</p>
             <WalletOptionsList />
           </div>
         ) : !onRightChain ? (
-          <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-200 flex items-center justify-between gap-3">
+          <div className="rounded-2xl border border-[#F2A65A]/30 bg-[#F2A65A]/10 p-3 text-sm text-[#F2A65A] flex items-center justify-between gap-3">
             Wrong network.
             <button
               type="button"
               onClick={() => switchChain({ chainId: robinhoodMainnet.id })}
               disabled={isSwitching}
-              className="shrink-0 rounded-md bg-amber-500 text-black px-3 py-1 text-xs font-medium disabled:opacity-50"
+              className="shrink-0 rounded-full bg-[#F2A65A] text-[#3b2416] px-3.5 py-1 text-xs font-bold disabled:opacity-50"
             >
               Switch network
             </button>
@@ -229,12 +251,14 @@ export function OnchainCreateMarketPage() {
           <button
             type="submit"
             disabled={pending}
-            className="w-full rounded-full bg-gradient-to-r from-[#C6FF3D] to-[#8FBF1F] hover:brightness-110 text-black font-semibold py-2.5 text-sm transition-all disabled:opacity-50 shadow-[0_0_20px_-6px_rgba(198,255,61,0.7)]"
+            className="w-full inline-flex items-center justify-center gap-2.5 rounded-full bg-gradient-to-r from-[#8B7CF7] to-[#6A5AE0] hover:brightness-110 text-white font-bold py-3 text-sm transition-all disabled:opacity-50 shadow-[0_14px_36px_-12px_rgba(106,90,224,0.8)]"
           >
             {pending ? 'Confirm in wallet…' : 'Create market'}
+            {!pending && <span className="w-6 h-6 rounded-full bg-white/20 grid place-items-center text-xs">↗</span>}
           </button>
         )}
       </form>
+      </div>
     </div>
   )
 }

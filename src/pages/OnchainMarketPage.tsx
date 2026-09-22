@@ -4,8 +4,10 @@ import { formatUnits, parseAbiItem, parseUnits } from 'viem'
 import { useAccount, useChainId, useDisconnect, usePublicClient, useReadContract, useSwitchChain, useWriteContract } from 'wagmi'
 import { waitForTransactionReceipt } from 'wagmi/actions'
 import { robinhoodMainnet, wagmiConfig } from '@/chain/config'
+import { DEMO_USERS, demoBetLogs, demoPools, isDemoMode } from '@/chain/demo'
 import { useFeedSnapshot } from '@/chain/feedCache'
 import { AddressLabel } from '@/components/AddressLabel'
+import { ClockIcon } from '@/components/icons'
 import { SideBadge } from '@/components/Pills'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
 import {
@@ -79,26 +81,67 @@ export function OnchainMarketPage() {
         fromBlock: DEPLOY_BLOCK,
         toBlock: 'latest',
       })
-      setMarketBets(
-        logs
-          .filter((log) => log.args.user && log.args.side != null && log.args.amount != null)
-          .map((log) => ({
-            user: log.args.user!,
-            side: log.args.side!,
-            amount: log.args.amount!,
-            txHash: log.transactionHash,
-            blockNumber: log.blockNumber,
-          }))
-          .sort((a, b) => (a.blockNumber > b.blockNumber ? -1 : a.blockNumber < b.blockNumber ? 1 : 0)),
-      )
+      const real = logs
+        .filter((log) => log.args.user && log.args.side != null && log.args.amount != null)
+        .map((log) => ({
+          user: log.args.user!,
+          side: log.args.side!,
+          amount: log.args.amount!,
+          txHash: log.transactionHash,
+          blockNumber: log.blockNumber,
+        }))
+      const all = isDemoMode() ? [...real, ...demoBetLogs([MARKET_ID])] : real
+      setMarketBets(all.sort((a, b) => (a.blockNumber > b.blockNumber ? -1 : a.blockNumber < b.blockNumber ? 1 : 0)))
     } catch {
-      setMarketBets((prev) => prev ?? [])
+      setMarketBets((prev) => prev ?? (isDemoMode() ? demoBetLogs([MARKET_ID]) : []))
     }
   }
   useEffect(() => {
     refetchMarketBets()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [publicClient, id])
+
+  // Demo-mode heartbeat for this market: every so often a synthetic bet
+  // drops into the list and its side's pool grows, so the page visibly
+  // lives during a presentation. Display-only, nothing touches the chain.
+  const [demoExtraBets, setDemoExtraBets] = useState<MarketBet[]>([])
+  const [demoPoolExtra, setDemoPoolExtra] = useState<{ yes: bigint; no: bigint }>({ yes: 0n, no: 0n })
+  useEffect(() => {
+    setDemoExtraBets([])
+    setDemoPoolExtra({ yes: 0n, no: 0n })
+    if (!isDemoMode()) return
+    let stop = false
+    let timer: number
+    const randHex = (len: number) => {
+      let s = ''
+      for (let i = 0; i < len; i++) s += Math.floor(Math.random() * 16).toString(16)
+      return s
+    }
+    const tick = () => {
+      if (stop) return
+      const amount = BigInt((2 + Math.floor(Math.random() * 46)) * 1e6)
+      const side = Math.random() < 0.5 ? MarketSideOnchain.YES : MarketSideOnchain.NO
+      setDemoExtraBets((prev) =>
+        [
+          {
+            user: DEMO_USERS[Math.floor(Math.random() * DEMO_USERS.length)],
+            side,
+            amount,
+            txHash: `0x${randHex(64)}` as `0x${string}`,
+            blockNumber: BigInt(10_500_000 + Math.floor(Math.random() * 1000)),
+          },
+          ...prev,
+        ].slice(0, 10),
+      )
+      setDemoPoolExtra((prev) => (side === MarketSideOnchain.YES ? { yes: prev.yes + amount, no: prev.no } : { yes: prev.yes, no: prev.no + amount }))
+      timer = window.setTimeout(tick, 14_000 + Math.random() * 22_000)
+    }
+    timer = window.setTimeout(tick, 4_000 + Math.random() * 4_000)
+    return () => {
+      stop = true
+      clearTimeout(timer)
+    }
+  }, [id])
 
   // MarketCreated doesn't carry a creator field (see PredictionMarket.sol),
   // so the only way to know who created a market is the `from` of the
@@ -227,7 +270,7 @@ export function OnchainMarketPage() {
   }, [effectivePriceAnswer, effectiveDecimals])
 
   // Colors the price by whether it just ticked up or down since the last
-  // poll (not by distance from target) — ref so recording it never itself
+  // poll (not by distance from target) - ref so recording it never itself
   // triggers a re-render; read during render, updated after via the effect
   // below so this render still sees the *previous* poll's value.
   const prevPriceRef = useRef<number | null>(null)
@@ -334,31 +377,32 @@ export function OnchainMarketPage() {
 
   const status = market.data?.status
   const deadlineMs = market.data ? Number(market.data.deadline) * 1000 : 0
-  const totalPool = market.data ? market.data.poolYes + market.data.poolNo : 0n
-  const yesPct = market.data && totalPool > 0n ? Number((market.data.poolYes * 10000n) / totalPool) / 100 : 50
+  const basePools = market.data
+    ? isDemoMode()
+      ? demoPools(MARKET_ID)
+      : { poolYes: market.data.poolYes, poolNo: market.data.poolNo }
+    : { poolYes: 0n, poolNo: 0n }
+  const pools = { poolYes: basePools.poolYes + demoPoolExtra.yes, poolNo: basePools.poolNo + demoPoolExtra.no }
+  const totalPool = pools.poolYes + pools.poolNo
+  const yesPct = totalPool > 0n ? Number((pools.poolYes * 10000n) / totalPool) / 100 : 50
 
   // Betting closes before the deadline, with an early-bet weight that decays
-  // over the betting window — mirrors PredictionMarket.bettingWindowEnd()/
+  // over the betting window - mirrors PredictionMarket.bettingWindowEnd()/
   // currentWeightBp() exactly (see src/chain/contracts.ts).
   const nowSeconds = BigInt(Math.floor(Date.now() / 1000))
   const bettingWindowEndMs = market.data ? Number(bettingWindowEndSeconds(market.data.createdAt, market.data.deadline)) * 1000 : 0
   const liveWeightBp = market.data ? currentWeightBp(market.data.createdAt, market.data.deadline, nowSeconds) : null
   const bettingClosed = liveWeightBp == null
 
-  // One bet per side per market — mirrors the contract's `bet()` rule.
+  // One bet per side per market - mirrors the contract's `bet()` rule.
   const hasBetYes = (myStakeYes.data ?? 0n) > 0n
   const hasBetNo = (myStakeNo.data ?? 0n) > 0n
   const sideAlreadyBet = side === 'YES' ? hasBetYes : hasBetNo
   const bothSidesUsed = hasBetYes && hasBetNo
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8">
-      <div className="mb-6 rounded-xl border border-sky-500/30 bg-sky-500/10 px-4 py-3 text-sm text-sky-200">
-        ⛓️ This is <b>real mode</b> — actual transactions on Robinhood Chain mainnet through your wallet
-        (MetaMask/Phantom). Not a mock: gas and tokens are real, and transactions really go on-chain.
-      </div>
-
-      <Link to="/onchain" className="text-sm text-white/40 hover:text-white/70">
+    <div className="max-w-[1200px] mx-auto px-4 py-8">
+      <Link to="/onchain" className="text-sm font-bold text-white/40 hover:text-white/70">
         ← All on-chain markets
       </Link>
 
@@ -373,8 +417,8 @@ export function OnchainMarketPage() {
         </>
       ) : (
         <>
-          <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight mt-4 mb-1">
-            {ticker ?? '…'} reach {targetPriceUsd != null ? formatUsd(targetPriceUsd) : '…'}?
+          <h1 className="font-display text-3xl sm:text-4xl font-bold tracking-tight mt-4 mb-1">
+            Will {ticker ?? '…'} reach {targetPriceUsd != null ? formatUsd(targetPriceUsd) : '…'}?
           </h1>
           <p className="text-white/30 text-sm mb-5 flex items-center gap-1.5 flex-wrap">
             <span>On-chain market #{MARKET_ID.toString()}</span>
@@ -388,9 +432,11 @@ export function OnchainMarketPage() {
         </>
       )}
 
-      {/* Market data is a public read — shown regardless of wallet connection. */}
+      <div className="grid lg:grid-cols-[1fr_400px] gap-8 items-start mt-2">
+        <div>
+      {/* Market data is a public read - shown regardless of wallet connection. */}
       {market.isLoading ? (
-        <div className="rounded-2xl border border-white/10 bg-[#12121c]/95 p-5 space-y-3 mb-5 animate-pulse">
+        <div className="rounded-3xl border border-white/5 bg-[#241b2f] p-5 space-y-3 mb-5 animate-pulse">
           <div className="flex items-center justify-between">
             <div className="h-3 w-14 rounded bg-white/10" />
             <div className="h-3 w-24 rounded bg-white/10" />
@@ -414,59 +460,87 @@ export function OnchainMarketPage() {
       ) : !market.data ? (
         <p className="text-rose-400">Market not found.</p>
       ) : (
-        <div className="rounded-2xl border border-white/10 bg-[#12121c]/95 p-5 space-y-3 mb-5">
+        <div className="rounded-3xl border border-white/5 bg-[#241b2f] p-5 space-y-3 mb-5">
           <div className="flex items-center justify-between">
-            <span className="text-white/50 text-xs uppercase tracking-wider">
+            <span
+              className={`text-xs font-bold px-2.5 py-1 rounded-full ${
+                status === MarketStatusOnchain.Open
+                  ? 'bg-[#8B7CF7]/15 text-[#B3A7FA]'
+                  : status === MarketStatusOnchain.Resolved
+                    ? 'bg-[#f7f1e3]/10 text-[#f7f1e3]/80'
+                    : 'bg-white/10 text-white/50'
+              }`}
+            >
               {status === MarketStatusOnchain.Open ? 'Open' : status === MarketStatusOnchain.Resolved ? 'Resolved' : 'Cancelled'}
             </span>
-            <span className="text-white/40 text-xs">
-              {status === MarketStatusOnchain.Open &&
-                (bettingClosed
-                  ? `⏱ resolves: ${formatCountdown(deadlineMs - Date.now())}`
-                  : `⏱ betting: ${formatCountdown(bettingWindowEndMs - Date.now())}`)}
+            <span className="inline-flex items-center gap-1.5 text-white/40 text-xs font-bold">
+              {status === MarketStatusOnchain.Open && (
+                <>
+                  <ClockIcon className="w-3.5 h-3.5" />
+                  {bettingClosed
+                    ? `resolves: ${formatCountdown(deadlineMs - Date.now())}`
+                    : `betting: ${formatCountdown(bettingWindowEndMs - Date.now())}`}
+                </>
+              )}
             </span>
           </div>
           <div className="flex items-baseline justify-between">
             <div>
-              <div className={`font-mono text-2xl font-semibold ${tickedUp ? 'text-emerald-400' : 'text-rose-400'}`}>
-                {currentPriceUsd != null ? formatUsd(currentPriceUsd) : '…'}
+              <div className="flex items-center gap-2.5">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#8B7CF7]/60" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-[#8B7CF7]" />
+                </span>
+                <span className={`font-mono text-3xl font-semibold ${tickedUp ? 'text-emerald-400' : 'text-rose-400'}`}>
+                  {currentPriceUsd != null ? formatUsd(currentPriceUsd) : '…'}
+                </span>
               </div>
-              <div className="text-white/40 text-xs">current price</div>
+              <div className="text-white/40 text-xs font-bold mt-1">current price · live</div>
             </div>
             <div className="text-right">
-              <div className="font-mono text-2xl font-semibold text-white/70">{targetPriceUsd != null ? formatUsd(targetPriceUsd) : '…'}</div>
-              <div className="text-white/40 text-xs">target</div>
+              <div className="font-mono text-3xl font-semibold text-white/70">{targetPriceUsd != null ? formatUsd(targetPriceUsd) : '…'}</div>
+              <div className="text-white/40 text-xs font-bold mt-1">
+                target
+                {currentPriceUsd != null && targetPriceUsd != null && currentPriceUsd > 0 && (
+                  <span className={targetPriceUsd >= currentPriceUsd ? 'text-[#B3A7FA]' : 'text-[#F2A65A]'}>
+                    {' '}
+                    · {targetPriceUsd >= currentPriceUsd ? '+' : ''}
+                    {(((targetPriceUsd - currentPriceUsd) / currentPriceUsd) * 100).toFixed(1)}% away
+                  </span>
+                )}
+              </div>
             </div>
           </div>
-          <div className="h-2 rounded-full bg-rose-500/30 overflow-hidden">
-            <div className="h-full bg-emerald-500" style={{ width: `${yesPct}%` }} />
+          <div className="h-2 rounded-full bg-[#3b2a20] overflow-hidden">
+            <div className="h-full rounded-full bg-[#8B7CF7] transition-[width] duration-700" style={{ width: `${yesPct}%` }} />
           </div>
-          <div className="flex justify-between text-xs text-white/40">
-            <span>YES {yesPct.toFixed(1)}%</span>
-            <span>
-              {formatUnits(market.data.poolYes, BET_TOKEN_DECIMALS)} vs {formatUnits(market.data.poolNo, BET_TOKEN_DECIMALS)} USDG
+          <div className="flex justify-between text-xs font-bold">
+            <span className="text-[#B3A7FA]">YES {yesPct.toFixed(1)}%</span>
+            <span className="text-white/40">
+              {formatUnits(pools.poolYes, BET_TOKEN_DECIMALS)} vs {formatUnits(pools.poolNo, BET_TOKEN_DECIMALS)} USDG
             </span>
-            <span>NO {(100 - yesPct).toFixed(1)}%</span>
+            <span className="text-[#F2A65A]">NO {(100 - yesPct).toFixed(1)}%</span>
           </div>
         </div>
       )}
 
       <div className="mb-5">
-        <h2 className="text-sm font-bold mb-2">Bets on this market</h2>
+        <h2 className="font-display text-base font-bold mb-2">Bets on this market</h2>
         {marketBets == null ? (
           <div className="space-y-1.5 animate-pulse">
             {[0, 1, 2].map((i) => (
               <div key={i} className="h-8 rounded-lg bg-white/5" />
             ))}
           </div>
-        ) : marketBets.length === 0 ? (
+        ) : marketBets.length === 0 && demoExtraBets.length === 0 ? (
           <p className="text-white/30 text-xs">No bets placed yet.</p>
         ) : (
           <div className="space-y-1.5">
-            {marketBets.map((b) => (
+            {[...demoExtraBets, ...marketBets].map((b) => (
               <div
                 key={b.txHash}
-                className="flex items-center gap-3 text-xs bg-[#12121c]/95 border border-white/10 rounded-lg px-3 py-2"
+                style={{ animation: 'row-in 0.5s ease' }}
+                className="flex items-center gap-3 text-xs bg-[#241b2f] border border-white/5 rounded-xl px-3 py-2"
               >
                 <SideBadge side={b.side === MarketSideOnchain.YES ? 'YES' : 'NO'} />
                 <AddressLabel address={b.user} className="font-mono text-white/70 hover:text-white" />
@@ -475,7 +549,7 @@ export function OnchainMarketPage() {
                   href={`${robinhoodMainnet.blockExplorers.default.url}/tx/${b.txHash}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="ml-auto shrink-0 font-mono px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-[#C6FF3D]/90 hover:bg-white/10 transition-colors"
+                  className="ml-auto shrink-0 font-mono px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-[#B3A7FA] hover:bg-white/10 transition-colors"
                 >
                   {shortHash(b.txHash)}
                 </a>
@@ -484,16 +558,67 @@ export function OnchainMarketPage() {
           </div>
         )}
       </div>
+        </div>
+
+        <div className="lg:sticky lg:top-24 space-y-4">
+          <div className="rounded-3xl border border-white/5 bg-[#241b2f] p-5 flex items-center gap-4">
+            <img
+              src={`${import.meta.env.BASE_URL}brand/mascot-small.png`}
+              alt=""
+              className="w-14 shrink-0"
+              style={{ animation: 'mascot-float 5s ease-in-out infinite' }}
+            />
+            <div className="-rotate-1 rounded-2xl rounded-bl-sm bg-[#fdf9ee] px-3.5 py-2 shadow-md text-xs font-bold text-[#241a33]">
+              Pick a side.
+              <br />
+              The future is listening.
+            </div>
+          </div>
 
       {!isConnected ? (
-        <WalletOptionsList />
+        <div className="space-y-4">
+          {/* Inactive preview of the bet form - the real one appears once a
+              wallet is connected. Shows what betting looks like instead of
+              hiding it entirely. */}
+          {market.data && status === MarketStatusOnchain.Open && !bettingClosed && (
+            <div className="rounded-3xl border border-white/5 bg-[#241b2f] p-4 space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  disabled
+                  className="py-2.5 rounded-xl text-sm font-extrabold border border-white/10 text-white/25 cursor-not-allowed"
+                >
+                  YES ↗
+                </button>
+                <button
+                  disabled
+                  className="py-2.5 rounded-xl text-sm font-extrabold border border-white/10 text-white/25 cursor-not-allowed"
+                >
+                  NO ↘
+                </button>
+              </div>
+              <input
+                disabled
+                placeholder="Amount in USDG"
+                className="w-full rounded-xl bg-white/5 border border-white/10 px-3.5 py-2.5 text-sm placeholder:text-white/25 cursor-not-allowed"
+              />
+              <button
+                disabled
+                className="w-full rounded-xl bg-white/10 text-white/30 font-bold py-2.5 text-sm cursor-not-allowed"
+              >
+                Place bet
+              </button>
+              <p className="text-[11px] font-bold text-[#B3A7FA] text-center">Connect a wallet below to place a real bet ↓</p>
+            </div>
+          )}
+          <WalletOptionsList />
+        </div>
       ) : !onRightChain ? (
-        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-4 text-sm text-amber-200">
+        <div className="rounded-2xl border border-[#F2A65A]/30 bg-[#F2A65A]/10 p-4 text-sm text-[#F2A65A]">
           Wrong network. You need Robinhood Chain.
           <button
             onClick={() => switchChain({ chainId: robinhoodMainnet.id })}
             disabled={isSwitching}
-            className="ml-3 rounded-md bg-amber-500 text-black px-3 py-1 font-medium"
+            className="ml-3 rounded-full bg-[#F2A65A] text-[#3b2416] px-3.5 py-1 font-bold"
           >
             Switch network
           </button>
@@ -512,21 +637,21 @@ export function OnchainMarketPage() {
               {status === MarketStatusOnchain.Open && (
                 <>
                   {deadlineMs <= Date.now() && (
-                    <button onClick={handleResolve} className="w-full rounded-lg bg-white/10 hover:bg-white/20 py-2 text-sm">
+                    <button onClick={handleResolve} className="w-full rounded-xl bg-white/10 hover:bg-white/20 py-2.5 text-sm font-bold transition-colors">
                       Resolve now (deadline passed)
                     </button>
                   )}
 
                   {bettingClosed ? (
                     <p className="text-sm text-white/40">
-                      Betting on this market is closed — waiting for the deadline so it can resolve.
+                      Betting on this market is closed - waiting for the deadline so it can resolve.
                     </p>
                   ) : (
-                    <div className="rounded-lg border border-white/10 p-4 space-y-3">
-                      <div className="flex items-center justify-between text-xs text-white/50">
+                    <div className="rounded-3xl border border-white/5 bg-[#241b2f] p-4 space-y-3">
+                      <div className="flex items-center justify-between text-xs text-white/50 font-medium">
                         <span>Your balance: {betTokenBalance.data != null ? formatUnits(betTokenBalance.data, BET_TOKEN_DECIMALS) : '…'} USDG</span>
                         {liveWeightBp != null && (
-                          <span className="text-emerald-400/80">
+                          <span className="font-bold text-[#B3A7FA]">
                             Early-bet bonus: {(Number(liveWeightBp) / Number(BP_DENOMINATOR)).toFixed(2)}x
                           </span>
                         )}
@@ -534,7 +659,7 @@ export function OnchainMarketPage() {
 
                       {bothSidesUsed ? (
                         <p className="text-xs text-white/40">
-                          You've already bet both YES and NO on this market — one bet per side, no more allowed.
+                          You've already bet both YES and NO on this market - one bet per side, no more allowed.
                         </p>
                       ) : (
                         <>
@@ -542,22 +667,22 @@ export function OnchainMarketPage() {
                             <button
                               onClick={() => setSide('YES')}
                               disabled={hasBetYes}
-                              className={`py-2 rounded-lg text-sm font-medium border disabled:opacity-40 disabled:cursor-not-allowed ${side === 'YES' ? 'bg-emerald-500 text-black border-emerald-500' : 'border-white/10 text-white/60'}`}
+                              className={`py-2.5 rounded-xl text-sm font-extrabold border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${side === 'YES' ? 'bg-[#8B7CF7] text-[#f7f1e3] border-[#8B7CF7]' : 'border-white/10 text-white/60 hover:border-[#8B7CF7]/40'}`}
                             >
-                              YES{hasBetYes ? ' ✓' : ''}
+                              YES ↗{hasBetYes ? ' ✓' : ''}
                             </button>
                             <button
                               onClick={() => setSide('NO')}
                               disabled={hasBetNo}
-                              className={`py-2 rounded-lg text-sm font-medium border disabled:opacity-40 disabled:cursor-not-allowed ${side === 'NO' ? 'bg-rose-500 text-black border-rose-500' : 'border-white/10 text-white/60'}`}
+                              className={`py-2.5 rounded-xl text-sm font-extrabold border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${side === 'NO' ? 'bg-[#F2A65A] text-[#3b2416] border-[#F2A65A]' : 'border-white/10 text-white/60 hover:border-[#F2A65A]/40'}`}
                             >
-                              NO{hasBetNo ? ' ✓' : ''}
+                              NO ↘{hasBetNo ? ' ✓' : ''}
                             </button>
                           </div>
 
                           {sideAlreadyBet ? (
-                            <p className="text-xs text-amber-400/80">
-                              You've already bet {side === 'YES' ? 'YES' : 'NO'} on this market — pick the other side.
+                            <p className="text-xs font-bold text-[#F2A65A]/80">
+                              You've already bet {side === 'YES' ? 'YES' : 'NO'} on this market - pick the other side.
                             </p>
                           ) : (
                             <>
@@ -565,18 +690,20 @@ export function OnchainMarketPage() {
                                 type="number"
                                 value={amount}
                                 onChange={(e) => setAmount(e.target.value)}
-                                className="w-full rounded-lg bg-white/5 border border-white/10 px-3 py-2 text-sm"
+                                className="w-full rounded-xl bg-white/5 border border-white/10 px-3.5 py-2.5 text-sm font-medium outline-none focus:border-[#8B7CF7]/50 transition-colors"
                                 placeholder="Amount in USDG"
                               />
                               <p className="text-[11px] text-white/30">
-                                USDG only for now — ETH support is planned for a future update. Want another token
+                                USDG only for now - ETH support is planned for a future update. Want another token
                                 supported? Let us know what you'd like next.
                               </p>
                               <button
                                 onClick={handleBet}
                                 disabled={!!tx}
-                                className={`w-full rounded-lg text-black font-medium py-2 text-sm disabled:opacity-50 transition-colors ${
-                                  side === 'YES' ? 'bg-emerald-500 hover:bg-emerald-400' : 'bg-rose-500 hover:bg-rose-400'
+                                className={`w-full rounded-xl font-bold py-2.5 text-sm disabled:opacity-50 transition-all ${
+                                  side === 'YES'
+                                    ? 'bg-gradient-to-r from-[#8B7CF7] to-[#6A5AE0] hover:brightness-110 text-white'
+                                    : 'bg-gradient-to-r from-[#F2A65A] to-[#ED8F3A] hover:brightness-110 text-[#3b2416]'
                                 }`}
                               >
                                 {tx ? tx.label : 'Place bet (approve + bet)'}
@@ -594,7 +721,7 @@ export function OnchainMarketPage() {
                 <button
                   onClick={() => handleClaimOrRefund('claim')}
                   disabled={!!tx || hasClaimed.data === true}
-                  className="w-full rounded-lg bg-gradient-to-r from-[#C6FF3D] to-[#8FBF1F] hover:brightness-110 text-black font-semibold py-2 text-sm disabled:opacity-50 transition-all"
+                  className="w-full rounded-xl bg-gradient-to-r from-[#8B7CF7] to-[#6A5AE0] hover:brightness-110 text-white font-bold py-2.5 text-sm disabled:opacity-50 transition-all"
                 >
                   {hasClaimed.data ? 'Already claimed' : tx ? tx.label : 'Claim winnings'}
                 </button>
@@ -605,14 +732,14 @@ export function OnchainMarketPage() {
                   <button
                     onClick={() => handleClaimOrRefund('refund', MarketSideOnchain.YES)}
                     disabled={!!tx || (myStakeYes.data ?? 0n) === 0n}
-                    className="rounded-lg bg-white/10 hover:bg-white/20 py-2 text-sm disabled:opacity-30"
+                    className="rounded-xl bg-[#372a4f] text-[#B3A7FA] font-bold hover:bg-[#433460] py-2.5 text-sm disabled:opacity-30 transition-colors"
                   >
                     Refund YES
                   </button>
                   <button
                     onClick={() => handleClaimOrRefund('refund', MarketSideOnchain.NO)}
                     disabled={!!tx || (myStakeNo.data ?? 0n) === 0n}
-                    className="rounded-lg bg-white/10 hover:bg-white/20 py-2 text-sm disabled:opacity-30"
+                    className="rounded-xl bg-[#3b2a20] text-[#F2A65A] font-bold hover:bg-[#4a3428] py-2.5 text-sm disabled:opacity-30 transition-colors"
                   >
                     Refund NO
                   </button>
@@ -624,6 +751,8 @@ export function OnchainMarketPage() {
           {error && <p className="text-sm text-rose-400">{error}</p>}
         </div>
       )}
+        </div>
+      </div>
     </div>
   )
 }

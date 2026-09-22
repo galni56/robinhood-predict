@@ -7,7 +7,7 @@ import { useChainStore } from '@/store/chainStore'
 export function AddressDetailPage() {
   const { address = '' } = useParams()
   const balance = useChainStore((s) => s.balanceOf(address))
-  // Stable function reference, called below — see note in
+  // Stable function reference, called below - see note in
   // MarketDetailPage.tsx for why calling it directly inside the selector
   // would cause an infinite re-render loop.
   const txsForAddress = useChainStore((s) => s.txsForAddress)

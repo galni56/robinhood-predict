@@ -19,13 +19,13 @@ export function LeaderboardPage() {
       <div>
         <h1 className="text-2xl font-semibold">Leaderboard</h1>
         <p className="text-white/50 text-sm mt-1">
-          Ranked by net P&amp;L among everyone who's placed at least one bet — open to any visitor, no account
+          Ranked by net P&amp;L among everyone who's placed at least one bet - open to any visitor, no account
           required to look.
         </p>
       </div>
 
       {!user && (
-        <div className="bg-gradient-to-r from-[#C6FF3D]/15 to-[#8FBF1F]/10 border border-[#C6FF3D]/20 rounded-xl p-4 flex items-center justify-between flex-wrap gap-3">
+        <div className="bg-gradient-to-r from-[#8B7CF7]/15 to-[#6A5AE0]/10 border border-[#8B7CF7]/20 rounded-xl p-4 flex items-center justify-between flex-wrap gap-3">
           <p className="text-sm text-white/70">Want your name on this board? Sign up, place a bet, and climb it.</p>
           <div className="flex gap-2 shrink-0">
             <Link
@@ -36,7 +36,7 @@ export function LeaderboardPage() {
             </Link>
             <Link
               to="/register"
-              className="text-sm px-3 py-1.5 rounded-lg bg-gradient-to-r from-[#C6FF3D] to-[#8FBF1F] hover:brightness-110 text-black font-semibold transition-all"
+              className="text-sm px-3 py-1.5 rounded-lg bg-gradient-to-r from-[#8B7CF7] to-[#6A5AE0] hover:brightness-110 text-black font-semibold transition-all"
             >
               Sign up
             </Link>
@@ -65,8 +65,8 @@ export function LeaderboardPage() {
           ))}
           {rows.length === 0 && (
             <div className="text-center py-10">
-              <p className="text-white/40 text-sm mb-3">No one's on the board yet — place the first bet and take the top spot.</p>
-              <Link to="/markets" className="text-[#C6FF3D] hover:underline text-sm">
+              <p className="text-white/40 text-sm mb-3">No one's on the board yet - place the first bet and take the top spot.</p>
+              <Link to="/markets" className="text-[#8B7CF7] hover:underline text-sm">
                 Browse markets →
               </Link>
             </div>

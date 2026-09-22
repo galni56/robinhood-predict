@@ -38,7 +38,7 @@ export function StatusBadge({ status }: { status: 'pending' | 'confirmed' }) {
 
 export function AwaitingCounterBetsBadge() {
   return (
-    <span className="text-[11px] font-medium px-2.5 py-1 leading-none whitespace-nowrap rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30">
+    <span className="text-[11px] font-bold px-2.5 py-1 leading-none whitespace-nowrap rounded-full bg-[#F2A65A]/15 text-[#F2A65A] border border-[#F2A65A]/30">
       Awaiting Counter-Bets
     </span>
   )
@@ -57,8 +57,8 @@ export function SideBadge({ side }: { side: 'YES' | 'NO' }) {
     <span
       className={
         side === 'YES'
-          ? 'text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
-          : 'text-xs font-semibold px-2 py-0.5 rounded-full bg-rose-500/15 text-rose-400 border border-rose-500/30'
+          ? 'text-xs font-bold px-2 py-0.5 rounded-full bg-[#8B7CF7]/15 text-[#B3A7FA] border border-[#8B7CF7]/35'
+          : 'text-xs font-bold px-2 py-0.5 rounded-full bg-[#F2A65A]/15 text-[#F2A65A] border border-[#F2A65A]/35'
       }
     >
       {side === 'YES' ? 'YES' : 'NO'}

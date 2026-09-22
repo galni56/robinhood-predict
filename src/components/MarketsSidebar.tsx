@@ -7,7 +7,7 @@ import { useChainStore } from '@/store/chainStore'
 import { useMarketStore } from '@/store/marketStore'
 
 /** Side-rail widgets for the markets list: a top-5 mini leaderboard and a
- * feed of recent bets, biggest first — gives the list some of the
+ * feed of recent bets, biggest first - gives the list some of the
  * ticker-wall energy of a real trading terminal without a full redesign. */
 export function MarketsSidebar() {
   const users = useAuthStore((s) => s.users)
@@ -30,7 +30,7 @@ export function MarketsSidebar() {
       <div className="rounded-2xl border border-white/10 bg-[#12121c]/95 p-4">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-bold flex items-center gap-1.5">🏆 Leaderboard</h2>
-          <Link to="/leaderboard" className="text-xs text-[#C6FF3D]/80 hover:text-[#d9ff80]">
+          <Link to="/leaderboard" className="text-xs text-[#8B7CF7]/80 hover:text-[#d9ff80]">
             all →
           </Link>
         </div>

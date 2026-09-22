@@ -24,7 +24,7 @@ export function MarketDetailPage() {
   const price = useMarketStore((s) => s.prices[market?.symbol ?? ''])
   const series = useMarketStore((s) => s.history[market?.symbol ?? ''] ?? EMPTY_HISTORY)
   // These read a *stable function reference* out of the store, then get
-  // called below in the render body — not inside the selector itself. Zustand
+  // called below in the render body - not inside the selector itself. Zustand
   // v5 compares selector results by identity (via useSyncExternalStore); a
   // selector that computes a new array/object every call (e.g. `s.oddsFor(id)`
   // directly) causes "Maximum update depth exceeded" / infinite re-render.
@@ -38,7 +38,7 @@ export function MarketDetailPage() {
     .filter((t) => t.marketId === marketId)
     .sort((a, b) => b.timestamp - a.timestamp)
 
-  // Came back from /login after clicking the bet form's login prompt — force
+  // Came back from /login after clicking the bet form's login prompt - force
   // BetForm to remount pre-selected on the side that was chosen before.
   const reopenBet = (location.state as { reopenBet?: { side: MarketSide } } | null)?.reopenBet
   useEffect(() => {
@@ -52,7 +52,7 @@ export function MarketDetailPage() {
   const awaitingCounterBets = market.poolYes === 0 || market.poolNo === 0
 
   // Betting closes before the deadline, with an early-bet weight that decays
-  // over the betting window — mirrors the contract exactly (see marketStore.ts).
+  // over the betting window - mirrors the contract exactly (see marketStore.ts).
   const cutoffMs = bettingWindowEnd(market.createdAt, market.deadline)
   const bettingClosed = currentWeightBp(market.createdAt, market.deadline, Date.now()) == null
 
@@ -126,7 +126,7 @@ export function MarketDetailPage() {
             <div className="mt-3">
               <CancelledBadge />
               <p className="text-white/40 text-sm mt-2">
-                Market cancelled — bets came in on only one side, so everyone was refunded in full.
+                Market cancelled - bets came in on only one side, so everyone was refunded in full.
               </p>
             </div>
           ) : market.resolved ? (

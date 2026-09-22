@@ -2,11 +2,11 @@ import { useEffect, useRef } from 'react'
 import { CORE_TICKERS, useCorePrices } from '@/chain/robinhoodApi'
 import { formatUsd } from '@/lib/format'
 
-/** Horizontal auto-scrolling price strip — 30 tickers, live bid price,
+/** Horizontal auto-scrolling price strip - 30 tickers, live bid price,
  * colored by whether it just ticked up or down since the last 15s poll
  * (compared client-side, since the API gives a snapshot, not history).
  * Shares its price cache with TokenBrowser's default view via
- * useCorePrices() — see robinhoodApi.ts — instead of firing its own
+ * useCorePrices() - see robinhoodApi.ts - instead of firing its own
  * duplicate requests for the same tickers. */
 export function TickerTape() {
   const prices = useCorePrices()
@@ -20,7 +20,7 @@ export function TickerTape() {
   }, [prices.data])
 
   if (!prices.data) {
-    return <div className="border-y border-white/10 bg-[#0a0a12] h-10" />
+    return <div className="border-y border-white/10 bg-[#17111f] h-10" />
   }
 
   const items = CORE_TICKERS.map((ticker) => {
@@ -36,7 +36,7 @@ export function TickerTape() {
   const track = [...items, ...items]
 
   return (
-    <div className="border-y border-white/10 bg-[#0a0a12] overflow-hidden group">
+    <div className="border-y border-white/10 bg-[#17111f] overflow-hidden group">
       <div className="flex w-max animate-[ticker-scroll_60s_linear_infinite] group-hover:[animation-play-state:paused]">
         {track.map((item, i) => (
           <span key={`${item.ticker}-${i}`} className="flex items-center gap-1.5 px-4 py-2 text-xs whitespace-nowrap shrink-0">

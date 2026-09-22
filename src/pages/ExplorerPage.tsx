@@ -30,7 +30,7 @@ export function ExplorerPage() {
       <div>
         <h1 className="text-2xl font-semibold">{RHCHAIN_META.name} explorer</h1>
         <p className="text-white/50 text-sm mt-1">
-          Every block and transaction from this mock demo, generated live in your browser — public, no account
+          Every block and transaction from this mock demo, generated live in your browser - public, no account
           needed to look up a hash, block, or wallet.
         </p>
       </div>

@@ -36,8 +36,8 @@ export function CreateMarketPage() {
     <div className="max-w-lg mx-auto px-4 py-8">
       <h1 className="text-2xl font-semibold mb-1">Create a market</h1>
       <p className="text-white/50 text-sm mb-6">
-        Anyone can create a market — it shows up in the main list right away. The target price can't exceed{' '}
-        {formatUsd(MAX_TARGET_PRICE, 0)}. YES/NO pools start at $0 — if only one side has bets by the deadline, the
+        Anyone can create a market - it shows up in the main list right away. The target price can't exceed{' '}
+        {formatUsd(MAX_TARGET_PRICE, 0)}. YES/NO pools start at $0 - if only one side has bets by the deadline, the
         market cancels and money is refunded in full.
       </p>
 
@@ -51,7 +51,7 @@ export function CreateMarketPage() {
           >
             {TOKENS.map((t) => (
               <option key={t.symbol} value={t.symbol}>
-                {t.symbol} — {t.name}
+                {t.symbol} - {t.name}
               </option>
             ))}
           </select>
@@ -128,7 +128,7 @@ export function CreateMarketPage() {
 
         <button
           type="submit"
-          className="w-full rounded-lg bg-gradient-to-r from-[#C6FF3D] to-[#8FBF1F] hover:brightness-110 text-black font-semibold py-2 text-sm transition-all"
+          className="w-full rounded-lg bg-gradient-to-r from-[#8B7CF7] to-[#6A5AE0] hover:brightness-110 text-black font-semibold py-2 text-sm transition-all"
         >
           Create market
         </button>

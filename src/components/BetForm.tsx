@@ -10,7 +10,7 @@ const BP_DENOMINATOR = 10_000
 
 /** The actual bet-placing widget: side toggle, amount, payout preview,
  * submit. Used inline on the market detail page and inside `BetModal` for
- * the quick-bet popup from the markets list — same rules either way (one
+ * the quick-bet popup from the markets list - same rules either way (one
  * bet per side, betting-window cutoff, early-bet weight bonus). When the
  * viewer isn't logged in, shows a login prompt that forwards `marketId`/
  * `side` via router state so `/login` can bounce them right back here with
@@ -33,7 +33,7 @@ export function BetForm({ marketId, initialSide = 'YES' }: { marketId: string; i
   if (!market) return null
 
   if (market.cancelled || market.resolved) {
-    return <p className="text-white/40 text-sm">{market.cancelled ? 'Market cancelled — betting is closed.' : 'Market has already resolved.'}</p>
+    return <p className="text-white/40 text-sm">{market.cancelled ? 'Market cancelled - betting is closed.' : 'Market has already resolved.'}</p>
   }
 
   const positions = positionsForUser(user?.id ?? '')
@@ -78,18 +78,18 @@ export function BetForm({ marketId, initialSide = 'YES' }: { marketId: string; i
   }
 
   if (bettingClosed) {
-    return <p className="text-xs text-white/40">Betting on this market is closed — waiting for the deadline so it can resolve.</p>
+    return <p className="text-xs text-white/40">Betting on this market is closed - waiting for the deadline so it can resolve.</p>
   }
 
   if (bothSidesUsed) {
-    return <p className="text-xs text-white/40">You've already bet both YES and NO on this market — one bet per side, no more allowed.</p>
+    return <p className="text-xs text-white/40">You've already bet both YES and NO on this market - one bet per side, no more allowed.</p>
   }
 
   return (
     <div className="space-y-3">
       {liveWeightBp != null && (
         <p className="text-[11px] text-emerald-400/80">
-          Early-bet bonus right now: {(liveWeightBp / BP_DENOMINATOR).toFixed(2)}x — the earlier you bet, the bigger it gets.
+          Early-bet bonus right now: {(liveWeightBp / BP_DENOMINATOR).toFixed(2)}x - the earlier you bet, the bigger it gets.
         </p>
       )}
       <div className="grid grid-cols-2 gap-2">
@@ -118,7 +118,7 @@ export function BetForm({ marketId, initialSide = 'YES' }: { marketId: string; i
       </div>
 
       {sideAlreadyBet ? (
-        <p className="text-xs text-amber-400/80">You've already bet {side === 'YES' ? 'YES' : 'NO'} on this market — pick the other side.</p>
+        <p className="text-xs text-amber-400/80">You've already bet {side === 'YES' ? 'YES' : 'NO'} on this market - pick the other side.</p>
       ) : (
         <>
           <div>
@@ -130,13 +130,13 @@ export function BetForm({ marketId, initialSide = 'YES' }: { marketId: string; i
               min={1}
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              className="w-full rounded-lg bg-black/30 border border-white/10 px-3 py-2 text-sm outline-none focus:border-[#C6FF3D]/60"
+              className="w-full rounded-lg bg-black/30 border border-white/10 px-3 py-2 text-sm outline-none focus:border-[#8B7CF7]/60"
             />
           </div>
 
           <p className="text-xs text-white/40">
             Potential payout: <span className="text-white/70">{formatUsd(potentialPayout || 0)}</span>{' '}
-            (parimutuel, minus {formatPct(PROTOCOL_FEE_BP / BP_DENOMINATOR, 0)} protocol fee on winnings only — depends on
+            (parimutuel, minus {formatPct(PROTOCOL_FEE_BP / BP_DENOMINATOR, 0)} protocol fee on winnings only - depends on
             the final pool)
           </p>
 

@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { ALLOWLISTED_FEEDS } from '@/chain/contracts'
 
 // Robinhood Chain's own read-only REST API (see docs.robinhood.com/chain/stock-token-apis)
-// — gives token metadata + live prices for every tokenized stock, separate
+// - gives token metadata + live prices for every tokenized stock, separate
 // from our own PredictionMarket contract. Blocked by CORS from a browser and
 // geo-blocked from some networks when called directly, so both `npm run dev`
 // (vite.config.ts) and prod (nginx on the VPS) proxy it under our own origin.
@@ -28,7 +28,7 @@ export interface RobinhoodQuote {
   dailyLow: string
 }
 
-/** Full token catalog (~194 tickers) — name, symbol, contract address, logo.
+/** Full token catalog (~194 tickers) - name, symbol, contract address, logo.
  * Static-ish (assets rarely get added/removed), so cached for a while. */
 export function useRobinhoodAssets(enabled = true) {
   return useQuery({
@@ -62,12 +62,12 @@ async function fetchPrices(symbols: string[]) {
 
 /** Live bid/ask/volume for a specific set of tickers. The API is per-symbol
  * (no batch endpoint), so this fires one request per ticker in parallel.
- * Refetches every 15s to match the API's own server-side cache window —
+ * Refetches every 15s to match the API's own server-side cache window -
  * polling faster just re-fetches the same cached value.
  *
  * The query key includes `symbols` itself, so two callers passing
  * different arrays (even with overlapping tickers) get separate cache
- * entries and separate requests — fine for a genuinely different symbol
+ * entries and separate requests - fine for a genuinely different symbol
  * set (e.g. search results), wasteful for a set that's shown elsewhere
  * unchanged. Use `useCorePrices()` below for the common/shared set instead
  * of passing `CORE_TICKERS` here. */
@@ -81,7 +81,7 @@ export function useRobinhoodPrices(symbols: string[]) {
 }
 
 // The tickers shown by default in more than one place at once (ticker tape,
-// token browser's empty-search view) — kept as one list so every consumer
+// token browser's empty-search view) - kept as one list so every consumer
 // shares the query below instead of each firing its own duplicate requests
 // for the same symbols every 15s. Union of a fixed "recognizable name"
 // list and every allowlisted ticker (TokenBrowser's default view shows all
@@ -96,7 +96,7 @@ export const CORE_TICKERS = Array.from(new Set([...RECOGNIZABLE_TICKERS, ...ALLO
 
 /** Prices for CORE_TICKERS on a fixed query key (not parameterized by any
  * caller-supplied array), so every component using this hook shares the
- * exact same React Query cache entry — one set of requests every 15s no
+ * exact same React Query cache entry - one set of requests every 15s no
  * matter how many places on screen show these tickers. */
 export function useCorePrices() {
   return useQuery({
