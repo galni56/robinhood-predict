@@ -33,7 +33,7 @@ export function Footer() {
           <div className="flex items-center gap-2">
             <img src={`${import.meta.env.BASE_URL}brand/mascot-small.png`} alt="" className="w-7 h-7 shrink-0" />
             <span className="font-display font-bold text-lg text-[#f7f1e3]">
-              prophet markets<span className="text-[#8B7CF7]">.</span>
+              Prophet Markets<span className="text-[#8B7CF7]">.</span>
             </span>
           </div>
           <p className="text-white/40 text-sm mt-3">

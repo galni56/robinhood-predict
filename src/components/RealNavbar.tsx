@@ -32,7 +32,7 @@ export function RealNavbar() {
         <NavLink to="/" className="flex items-center gap-2 shrink-0">
           <img src={`${import.meta.env.BASE_URL}brand/mascot-small.png`} alt="" className="w-9 h-9 shrink-0" />
           <span className="font-display font-bold text-xl leading-none text-[#f7f1e3]">
-            prophet markets<span className="text-[#8B7CF7]">.</span>
+            Prophet Markets<span className="text-[#8B7CF7]">.</span>
           </span>
           {localRaceRoute && <span className="hidden text-xs font-normal text-white/30 sm:inline">on Local Anvil (test only)</span>}
         </NavLink>
