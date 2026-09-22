@@ -580,7 +580,10 @@ lint notes and signature-cache permission warnings remain unrelated.
 Sandbox listener/connect EPERM was confirmed environmental and resolved by
 approved execution outside the sandbox. No tests were skipped or weakened.
 
-No remaining local blocker. Next production-readiness step: verify monitored
-archive RPC common historical reads for all thirteen at the required grace
-lookback, and operator signer/keeper/frontend configuration using the production
-runbook. Public-chain rehearsal/deployment needs separate explicit authorization.
+No remaining local blocker. On 2026-09-22 the operator-run Alchemy Robinhood
+Mainnet probe passed current plus 60/300/600/3600-second common historical reads
+for all thirteen production Memes, including native-V4 FRONG and consecutive
+endpoint/boundary lineage. This is sampled capability evidence, not an archive
+SLA. The next production-readiness step is operator signer/keeper/frontend
+configuration using the production runbook. Public-chain rehearsal/deployment
+needs separate explicit authorization.

@@ -7,6 +7,7 @@ pragma solidity ^0.8.24;
 import {Script, console} from "forge-std/Script.sol";
 import {AssetRace} from "../src/AssetRace.sol";
 import {SignedPoolRaceOracle} from "../src/oracles/SignedPoolRaceOracle.sol";
+import {AssetRaceOperatorSafety} from "./helpers/AssetRaceOperatorSafety.sol";
 
 contract ConfigureAssetRace is Script {
     uint8 private constant STOCK_DECIMALS = 18;
@@ -18,6 +19,7 @@ contract ConfigureAssetRace is Script {
         SignedPoolRaceOracle oracle = SignedPoolRaceOracle(vm.envAddress("ASSET_RACE_SIGNED_POOL_ORACLE_ADDRESS"));
         address expectedSigner = vm.envAddress("ASSET_RACE_PRICE_SIGNER_ADDRESS");
         require(oracle.TRUSTED_SIGNER() == expectedSigner, "price signer mismatch");
+        AssetRaceOperatorSafety.validateConfiguration(vm.addr(deployerKey), race.owner(), expectedSigner);
 
         uint64 maxPriceAge = _envUint64("ASSET_RACE_MAX_PRICE_AGE");
         uint64 maxEndpointLag = _envUint64("ASSET_RACE_MAX_ENDPOINT_LAG");

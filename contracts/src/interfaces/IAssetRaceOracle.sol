@@ -9,7 +9,6 @@ interface IAssetRaceOracle {
     enum EndpointProofType {
         NONE,
         CHAINLINK_ROUND_PAIR,
-        SIGNED_OBSERVATION_PAIR,
         SIGNED_POOL_BLOCK_PAIR
     }
 

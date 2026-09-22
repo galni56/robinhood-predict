@@ -10,6 +10,7 @@ import {
 
 export const POOL_PRICE_DECIMALS = 18
 export const ROBINHOOD_CHAIN_ID = 4663
+export const ROBINHOOD_MULTICALL3 = getAddress('0xcA11bde05977b3631167028862bE2a173976CA11')
 export const UNISWAP_V3_FACTORY = getAddress('0x1f7d7550B1b028f7571E69A784071F0205FD2EfA')
 export const UNISWAP_V4_POOL_MANAGER = getAddress('0x8366a39CC670B4001A1121B8F6A443A643e40951')
 export const UNISWAP_V4_STATE_VIEW = getAddress('0xf3334192d15450cdd385c8b70e03f9a6bd9e673b')
@@ -18,6 +19,12 @@ export const UNISWAP_INTERFACE_MULTICALL = getAddress('0x282a3c4d320cc7f0d5eaf56
 
 export const POOL_PROTOCOL = { UNISWAP_V3: 1, UNISWAP_V4: 2 }
 const Q192 = 1n << 192n
+
+export function poolChainContracts(chainId) {
+  return Number(chainId) === ROBINHOOD_CHAIN_ID
+    ? { multicall3: { address: ROBINHOOD_MULTICALL3 } }
+    : {}
+}
 
 const v3PoolAbi = parseAbi([
   'function token0() view returns (address)',
@@ -237,18 +244,38 @@ export async function findEndpointBlock(client, targetTimestamp) {
   const latest = await client.getBlock({ blockTag: 'latest' })
   if (latest.timestamp < target) throw new Error('EndpointBlockNotAvailable')
 
-  let low = 1n
-  let high = latest.number
+  // Timely keepers normally need only latest + its recent ancestors. Search
+  // backwards exponentially before a bounded binary search instead of probing
+  // the whole chain from genesis for every T0/T1.
+  const blocks = new Map([[latest.number, latest]])
+  const read = async (blockNumber) => {
+    if (!blocks.has(blockNumber)) blocks.set(blockNumber, await client.getBlock({ blockNumber }))
+    return blocks.get(blockNumber)
+  }
+  let upper = latest
+  let lower
+  let step = 1n
+  while (upper.number > 0n) {
+    const candidateNumber = upper.number > step ? upper.number - step : 0n
+    const candidate = await read(candidateNumber)
+    if (candidate.timestamp < target) {
+      lower = candidate
+      break
+    }
+    upper = candidate
+    step <<= 1n
+  }
+  if (!lower) throw new Error('EndpointBlockBeforeGenesis')
+
+  let low = lower.number + 1n
+  let high = upper.number
   while (low < high) {
     const middle = (low + high) >> 1n
-    const block = await client.getBlock({ blockNumber: middle })
+    const block = await read(middle)
     if (block.timestamp >= target) high = middle
     else low = middle + 1n
   }
-  const [previous, selected] = await Promise.all([
-    client.getBlock({ blockNumber: low - 1n }),
-    client.getBlock({ blockNumber: low }),
-  ])
+  const [previous, selected] = await Promise.all([read(low - 1n), read(low)])
   if (previous.number + 1n !== selected.number || previous.timestamp >= target || selected.timestamp < target) {
     throw new Error('InvalidEndpointBlockBoundary')
   }

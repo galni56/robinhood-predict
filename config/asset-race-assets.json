@@ -3,7 +3,7 @@
   "marketQuoteUniverses": {
     "MEME": { "symbol": "WETH", "unit": "ETH_QUOTE", "supportedQuoteKinds": ["WETH", "NATIVE_ETH"], "address": "0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73", "decimals": 18, "chainId": 4663 }
   },
-  "supportedOracleTypes": ["CHAINLINK_V3", "SIGNED_ROBINHOOD_STOCK", "SIGNED_POOL_BLOCK_PAIR", "DEX_V2_SPOT", "DEX_V3_SPOT", "MOCK_LOCAL"],
+  "supportedOracleTypes": ["CHAINLINK_V3", "SIGNED_POOL_BLOCK_PAIR", "DEX_V2_SPOT", "DEX_V3_SPOT", "MOCK_LOCAL"],
   "networks": {
     "local": {
       "chainId": 31337,
@@ -55,14 +55,6 @@
       "maxPriceAgeSeconds": 3600,
       "maxEndpointLagSeconds": 60
     },
-    "SIGNED_ROBINHOOD_STOCK_V1": {
-      "requirePositivePrice": true,
-      "requireExpectedDecimals": true,
-      "requireNonzeroTimestamp": true,
-      "rejectFutureTimestamp": true,
-      "maxPriceAgeSeconds": 60,
-      "maxEndpointLagSeconds": 60
-    },
     "SIGNED_POOL_BLOCK_PAIR_V1": {
       "requirePositivePrice": true,
       "requireExpectedDecimals": true,
@@ -79,7 +71,7 @@
     "uniswapV4PoolManager": "0x8366a39CC670B4001A1121B8F6A443A643e40951",
     "uniswapV4StateView": "0xf3334192d15450cdd385c8b70e03f9a6bd9e673b",
     "uniswapInterfaceMulticall": "0x282a3c4d320cc7f0d5eaf56b8029e4b88338f0a3",
-    "livePollIntervalMs": 1000,
+    "livePollIntervalMs": 2000,
     "liveStaleAfterMs": 5000
   },
   "liveDisplayProfiles": {
@@ -88,7 +80,7 @@
       "chainId": "robinhood",
       "quoteTokenAddress": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
       "priceField": "priceNative",
-      "pollIntervalMs": 1000,
+      "pollIntervalMs": 2000,
       "staleAfterMs": 5000
     }
   },

@@ -1,10 +1,9 @@
 # Asset Race pre-deployment readiness — 2026-09-16
 
 No deployment, public transaction, production keeper or secret access performed.
-Intended production RPC/operator configuration was not supplied to this process.
-Only environment-variable presence was checked; `.env`/secret stores were not read.
-Absence here does not establish absence in operator infrastructure. Local E2E
-remains green and was not rerun: changes are startup/config/tooling checks only.
+The operator supplied the intended archive RPC only through a local environment
+variable and ran the probes; its URL/API key was not shared, read or recorded.
+Local E2E remains green and was not rerun: changes are documentation only.
 
 ## A. Already verified
 
@@ -16,9 +15,18 @@ remains green and was not rerun: changes are startup/config/tooling checks only.
   claims/refunds unchanged. This is not intended-provider archive evidence.
 - Deployment/collector/oracle ABI and EIP712 domain agree. Deploy receives public
   ASSET_RACE_PRICE_SIGNER_ADDRESS; Configure checks deployed TRUSTED_SIGNER.
-  Keeper now verifies actual onchain signer and signed-pool adapter at startup.
+  Deploy/Configure reject signer=deployer/owner. Keeper verifies the actual
+  onchain signer/adapter and rejects any owner/keeper/price-signer overlap.
 - LIVE now checks actual RPC chain ID, logs startup error types only, and exposes
   a generic public SSE failure rather than credential-bearing RPC error messages.
+- LIVE uses canonical Multicall3 for one common-block pool read, starts polling
+  on the first SSE viewer, polls every two seconds and pauses at zero viewers.
+  Keeper performs one startup reconciliation, then reads only new races and
+  active races whose transition is due.
+- Timely T0/T1 capture now tries the public lifecycle RPC first with a near-tip
+  backward search. Proofs are atomically cached outside Git at mode0600 and reused
+  after retries/restarts. Alchemy is a 150 ms-paced recovery path with bounded
+  429 backoff, not a LIVE source; identical concurrent work is deduplicated.
 - Mainnet-bound builds require separate nonzero race/oracle addresses; unknown
   networks fail. Default unconfigured builds retain explicitly labelled previews
   and are NOT production Asset Race release builds.
@@ -27,20 +35,40 @@ remains green and was not rerun: changes are startup/config/tooling checks only.
   exist; exposure requires matching onchain registration, adapter, decimals18,
   age60/lag0. FRONG keeps exact native source and ETH label. RUNNING missing/stale
   LIVE does not invent mock/underlying prices; Mock reads require local mode.
-- 50 JS tests passed (26 engine/endpoint/native, 7 keeper, 12 LIVE/display,
-  5 configuration/archive-option), registry, build/typecheck, lint, syntax/diff.
+- 68 Asset Race JS tests passed across engine/endpoint/native, keeper,
+  LIVE/display, cache, RPC-budget and configuration paths; registry,
+  build/typecheck, lint, syntax/diff also passed.
   Existing lint/bundle warnings remain. No Solidity changed; no Solidity suite
   rerun. Prior local Solidity/E2E validation remains historical green evidence.
   Explicit-mainnet empty-address integration build failed as expected before
   bundling; that is the fail-closed guard check, not a code failure.
+- Operator-run Alchemy Robinhood Mainnet probes passed all 10 enabled Stocks and
+  all 13 enabled Memes at current plus 60/300/600/3600-second lookbacks. Every
+  sampled historical endpoint had its consecutive boundary block; configured
+  V3/V4 reads and native-V4 FRONG succeeded. This is sampled capability evidence,
+  not a provider availability or retention SLA.
+- Operator-run `cast chain-id` returned 4663 and `DeployAssetRace` completed a
+  no-broadcast simulation with the approved signer and canonical USDG. Sampled
+  estimate: 7,213,211 gas and 0.000856294711445211 ETH. The printed oracle/race
+  addresses are simulation-only and must not be used as deployed configuration.
+- Removed-oracle artifacts were cleared; a clean 76-file Forge build and all 145
+  Solidity tests pass. Invariants completed 256 runs/128,000 calls with zero
+  unexpected reverts; fuzz tests pass.
 
 ## B. Operator values/secrets still needed
 
 | Input | Where / constraint |
 | --- | --- |
-| Intended server RPC, access and retention/SLA | ASSET_RACE_RPC_URL (keeper), ASSET_RACE_POOL_RPC_URL (LIVE) |
+| Public lifecycle RPC | ASSET_RACE_RPC_URL (keeper); public Robinhood endpoint for zero-cost MVP |
+| Free archive RPC | ASSET_RACE_POOL_RPC_URL (Alchemy recovery-only; sampled pass) |
+| Archive pacing | ASSET_RACE_ARCHIVE_MIN_INTERVAL_MS=150; minimum 50 ms is enforced |
+| Realtime window | ASSET_RACE_REALTIME_ENDPOINT_WINDOW_SECONDS=30; older endpoints skip public RPC |
+| Endpoint cache | ASSET_RACE_ENDPOINT_CACHE_FILE; outside Git, service-only, mode0600 |
+| LIVE RPC | ASSET_RACE_LIVE_RPC_URL; public Robinhood endpoint, demand-driven Multicall3 |
 | Foundry RPC alias | ROBINHOOD_MAINNET_RPC, for separately authorized operator deployment |
-| Dedicated price signer public address | ASSET_RACE_PRICE_SIGNER_ADDRESS; not deployer/keeper |
+| Owner/deployer public address | Confirmed: `0x6d68157bEDa778346Dd27f8Ef4F917f69aD2Dc41` |
+| Keeper public address | Confirmed: `0xaF95287026339B51b1Ff45DC385b4D56F507634a`; distinct from owner |
+| Dedicated price signer public address | Confirmed: `0x79F4991Ccc64Cbb8143fB61e4cBD49b8b64d3635`; distinct from owner/keeper |
 | Private price signer material | ASSET_RACE_POOL_PRICE_SIGNER_PRIVATE_KEY, server-managed environment only |
 | Deployer/owner private material | ASSET_RACE_DEPLOYER_PRIVATE_KEY, operator-only deployment process |
 | Separate keeper gas signer | ASSET_RACE_KEEPER_PRIVATE_KEY, server-managed; no unlocked public RPC account |
@@ -49,29 +77,41 @@ remains green and was not rerun: changes are startup/config/tooling checks only.
 | Frontend public routing | VITE_RPC_URL public URL or same-origin proxy; VITE_BASE_PATH matched to host |
 | LIVE hosting/proxy | Same-origin /api/asset-race/live; VITE_ASSET_RACE_LIVE_URL if overriding |
 
-Checked RPC/signer/contract/frontend variables were all absent from this process.
+Owner/deployer, keeper and price-signer public addresses are confirmed above and
+pairwise distinct. Contract/frontend addresses remain absent; secret-bearing
+runtime values remain absent from the repository and agent process.
+
+The operator reports that keeper and price-signer private keys are stored in the
+external mode-`0600` secret file. Their contents were not read by the agent and
+operator-run public-address derivation returned `OK` for both roles. The
+separately stored owner/deployer key also passed its operator-run address check.
+No private material was supplied to or read by the agent.
 Actual race/oracle addresses are deployment outputs, never guessed. Private keys/
 RPC credentials must not enter Git, CLI arguments, logs or VITE_ variables:
 VITE_ values are public in the browser bundle. The agent must not handle keys.
 
-### Archive coverage: BLOCKED for all13
+### Archive coverage: SAMPLED PASS for all23
 
-AI, CASHCAT, CHUMP, PIPEDOG, IF, TENDIES, BONER, JUGGERNAUT, MOO, FRONG,
-HOOD, BLORB, DOGO: current/multiple historical reads using the intended provider
-are NOT VERIFIED. Missing: intended endpoint/access, retention commitment and
-actual grace/lookback requirements. Public defaults were not substituted;
-earlier public-RPC evidence does not qualify the intended production provider.
+On 2026-09-22, using the operator-held Alchemy Robinhood Mainnet endpoint, all
+10 enabled Stocks and these 13 Memes passed current and 60/300/600/3600-second
+historical reads: AI, CASHCAT, CHUMP, PIPEDOG, IF, TENDIES, BONER, JUGGERNAUT,
+MOO, FRONG, HOOD, BLORB, DOGO. The probes verified historical endpoint and
+consecutive-boundary blocks plus configured V3/V4 state; FRONG's native-V4 path
+also passed. No credential was printed or persisted in this repository.
 
-Operator supplies a non-secret endpoint/proxy, then run this read-only probe:
+The operator loads the secret endpoint from an outside-repository `0600` file
+into `ASSET_RACE_POOL_RPC_URL`, then runs this read-only probe. The checker never
+prints the URL; `--rpc-url` is reserved for non-secret public endpoints.
 
 ```sh
-npm run check:asset-race-meme-pools -- --archive-only --enabled-only --rpc-url <non-secret-intended-rpc-or-proxy> --lookback-seconds 60,300,600,3600
+npm run check:asset-race-meme-pools -- --archive-only --enabled-only --lookback-seconds 60,300,600,3600
 ```
 
 New archive-only mode uses approved sources and checks current plus historical
 E/B prices, decimals/orientation and V3 factory or V4 key/source identity.
 It exercises production-style HTTP JSON-RPC batching; no quote/depth analysis,
-liquidity policy or --quote-usd is required. Probe was not run without intended RPC.
+liquidity policy or --quote-usd is required. Calls are serialized at 150 ms by
+default, 429s back off, and output includes only operation/retry counts—not URLs.
 Sample lookbacks cover runbook grace180/300 plus margin/headroom; adjust to actual
 maximum graces. Credentialed providers need an operator-managed non-secret proxy
 for this CLI: never pass secret-bearing URLs as arguments.
@@ -86,14 +126,18 @@ monitor retention/availability. Apply existing Stock probe to unchanged Stocks.
 
 ### Signer/keeper readiness
 
-- TRUSTED_SIGNER is immutable; no in-place rotation. New signer means new oracle
-  and owner-approved future configuration. Frozen races retain old oracle; keep
-  old signer available until endpoints captured or races cancel/void. Captured
+- TRUSTED_SIGNER is immutable by design; in-place rotation would alter authority
+  for frozen races. `RotateAssetRaceOracle.s.sol` switches every enabled entry
+  still using an explicitly named old adapter while the race is paused, preserving
+  all other registry fields. Frozen races retain the old oracle. During planned
+  rotation keep its isolated signer until endpoints capture/cancel/void; during a
+  suspected compromise stop it and let incomplete races fail closed. Captured
   endpoints and later claims require no signing key. No concrete address supplied.
   Each keeper has one configured oracle: during migration use separate old/new
   oracle workers with distinct gas EOAs until old races no longer need proofs.
-- Production requires RPC+race address, ASSET_RACE_CHAIN_ID=4663, signed oracle
-  address+price key, separate keeper key, POLL_INTERVAL_MS=1000, RACE_SCAN_FROM=0.
+- Production requires lifecycle+archive RPCs, race address, ASSET_RACE_CHAIN_ID=4663, signed oracle
+  address+price key, separate keeper key, archive pacing/cache configuration,
+  POLL_INTERVAL_MS=1000, RACE_SCAN_FROM=0.
   ASSET_RACE_ALLOW_LIVE=true only after new public-write authorization.
 - DRY_RUN=true sends nothing; RUN_ONCE=true polls once. Signed endpoint simulation
   still needs price credentials; operator runs outside agent. Per-race failures
@@ -104,8 +148,11 @@ monitor retention/availability. Apply existing Stock probe to unchanged Stocks.
 - Simulate before submission; per-race/poll failures retry later and do not stop
   other races. Startup config/source failures stop process: supervise/restart.
   Receipt waits/scanning serialized; 1s delay is not guaranteed 1s cycle latency.
-- Restart re-reads chain status; no proof database dependency. Do not skip active
-  races with scanFrom; monitor pending transactions/nonce state after crashes.
+- Restart performs one onchain reconciliation from `RACE_SCAN_FROM`; afterward it
+  tracks only newly created/nonterminal races and refreshes a race when its next
+  transition is due. Previously signed endpoint proofs are reused from the local
+  atomic cache; the chain remains authoritative. Do not skip active races with
+  scanFrom; monitor pending transactions/nonce state after crashes.
 - Duplicate transitions cannot overwrite endpoints/terminal states. Redundant
   separate gas EOAs can revert/spend gas benignly. No cross-process nonce lock:
   use one active worker per gas EOA. Multiple bots are not winner authorities.
@@ -115,7 +162,8 @@ monitor retention/availability. Apply existing Stock probe to unchanged Stocks.
 - Confirm chain/owner, canonical USDG, compiler output and public signer; never
   reuse the existing PredictionMarket address. Deploy existing oracle/race scripts.
 - Record ASSET_RACE_ADDRESS and ASSET_RACE_SIGNED_POOL_ORACLE_ADDRESS outputs;
-  verify deployed TRUSTED_SIGNER equals the intended public address.
+  verify deployed TRUSTED_SIGNER equals the intended public address and confirm
+  owner, keeper and signer public addresses are all distinct.
 - Derive Stock/Meme arrays from registry CLI, not copied source catalogs. Meme
   arrays REQUIRED for this release although script permits omission. Register
   all10 Stocks+13 Memes with matching age60/lag0/skew0 and approved policy/presets.
@@ -143,9 +191,10 @@ do not verify intended public provider/deployed-address wiring.
 
 ## Verdict / next exact step
 
-Preparation code/guards are green, but archive coverage and actual operator/
-deployed-address wiring are unverified. Secrets/addresses alone are insufficient
-for production sign-off until intended-provider and post-deploy read checks pass.
-Next: operator supplies non-secret intended RPC/proxy reference, retention/grace
-requirements and public signer address; run read-only all13 archive probe. Never
-request private-key contents or infer deployment/broadcast authorization.
+Preparation code/guards and sampled one-hour archive coverage are green, but
+actual operator/deployed-address/service wiring remains unverified. Sampled reads
+do not replace production monitoring or a provider SLA. Next: operator supplies
+the distinct public price-signer and keeper addresses, provisions their secrets
+only in the locked-down service, and later repeats the post-deploy read checks
+under separate deployment authorization. Never request private-key contents or
+infer deployment/broadcast authorization.

@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 
 import { existsSync, readFileSync } from 'node:fs'
+import { homedir } from 'node:os'
+import { isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import {
   createPublicClient,
@@ -13,11 +15,13 @@ import {
   zeroAddress,
 } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
-import { PoolEndpointCollector } from './asset-race-pool-endpoints.mjs'
+import { JsonEndpointProofCache, PoolEndpointCollector } from './asset-race-pool-endpoints.mjs'
 import {
   PoolPriceEngine,
+  poolChainContracts,
   poolConfigsFromRegistry,
 } from './asset-race-pool-price-engine.mjs'
+import { withRpcRateLimit } from './asset-race-rpc-budget.mjs'
 
 const STATUS = {
   BETTING: 0,
@@ -141,6 +145,11 @@ const trustedSignerAbi = [{
   inputs: [], outputs: [{ type: 'address' }],
 }]
 
+const ownerAbi = [{
+  type: 'function', name: 'owner', stateMutability: 'view',
+  inputs: [], outputs: [{ type: 'address' }],
+}]
+
 const chainlinkFeedAbi = [
   {
     type: 'function',
@@ -170,7 +179,7 @@ const chainlinkFeedAbi = [
   },
 ]
 
-const PROOF_TYPE = { NONE: 0, CHAINLINK_ROUND_PAIR: 1, SIGNED_OBSERVATION_PAIR: 2, SIGNED_POOL_BLOCK_PAIR: 3 }
+const PROOF_TYPE = { NONE: 0, CHAINLINK_ROUND_PAIR: 1, SIGNED_POOL_BLOCK_PAIR: 2 }
 const ROUND_PHASE_SHIFT = 64n
 const AGGREGATOR_ROUND_MASK = (1n << ROUND_PHASE_SHIFT) - 1n
 
@@ -185,6 +194,10 @@ Local Anvil (reuses contracts/.asset-race.local):
 
 Explicit configuration:
   ASSET_RACE_RPC_URL=<url>
+  ASSET_RACE_POOL_RPC_URL=<archive-url>              optional; T0/T1 only
+  ASSET_RACE_ARCHIVE_MIN_INTERVAL_MS=150            free archive pacing
+  ASSET_RACE_REALTIME_ENDPOINT_WINDOW_SECONDS=30    public RPC near-tip window
+  ASSET_RACE_ENDPOINT_CACHE_FILE=<outside-repo-path> optional durable proof cache
   ASSET_RACE_ADDRESS=<contract-address>
   ASSET_RACE_CHAIN_ID=<expected-chain-id>          optional safety check
   ASSET_RACE_KEEPER_ADDRESS=<unlocked-rpc-account> or
@@ -216,6 +229,19 @@ function readNonNegativeInteger(name, fallback, minimum = 0) {
     throw new KeeperConfigError(`${name} must be an integer of at least ${minimum}`)
   }
   return value
+}
+
+function resolveEndpointCacheFile(value, {
+  home = homedir(),
+  repositoryRoot = fileURLToPath(new URL('../', import.meta.url)),
+} = {}) {
+  const filePath = resolve(value?.trim() || join(home, '.local', 'state', 'prophet', 'asset-race-endpoints.json'))
+  const fromRepository = relative(repositoryRoot, filePath)
+  const outsideRepository = fromRepository === '..' || fromRepository.startsWith(`..${sep}`) || isAbsolute(fromRepository)
+  if (!outsideRepository) {
+    throw new KeeperConfigError('ASSET_RACE_ENDPOINT_CACHE_FILE must be outside the repository')
+  }
+  return filePath
 }
 
 function readLocalPublicConfig() {
@@ -276,16 +302,22 @@ function resolveConfig() {
     throw new KeeperConfigError('ASSET_RACE_POOL_PRICE_SIGNER_PRIVATE_KEY has an invalid format')
   }
   const collectorEnabled = Boolean(signedOracleValue)
+  const poolRpcUrl = process.env.ASSET_RACE_POOL_RPC_URL?.trim() || rpcUrl
+  const endpointCacheFile = resolveEndpointCacheFile(process.env.ASSET_RACE_ENDPOINT_CACHE_FILE)
 
   return {
     address: getAddress(addressValue),
     allowLive: readBoolean('ASSET_RACE_ALLOW_LIVE'),
     dryRun,
     expectedChainId: process.env.ASSET_RACE_CHAIN_ID?.trim(),
+    archiveMinIntervalMs: readNonNegativeInteger('ASSET_RACE_ARCHIVE_MIN_INTERVAL_MS', 150, 50),
+    realtimeEndpointWindowSeconds: readNonNegativeInteger('ASSET_RACE_REALTIME_ENDPOINT_WINDOW_SECONDS', 30),
+    endpointCacheFile,
     localFallback: !explicitRpcUrl,
     pollIntervalMs: readNonNegativeInteger('POLL_INTERVAL_MS', collectorEnabled ? 1_000 : 15_000, 500),
     privateKey,
     priceSignerPrivateKey,
+    poolRpcUrl,
     rpcUrl,
     runOnce: readBoolean('RUN_ONCE'),
     scanFrom: BigInt(readNonNegativeInteger('RACE_SCAN_FROM', 0)),
@@ -320,6 +352,66 @@ function transitionFor(race, now) {
     return { functionName: 'captureEndSnapshots', outcome: 'ENDPOINT CAPTURED' }
   }
   return undefined
+}
+
+function isTerminalRace(race) {
+  return [STATUS.RESOLVED, STATUS.CANCELLED, STATUS.VOID].includes(Number(race.status))
+}
+
+function nextTransitionAt(race) {
+  if (race.status === STATUS.LOBBY) return BigInt(race.lobbyEndTime)
+  if (race.status === STATUS.BETTING) return BigInt(race.bettingEndTime)
+  if (race.status === STATUS.RUNNING) return BigInt(race.raceEndTime)
+  return undefined
+}
+
+class ActiveRaceTracker {
+  constructor(scanFrom = 0n) {
+    this.nextRaceId = BigInt(scanFrom)
+    this.races = new Map()
+  }
+
+  observe(raceId, race) {
+    if (isTerminalRace(race)) {
+      this.races.delete(raceId)
+      return
+    }
+    const dueAt = nextTransitionAt(race)
+    if (dueAt === undefined) throw new Error('UnsupportedActiveRaceStatus')
+    this.races.set(raceId, { race, dueAt })
+  }
+
+  async discover(publicClient, contractAddress, raceCount) {
+    if (raceCount < this.nextRaceId) return
+    for (let raceId = this.nextRaceId; raceId < raceCount; raceId += 1n) {
+      const race = await publicClient.readContract({
+        address: contractAddress,
+        abi: keeperAbi,
+        functionName: 'getRace',
+        args: [raceId],
+      })
+      this.observe(raceId, race)
+    }
+    this.nextRaceId = raceCount
+  }
+
+  dueRaceIds(now) {
+    return [...this.races.entries()]
+      .filter(([, tracked]) => tracked.dueAt <= now)
+      .map(([raceId]) => raceId)
+      .sort((left, right) => left < right ? -1 : left > right ? 1 : 0)
+  }
+
+  async refresh(publicClient, contractAddress, raceId) {
+    const race = await publicClient.readContract({
+      address: contractAddress,
+      abi: keeperAbi,
+      functionName: 'getRace',
+      args: [raceId],
+    })
+    this.observe(raceId, race)
+    return race
+  }
 }
 
 function feedAddressFromOracleId(oracleId) {
@@ -396,8 +488,6 @@ async function endpointProofsForRace(publicClient, contractAddress, raceId, targ
     if (proofType === PROOF_TYPE.NONE) proofs.push('0x')
     else if (proofType === PROOF_TYPE.CHAINLINK_ROUND_PAIR) {
       proofs.push(await chainlinkRoundProof(publicClient, asset.oracleId, targetTimestamp))
-    } else if (proofType === PROOF_TYPE.SIGNED_OBSERVATION_PAIR) {
-      throw new Error('LegacySignedStockCollectorDisabled')
     } else if (proofType === PROOF_TYPE.SIGNED_POOL_BLOCK_PAIR) {
       proofs.push(poolProofs.get(asset.oracleId.toLowerCase()))
     } else throw new Error('UnsupportedEndpointProofType')
@@ -420,12 +510,11 @@ async function startCallForRace(publicClient, contractAddress, raceId, race, col
     abi: endpointOracleAbi,
     functionName: 'endpointProofType',
   })))
-  const hasSigned = proofTypes.some((proofType) => proofType === PROOF_TYPE.SIGNED_OBSERVATION_PAIR || proofType === PROOF_TYPE.SIGNED_POOL_BLOCK_PAIR)
-  if (!hasSigned) return { functionName: 'startRace', args: [raceId] }
+  const hasPoolProof = proofTypes.some((proofType) => proofType === PROOF_TYPE.SIGNED_POOL_BLOCK_PAIR)
+  if (!hasPoolProof) return { functionName: 'startRace', args: [raceId] }
   if (proofTypes.some((proofType) => proofType !== proofTypes[0])) {
     throw new Error('MixedStartOracleProofTypes')
   }
-  if (proofTypes[0] === PROOF_TYPE.SIGNED_OBSERVATION_PAIR) throw new Error('LegacySignedStockCollectorDisabled')
   if (proofTypes[0] !== PROOF_TYPE.SIGNED_POOL_BLOCK_PAIR) throw new Error('UnsupportedStartProofType')
   if (!collector) throw new Error('SignedPoolCollectorNotConfigured')
   if (contenders.some((asset) => asset.oracle.toLowerCase() !== collector.verifyingContract.toLowerCase())) {
@@ -460,6 +549,23 @@ async function verifySignedPoolOracle(publicClient, oracleAddress, signerAddress
   }
 }
 
+async function verifyOperationalRoles(publicClient, raceAddress, keeperAddress, priceSignerAddress) {
+  const owner = await publicClient.readContract({ address: raceAddress, abi: ownerAbi, functionName: 'owner' })
+  const normalizedOwner = owner.toLowerCase()
+  const normalizedPriceSigner = priceSignerAddress.toLowerCase()
+  if (normalizedOwner === normalizedPriceSigner) {
+    throw new KeeperConfigError('Price signer and AssetRace owner must be separate accounts')
+  }
+  if (!keeperAddress) return
+  const normalizedKeeper = keeperAddress.toLowerCase()
+  if (normalizedKeeper === normalizedPriceSigner) {
+    throw new KeeperConfigError('Price signer and transaction keeper must be separate accounts')
+  }
+  if (normalizedKeeper === normalizedOwner) {
+    throw new KeeperConfigError('Transaction keeper and AssetRace owner must be separate accounts')
+  }
+}
+
 async function main() {
   if (process.argv.includes('--help')) {
     printUsage()
@@ -474,6 +580,7 @@ async function main() {
     name: chainId === 31_337 ? 'Local Anvil' : `Asset Race Chain ${chainId}`,
     nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
     rpcUrls: { default: { http: [config.rpcUrl] } },
+    contracts: poolChainContracts(chainId),
   })
   const publicClient = createPublicClient({ chain, transport: http(config.rpcUrl, { batch: true }) })
   if (config.expectedChainId && BigInt(config.expectedChainId) !== BigInt(chainId)) {
@@ -494,19 +601,36 @@ async function main() {
   if (config.signedOracleAddress) {
     const priceAccount = privateKeyToAccount(config.priceSignerPrivateKey)
     const keeperAddress = typeof account === 'string' ? account : account?.address
-    if (keeperAddress && keeperAddress.toLowerCase() === priceAccount.address.toLowerCase()) {
-      throw new KeeperConfigError('Price signer and transaction keeper must be separate accounts')
-    }
     if (chainId !== 4663) throw new KeeperConfigError('Signed production pool endpoints require Robinhood Chain 4663')
     await verifySignedPoolOracle(publicClient, config.signedOracleAddress, priceAccount.address)
+    await verifyOperationalRoles(publicClient, config.address, keeperAddress, priceAccount.address)
     const poolConfigs = productionPoolConfigs()
     if (poolConfigs.length === 0) throw new KeeperConfigError('Registry has no enabled pool-backed Stocks')
     const engine = new PoolPriceEngine({ client: publicClient, configs: poolConfigs })
-    await engine.verify()
+    let fallbackEngine
+    if (config.poolRpcUrl !== config.rpcUrl) {
+      const poolClient = withRpcRateLimit(
+        createPublicClient({ chain, transport: http(config.poolRpcUrl, { batch: true }) }),
+        { minIntervalMs: config.archiveMinIntervalMs },
+      )
+      if (await poolClient.getChainId() !== chainId) {
+        throw new KeeperConfigError('Pool archive RPC chain ID does not match lifecycle RPC')
+      }
+      fallbackEngine = new PoolPriceEngine({ client: poolClient, configs: poolConfigs })
+    }
+    try {
+      await engine.verify()
+    } catch (error) {
+      if (!fallbackEngine) throw error
+      await fallbackEngine.verify()
+    }
     collector = new PoolEndpointCollector({
       account: priceAccount,
+      cache: new JsonEndpointProofCache(config.endpointCacheFile),
       chainId,
       engine,
+      fallbackEngine,
+      primaryWindowSeconds: config.realtimeEndpointWindowSeconds,
       verifyingContract: config.signedOracleAddress,
     })
   }
@@ -518,21 +642,18 @@ async function main() {
   let stopping = false
   process.once('SIGINT', () => { stopping = true })
   process.once('SIGTERM', () => { stopping = true })
+  const tracker = new ActiveRaceTracker(config.scanFrom)
 
   async function poll() {
     const [block, raceCount] = await Promise.all([
       publicClient.getBlock({ blockTag: 'latest' }),
       publicClient.readContract({ address: config.address, abi: keeperAbi, functionName: 'raceCount' }),
     ])
+    await tracker.discover(publicClient, config.address, raceCount)
 
-    for (let raceId = config.scanFrom; raceId < raceCount; raceId += 1n) {
+    for (const raceId of tracker.dueRaceIds(block.timestamp)) {
       try {
-        const race = await publicClient.readContract({
-          address: config.address,
-          abi: keeperAbi,
-          functionName: 'getRace',
-          args: [raceId],
-        })
+        const race = await tracker.refresh(publicClient, config.address, raceId)
         const transition = transitionFor(race, block.timestamp)
         if (!transition) continue
 
@@ -567,6 +688,7 @@ async function main() {
           functionName: 'getRace',
           args: [raceId],
         })
+        tracker.observe(raceId, updatedRace)
         console.log(`[keeper] race #${raceId}: ${functionName} -> ${STATUS_NAME[updatedRace.status]} (${hash})`)
       } catch (error) {
         console.error(`[keeper] race #${raceId}: transition failed (${safeErrorName(error)}); continuing`)
@@ -585,7 +707,7 @@ async function main() {
   } while (!stopping)
 }
 
-export { keeperAbi, transitionFor, endpointProofsForRace, startCallForRace, verifySignedPoolOracle }
+export { ActiveRaceTracker, keeperAbi, transitionFor, endpointProofsForRace, resolveEndpointCacheFile, startCallForRace, verifyOperationalRoles, verifySignedPoolOracle }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main().catch((error) => {
   if (error instanceof KeeperConfigError) console.error(`[keeper] configuration error: ${error.message}`)

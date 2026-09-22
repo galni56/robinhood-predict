@@ -3,7 +3,12 @@ import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 import { once } from 'node:events'
-import { createAssetRaceLiveServer, verifyLiveChain } from './asset-race-live-server.mjs'
+import {
+  DEFAULT_ASSET_RACE_LIVE_RPC_URL,
+  createAssetRaceLiveServer,
+  resolveLiveRpcUrl,
+  verifyLiveChain,
+} from './asset-race-live-server.mjs'
 import { poolConfigsFromRegistry } from './asset-race-pool-price-engine.mjs'
 import {
   StockPoolLiveCollector,
@@ -21,6 +26,16 @@ test('LIVE verifies the actual RPC chain before serving production pool prices',
   await verifyLiveChain({ getChainId: async () => 4663 }, 4663)
   await assert.rejects(() => verifyLiveChain({ getChainId: async () => 31337 }, 4663), /chain ID mismatch/)
   await assert.rejects(() => verifyLiveChain({ getChainId: async () => 46630 }, 4663), /chain ID mismatch/)
+})
+
+test('LIVE never falls back to the archive credential', () => {
+  assert.equal(resolveLiveRpcUrl({
+    ASSET_RACE_POOL_RPC_URL: 'https://archive.example/secret',
+  }), DEFAULT_ASSET_RACE_LIVE_RPC_URL)
+  assert.equal(resolveLiveRpcUrl({
+    ASSET_RACE_LIVE_RPC_URL: ' https://live.example ',
+    ASSET_RACE_POOL_RPC_URL: 'https://archive.example/secret',
+  }), 'https://live.example')
 })
 
 test('public pool LIVE failures never expose RPC error messages or provider URL material', async () => {
@@ -89,6 +104,61 @@ test('Meme direct-pool SSE shares one heartbeat across viewers without inventing
   const health = await (await fetch(`${url}/health`)).json()
   assert.equal(health.clients, 2)
   assert.equal(health.upstreamRequests, 2)
+})
+
+test('LIVE polls immediately on first viewer, pauses at zero viewers, and resumes on demand', async (t) => {
+  let calls = 0
+  const listeners = new Set()
+  const collector = {
+    upstreamRequestCount: 0,
+    subscribe(listener) { listeners.add(listener); return () => listeners.delete(listener) },
+    snapshot() { return { provider: 'TEST', heartbeatAt: Date.now(), assets: {}, errors: {} } },
+    async poll() {
+      calls += 1
+      this.upstreamRequestCount += 1
+      const snapshot = this.snapshot()
+      for (const listener of listeners) listener(snapshot)
+      return snapshot
+    },
+  }
+  const { server, endClients } = createAssetRaceLiveServer(collector, { pollIntervalMs: 20 })
+  server.listen(0, '127.0.0.1')
+  await once(server, 'listening')
+  const url = `http://127.0.0.1:${server.address().port}`
+  const controllers = [new AbortController(), new AbortController()]
+  t.after(async () => {
+    for (const controller of controllers) controller.abort()
+    endClients()
+    await new Promise((resolve) => server.close(resolve))
+  })
+  const waitFor = async (condition) => {
+    const deadline = Date.now() + 1_000
+    while (!await condition()) {
+      if (Date.now() >= deadline) throw new Error('TimedOutWaitingForLivePoll')
+      await new Promise((resolve) => setTimeout(resolve, 5))
+    }
+  }
+
+  await new Promise((resolve) => setTimeout(resolve, 40))
+  assert.equal(calls, 0)
+  const first = await fetch(`${url}/api/asset-race/live`, { signal: controllers[0].signal })
+  assert.match(first.headers.get('content-type'), /text\/event-stream/)
+  await waitFor(() => calls >= 1)
+  const _second = await fetch(`${url}/api/asset-race/live`, { signal: controllers[1].signal })
+  await waitFor(() => calls >= 2)
+  const beforeDisconnect = calls
+  controllers[0].abort()
+  controllers[1].abort()
+  await waitFor(async () => (await (await fetch(`${url}/health`)).json()).clients === 0)
+  const pausedAt = calls
+  await new Promise((resolve) => setTimeout(resolve, 50))
+  assert.ok(pausedAt >= beforeDisconnect)
+  assert.equal(calls, pausedAt)
+
+  const resumed = new AbortController()
+  controllers.push(resumed)
+  await fetch(`${url}/api/asset-race/live`, { signal: resumed.signal })
+  await waitFor(() => calls > pausedAt)
 })
 
 function pairFor(config, overrides = {}) {

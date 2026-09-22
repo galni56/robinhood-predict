@@ -6,9 +6,12 @@ import { pad } from 'viem'
 import {
   POOL_PRICE_DECIMALS,
   PoolPriceEngine,
+  ROBINHOOD_CHAIN_ID,
+  ROBINHOOD_MULTICALL3,
   UNISWAP_V3_FACTORY,
   UNISWAP_V4_STATE_VIEW,
   findEndpointBlock,
+  poolChainContracts,
   poolConfigsFromRegistry,
   priceFromSqrtPriceX96,
   verifyPoolConfigs,
@@ -236,6 +239,24 @@ test('endpoint is the last block before T and its first boundary child may be ar
   assert.equal(delayed.selected.timestamp, 107n)
 })
 
+test('near-tip endpoint lookup starts from latest and avoids a full-chain binary search', async () => {
+  const blocks = new Map(Array.from({ length: 1_001 }, (_, number) => {
+    const value = BigInt(number)
+    return [value, { number: value, timestamp: value, hash: pad(`0x${number.toString(16)}`, { size: 32 }),
+      parentHash: pad(`0x${Math.max(0, number - 1).toString(16)}`, { size: 32 }) }]
+  }))
+  const reads = []
+  const client = { getBlock: async ({ blockTag, blockNumber }) => {
+    const number = blockTag === 'latest' ? 1_000n : blockNumber
+    reads.push(number)
+    return blocks.get(number)
+  } }
+  const result = await findEndpointBlock(client, 1_000n)
+  assert.equal(result.previous.number, 999n)
+  assert.equal(result.selected.number, 1_000n)
+  assert.deepEqual(reads, [1_000n, 999n])
+})
+
 test('boundary-block pool movement cannot replace historical endpoint state, even on delayed collection', async () => {
   const blocks = [
     { number: 0n, timestamp: 90n, hash: pad('0x01', { size: 32 }), parentHash: pad('0xff', { size: 32 }) },
@@ -268,4 +289,26 @@ test('one engine heartbeat uses one explicit source block for all pools', async 
   assert.equal(Object.keys(snapshot.assets).length, 2)
   assert.deepEqual(calls, [77n, 77n])
   assert.ok(Object.values(snapshot.assets).every((entry) => entry.blockHash === block.hash))
+})
+
+test('Robinhood production snapshots use one Multicall3 read for every configured pool', async () => {
+  const block = { number: 88n, timestamp: 101n, hash: pad('0x88', { size: 32 }), parentHash: pad('0x87', { size: 32 }) }
+  const configs = poolConfigsFromRegistry(registry).slice(0, 6)
+  const multicalls = []
+  const client = {
+    chain: { contracts: poolChainContracts(ROBINHOOD_CHAIN_ID) },
+    getBlock: async () => block,
+    multicall: async (request) => {
+      multicalls.push(request)
+      return request.contracts.map(() => [Q96, 0, 0, 0, 0, 0, true])
+    },
+    readContract: async () => { throw new Error('Individual pool read must not run') },
+  }
+  const snapshot = await new PoolPriceEngine({ client, configs }).latestSnapshot()
+  assert.equal(multicalls.length, 1)
+  assert.equal(multicalls[0].contracts.length, configs.length)
+  assert.equal(multicalls[0].blockNumber, block.number)
+  assert.equal(Object.keys(snapshot.assets).length, configs.length)
+  assert.equal(poolChainContracts(ROBINHOOD_CHAIN_ID).multicall3.address, ROBINHOOD_MULTICALL3)
+  assert.deepEqual(poolChainContracts(31337), {})
 })

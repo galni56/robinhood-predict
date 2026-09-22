@@ -3,21 +3,28 @@
 // Read-only production preparation: eth_call, block/bytecode reads, and Quoter
 // simulations only. No wallet, signer credentials, sendTransaction, or writes.
 import { readFileSync } from 'node:fs'
-import { createPublicClient, formatUnits, http, parseAbi, zeroAddress } from 'viem'
-import { PoolPriceEngine, poolConfigsFromRegistry, poolEngineAbis, ROBINHOOD_CHAIN_ID, UNISWAP_V4_STATE_VIEW } from './asset-race-pool-price-engine.mjs'
+import { createPublicClient, defineChain, formatUnits, http, parseAbi, zeroAddress } from 'viem'
+import { PoolPriceEngine, poolChainContracts, poolConfigsFromRegistry, poolEngineAbis, ROBINHOOD_CHAIN_ID, UNISWAP_V4_STATE_VIEW } from './asset-race-pool-price-engine.mjs'
+import { archiveRpcMinIntervalMs, archiveRpcUrl } from './asset-race-archive-options.mjs'
+import { withRpcRateLimit } from './asset-race-rpc-budget.mjs'
 
+async function main() {
 const args = process.argv.slice(2)
-const rpcUrl = args[args.indexOf('--rpc-url') + 1]
-if (!args.includes('--rpc-url') || !/^https?:\/\//.test(rpcUrl ?? '')) {
-  throw new Error('An explicit public --rpc-url is required; this tool never reads env files')
-}
+const rpcUrl = archiveRpcUrl(args, process.env)
+const rpcMinIntervalMs = archiveRpcMinIntervalMs(args, process.env)
 const lookbackIndex = args.indexOf('--lookback-seconds')
 const lookback = lookbackIndex < 0 ? 60n : BigInt(args[lookbackIndex + 1])
 if (lookback <= 0n) throw new Error('Invalid historical lookback')
 const assess = args.includes('--assess-candidates')
 const registry = JSON.parse(readFileSync(new URL('../config/asset-race-assets.json', import.meta.url), 'utf8'))
 const configs = poolConfigsFromRegistry(registry, { includeDisabled: assess, category: 'STOCK' })
-const client = createPublicClient({ transport: http(rpcUrl, { batch: true, timeout: 30_000 }) })
+const chain = defineChain({ id: ROBINHOOD_CHAIN_ID, name: 'Robinhood Chain',
+  nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+  rpcUrls: { default: { http: [rpcUrl] } }, contracts: poolChainContracts(ROBINHOOD_CHAIN_ID) })
+const client = withRpcRateLimit(
+  createPublicClient({ chain, transport: http(rpcUrl, { batch: true, timeout: 30_000 }) }),
+  { minIntervalMs: rpcMinIntervalMs },
+)
 if (await client.getChainId() !== ROBINHOOD_CHAIN_ID) throw new Error('Wrong chain; expected Robinhood Chain 4663')
 const engine = new PoolPriceEngine({ client, configs })
 await engine.verify()
@@ -28,7 +35,8 @@ function summary(snapshot) {
     prices: Object.fromEntries(Object.entries(snapshot.assets).map(([id, entry]) => [id, formatUnits(entry.priceRaw, entry.decimals)])) }
 }
 console.log(JSON.stringify({ latest: summary(latest), historicalEndpoint: summary(pair.previous),
-  boundary: { block: pair.selected.block.number.toString(), hash: pair.selected.block.hash, parentHash: pair.selected.block.parentHash, timestamp: pair.selected.block.timestamp.toString() } }))
+  boundary: { block: pair.selected.block.number.toString(), hash: pair.selected.block.hash, parentHash: pair.selected.block.parentHash, timestamp: pair.selected.block.timestamp.toString() },
+  rpcBudget: client.rpcBudgetStats() }))
 
 if (assess) {
   const tokenAbi = parseAbi(['function name() view returns(string)', 'function symbol() view returns(string)', 'function uid() view returns(bytes32)'])
@@ -73,3 +81,9 @@ if (assess) {
       impactMethod: 'Uniswap Quoter eth_call, fees included, all quotes at common explicit block', impacts }))
   }
 }
+}
+
+main().catch((error) => {
+  console.error(`[asset-race-stock-pools] failed (${error instanceof Error ? error.name : 'UnknownError'})`)
+  process.exitCode = 1
+})

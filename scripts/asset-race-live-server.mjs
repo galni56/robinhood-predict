@@ -8,11 +8,49 @@ import {
   StockPoolLiveCollector,
   poolLiveConfigsFromRegistry,
 } from './asset-race-live-prices.mjs'
-import { PoolPriceEngine } from './asset-race-pool-price-engine.mjs'
+import { PoolPriceEngine, poolChainContracts } from './asset-race-pool-price-engine.mjs'
+
+export const DEFAULT_ASSET_RACE_LIVE_RPC_URL = 'https://rpc.mainnet.chain.robinhood.com'
+
+export function resolveLiveRpcUrl(env = process.env) {
+  return env.ASSET_RACE_LIVE_RPC_URL?.trim() || DEFAULT_ASSET_RACE_LIVE_RPC_URL
+}
 
 // Shared HTTP/SSE fan-out for Stock and Meme snapshots; no per-viewer RPC polls.
-export function createAssetRaceLiveServer(collector) {
+export function createAssetRaceLiveServer(collector, { pollIntervalMs } = {}) {
   const clients = new Set()
+  let timer
+  let polling = false
+  let stopped = false
+
+  function stopPolling() {
+    if (timer) clearTimeout(timer)
+    timer = undefined
+  }
+
+  async function pollWhileDemanded() {
+    if (stopped || clients.size === 0 || polling || !pollIntervalMs) return
+    polling = true
+    const startedAt = Date.now()
+    try {
+      await collector.poll()
+    } catch {
+      // The production collector already publishes a redacted stale snapshot.
+      // A custom collector must not terminate the demand loop on one failure.
+    } finally {
+      polling = false
+      if (!stopped && clients.size > 0) {
+        const delay = Math.max(0, pollIntervalMs - (Date.now() - startedAt))
+        timer = setTimeout(() => { void pollWhileDemanded() }, delay)
+      }
+    }
+  }
+
+  function removeClient(response) {
+    if (!clients.delete(response)) return
+    if (clients.size === 0) stopPolling()
+  }
+
   const unsubscribe = collector.subscribe((snapshot) => {
     const message = `data: ${JSON.stringify(snapshot)}\n\n`
     for (const client of clients) client.write(message)
@@ -28,7 +66,8 @@ export function createAssetRaceLiveServer(collector) {
       })
       clients.add(response)
       response.write(`data: ${JSON.stringify(collector.snapshot())}\n\n`)
-      request.on('close', () => clients.delete(response))
+      request.on('close', () => removeClient(response))
+      if (clients.size === 1) void pollWhileDemanded()
       return
     }
     if (request.method === 'GET' && pathname === '/health') {
@@ -39,8 +78,16 @@ export function createAssetRaceLiveServer(collector) {
     response.writeHead(404, { 'content-type': 'application/json' })
     response.end('{"error":"not found"}\n')
   })
-  server.on('close', unsubscribe)
-  return { server, endClients: () => { for (const client of clients) client.end() } }
+  server.on('close', () => {
+    stopped = true
+    stopPolling()
+    unsubscribe()
+  })
+  return { server, endClients: () => {
+    for (const client of clients) client.end()
+    clients.clear()
+    stopPolling()
+  } }
 }
 
 export async function verifyLiveChain(client, expectedChainId) {
@@ -54,9 +101,9 @@ async function main() {
   const profile = registry.poolInfrastructure
   const host = process.env.ASSET_RACE_LIVE_HOST?.trim() || '127.0.0.1'
   const port = Number(process.env.ASSET_RACE_LIVE_PORT || 8787)
-  const pollIntervalMs = Number(process.env.ASSET_RACE_LIVE_POLL_INTERVAL_MS || profile.livePollIntervalMs || 1_000)
+  const pollIntervalMs = Number(process.env.ASSET_RACE_LIVE_POLL_INTERVAL_MS || profile.livePollIntervalMs || 2_000)
   const staleAfterMs = Number(process.env.ASSET_RACE_LIVE_STALE_MS || profile.liveStaleAfterMs || 5_000)
-  const rpcUrl = process.env.ASSET_RACE_POOL_RPC_URL?.trim() || 'https://rpc.mainnet.chain.robinhood.com'
+  const rpcUrl = resolveLiveRpcUrl()
 
   if (!Number.isSafeInteger(port) || port < 1 || port > 65_535) throw new Error('InvalidLiveServerPort')
   if (!Number.isSafeInteger(pollIntervalMs) || pollIntervalMs < 1_000) throw new Error('InvalidLivePollInterval')
@@ -66,31 +113,20 @@ async function main() {
     name: 'Robinhood Chain',
     nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
     rpcUrls: { default: { http: [rpcUrl] } },
+    contracts: poolChainContracts(registry.networks['robinhood-mainnet'].chainId),
   })
   const client = createPublicClient({ chain, transport: http(rpcUrl, { batch: true }) })
   await verifyLiveChain(client, chain.id)
   const engine = new PoolPriceEngine({ client, configs })
   await engine.verify()
   const collector = new StockPoolLiveCollector({ engine, staleAfterMs })
-  const { server, endClients } = createAssetRaceLiveServer(collector)
-
-  let stopped = false
-  async function pollContinuously() {
-    while (!stopped) {
-      const startedAt = Date.now()
-      await collector.poll()
-      const delay = Math.max(0, pollIntervalMs - (Date.now() - startedAt))
-      await new Promise((resolve) => setTimeout(resolve, delay))
-    }
-  }
+  const { server, endClients } = createAssetRaceLiveServer(collector, { pollIntervalMs })
 
   server.listen(port, host, () => {
     console.log(`Asset Race live display server listening on ${host}:${port}`)
-    void pollContinuously()
   })
 
   function shutdown() {
-    stopped = true
     endClients()
     server.close()
   }

@@ -1,11 +1,18 @@
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import test from 'node:test'
 import { validateAssetRaceProductionBuild } from '../vite.config.ts'
-import { archiveLookbacks } from './asset-race-archive-options.mjs'
+import { archiveLookbacks, archiveRpcMinIntervalMs, archiveRpcUrl } from './asset-race-archive-options.mjs'
 
 const configured = { VITE_ASSET_RACE_NETWORK: 'robinhood-mainnet',
   VITE_ASSET_RACE_ADDRESS: '0x1111111111111111111111111111111111111111',
   VITE_ASSET_RACE_SIGNED_POOL_ORACLE_ADDRESS: '0x2222222222222222222222222222222222222222' }
+const registry = JSON.parse(readFileSync(new URL('../config/asset-race-assets.json', import.meta.url), 'utf8'))
+
+test('production LIVE defaults to one shared two-second pool heartbeat', () => {
+  assert.equal(registry.poolInfrastructure.livePollIntervalMs, 2_000)
+  assert.equal(registry.liveDisplayProfiles.DEXSCREENER_STOCK_TOKEN_V1.pollIntervalMs, 2_000)
+})
 
 test('archive probe accepts explicit multiple positive historical lookbacks', () => {
   assert.deepEqual(archiveLookbacks('60,300,600,3600'), [60n, 300n, 600n, 3600n])
@@ -15,6 +22,27 @@ test('archive probe accepts explicit multiple positive historical lookbacks', ()
 test('archive probe rejects empty, negative, fractional, zero and duplicate lookbacks before RPC', () => {
   for (const raw of ['', '-1', '1.5', '0', '60,60', '60,', 'garbage']) {
     assert.throws(() => archiveLookbacks(raw), /InvalidArchiveLookbacks/)
+  }
+})
+
+test('archive probes accept a secret environment URL without requiring it in process arguments', () => {
+  const secretUrl = 'https://robinhood-mainnet.g.alchemy.com/v2/secret-not-printed'
+  assert.equal(archiveRpcUrl([], { ASSET_RACE_POOL_RPC_URL: secretUrl }), secretUrl)
+  assert.equal(archiveRpcUrl(['--rpc-url', 'https://rpc.mainnet.chain.robinhood.com'], {
+    ASSET_RACE_POOL_RPC_URL: secretUrl,
+  }), 'https://rpc.mainnet.chain.robinhood.com')
+  for (const invalid of [undefined, '', 'not-a-url']) {
+    assert.throws(() => archiveRpcUrl([], { ASSET_RACE_POOL_RPC_URL: invalid }), /MissingOrInvalidArchiveRpcUrl/)
+  }
+  assert.throws(() => archiveRpcUrl(['--rpc-url'], {}), /MissingOrInvalidArchiveRpcUrl/)
+})
+
+test('archive probes conservatively pace free-provider calls and reject unsafe values', () => {
+  assert.equal(archiveRpcMinIntervalMs([]), 150)
+  assert.equal(archiveRpcMinIntervalMs(['--rpc-min-interval-ms', '250']), 250)
+  assert.equal(archiveRpcMinIntervalMs([], { ASSET_RACE_ARCHIVE_MIN_INTERVAL_MS: '200' }), 200)
+  for (const value of ['0', '49', '-1', '1.5', 'fast']) {
+    assert.throws(() => archiveRpcMinIntervalMs(['--rpc-min-interval-ms', value]), /InvalidArchiveRpcMinInterval/)
   }
 })
 

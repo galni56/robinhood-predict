@@ -103,9 +103,13 @@ consecutive child. Historical calls failed closed on errors; no latest fallback.
 Production still requires a monitored archive-capable RPC with a documented
 retention window longer than maximum start/resolution capture grace plus margin.
 Public RPC success for recent samples is not evidence of such a production SLA.
-No monitored provider was supplied/verified in this pass. SignedPoolRaceOracle
-also explicitly trusts its configured signer to attest canonical headers/state;
-the signatures and lineage checks constrain relayers, not a compromised signer.
+On 2026-09-22 an operator-run Alchemy Robinhood Mainnet probe passed current plus
+60/300/600/3600-second historical reads for all 10 enabled Stocks, including
+consecutive endpoint/boundary lineage. The credential remained operator-held.
+This verifies sampled capability, not provider availability/retention guarantees.
+SignedPoolRaceOracle also explicitly trusts its configured signer to attest
+canonical headers/state; the signatures and lineage checks constrain relayers,
+not a compromised signer.
 
 ## Local reproduction
 

@@ -113,27 +113,18 @@ abstract contract LocalAssetRaceBase is Script {
 
     function _setPrices(MockRaceOracle oracle, string memory scenario) internal {
         bytes32 scenarioHash = keccak256(bytes(scenario));
-        uint256[13] memory stockPrices;
-
-        if (scenarioHash == keccak256("start")) {
-            stockPrices = [uint256(100), 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100];
-        } else if (scenarioHash == keccak256("winner")) {
-            stockPrices = [uint256(102), 105, 99, 103, 101, 98, 104, 100, 106, 99, 104, 102, 101];
-        } else if (scenarioHash == keccak256("negative")) {
-            stockPrices = [uint256(98), 99, 96, 97, 95, 94, 93, 92, 91, 90, 98, 97, 96];
-        } else if (scenarioHash == keccak256("tie")) {
-            stockPrices = [uint256(105), 105, 99, 103, 105, 98, 104, 100, 106, 99, 104, 102, 101];
-        } else {
-            revert("scenario must be start, winner, negative, or tie");
-        }
+        require(
+            scenarioHash == keccak256("start") || scenarioHash == keccak256("winner")
+                || scenarioHash == keccak256("negative") || scenarioHash == keccak256("tie"),
+            "scenario must be start, winner, negative, or tie"
+        );
 
         bytes32 observationId = bytes32(block.timestamp);
         string[] memory stockSymbols = _stockSymbols();
-        require(stockSymbols.length == stockPrices.length, "expected thirteen local Stock assets");
         for (uint256 i = 0; i < stockSymbols.length; ++i) {
             oracle.setObservation(
                 _stockOracleId(stockSymbols[i]),
-                stockPrices[i] * PRICE_UNIT,
+                _scenarioPrice(scenarioHash, i) * PRICE_UNIT,
                 PRICE_DECIMALS,
                 block.timestamp,
                 observationId
@@ -141,14 +132,21 @@ abstract contract LocalAssetRaceBase is Script {
         }
         string[] memory memeSymbols = _memeSymbols();
         for (uint256 i = 0; i < memeSymbols.length; ++i) {
-            uint256 price = 100;
-            if (scenarioHash == keccak256("winner")) price = 101 + i;
-            else if (scenarioHash == keccak256("negative")) price = 99 - i;
-            else if (scenarioHash == keccak256("tie")) price = i < 2 ? 105 : 99;
             oracle.setObservation(
-                _memeOracleId(memeSymbols[i]), price * PRICE_UNIT, PRICE_DECIMALS, block.timestamp, observationId
+                _memeOracleId(memeSymbols[i]),
+                _scenarioPrice(scenarioHash, i) * PRICE_UNIT,
+                PRICE_DECIMALS,
+                block.timestamp,
+                observationId
             );
         }
+    }
+
+    function _scenarioPrice(bytes32 scenarioHash, uint256 index) private pure returns (uint256) {
+        if (scenarioHash == keccak256("start")) return 100;
+        if (scenarioHash == keccak256("winner")) return index == 1 ? 105 : 100 + (index % 4);
+        if (scenarioHash == keccak256("negative")) return 99 - (index % 7);
+        return index < 2 ? 105 : 99;
     }
 
     function _stockSymbols() internal view returns (string[] memory) {

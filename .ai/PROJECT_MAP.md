@@ -26,11 +26,11 @@ in HANDOFF, not this map. Read AGENTS for permissions and startup rules.
 | Existing market/nicknames | `contracts/src/PredictionMarket.sol`, `NicknameRegistry.sol` |
 | Oracle contract interface | `contracts/src/interfaces/IAssetRaceOracle.sol` |
 | Current signed-pool verifier | `contracts/src/oracles/SignedPoolRaceOracle.sol` |
-| Other oracle adapters | `contracts/src/oracles/ChainlinkV3RaceOracle.sol`, `SignedRobinhoodRaceOracle.sol` |
+| Other oracle adapter | `contracts/src/oracles/ChainlinkV3RaceOracle.sol` |
 | Local mock oracle | `contracts/src/mocks/MockRaceOracle.sol` |
 | Shared direct-pool pricing | `scripts/asset-race-pool-price-engine.mjs` |
 | Historical endpoint selection/collection | `scripts/asset-race-pool-endpoints.mjs` |
-| Other signed observations | `scripts/asset-race-stock-observations.mjs` |
+| Archive pacing/retry budget | `scripts/asset-race-rpc-budget.mjs` |
 | Lifecycle automation | `scripts/asset-race-keeper.mjs` |
 | LIVE collection/service | `scripts/asset-race-live-prices.mjs`, `asset-race-live-server.mjs` |
 | LIVE frontend/display math | `src/chain/useAssetRaceLiveDisplay.ts`, `assetRaceLiveDisplay.ts` |
@@ -41,7 +41,7 @@ in HANDOFF, not this map. Read AGENTS for permissions and startup rules.
 | Script/display tests | `scripts/*.test.mjs` |
 | Local setup | `contracts/local-demo.sh`, `contracts/script/LocalAssetRace.s.sol` |
 | Race local transaction E2E | `scripts/asset-race-stock-e2e.mjs` (Stock and Meme modes) |
-| Race deployment/configuration | `contracts/script/DeployAssetRace.s.sol`, `ConfigureAssetRace.s.sol` |
+| Race deployment/configuration | `contracts/script/DeployAssetRace.s.sol`, `ConfigureAssetRace.s.sol`, `RotateAssetRaceOracle.s.sol` |
 | Build configuration | `vite.config.ts`, `package.json`, `contracts/foundry.toml` |
 
 ## Pricing and settlement pointers

@@ -77,7 +77,7 @@ function validate() {
   assert(liveProfile?.provider === 'DEXSCREENER', 'Stock live display provider must be DEX Screener')
   assert(liveProfile?.chainId === 'robinhood', 'DEX Screener chain ID must be robinhood')
   assert(liveProfile?.priceField === 'priceNative', 'Stock live display must use the oriented priceNative field')
-  assert(liveProfile?.pollIntervalMs === 1_000, 'Stock live display poll interval must be one second')
+  assert(liveProfile?.pollIntervalMs === 2_000, 'Stock live display poll interval must be two seconds')
   assert(liveProfile?.staleAfterMs >= liveProfile.pollIntervalMs, 'Stock live display staleness must cover one poll')
   assert(
     liveProfile?.quoteTokenAddress?.toLowerCase() === registry.networks['robinhood-mainnet'].settlementToken.address.toLowerCase(),

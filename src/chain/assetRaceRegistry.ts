@@ -3,7 +3,7 @@ import registryJson from '../../config/asset-race-assets.json'
 
 export type AssetRaceNetworkKey = 'local' | 'robinhood-testnet' | 'robinhood-mainnet'
 export type AssetRaceCategoryName = 'STOCK' | 'MEME'
-export type AssetRaceOracleType = 'CHAINLINK_V3' | 'SIGNED_ROBINHOOD_STOCK' | 'SIGNED_POOL_BLOCK_PAIR' | 'DEX_V2_SPOT' | 'DEX_V3_SPOT' | 'MOCK_LOCAL'
+export type AssetRaceOracleType = 'CHAINLINK_V3' | 'SIGNED_POOL_BLOCK_PAIR' | 'DEX_V2_SPOT' | 'DEX_V3_SPOT' | 'MOCK_LOCAL'
 
 interface OracleConfig {
   type: AssetRaceOracleType
@@ -80,9 +80,6 @@ export function oracleIdForCatalogAsset(asset: AssetRaceCatalogAsset, network: A
   const oracle = asset.networks[network].oracle
   if (!oracle) return undefined
   if (oracle.type === 'MOCK_LOCAL' && oracle.identifier) return keccak256(stringToBytes(oracle.identifier))
-  if (oracle.type === 'SIGNED_ROBINHOOD_STOCK' && oracle.identifier === asset.assetId) {
-    return stringToHex(asset.assetId, { size: 32 })
-  }
   if (oracle.type === 'SIGNED_POOL_BLOCK_PAIR' && /^0x[0-9a-fA-F]{64}$/.test(oracle.identifier ?? '')) {
     return oracle.identifier as Hex
   }

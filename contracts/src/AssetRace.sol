@@ -543,10 +543,7 @@ contract AssetRace is Ownable, ReentrancyGuard {
             if (asset.pool == 0) continue;
 
             IAssetRaceOracle.EndpointProofType proofType = IAssetRaceOracle(asset.oracle).endpointProofType();
-            if (
-                proofType == IAssetRaceOracle.EndpointProofType.SIGNED_OBSERVATION_PAIR
-                    || proofType == IAssetRaceOracle.EndpointProofType.SIGNED_POOL_BLOCK_PAIR
-            ) revert StartProofRequired();
+            if (proofType == IAssetRaceOracle.EndpointProofType.SIGNED_POOL_BLOCK_PAIR) revert StartProofRequired();
 
             IAssetRaceOracle.Observation memory observation =
                 IAssetRaceOracle(asset.oracle).latestObservation(asset.oracleId);
@@ -615,7 +612,7 @@ contract AssetRace is Ownable, ReentrancyGuard {
     ) private {
         uint256 minUpdatedAt = type(uint256).max;
         uint256 maxUpdatedAt;
-        bool requireCommonEndpointSource = _validateStartProofTypes(assets);
+        _validatePoolStartProofTypes(assets);
         bytes32 commonEndpointSource;
         for (uint8 i = 0; i < assets.length; ++i) {
             RaceAsset storage asset = assets[i];
@@ -629,10 +626,8 @@ contract AssetRace is Ownable, ReentrancyGuard {
             asset.startPrice = observation.price;
             asset.startOracleUpdatedAt = observation.updatedAt;
             asset.startObservationId = observation.observationId;
-            if (requireCommonEndpointSource) {
-                if (commonEndpointSource == bytes32(0)) commonEndpointSource = observation.observationId;
-                else if (observation.observationId != commonEndpointSource) revert EndpointSourceMismatch();
-            }
+            if (commonEndpointSource == bytes32(0)) commonEndpointSource = observation.observationId;
+            else if (observation.observationId != commonEndpointSource) revert EndpointSourceMismatch();
             if (observation.updatedAt < minUpdatedAt) minUpdatedAt = observation.updatedAt;
             if (observation.updatedAt > maxUpdatedAt) maxUpdatedAt = observation.updatedAt;
 
@@ -641,24 +636,15 @@ contract AssetRace is Ownable, ReentrancyGuard {
         if (maxUpdatedAt - minUpdatedAt > race.maxOracleTimestampSkew) revert OracleTimestampSkew();
     }
 
-    function _validateStartProofTypes(RaceAsset[] storage assets) private view returns (bool poolProofs) {
-        IAssetRaceOracle.EndpointProofType sharedProofType;
+    function _validatePoolStartProofTypes(RaceAsset[] storage assets) private view {
         for (uint256 i = 0; i < assets.length; ++i) {
             RaceAsset storage asset = assets[i];
             if (asset.pool == 0) continue;
             IAssetRaceOracle.EndpointProofType proofType = IAssetRaceOracle(asset.oracle).endpointProofType();
-            if (
-                proofType != IAssetRaceOracle.EndpointProofType.SIGNED_OBSERVATION_PAIR
-                    && proofType != IAssetRaceOracle.EndpointProofType.SIGNED_POOL_BLOCK_PAIR
-            ) revert InvalidStartProofType();
-            if (sharedProofType == IAssetRaceOracle.EndpointProofType.NONE) sharedProofType = proofType;
-            else if (proofType != sharedProofType) revert MixedEndpointProofTypes();
-            if (
-                proofType == IAssetRaceOracle.EndpointProofType.SIGNED_OBSERVATION_PAIR
-                    && asset.oracleId != asset.assetId
-            ) revert InvalidStartProofType();
+            if (proofType != IAssetRaceOracle.EndpointProofType.SIGNED_POOL_BLOCK_PAIR) {
+                revert InvalidStartProofType();
+            }
         }
-        poolProofs = sharedProofType == IAssetRaceOracle.EndpointProofType.SIGNED_POOL_BLOCK_PAIR;
     }
 
     /// @notice Cancels a race that never obtained a valid P0 before its start

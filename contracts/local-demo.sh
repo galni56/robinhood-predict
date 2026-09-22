@@ -56,24 +56,7 @@ require_tools() {
 
 load_asset_symbols() {
   local category="$1"
-  local expected_count="$2"
-  node -e '
-    const fs = require("node:fs")
-    const registry = JSON.parse(fs.readFileSync(process.argv[1], "utf8"))
-    const category = process.argv[2]
-    const expectedCount = Number(process.argv[3])
-    const assets = registry.assets.filter((asset) => asset.category === category && asset.networks?.local?.enabled)
-    if (assets.length !== expectedCount) throw new Error(`expected exactly ${expectedCount} enabled local ${category} assets`)
-    const symbols = assets.map(({ assetId, symbol, displayName, networks }) => {
-      if (assetId !== symbol || typeof symbol !== "string" || !symbol || Buffer.byteLength(symbol) > 32 || typeof displayName !== "string" || !displayName) {
-        throw new Error(`invalid local ${category} asset`)
-      }
-      if (networks.local.oracle?.type !== "MOCK_LOCAL") throw new Error(`local ${category} assets must use MOCK_LOCAL`)
-      return symbol
-    })
-    if (new Set(symbols).size !== symbols.length) throw new Error(`duplicate local ${category} symbol`)
-    process.stdout.write(symbols.join(","))
-  ' "$ASSET_REGISTRY_FILE" "$category" "$expected_count"
+  node "$REPO_DIR/scripts/asset-race-local-assets.mjs" "$ASSET_REGISTRY_FILE" "$category"
 }
 
 require_config() {
@@ -114,8 +97,8 @@ run_broadcast_script() {
 }
 
 require_tools
-LOCAL_STOCK_SYMBOLS="$(load_asset_symbols STOCK 13)"
-LOCAL_MEME_SYMBOLS="$(load_asset_symbols MEME 10)"
+LOCAL_STOCK_SYMBOLS="$(load_asset_symbols STOCK)"
+LOCAL_MEME_SYMBOLS="$(load_asset_symbols MEME)"
 command_name="${1:-}"
 
 case "$command_name" in

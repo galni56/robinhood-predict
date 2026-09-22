@@ -3,15 +3,17 @@
 // Explicit read-only RPC + discovery analytics. No account, keys, env files,
 // transactions, approvals or swaps. Analytics never enter signed observations.
 import { readFileSync } from 'node:fs'
-import { createPublicClient, formatUnits, http, parseAbi, parseUnits } from 'viem'
-import { PoolPriceEngine, poolConfigsFromRegistry, poolEngineAbis, poolOracleId, priceFromSqrtPriceX96, verifyPoolConfigs, UNISWAP_V4_STATE_VIEW } from './asset-race-pool-price-engine.mjs'
+import { createPublicClient, defineChain, formatUnits, http, parseAbi, parseUnits } from 'viem'
+import { PoolPriceEngine, poolChainContracts, poolConfigsFromRegistry, poolEngineAbis, poolOracleId, priceFromSqrtPriceX96, verifyPoolConfigs, ROBINHOOD_CHAIN_ID, UNISWAP_V4_STATE_VIEW } from './asset-race-pool-price-engine.mjs'
 import { quotePoolExactInput } from './asset-race-pool-quotes.mjs'
-import { archiveLookbacks } from './asset-race-archive-options.mjs'
+import { archiveLookbacks, archiveRpcMinIntervalMs, archiveRpcUrl } from './asset-race-archive-options.mjs'
+import { withRpcRateLimit } from './asset-race-rpc-budget.mjs'
 
+async function main() {
 const args = process.argv.slice(2)
 function option(name) { const index = args.indexOf(name); return index < 0 ? undefined : args[index + 1] }
-const rpcUrl = option('--rpc-url')
-if (!/^https?:\/\//.test(rpcUrl ?? '')) throw new Error('Explicit public --rpc-url required')
+const rpcUrl = archiveRpcUrl(args, process.env)
+const rpcMinIntervalMs = archiveRpcMinIntervalMs(args, process.env)
 const archiveOnly = args.includes('--archive-only')
 const lookbacks = archiveLookbacks(option('--lookback-seconds'))
 const quoteUsd = parseUnits(option('--quote-usd') ?? '0', 18)
@@ -26,7 +28,13 @@ if (requested && (new Set(requested).size !== requested.length || requested.some
 if (!configs.length) throw new Error('No configured Meme candidate pools')
 // Candidate review uses individual calls because the public RPC returned partial
 // batches. Archive-only probes exercise batching used by production keeper/LIVE.
-const client = createPublicClient({ transport: http(rpcUrl, { batch: archiveOnly, timeout: 30_000 }) })
+const chain = defineChain({ id: ROBINHOOD_CHAIN_ID, name: 'Robinhood Chain',
+  nativeCurrency: { name: 'Ether', symbol: 'ETH', decimals: 18 },
+  rpcUrls: { default: { http: [rpcUrl] } }, contracts: poolChainContracts(ROBINHOOD_CHAIN_ID) })
+const client = withRpcRateLimit(
+  createPublicClient({ chain, transport: http(rpcUrl, { batch: archiveOnly, timeout: 30_000 }) }),
+  { minIntervalMs: rpcMinIntervalMs },
+)
 if (await client.getChainId() !== 4663) throw new Error('Expected Robinhood Chain 4663')
 const compare = option('--compare-pool')
 if (archiveOnly && compare) throw new Error('Archive-only checks use approved registry sources, not comparison pools')
@@ -59,7 +67,8 @@ const pair = pairs[0].pair
 console.log(JSON.stringify({ latest: summary(latest), historicalEndpoint: summary(pair.previous), boundary: summary(pair.selected),
   boundaryParentHash: pair.selected.block.parentHash, quote: registry.marketQuoteUniverses.MEME,
   quoteUsdAnalyticsOnly: archiveOnly ? null : formatUnits(quoteUsd, 18),
-  historicalEndpoints: pairs.map(({ lookbackSeconds, pair }) => ({ lookbackSeconds, endpoint: summary(pair.previous), boundary: summary(pair.selected) })) }))
+  historicalEndpoints: pairs.map(({ lookbackSeconds, pair }) => ({ lookbackSeconds, endpoint: summary(pair.previous), boundary: summary(pair.selected) })),
+  rpcBudget: client.rpcBudgetStats() }))
 
 const tokenAbi = parseAbi(['function name() view returns(string)', 'function symbol() view returns(string)', 'function totalSupply() view returns(uint256)'])
 const liquidityAbi = parseAbi(['function liquidity() view returns(uint128)'])
@@ -117,3 +126,9 @@ for (const config of archiveOnly ? [] : configs) {
       credibleUniswapAlternatives: discovered.filter((item) => item.dexId === 'uniswap' && (item.liquidity?.usd ?? 0) >= 10_000).map((item) => ({
         pool: item.pairAddress, protocol: item.labels, quote: item.quoteToken, liquidityUsd: item.liquidity?.usd, volume24h: item.volume?.h24 })) } }))
 }
+}
+
+main().catch((error) => {
+  console.error(`[asset-race-meme-pools] failed (${error instanceof Error ? error.name : 'UnknownError'})`)
+  process.exitCode = 1
+})

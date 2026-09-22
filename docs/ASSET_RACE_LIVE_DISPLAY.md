@@ -47,15 +47,16 @@ Optional public configuration:
 ```text
 ASSET_RACE_LIVE_HOST=127.0.0.1
 ASSET_RACE_LIVE_PORT=8787
-ASSET_RACE_LIVE_POLL_INTERVAL_MS=1000
+ASSET_RACE_LIVE_POLL_INTERVAL_MS=2000
 ASSET_RACE_LIVE_STALE_MS=5000
-ASSET_RACE_POOL_RPC_URL=https://rpc.mainnet.chain.robinhood.com
+ASSET_RACE_LIVE_RPC_URL=https://rpc.mainnet.chain.robinhood.com
 VITE_ASSET_RACE_LIVE_URL=/api/asset-race/live
 ```
 
 Each poll first freezes one latest block, then reads every V3/V4 pool at that
-explicit block through JSON-RPC batching. The process polls once per second
-even when no browsers are connected. All browsers share one SSE endpoint:
+explicit block through canonical Multicall3. The process polls every two seconds
+only while at least one browser is connected; zero viewers produce zero LIVE
+polls. All browsers share one SSE endpoint:
 
 ```text
 GET /api/asset-race/live

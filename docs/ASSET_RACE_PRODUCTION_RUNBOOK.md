@@ -1,12 +1,22 @@
 # Asset Race production runbook
 
 Current staged checks, operator inputs and readiness verdict:
-`ASSET_RACE_PREDEPLOY_CHECKLIST.md`. Local E2E is green; intended production
-provider/archive and actual deployed-address wiring are not yet verified.
+`ASSET_RACE_PREDEPLOY_CHECKLIST.md`. Local E2E and sampled Alchemy archive reads
+through one hour are green; actual deployed-address/service wiring is not verified.
 
 Use a dedicated deployment/owner account, a separate price-signing account,
 and a third keeper transaction account. Never place their private keys in the
 repository, shell command arguments, or logs.
+
+The price signer is a real settlement trust boundary: the contract verifies its
+signature, not historical pool state independently. For the zero-cost MVP, use a
+dedicated zero-balance software wallet loaded only by the locked-down Asset Race
+keeper service on the existing VPS. Store its secret outside the repository in a
+service-only file (`0600`), with no deployer/owner credentials and no secret
+logging. The price signer and keeper transaction signer remain different
+blockchain addresses, but the free MVP keeps both inside the keeper process trust
+boundary. This is weaker than a non-exportable HSM/KMS key; keep launch limits
+small and retain the pause/new-oracle recovery procedure below.
 
 ## Recommended timing
 
@@ -74,6 +84,12 @@ forge script script/ConfigureAssetRace.s.sol:ConfigureAssetRace --rpc-url <rpc-a
 ## Keeper configuration
 
 - `ASSET_RACE_RPC_URL`
+- `ASSET_RACE_POOL_RPC_URL` (archive-capable T0/T1 reads; defaults to the RPC above)
+- `ASSET_RACE_ARCHIVE_MIN_INTERVAL_MS=150` (keeps fallback below 200 CU/s)
+- `ASSET_RACE_REALTIME_ENDPOINT_WINDOW_SECONDS=30` (fresh T0/T1 use public RPC;
+  older recovery skips directly to the paced archive RPC)
+- `ASSET_RACE_ENDPOINT_CACHE_FILE` (optional; defaults outside the repository to
+  `~/.local/state/prophet/asset-race-endpoints.json`)
 - `ASSET_RACE_ADDRESS`
 - `ASSET_RACE_CHAIN_ID=4663`
 - `ASSET_RACE_KEEPER_PRIVATE_KEY`
@@ -83,22 +99,42 @@ forge script script/ConfigureAssetRace.s.sol:ConfigureAssetRace --rpc-url <rpc-a
 - `RACE_SCAN_FROM=0`
 - `ASSET_RACE_ALLOW_LIVE=true` only after the controlled rehearsal
 
-The RPC must provide historical `eth_call` state for longer than the configured
-start/resolution grace. The public RPC returned recent state around 5,000 blocks
-deep during validation but rejected deeper reads; production should use an RPC
-with a documented archive window and monitoring. Never replace an unavailable
-historical read with current pool state.
+Keeper startup reads the deployed `AssetRace.owner()` and oracle
+`TRUSTED_SIGNER()`. It fails closed unless owner, transaction keeper and price
+signer are three distinct public addresses. Deployment/configuration scripts
+also reject a price signer equal to the deployer/owner.
 
-Read-only archive probe (use a monitored provider, not public-RPC success as an SLA):
+The zero-cost split is: public Robinhood RPC for lifecycle, transaction submission
+and timely T0/T1 collection; an Alchemy Free Robinhood archive endpoint in
+`ASSET_RACE_POOL_RPC_URL` is recovery-only. Within the 30-second realtime window,
+near-tip collection searches backward from latest instead of binary-searching
+the full chain. Signed proof pairs are
+atomically cached in a `0600` file outside the repository, reused across retries/
+restarts, and scoped by chain/oracle/timestamp/source IDs. The cache contains no
+private key. Archive operations are serialized at least 150 ms apart and retry
+429s with bounded exponential backoff. Never replace an unavailable historical
+read with current pool state; endpoint failure must cancel/VOID/refund.
+
+The separate LIVE service uses `ASSET_RACE_LIVE_RPC_URL`, normally the public
+Robinhood RPC. If unset, it uses that public endpoint directly and never falls
+back to `ASSET_RACE_POOL_RPC_URL`. It reads all enabled pools through canonical Multicall3 and polls only while
+at least one SSE client is connected, once every two seconds by default. LIVE is
+display-only: rate limits retain a stale snapshot and cannot change settlement.
+
+Read-only archive probe. For a credential-bearing endpoint, load
+`ASSET_RACE_POOL_RPC_URL` from an operator-owned secret file outside the
+repository; never place it after `--rpc-url`. That option remains only for
+non-secret public endpoints.
 
 ```sh
-npm run check:asset-race-stock-pools -- --rpc-url <public-rpc-url> --lookback-seconds 300
-npm run check:asset-race-meme-pools -- --rpc-url <public-rpc-url> --enabled-only --quote-usd <approximate-weth-usd>
-npm run check:asset-race-meme-pools -- --rpc-url <non-secret-intended-rpc-or-proxy> --archive-only --enabled-only --lookback-seconds 60,300,600,3600
+npm run check:asset-race-stock-pools -- --lookback-seconds 300
+npm run check:asset-race-meme-pools -- --archive-only --enabled-only --lookback-seconds 60,300,600,3600
 ```
 
 The lookback must cover the larger configured start/resolution grace, plus an
-operational margin. Alert on any failed historical state read; fail closed.
+operational margin. Both probes pace archive operations at 150 ms by default and
+report operation/retry counts as `rpcBudget`; do not lower the interval below the
+guarded minimum. Alert on failed historical reads; fail closed.
 
 Frontend build-time configuration:
 
@@ -118,7 +154,9 @@ Frontend build-time configuration:
 7. Register only production-enabled assets from the centralized registry: 10 Stocks unchanged plus 13 Memes (AI/CASHCAT/CHUMP/PIPEDOG/IF/TENDIES/BONER/JUGGERNAUT/MOO/FRONG/HOOD/BLORB/DOGO). FRONG uses the reviewed hook-free native V4 pool. Keep AMC/DEGEN/UBIK disabled and ZZZ/SHROOM/ASTRO unconfigured. See the current catalog review for exact sources. Registry enablement is not an onchain registration or deployment.
 8. Configure timing, skew, economics, and approved duration presets.
 9. Configure frontend and keeper addresses; keep both private keys server-side.
-10. Start the live pool service and keeper; verify all pools share each source block.
+10. Start the demand-driven live pool service and active-race keeper; verify all
+    pools share each source block, the two-second cadence, and zero SSE clients
+    produce zero LIVE polls. Verify the endpoint cache is outside Git and mode0600.
 11. Create one tiny controlled Stock race and verify signed pool P0 at T0.
 12. Verify signed P1 at T1, finalize later, and claim successfully.
     Repeat with at least three Meme contenders, checking normalized ETH quotes,
@@ -128,6 +166,55 @@ Frontend build-time configuration:
     controlled test conditions.
 14. Enable alerts for RPC archive depth, endpoint failures, pool liquidity, and
     signer/keeper health before opening public races.
+
+## Price-signer rotation and incident recovery
+
+`TRUSTED_SIGNER` is deliberately immutable. Making it mutable would let an admin
+change the accepted price authority for already-frozen races. Rotation therefore
+deploys a new `SignedPoolRaceOracle`; `AssetRace` registry changes affect only
+future races, while existing races retain their old oracle address.
+
+For planned rotation:
+
+1. Provision the new isolated signer and record only its public address.
+2. Call `setNewActivityPaused(true)` so no race/bet is created during the registry
+   transition. Lifecycle transitions, claims and refunds remain permissionless.
+3. Deploy a new oracle with the new public signer and verify its bytecode, EIP-712
+   domain, proof type and `TRUSTED_SIGNER`.
+4. Set `ASSET_RACE_OLD_SIGNED_POOL_ORACLE_ADDRESS` to the old adapter and the
+   normal deployment variables to the race/new adapter/new public signer, then
+   have the operator run:
+
+   ```sh
+   forge script script/RotateAssetRaceOracle.s.sol:RotateAssetRaceOracle \
+     --rpc-url <rpc-alias> --broadcast
+   ```
+
+   The idempotent script requires the race to be paused and updates every enabled
+   asset still using exactly the old adapter while preserving category, oracleId,
+   decimals and timing limits. It never unpauses automatically.
+5. Read-verify every enabled registry entry, update keeper/frontend public oracle
+   bindings, run a signed dry-run, then explicitly unpause new activity.
+6. Drain old races with a separate old-oracle worker and separate gas EOA. Retire
+   the old signer only after no old race still needs P0/P1 proof generation.
+
+For suspected signer compromise:
+
+1. Pause new activity and stop the compromised signing/collector service.
+2. Do not accept a newly generated old-oracle proof merely to keep a race alive.
+   Races with both endpoints captured can still resolve and claim without signer
+   access. Races missing P0 cancel after start grace; races missing P1 become VOID
+   after resolution grace; refunds remain available indefinitely.
+3. Deploy and verify a new oracle/signer, rotate enabled registry entries as above,
+   replace keeper/frontend public bindings, and only then reopen activity.
+4. Preserve incident logs and independently reproduce every already-submitted
+   signed observation. A compromised signer is a production security incident,
+   not a routine keeper restart.
+
+Normal rotation can use overlapping old/new workers because every race freezes
+its adapter. Never share one keeper gas EOA across workers: there is no cross-
+process nonce lock. Emergency rotation intentionally fails old incomplete races
+closed rather than allowing a new signer to rewrite their settlement authority.
 
 ## Local protocol-shaped E2E
 
