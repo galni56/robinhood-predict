@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { parseAbiItem } from 'viem'
 import { usePublicClient } from 'wagmi'
 import { DEPLOY_BLOCK, PREDICTION_MARKET_ADDRESS } from '@/chain/contracts'
+import { DEMO_MARKET_IDS, demoBetLogs, isDemoMode } from '@/chain/demo'
 
 const BET_PLACED_EVENT = parseAbiItem(
   'event BetPlaced(uint256 indexed id, address indexed user, uint8 side, uint256 amount, uint256 weightBp)',
@@ -34,7 +35,7 @@ export function useBetLogs() {
         fromBlock: DEPLOY_BLOCK,
         toBlock: 'latest',
       })
-      return logs
+      const real = logs
         .filter((log) => log.args.id != null && log.args.user && log.args.side != null && log.args.amount != null)
         .map((log) => ({
           id: log.args.id!,
@@ -44,6 +45,8 @@ export function useBetLogs() {
           txHash: log.transactionHash,
           blockNumber: log.blockNumber,
         }))
+      if (!isDemoMode()) return real
+      return [...real, ...demoBetLogs(DEMO_MARKET_IDS)]
     },
     enabled: !!client,
     refetchInterval: 10_000,

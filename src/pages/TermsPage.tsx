@@ -12,7 +12,7 @@ export function TermsPage() {
   return (
     <div className="max-w-3xl mx-auto px-4 py-10 space-y-10">
       <div>
-        <p className="text-xs font-bold tracking-[0.2em] text-[#C6FF3D]/80 uppercase mb-2">Legal</p>
+        <p className="text-xs font-bold tracking-[0.2em] text-[#8B7CF7]/80 uppercase mb-2">Legal</p>
         <h1 className="text-3xl font-extrabold tracking-tight">Terms of Service</h1>
         <p className="text-white/40 text-sm mt-3">
           Last updated {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}.
@@ -33,8 +33,8 @@ export function TermsPage() {
       <Section title="1. Acceptance of these terms">
         <p>
           By accessing or using Prophet (the "Service"), you agree to these Terms of Service. If you don't agree,
-          don't use the Service. These terms apply to real mode (the homepage and every <code className="text-[#C6FF3D]">/onchain/*</code> page,
-          where transactions are real) and to the mock demo (<code className="text-[#C6FF3D]">/demo</code> and everything under it, which is
+          don't use the Service. These terms apply to real mode (the homepage and every <code className="text-[#8B7CF7]">/onchain/*</code> page,
+          where transactions are real) and to the mock demo (<code className="text-[#8B7CF7]">/demo</code> and everything under it, which is
           simulated and involves no real funds) alike — §2 explains the difference.
         </p>
       </Section>
@@ -67,7 +67,7 @@ export function TermsPage() {
           or stores your private key or seed phrase; every transaction is signed in your own wallet extension.
           Nicknames (if you set one) are stored on-chain in a separate, public, permanent registry contract — anyone
           can see it, and it's tied to your address, not verified as your real name. Mock-demo accounts are stored
-          only in your browser's <code className="text-[#C6FF3D]">localStorage</code> — no server-side database, no
+          only in your browser's <code className="text-[#8B7CF7]">localStorage</code> — no server-side database, no
           password recovery, and clearing your browser data deletes them. Don't reuse a real password there.
         </p>
       </Section>

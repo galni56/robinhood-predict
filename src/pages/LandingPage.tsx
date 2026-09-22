@@ -65,19 +65,19 @@ export function LandingPage() {
       {/* Hero */}
       <section className="max-w-6xl mx-auto px-4 pt-10 pb-6">
         <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-[#0e0e18] px-6 py-12 sm:px-12 sm:py-16">
-          <div className="pointer-events-none absolute -top-24 -left-24 w-72 h-72 rounded-full bg-[#C6FF3D]/20 blur-3xl" />
-          <div className="pointer-events-none absolute -bottom-24 -right-16 w-72 h-72 rounded-full bg-[#8FBF1F]/15 blur-3xl" />
+          <div className="pointer-events-none absolute -top-24 -left-24 w-72 h-72 rounded-full bg-[#8B7CF7]/20 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-24 -right-16 w-72 h-72 rounded-full bg-[#6A5AE0]/15 blur-3xl" />
 
           <div className="relative grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div>
-              <p className="inline-flex items-center gap-2 text-xs font-bold tracking-[0.2em] text-[#C6FF3D]/80 uppercase mb-5">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#C6FF3D]" />
+              <p className="inline-flex items-center gap-2 text-xs font-bold tracking-[0.2em] text-[#8B7CF7]/80 uppercase mb-5">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#8B7CF7]" />
                 Prediction markets for tokenized stocks
               </p>
               <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight leading-[1.05]">
                 Call the price.
                 <br />
-                <span className="bg-gradient-to-r from-[#C6FF3D] to-[#8FBF1F] bg-clip-text text-transparent">
+                <span className="bg-gradient-to-r from-[#8B7CF7] to-[#6A5AE0] bg-clip-text text-transparent">
                   Get paid when you're right.
                 </span>
               </h1>
@@ -93,7 +93,7 @@ export function LandingPage() {
                 <Link
                   to="/markets"
                   aria-label="Browse markets"
-                  className="shrink-0 rounded-xl bg-gradient-to-r from-[#C6FF3D] to-[#8FBF1F] hover:brightness-110 text-black px-4 py-2.5 text-sm font-semibold transition-all"
+                  className="shrink-0 rounded-xl bg-gradient-to-r from-[#8B7CF7] to-[#6A5AE0] hover:brightness-110 text-black px-4 py-2.5 text-sm font-semibold transition-all"
                 >
                   Browse →
                 </Link>
@@ -103,17 +103,17 @@ export function LandingPage() {
                 <span className="text-emerald-400">◆</span> No wallet needed to browse — sign up only when you're ready to bet
               </p>
 
-              <Link to="/whitepaper" className="inline-block text-sm text-[#C6FF3D] hover:underline mt-4">
+              <Link to="/whitepaper" className="inline-block text-sm text-[#8B7CF7] hover:underline mt-4">
                 Read how the payout math works ↗
               </Link>
             </div>
 
             <div className="relative flex flex-col items-center">
-              <HeroMark className="w-full max-w-sm drop-shadow-[0_0_60px_rgba(198,255,61,0.25)]" />
+              <HeroMark className="w-full max-w-sm drop-shadow-[0_0_60px_rgba(139,124,247,0.25)]" />
               <div className="flex items-center gap-2 text-xs text-white/40 mt-2">
                 <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#C6FF3D]/60" />
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-[#C6FF3D]" />
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#8B7CF7]/60" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-[#8B7CF7]" />
                 </span>
                 <span className="uppercase tracking-[0.15em] font-bold text-white/50">
                   live on {RHCHAIN_META.name}
@@ -161,7 +161,7 @@ export function LandingPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {STEPS.map((s) => (
               <div key={s.n} className="bg-[#12121c]/95 border border-white/10 rounded-2xl p-5">
-                <div className="text-[#C6FF3D]/60 font-mono text-sm mb-3">{s.n}</div>
+                <div className="text-[#8B7CF7]/60 font-mono text-sm mb-3">{s.n}</div>
                 <h3 className="font-bold mb-2">{s.title}</h3>
                 <p className="text-white/50 text-sm">{s.body}</p>
               </div>
@@ -176,7 +176,7 @@ export function LandingPage() {
         <p className="text-white/40 text-sm text-center mb-10">Mechanics designed around one idea: reward conviction, not luck of timing.</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
           {FEATURES.map((f) => (
-            <div key={f.title} className="bg-[#12121c]/95 border border-white/10 rounded-2xl p-6 hover:border-[#C6FF3D]/30 transition-colors">
+            <div key={f.title} className="bg-[#12121c]/95 border border-white/10 rounded-2xl p-6 hover:border-[#8B7CF7]/30 transition-colors">
               <h3 className="font-bold mb-2">{f.title}</h3>
               <p className="text-white/50 text-sm">{f.body}</p>
             </div>
@@ -190,7 +190,7 @@ export function LandingPage() {
           <div className="max-w-6xl mx-auto px-4 py-16">
             <div className="flex items-center justify-between mb-8 flex-wrap gap-3">
               <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">On the board right now</h2>
-              <Link to="/markets" className="text-sm text-[#C6FF3D] hover:underline">
+              <Link to="/markets" className="text-sm text-[#8B7CF7] hover:underline">
                 View all {openMarkets.length} markets →
               </Link>
             </div>
@@ -207,7 +207,7 @@ export function LandingPage() {
                   <Link
                     key={market.id}
                     to={`/markets/${market.id}`}
-                    className="block bg-[#12121c]/95 border border-white/10 rounded-2xl p-4 hover:border-[#C6FF3D]/30 hover:bg-[#181829]/95 transition-all"
+                    className="block bg-[#12121c]/95 border border-white/10 rounded-2xl p-4 hover:border-[#8B7CF7]/30 hover:bg-[#181829]/95 transition-all"
                   >
                     <div className="flex items-start justify-between mb-2">
                       <div>
@@ -240,7 +240,7 @@ export function LandingPage() {
         <div className="flex flex-wrap gap-3 justify-center">
           <Link
             to="/register"
-            className="text-sm px-6 py-3 rounded-full bg-gradient-to-r from-[#C6FF3D] to-[#8FBF1F] hover:brightness-110 text-black font-semibold transition-all"
+            className="text-sm px-6 py-3 rounded-full bg-gradient-to-r from-[#8B7CF7] to-[#6A5AE0] hover:brightness-110 text-black font-semibold transition-all"
           >
             Sign up — it's free
           </Link>

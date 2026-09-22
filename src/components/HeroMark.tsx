@@ -7,8 +7,8 @@ export function HeroMark({ className = '' }: { className?: string }) {
     <svg viewBox="0 0 400 400" className={className} role="img" aria-label="Prophet">
       <defs>
         <linearGradient id="hm-grad" x1="0" y1="1" x2="1" y2="0">
-          <stop offset="0%" stopColor="#8FBF1F" />
-          <stop offset="100%" stopColor="#C6FF3D" />
+          <stop offset="0%" stopColor="#6A5AE0" />
+          <stop offset="100%" stopColor="#8B7CF7" />
         </linearGradient>
         <filter id="hm-glow" x="-60%" y="-60%" width="220%" height="220%">
           <feGaussianBlur stdDeviation="7" result="blur" />
@@ -20,11 +20,11 @@ export function HeroMark({ className = '' }: { className?: string }) {
       </defs>
 
       <g className="origin-center animate-[spin_60s_linear_infinite]" style={{ transformOrigin: '200px 200px' }}>
-        <circle cx="200" cy="200" r="170" fill="none" stroke="rgba(198,255,61,0.35)" strokeWidth="2" strokeDasharray="4 10" />
+        <circle cx="200" cy="200" r="170" fill="none" stroke="rgba(139,124,247,0.35)" strokeWidth="2" strokeDasharray="4 10" />
       </g>
-      <circle cx="200" cy="200" r="170" fill="none" stroke="rgba(198,255,61,0.12)" strokeWidth="1.5" />
-      <circle cx="200" cy="200" r="125" fill="none" stroke="rgba(198,255,61,0.18)" strokeWidth="1.5" />
-      <circle cx="200" cy="200" r="80" fill="none" stroke="rgba(198,255,61,0.28)" strokeWidth="2" />
+      <circle cx="200" cy="200" r="170" fill="none" stroke="rgba(139,124,247,0.12)" strokeWidth="1.5" />
+      <circle cx="200" cy="200" r="125" fill="none" stroke="rgba(139,124,247,0.18)" strokeWidth="1.5" />
+      <circle cx="200" cy="200" r="80" fill="none" stroke="rgba(139,124,247,0.28)" strokeWidth="2" />
 
       {/* Trajectory landing on the target, standing in for "call the price right" */}
       <path
