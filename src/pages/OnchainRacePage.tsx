@@ -46,7 +46,10 @@ export function OnchainRacePage() {
   const { writeContractAsync } = useWriteContract()
   const { race, position, isPreview, isLoading, error: readError, refetch } = useAssetRace(raceId, address)
   const [selectedAssetIndex, setSelectedAssetIndex] = useState(0)
-  const [amount, setAmount] = useState('10')
+  const betFormOwner = `${raceId?.toString() ?? ''}:${address ?? ''}`
+  const [amountState, setAmountState] = useState({ owner: betFormOwner, value: '' })
+  const amount = amountState.owner === betFormOwner ? amountState.value : ''
+  const setAmount = (value: string) => setAmountState({ owner: betFormOwner, value })
   const [tx, setTx] = useState<TxState>(null)
   const [error, setError] = useState<string | null>(null)
   const raceNowMs = useAssetRaceClock()
@@ -129,6 +132,7 @@ export function OnchainRacePage() {
       setTx({ label: 'Waiting for bet confirmation…' })
       await waitForTransactionReceipt(wagmiConfig, { hash: betHash })
       setTx(null)
+      setAmount('')
       await refetchAll()
     } catch (cause) {
       setTx(null)

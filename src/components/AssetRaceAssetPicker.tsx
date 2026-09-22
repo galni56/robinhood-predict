@@ -6,12 +6,14 @@ export function AssetRaceAssetPicker({
   assets,
   selectedIds,
   onSelect,
+  highlightedId,
   maxSelected = 6,
   category = ASSET_RACE_CATEGORY.STOCK,
 }: {
   assets: ApprovedRaceAsset[]
   selectedIds: readonly Hex[]
   onSelect: (asset: ApprovedRaceAsset) => void
+  highlightedId?: Hex
   maxSelected?: number
   category?: number
 }) {
@@ -37,6 +39,7 @@ export function AssetRaceAssetPicker({
       <div className="grid max-h-80 grid-cols-1 gap-2 overflow-y-auto pr-1 sm:grid-cols-2">
         {matches.map((asset) => {
           const alreadySelected = selected.has(asset.assetId.toLowerCase())
+          const highlighted = highlightedId?.toLowerCase() === asset.assetId.toLowerCase()
           const disabled = alreadySelected || selectedIds.length >= maxSelected
           return (
             <button
@@ -44,7 +47,7 @@ export function AssetRaceAssetPicker({
               type="button"
               disabled={disabled}
               onClick={() => onSelect(asset)}
-              className={`flex min-w-0 items-center gap-3 border p-3 text-left transition-all disabled:cursor-not-allowed disabled:opacity-40 ${meme ? 'rounded-2xl border-fuchsia-300/15 bg-gradient-to-r from-fuchsia-400/[0.08] to-orange-300/[0.05] hover:-translate-y-0.5 hover:border-orange-300/40' : 'rounded-xl border-white/10 bg-white/[0.025] hover:border-[#C6FF3D]/35'}`}
+              className={`flex min-w-0 items-center gap-3 border p-3 text-left transition-all disabled:cursor-not-allowed disabled:opacity-40 ${meme ? `rounded-2xl bg-gradient-to-r from-fuchsia-400/[0.08] to-orange-300/[0.05] hover:-translate-y-0.5 ${highlighted ? 'border-orange-300/70 shadow-[0_0_24px_-14px_rgba(251,146,60,0.9)]' : 'border-fuchsia-300/15 hover:border-orange-300/40'}` : `rounded-xl bg-white/[0.025] ${highlighted ? 'border-[#C6FF3D]/70' : 'border-white/10 hover:border-[#C6FF3D]/35'}`}`}
             >
               {asset.logoUrl ? (
                 <img src={asset.logoUrl} alt="" className="h-9 w-9 shrink-0 rounded-full bg-white/5 object-contain" />
@@ -57,7 +60,7 @@ export function AssetRaceAssetPicker({
                 <span className="block font-black">{asset.symbol}</span>
                 <span className="block truncate text-xs text-white/40">{asset.name}</span>
               </span>
-              <span className={`text-[10px] font-bold ${meme ? 'text-orange-200' : 'text-[#C6FF3D]'}`}>{alreadySelected ? 'ADDED' : 'APPROVED'}</span>
+              <span className={`text-[10px] font-bold ${meme ? 'text-orange-200' : 'text-[#C6FF3D]'}`}>{alreadySelected ? 'ADDED' : highlighted ? 'SELECTED' : 'APPROVED'}</span>
             </button>
           )
         })}

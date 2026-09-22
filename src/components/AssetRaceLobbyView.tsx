@@ -6,7 +6,7 @@ import { AddressLabel } from '@/components/AddressLabel'
 import { AssetRaceAssetPicker } from '@/components/AssetRaceAssetPicker'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
 import { formatCountdown } from '@/lib/format'
-import { ASSET_RACE_CATEGORY, type AssetRaceViewModel } from '@/chain/assetRaces'
+import { ASSET_RACE_CATEGORY, type ApprovedRaceAsset, type AssetRaceViewModel } from '@/chain/assetRaces'
 
 export function AssetRaceLobbyView({
   race,
@@ -34,6 +34,7 @@ export function AssetRaceLobbyView({
   error: string | null
 }) {
   const [showPicker, setShowPicker] = useState(false)
+  const [pendingAsset, setPendingAsset] = useState<ApprovedRaceAsset | null>(null)
   const { assets: approvedAssets, isLoading } = useApprovedRaceAssets()
   const meme = race.category === ASSET_RACE_CATEGORY.MEME
   const lobbyOpen = nowMs > 0 && nowMs < Number(race.lobbyEndTime) * 1_000
@@ -93,7 +94,10 @@ export function AssetRaceLobbyView({
             </div>
             <button
               type="button"
-              onClick={() => setShowPicker((value) => !value)}
+              onClick={() => {
+                setShowPicker((value) => !value)
+                setPendingAsset(null)
+              }}
               disabled={raceFull || hasAddedAsset || !isConnected || !onRightChain || !!txLabel}
               className="rounded-lg bg-[#C6FF3D] px-4 py-2 text-xs font-black text-black disabled:opacity-40"
             >
@@ -112,9 +116,41 @@ export function AssetRaceLobbyView({
                 <AssetRaceAssetPicker
                   assets={selectable}
                   selectedIds={race.assets.map((asset) => asset.assetId)}
-                  onSelect={(asset) => onAddAsset(asset.assetId)}
+                  highlightedId={pendingAsset?.assetId}
+                  onSelect={setPendingAsset}
                   category={race.category}
                 />
+              )}
+              {pendingAsset && (
+                <div className={`mt-4 rounded-xl border p-4 ${meme ? 'border-orange-300/30 bg-orange-300/[0.07]' : 'border-[#C6FF3D]/30 bg-[#C6FF3D]/[0.06]'}`}>
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <div className="text-xs font-black uppercase tracking-wider text-white/45">Selected contender</div>
+                      <div className="mt-1 text-lg font-black">{pendingAsset.symbol} <span className="text-sm font-normal text-white/40">{pendingAsset.name}</span></div>
+                      <p className="mt-2 max-w-xl text-xs leading-relaxed text-amber-100/75">
+                        Confirm adding {pendingAsset.symbol} to this Race. Your wallet will ask you to approve the transaction and its ETH network fee.
+                      </p>
+                    </div>
+                    <div className="flex w-full gap-2 sm:w-auto">
+                      <button
+                        type="button"
+                        onClick={() => setPendingAsset(null)}
+                        disabled={!!txLabel}
+                        className="flex-1 rounded-lg border border-white/15 px-4 py-2.5 text-xs font-black text-white/65 hover:border-white/30 disabled:opacity-40 sm:flex-none"
+                      >
+                        CANCEL
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onAddAsset(pendingAsset.assetId)}
+                        disabled={!!txLabel}
+                        className="flex-1 rounded-lg bg-gradient-to-r from-[#C6FF3D] to-[#8FBF1F] px-4 py-2.5 text-xs font-black text-black disabled:opacity-40 sm:flex-none"
+                      >
+                        {txLabel ?? `CONFIRM ADD ${pendingAsset.symbol}`}
+                      </button>
+                    </div>
+                  </div>
+                </div>
               )}
             </div>
           )}

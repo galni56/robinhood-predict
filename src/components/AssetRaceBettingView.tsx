@@ -62,6 +62,8 @@ export function AssetRaceBettingView({
   const estimate = selected
     ? estimateRacePayout(selected.pool, race.totalPool, existingStake, amountRaw, race.feeBp)
     : 0n
+  const stakeAfterAction = existingStake + amountRaw
+  const estimatedProfit = estimate > stakeAfterAction ? estimate - stakeAfterAction : 0n
   const bettingOpen = nowMs >= Number(race.bettingStartTime) * 1_000 && nowMs < Number(race.bettingEndTime) * 1_000
   const lockedIndex = position?.exists ? position.assetIndex : null
   const exceedsMax = existingStake + amountRaw > race.maxStakePerWallet
@@ -116,12 +118,12 @@ export function AssetRaceBettingView({
         </div>
         {position?.exists && (
           <p className="text-sm text-white/55">
-            Your pick is locked to <b className="text-[#C6FF3D]">{race.assets[position.assetIndex]?.symbol}</b>. You can top up this asset only.
+            Your pick is locked to <b className="text-[#C6FF3D]">{race.assets[position.assetIndex]?.symbol}</b> with a current stake of <b className="font-mono text-white/80">{formatUsdRaw(existingStake, tokenDecimals)} {tokenLabel}</b>. You can top up this asset only.
           </p>
         )}
         <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
           <div>
-            <label className="mb-1 block text-xs text-white/40">Stake in {tokenLabel}</label>
+            <label className="mb-1 block text-xs text-white/40">{position?.exists ? 'Additional stake' : 'Stake'} in {tokenLabel}</label>
             <input
               type="number"
               min="0"
@@ -136,8 +138,14 @@ export function AssetRaceBettingView({
             </div>
           </div>
           <div className="min-w-48 rounded-lg bg-white/5 px-4 py-2.5">
-            <div className="text-[10px] text-white/35">Estimated payout if {selected?.symbol ?? 'selected asset'} wins</div>
+            <div className="text-[10px] text-white/35">
+              {position?.exists && amountRaw > 0n ? 'Estimated total return after top-up' : 'Estimated total return'} if {selected?.symbol ?? 'selected asset'} wins
+            </div>
             <div className="mt-1 font-mono text-lg font-bold text-[#C6FF3D]">{formatUsdRaw(estimate, tokenDecimals)} {tokenLabel}</div>
+            <div className="mt-1 space-y-0.5 text-[10px] text-white/35">
+              {position?.exists && amountRaw > 0n && <div>Current {formatUsdRaw(existingStake, tokenDecimals)} + top-up {formatUsdRaw(amountRaw, tokenDecimals)} = {formatUsdRaw(stakeAfterAction, tokenDecimals)} {tokenLabel} staked</div>}
+              {stakeAfterAction > 0n && <div>Includes stake · estimated profit {formatUsdRaw(estimatedProfit, tokenDecimals)} {tokenLabel}</div>}
+            </div>
           </div>
         </div>
 

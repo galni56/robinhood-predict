@@ -434,10 +434,11 @@ export function estimateRacePayout(
   addedStake: bigint,
   feeBp: number,
 ) {
-  if (addedStake <= 0n) return 0n
+  if (addedStake < 0n) return 0n
   const winningPoolAfter = selectedPool + addedStake
   const userStakeAfter = currentUserStake + addedStake
   const totalPoolAfter = totalPool + addedStake
+  if (winningPoolAfter <= 0n || userStakeAfter <= 0n || totalPoolAfter < winningPoolAfter) return 0n
   const losingPool = totalPoolAfter - winningPoolAfter
   const fee = (losingPool * BigInt(feeBp)) / BP_DENOMINATOR
   const distributable = losingPool - fee
