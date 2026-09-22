@@ -2,7 +2,16 @@
 
 Current staged checks, operator inputs and readiness verdict:
 `ASSET_RACE_PREDEPLOY_CHECKLIST.md`. Local E2E and sampled Alchemy archive reads
-through one hour are green; actual deployed-address/service wiring is not verified.
+through one hour are green. Contracts are deployed/configured and independently
+read-checked; production service/frontend wiring is not live yet.
+
+Current Robinhood Chain mainnet deployment (chain4663):
+
+- `SignedPoolRaceOracle`: `0x5b0f7e62E0A5fF5C5C02Ad219Afcd086F2618Db7`
+- `AssetRace`: `0x63E582bb395527CED97F2F94662eA93A7EDf65Ff`
+- owner: `0x6d68157bEDa778346Dd27f8Ef4F917f69aD2Dc41`
+- price signer: `0x79F4991Ccc64Cbb8143fB61e4cBD49b8b64d3635`
+- settlement token: USDG `0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168`
 
 Use a dedicated deployment/owner account, a separate price-signing account,
 and a third keeper transaction account. Never place their private keys in the
@@ -139,8 +148,8 @@ guarded minimum. Alert on failed historical reads; fail closed.
 Frontend build-time configuration:
 
 - `VITE_ASSET_RACE_NETWORK=robinhood-mainnet`
-- `VITE_ASSET_RACE_ADDRESS`
-- `VITE_ASSET_RACE_SIGNED_POOL_ORACLE_ADDRESS`
+- `VITE_ASSET_RACE_ADDRESS=0x63E582bb395527CED97F2F94662eA93A7EDf65Ff`
+- `VITE_ASSET_RACE_SIGNED_POOL_ORACLE_ADDRESS=0x5b0f7e62E0A5fF5C5C02Ad219Afcd086F2618Db7`
 - the existing production `VITE_RPC_URL`
 
 ## Controlled launch checklist

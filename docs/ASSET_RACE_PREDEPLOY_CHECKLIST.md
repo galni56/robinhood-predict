@@ -1,9 +1,10 @@
-# Asset Race pre-deployment readiness — 2026-09-16
+# Asset Race deployment readiness and launch record — 2026-09-22
 
-No deployment, public transaction, production keeper or secret access performed.
-The operator supplied the intended archive RPC only through a local environment
-variable and ran the probes; its URL/API key was not shared, read or recorded.
-Local E2E remains green and was not rerun: changes are documentation only.
+The operator deployed and configured Asset Race on Robinhood Chain mainnet after
+separate dry runs and explicit transaction authorization. Private material stayed
+in operator-owned external environment files and was never read or recorded by
+the agent. The production keeper, LIVE service and frontend binding are not live
+yet; no race has been created.
 
 ## A. Already verified
 
@@ -54,6 +55,27 @@ Local E2E remains green and was not rerun: changes are documentation only.
 - Removed-oracle artifacts were cleared; a clean 76-file Forge build and all 145
   Solidity tests pass. Invariants completed 256 runs/128,000 calls with zero
   unexpected reverts; fuzz tests pass.
+- Deployed `SignedPoolRaceOracle` at
+  `0x5b0f7e62E0A5fF5C5C02Ad219Afcd086F2618Db7` in transaction
+  `0x7fd876c5b87a2ace05da3585ce0d258ec7e3b8ceb11dbece3c8465b0b8f9d0c0` and
+  `AssetRace` at `0x63E582bb395527CED97F2F94662eA93A7EDf65Ff` in transaction
+  `0xd5effcf246df0988b33752a1bfc0b3e4060e1e06349631e178b9314ecee578b2`.
+  Both receipts have status1 and deployed bytecode. Deployment paid
+  `0.000321449684798 ETH`.
+- The owner configured all10 Stocks+13 Memes, policy and 60/300/900-second
+  duration presets in 27 successful transactions, paying
+  `0.00019117456959 ETH`. Read-only post-deploy verification found all23 registry
+  entries exact: correct category, shared adapter, oracle ID, decimals18,
+  age60/lag0. Policy is lobby300, betting300, start grace180, resolution
+  grace300, skew0, fee200 bp, minimum2 contenders, stake range1-50 USDG.
+  `communityPolicyConfigured=true`, `newActivityPaused=false`, `raceCount=0`.
+- A production-shaped frontend build passed with the deployed bindings,
+  mainnet network, `/api/rpc/` and `/api/asset-race/live`; registry validation
+  remains 29 total/local, 0 testnet and 23 mainnet-enabled assets.
+- Operator-run keeper startup passed with chain4663, the deployed race/oracle,
+  separate keeper and price-signer keys, and the archive RPC loaded from the
+  external secret file. `DRY_RUN=true RUN_ONCE=true` exited cleanly with
+  `raceCount=0`; it sent no transaction and spent no ETH.
 
 ## B. Operator values/secrets still needed
 
@@ -78,8 +100,9 @@ Local E2E remains green and was not rerun: changes are documentation only.
 | LIVE hosting/proxy | Same-origin /api/asset-race/live; VITE_ASSET_RACE_LIVE_URL if overriding |
 
 Owner/deployer, keeper and price-signer public addresses are confirmed above and
-pairwise distinct. Contract/frontend addresses remain absent; secret-bearing
-runtime values remain absent from the repository and agent process.
+pairwise distinct. Contract addresses are confirmed above; production frontend
+and service bindings are not deployed. Secret-bearing runtime values remain
+absent from the repository and agent process.
 
 The operator reports that keeper and price-signer private keys are stored in the
 external mode-`0600` secret file. Their contents were not read by the agent and
