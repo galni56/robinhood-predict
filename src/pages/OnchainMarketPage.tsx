@@ -7,7 +7,7 @@ import { robinhoodMainnet, wagmiConfig } from '@/chain/config'
 import { DEMO_USERS, demoBetLogs, demoPools, isDemoMode } from '@/chain/demo'
 import { useFeedSnapshot } from '@/chain/feedCache'
 import { AddressLabel } from '@/components/AddressLabel'
-import { ChainIcon, ClockIcon } from '@/components/icons'
+import { ClockIcon } from '@/components/icons'
 import { SideBadge } from '@/components/Pills'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
 import {
@@ -270,7 +270,7 @@ export function OnchainMarketPage() {
   }, [effectivePriceAnswer, effectiveDecimals])
 
   // Colors the price by whether it just ticked up or down since the last
-  // poll (not by distance from target) — ref so recording it never itself
+  // poll (not by distance from target) - ref so recording it never itself
   // triggers a re-render; read during render, updated after via the effect
   // below so this render still sees the *previous* poll's value.
   const prevPriceRef = useRef<number | null>(null)
@@ -387,14 +387,14 @@ export function OnchainMarketPage() {
   const yesPct = totalPool > 0n ? Number((pools.poolYes * 10000n) / totalPool) / 100 : 50
 
   // Betting closes before the deadline, with an early-bet weight that decays
-  // over the betting window — mirrors PredictionMarket.bettingWindowEnd()/
+  // over the betting window - mirrors PredictionMarket.bettingWindowEnd()/
   // currentWeightBp() exactly (see src/chain/contracts.ts).
   const nowSeconds = BigInt(Math.floor(Date.now() / 1000))
   const bettingWindowEndMs = market.data ? Number(bettingWindowEndSeconds(market.data.createdAt, market.data.deadline)) * 1000 : 0
   const liveWeightBp = market.data ? currentWeightBp(market.data.createdAt, market.data.deadline, nowSeconds) : null
   const bettingClosed = liveWeightBp == null
 
-  // One bet per side per market — mirrors the contract's `bet()` rule.
+  // One bet per side per market - mirrors the contract's `bet()` rule.
   const hasBetYes = (myStakeYes.data ?? 0n) > 0n
   const hasBetNo = (myStakeNo.data ?? 0n) > 0n
   const sideAlreadyBet = side === 'YES' ? hasBetYes : hasBetNo
@@ -402,14 +402,6 @@ export function OnchainMarketPage() {
 
   return (
     <div className="max-w-[1200px] mx-auto px-4 py-8">
-      <div className="mb-6 flex items-center gap-2.5 rounded-2xl border border-[#8B7CF7]/25 bg-[#8B7CF7]/10 px-4 py-3 text-sm text-[#B3A7FA] font-medium">
-        <ChainIcon className="w-4 h-4 shrink-0" />
-        <span>
-          This is <b>real mode</b> — actual transactions on Robinhood Chain mainnet through your wallet
-          (MetaMask/Phantom). Not a mock: gas and tokens are real, and transactions really go on-chain.
-        </span>
-      </div>
-
       <Link to="/onchain" className="text-sm font-bold text-white/40 hover:text-white/70">
         ← All on-chain markets
       </Link>
@@ -442,7 +434,7 @@ export function OnchainMarketPage() {
 
       <div className="grid lg:grid-cols-[1fr_400px] gap-8 items-start mt-2">
         <div>
-      {/* Market data is a public read — shown regardless of wallet connection. */}
+      {/* Market data is a public read - shown regardless of wallet connection. */}
       {market.isLoading ? (
         <div className="rounded-3xl border border-white/5 bg-[#241b2f] p-5 space-y-3 mb-5 animate-pulse">
           <div className="flex items-center justify-between">
@@ -585,7 +577,7 @@ export function OnchainMarketPage() {
 
       {!isConnected ? (
         <div className="space-y-4">
-          {/* Inactive preview of the bet form — the real one appears once a
+          {/* Inactive preview of the bet form - the real one appears once a
               wallet is connected. Shows what betting looks like instead of
               hiding it entirely. */}
           {market.data && status === MarketStatusOnchain.Open && !bettingClosed && (
@@ -652,7 +644,7 @@ export function OnchainMarketPage() {
 
                   {bettingClosed ? (
                     <p className="text-sm text-white/40">
-                      Betting on this market is closed — waiting for the deadline so it can resolve.
+                      Betting on this market is closed - waiting for the deadline so it can resolve.
                     </p>
                   ) : (
                     <div className="rounded-3xl border border-white/5 bg-[#241b2f] p-4 space-y-3">
@@ -667,7 +659,7 @@ export function OnchainMarketPage() {
 
                       {bothSidesUsed ? (
                         <p className="text-xs text-white/40">
-                          You've already bet both YES and NO on this market — one bet per side, no more allowed.
+                          You've already bet both YES and NO on this market - one bet per side, no more allowed.
                         </p>
                       ) : (
                         <>
@@ -690,7 +682,7 @@ export function OnchainMarketPage() {
 
                           {sideAlreadyBet ? (
                             <p className="text-xs font-bold text-[#F2A65A]/80">
-                              You've already bet {side === 'YES' ? 'YES' : 'NO'} on this market — pick the other side.
+                              You've already bet {side === 'YES' ? 'YES' : 'NO'} on this market - pick the other side.
                             </p>
                           ) : (
                             <>
@@ -702,7 +694,7 @@ export function OnchainMarketPage() {
                                 placeholder="Amount in USDG"
                               />
                               <p className="text-[11px] text-white/30">
-                                USDG only for now — ETH support is planned for a future update. Want another token
+                                USDG only for now - ETH support is planned for a future update. Want another token
                                 supported? Let us know what you'd like next.
                               </p>
                               <button

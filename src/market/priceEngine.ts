@@ -1,5 +1,5 @@
 // Simple geometric random-walk price simulator. Deterministic-ish per tick
-// via Math.random() — this is a mock feed, not a forecast of anything real.
+// via Math.random() - this is a mock feed, not a forecast of anything real.
 
 const VOLATILITY = 0.012 // ~1.2% typical move per tick
 const DRIFT = 0.0006 // gentle mock upward drift so markets aren't dead

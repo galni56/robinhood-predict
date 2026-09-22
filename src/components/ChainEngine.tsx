@@ -12,7 +12,7 @@ const RESOLUTION_CHECK_MS = 5_000
  *  - block production (bundles pending txs from the mempool)
  *  - prediction-market resolution once a deadline passes
  *
- * Mounted once near the app root. No network calls, no servers — everything
+ * Mounted once near the app root. No network calls, no servers - everything
  * runs client-side in the browser tab.
  */
 export function ChainEngine() {

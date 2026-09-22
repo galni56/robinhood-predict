@@ -42,7 +42,7 @@ export function LoginPage() {
           </div>
           <p className="text-white/40 text-sm">
             {state?.reopenBet
-              ? "Log in to finish your bet — we'll take you right back to where you left off"
+              ? "Log in to finish your bet - we'll take you right back to where you left off"
               : `Log in to your demo account on ${RHCHAIN_META.name}`}
           </p>
         </div>

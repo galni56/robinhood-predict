@@ -11,7 +11,7 @@ export function DisclaimerBanner() {
       {isOnchain ? <ChainIcon className="w-3.5 h-3.5 shrink-0" /> : <AlertIcon className="w-3.5 h-3.5 shrink-0" />}
       <span>
         {isOnchain
-          ? 'Real mode: actual transactions on Robinhood Chain mainnet via your wallet. Real USDG, real money — contract has not had an external security audit. Betting currency is USDG only for now; ETH support is planned for a future update.'
+          ? 'Real mode: actual transactions on Robinhood Chain mainnet via your wallet. Real USDG, real money - contract has not had an external security audit. Betting currency is USDG only for now; ETH support is planned for a future update.'
           : `Demo / prototype running on mock data. ${RHCHAIN_META.disclaimer}`}
       </span>
     </div>

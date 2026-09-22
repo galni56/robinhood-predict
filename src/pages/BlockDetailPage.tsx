@@ -24,7 +24,7 @@ export function BlockDetailPage() {
 
       <div className="bg-[#12121c]/95 border border-white/10 rounded-xl p-4 space-y-2 text-sm">
         <Row label="Block hash" value={<HashPill hash={block.hash} />} />
-        <Row label="Parent hash" value={block.parentHash === '0x0' ? '—' : <HashPill hash={block.parentHash} />} />
+        <Row label="Parent hash" value={block.parentHash === '0x0' ? '-' : <HashPill hash={block.parentHash} />} />
         <Row label="Validator" value={<span className="font-mono text-white/70">{block.validator}</span>} />
         <Row label="Transactions" value={block.txHashes.length} />
       </div>

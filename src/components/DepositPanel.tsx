@@ -13,7 +13,7 @@ export function DepositPanel({ walletAddress }: { walletAddress: string }) {
   function deposit(value: number) {
     if (!(value > 0)) return
     faucet(walletAddress, value, `Add funds (demo faucet): ${formatUsd(value)}`)
-    setFeedback(`Request for ${formatUsd(value)} sent to mempool — will land with the next block ✅`)
+    setFeedback(`Request for ${formatUsd(value)} sent to mempool - will land with the next block ✅`)
     setAmount('')
     window.setTimeout(() => setFeedback(null), 4000)
   }
@@ -27,7 +27,7 @@ export function DepositPanel({ walletAddress }: { walletAddress: string }) {
     <div className="bg-[#12121c]/95 border border-white/10 rounded-xl p-4">
       <h2 className="font-medium mb-1">Add funds</h2>
       <p className="text-white/40 text-xs mb-3">
-        A mock faucet — not real money, no real payment involved. Credited via a blockchain transaction, same as
+        A mock faucet - not real money, no real payment involved. Credited via a blockchain transaction, same as
         everything else here (visible in the explorer).
       </p>
 
@@ -62,7 +62,7 @@ export function DepositPanel({ walletAddress }: { walletAddress: string }) {
 
       {feedback && <p className="text-xs text-emerald-400 mt-2">{feedback}</p>}
       <p className="text-white/25 text-xs mt-2">
-        Currency is {RHCHAIN_META.ticker}, a test unit for this demo — it has no real-world value.
+        Currency is {RHCHAIN_META.ticker}, a test unit for this demo - it has no real-world value.
       </p>
     </div>
   )

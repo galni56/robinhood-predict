@@ -1,12 +1,12 @@
 import { useEffect, useRef } from 'react'
 
-// Site-wide WebGL2 background — fbm/simplex noise, brand shades only (near-black
+// Site-wide WebGL2 background - fbm/simplex noise, brand shades only (near-black
 // -> grape #8B7CF7), kept subtle (mixed at low weight) so page content stays
 // readable. See index.css for why a static CSS gradient was used instead of
 // this kind of layer before: two earlier animated-background attempts (a
 // canvas grid, then a background-position CSS animation) both intermittently
 // broke paint order in some renders, leaving text unpainted on top. This is
-// the same fixed + negative-z-index shape, reattempted carefully — verify any
+// the same fixed + negative-z-index shape, reattempted carefully - verify any
 // future change here across real pages (not just a blank canvas) before
 // shipping, the failure mode doesn't show up on every render.
 const VERTEX_SHADER = `#version 300 es
@@ -90,7 +90,7 @@ export function AnimatedBackground() {
       depth: false,
       stencil: false,
     })
-    if (!gl) return // no WebGL2 — purely decorative, skip silently rather than error
+    if (!gl) return // no WebGL2 - purely decorative, skip silently rather than error
 
     function compile(type: number, source: string) {
       const shader = gl!.createShader(type)!

@@ -24,8 +24,8 @@ export function timeAgo(ts: number): string {
   return `${d}d ago`
 }
 
-// Wallet/RPC errors (viem's `.message`) dump the full call — args, sender,
-// docs link, library version — which is noise to a non-technical user.
+// Wallet/RPC errors (viem's `.message`) dump the full call - args, sender,
+// docs link, library version - which is noise to a non-technical user.
 // Show just: the wallet-rejected case, a decoded revert reason if one's
 // present, or a short generic fallback. Never the raw multi-line dump.
 const REVERT_MESSAGES: Record<string, string> = {

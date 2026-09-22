@@ -20,13 +20,13 @@ const STEPS = [
     n: '01',
     color: '#8B7CF7',
     title: 'Markets target a real ticker and price',
-    body: "Anyone can create a market: pick an allowlisted Chainlink feed (TSLA, NVDA, whatever's live), a target price, and a deadline. The target has to sit within an allowed deviation from the live price — 2% to 20%, depending on how long the market runs — so nobody can set up a guaranteed win or an impossible long shot.",
+    body: "Anyone can create a market: pick an allowlisted Chainlink feed (TSLA, NVDA, whatever's live), a target price, and a deadline. The target has to sit within an allowed deviation from the live price - 2% to 20%, depending on how long the market runs - so nobody can set up a guaranteed win or an impossible long shot.",
   },
   {
     n: '02',
     color: '#F2A65A',
     title: 'Stake USDG on YES or NO',
-    body: "Every bet goes into one shared pool per side — there's no bookmaker setting a line and no fixed odds. The live YES/NO split of the pool is the price, and it moves in real time as people bet.",
+    body: "Every bet goes into one shared pool per side - there's no bookmaker setting a line and no fixed odds. The live YES/NO split of the pool is the price, and it moves in real time as people bet.",
   },
   {
     n: '03',
@@ -38,19 +38,19 @@ const STEPS = [
     n: '04',
     color: '#ED8F3A',
     title: 'The Chainlink feed decides the outcome',
-    body: "At the deadline, the contract reads the feed's latestRoundData() directly and checks it against the target. No human calls it, no committee, no admin override — it's the same feed the whole time, on-chain.",
+    body: "At the deadline, the contract reads the feed's latestRoundData() directly and checks it against the target. No human calls it, no committee, no admin override - it's the same feed the whole time, on-chain.",
   },
   {
     n: '05',
     color: '#6A5AE0',
     title: 'One-sided markets cancel automatically',
-    body: 'If a market reaches its deadline with bets on only one side, it cancels instead of settling — every stake comes back in full, no protocol fee taken. Conviction on one side alone never just gets swallowed.',
+    body: 'If a market reaches its deadline with bets on only one side, it cancels instead of settling - every stake comes back in full, no protocol fee taken. Conviction on one side alone never just gets swallowed.',
   },
   {
     n: '06',
     color: '#E8C46B',
     title: 'Winners split the losing pool',
-    body: 'Payouts are parimutuel: your own stake always comes back first, then your weighted share of what the losing side staked — minus a 2% protocol fee that only ever applies to winnings, never to your principal.',
+    body: 'Payouts are parimutuel: your own stake always comes back first, then your weighted share of what the losing side staked - minus a 2% protocol fee that only ever applies to winnings, never to your principal.',
   },
 ] as const
 
@@ -59,25 +59,25 @@ const FEATURES = [
     tag: '0% VIG',
     color: '#8B7CF7',
     title: 'No spread. No vig. No middleman.',
-    body: "Every sportsbook, every prediction platform, most of DeFi — they all bake a spread into the price before you even click a button. Prophet doesn't. There's no market maker quietly skimming the top and no house edge disguised as odds. Winners split exactly what losers staked, pool against pool, in proportion to weighted stake. The pool is the price. Nothing else touches it.",
+    body: "Every sportsbook, every prediction platform, most of DeFi - they all bake a spread into the price before you even click a button. Prophet doesn't. There's no market maker quietly skimming the top and no house edge disguised as odds. Winners split exactly what losers staked, pool against pool, in proportion to weighted stake. The pool is the price. Nothing else touches it.",
   },
   {
     tag: '2X → 0.5X',
     color: '#F2A65A',
-    title: 'Early conviction is priced in — literally',
-    body: "Most platforms treat every dollar the same whether you bet the second a market opens or the second before it locks. Prophet doesn't. Bet inside the first two-thirds of the window and your stake carries up to 2x weight toward the payout; wait until the crowd has already piled in and that decays down to 0.5x. Being right isn't enough here — being right early is what actually gets paid.",
+    title: 'Early conviction is priced in - literally',
+    body: "Most platforms treat every dollar the same whether you bet the second a market opens or the second before it locks. Prophet doesn't. Bet inside the first two-thirds of the window and your stake carries up to 2x weight toward the payout; wait until the crowd has already piled in and that decays down to 0.5x. Being right isn't enough here - being right early is what actually gets paid.",
   },
   {
     tag: '100% REFUND',
     color: '#B3A7FA',
     title: 'Your capital never gets trapped in a dead market',
-    body: "If a market hits its deadline and only one side ever placed a bet, there's no outcome to force. It cancels on-chain automatically and every wallet gets its full stake back — no protocol fee, no dispute process, no support ticket to file. Dead markets don't hold your money hostage here.",
+    body: "If a market hits its deadline and only one side ever placed a bet, there's no outcome to force. It cancels on-chain automatically and every wallet gets its full stake back - no protocol fee, no dispute process, no support ticket to file. Dead markets don't hold your money hostage here.",
   },
   {
     tag: 'LIVE ON MAINNET',
     color: '#ED8F3A',
     title: 'Not a testnet. Not a simulation. Not a promise.',
-    body: 'This is a live Solidity contract deployed on Robinhood Chain mainnet, settling real USDG against real Chainlink price feeds in real time. Permissionless market creation, an owner-maintained feed allowlist, deviation-bounded targets — every rule on this page is running on-chain right now, not sitting in a deck waiting to ship.',
+    body: 'This is a live Solidity contract deployed on Robinhood Chain mainnet, settling real USDG against real Chainlink price feeds in real time. Permissionless market creation, an owner-maintained feed allowlist, deviation-bounded targets - every rule on this page is running on-chain right now, not sitting in a deck waiting to ship.',
   },
 ] as const
 
@@ -388,8 +388,8 @@ export function OnchainLandingPage() {
                       <p className="flex items-center gap-2 text-xs font-medium text-white/45 mb-5">
                         <span className="w-1.5 h-1.5 rounded-full bg-[#F2A65A] shrink-0" />
                         {totalPool === 0n
-                          ? 'New market — be the first to call it.'
-                          : 'One side is in — take the other, or it refunds in full.'}
+                          ? 'New market - be the first to call it.'
+                          : 'One side is in - take the other, or it refunds in full.'}
                       </p>
                     )}
 
@@ -506,7 +506,7 @@ export function OnchainLandingPage() {
           Why <span className="text-[#B3A7FA]">Prophet</span>
         </h2>
         <p className="text-white/40 text-sm sm:text-base text-center mb-12 max-w-xl mx-auto">
-          No spread. No stale markets. No trust required — just math that settles itself, on-chain, in the open.
+          No spread. No stale markets. No trust required - just math that settles itself, on-chain, in the open.
         </p>
         <div ref={featuresReveal.ref} className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           {FEATURES.map((f, i) => {
@@ -666,7 +666,7 @@ export function OnchainLandingPage() {
                 return (
                   <span
                     key={a.tokenSymbol}
-                    title={`${label} — no price feed yet. Robinhood hasn't shipped one for this stock, so a market can't be created until they do.`}
+                    title={`${label} - no price feed yet. Robinhood hasn't shipped one for this stock, so a market can't be created until they do.`}
                     className="flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-dashed border-[#241a33]/20 text-sm text-[#241a33]/40 font-bold cursor-default"
                   >
                     {dot}
@@ -732,7 +732,7 @@ export function OnchainLandingPage() {
             </p>
             <h2 className="font-display text-3xl sm:text-5xl font-bold tracking-tight mb-4">Ready to make your first call?</h2>
             <p className="text-white/50 text-sm sm:text-base mb-9 max-w-lg mx-auto">
-              No wallet required to look around — browsing every market is open to everyone. Connect a wallet (MetaMask
+              No wallet required to look around - browsing every market is open to everyone. Connect a wallet (MetaMask
               or Phantom) when you're ready to actually place a bet.
             </p>
             <div className="flex flex-wrap gap-4 justify-center items-center">

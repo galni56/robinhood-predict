@@ -99,7 +99,7 @@ export function OnchainCreateMarketPage() {
       return
     }
     if (feedDecimals.data == null) {
-      setError("Couldn't read the feed's decimals() — try again")
+      setError("Couldn't read the feed's decimals() - try again")
       return
     }
 
@@ -140,9 +140,9 @@ export function OnchainCreateMarketPage() {
           <p className="text-sm font-bold text-[#B3A7FA] mb-1">Make a market</p>
           <h1 className="font-display text-3xl sm:text-4xl font-bold tracking-tight mb-2">Ask the next big question</h1>
           <p className="text-white/50 text-sm mb-6">
-            A real transaction on mainnet. Target price must sit a reasonable distance from the current price — the
-            further out the deadline, the wider that band. YES/NO pools start at $0 — if only one side has bets by the
-            deadline, the market cancels and money is refunded in full. Betting currency is USDG only for now — ETH
+            A real transaction on mainnet. Target price must sit a reasonable distance from the current price - the
+            further out the deadline, the wider that band. YES/NO pools start at $0 - if only one side has bets by the
+            deadline, the market cancels and money is refunded in full. Betting currency is USDG only for now - ETH
             support is planned for a future update. Want another token supported? Let us know what you'd like next.
           </p>
 
@@ -184,7 +184,7 @@ export function OnchainCreateMarketPage() {
             ))}
           </div>
           <p className="text-[11px] text-white/30 mt-1.5">
-            Only allowlisted feeds can settle a market — only the contract owner can add more.
+            Only allowlisted feeds can settle a market - only the contract owner can add more.
           </p>
         </div>
 
@@ -223,7 +223,7 @@ export function OnchainCreateMarketPage() {
           {minRange != null && maxRange != null && minGapUsd != null && (
             <p className="text-[11px] text-white/30 mt-1.5">
               Allowed for this duration: {formatUsd(minRange)}–{formatUsd(maxRange)}, at least {formatUsd(minGapUsd)} away
-              from the current price. Enforced on-chain — the transaction will revert outside this range.
+              from the current price. Enforced on-chain - the transaction will revert outside this range.
             </p>
           )}
         </div>

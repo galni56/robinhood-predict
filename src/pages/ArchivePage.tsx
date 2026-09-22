@@ -33,7 +33,7 @@ export function ArchivePage() {
   const pageItems = resolved.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
 
   // A filter/search change can leave `page` past the end of the new,
-  // smaller result set — the handlers below reset it to 1 whenever either
+  // smaller result set - the handlers below reset it to 1 whenever either
   // changes, rather than risk rendering an empty page.
   function updateQuery(v: string) {
     setQuery(v)
@@ -49,7 +49,7 @@ export function ArchivePage() {
       <div>
         <h1 className="text-2xl font-semibold">Archive of settled markets</h1>
         <p className="text-white/50 text-sm mt-1">
-          Every market that's already resolved or cancelled — final outcome, odds, and pool size, open to browse
+          Every market that's already resolved or cancelled - final outcome, odds, and pool size, open to browse
           without an account.
         </p>
       </div>

@@ -141,7 +141,7 @@ export function SettingsPage() {
       </form>
 
       <p className="text-center text-xs text-white/25">
-        All of this is mock — data is stored only in your browser's localStorage.
+        All of this is mock - data is stored only in your browser's localStorage.
       </p>
     </div>
   )

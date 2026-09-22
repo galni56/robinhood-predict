@@ -1,7 +1,7 @@
 import type { BetLog } from '@/chain/betLogs'
 
 /** Presentation-only overlay: realistic-looking pools and a bets feed,
- * deterministic per market id, generated purely client-side — nothing is
+ * deterministic per market id, generated purely client-side - nothing is
  * read from or written to the chain. On by default in `npm run dev`; in a
  * production build it stays OFF unless the page is opened with ?demo=1
  * (persisted to localStorage, cleared with ?demo=0). */
@@ -18,12 +18,12 @@ export function isDemoMode(): boolean {
     }
     if (localStorage.getItem('prophet_demo') === '1') return true
   } catch {
-    /* storage unavailable — fall through */
+    /* storage unavailable - fall through */
   }
   return import.meta.env.DEV
 }
 
-// mulberry32 — tiny deterministic PRNG so every reload shows the same
+// mulberry32 - tiny deterministic PRNG so every reload shows the same
 // numbers (stable across a whole presentation, no reshuffling mid-demo).
 function prng(seed: number) {
   let a = seed >>> 0
@@ -60,7 +60,7 @@ function demoTxHash(r: () => number): `0x${string}` {
   return s as `0x${string}`
 }
 
-/** A fixed roster of recurring demo bettors — bets across markets land on
+/** A fixed roster of recurring demo bettors - bets across markets land on
  * these same wallets, so leaderboard entries accumulate several bets each
  * instead of every address appearing exactly once. */
 export const DEMO_USERS: `0x${string}`[] = (() => {
@@ -132,7 +132,7 @@ export function saveDemoLeaderboard(stats: DemoLeaderboardStat[], recent: BetLog
       }),
     )
   } catch {
-    /* storage unavailable — demo-only, ignore */
+    /* storage unavailable - demo-only, ignore */
   }
 }
 
@@ -151,7 +151,7 @@ export function loadDemoLeaderboard(): { stats: DemoLeaderboardStat[]; recent: B
 }
 
 /** Winnings for the demo bettors: base wins on roughly half the bets, then
- * a deterministic top-up so EVERY roster bettor nets positive — the
+ * a deterministic top-up so EVERY roster bettor nets positive - the
  * leaderboard is a winners' top-20, so the baseline must supply at least
  * that many positive nets. */
 export function demoClaimLogs(ids: bigint[]): { user: `0x${string}`; payout: bigint }[] {

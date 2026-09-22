@@ -1,4 +1,4 @@
-/** Big abstract product mark for the landing hero's right column — concentric
+/** Big abstract product mark for the landing hero's right column - concentric
  * "target" rings with a trajectory line landing dead-center on a PX
  * monogram, standing in for a literal product photo/logo. Pure inline SVG:
  * scales cleanly to any size, no image asset to ship or fail to load. */

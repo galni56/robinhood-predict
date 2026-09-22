@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { formatUnits } from 'viem'
 import { useReadContract, useReadContracts } from 'wagmi'
-import { ChainIcon, ClockIcon } from '@/components/icons'
+import { ClockIcon } from '@/components/icons'
 import { LiveBetsTicker } from '@/components/LiveBetsTicker'
 import { OnchainMarketsSidebar } from '@/components/OnchainMarketsSidebar'
 import { CancelledBadge } from '@/components/Pills'
@@ -57,11 +57,11 @@ export function OnchainMarketsListPage() {
   const [filter, setFilter] = useState<StatusFilter>('ALL')
   const [assetFilter, setAssetFilter] = useState<AssetFilter>('ALL')
   // Tracks each feed's previously-seen price so a card can color itself by
-  // "did it just tick up or down", not by distance from the target — a ref
+  // "did it just tick up or down", not by distance from the target - a ref
   // (not state) so updating it never itself triggers a re-render.
   const prevPriceByFeed = useRef<Map<string, number>>(new Map())
   // Real prices accumulated client-side since this page was opened, for the
-  // card sparkline — also a ref, piggybacking on the same effect below; the
+  // card sparkline - also a ref, piggybacking on the same effect below; the
   // next 2s poll's re-render is what actually shows the appended point.
   const priceHistoryByFeed = useRef<Map<string, PricePoint[]>>(new Map())
 
@@ -187,19 +187,12 @@ export function OnchainMarketsListPage() {
 
   return (
     <div className="max-w-[1500px] mx-auto px-4 py-8">
-      <div className="mb-6 flex items-center gap-2.5 rounded-2xl border border-[#8B7CF7]/25 bg-[#8B7CF7]/10 px-4 py-3 text-sm text-[#B3A7FA] font-medium">
-        <ChainIcon className="w-4 h-4 shrink-0" />
-        <span>
-          This is <b>real mode</b> — markets are read directly from the deployed contract on Robinhood Chain mainnet.
-        </span>
-      </div>
-
       <div className="mb-8 flex items-start justify-between gap-6 flex-wrap">
         <div className="max-w-2xl">
           <p className="text-sm font-bold text-[#B3A7FA] mb-1">The board</p>
           <h1 className="font-display text-3xl sm:text-4xl font-bold tracking-tight">What's your call?</h1>
           <p className="text-white/50 text-sm mt-2">
-            {count} market{count === 1 ? '' : 's'} live on Robinhood Chain mainnet. Bet YES or NO before the deadline —
+            {count} market{count === 1 ? '' : 's'} live on Robinhood Chain mainnet. Bet YES or NO before the deadline -
             early bets carry more weight, and a market with only one side ever betting cancels and refunds in full.
           </p>
         </div>
@@ -273,7 +266,7 @@ export function OnchainMarketsListPage() {
             const totalPool = pools.poolYes + pools.poolNo
             const yesPct = totalPool > 0n ? Number((pools.poolYes * 10000n) / totalPool) / 100 : 50
             const prevUsd = prevPriceByFeed.current.get(m.priceFeed)
-            // No prior tick yet (first render) — default to green rather than
+            // No prior tick yet (first render) - default to green rather than
             // flashing red for a market that hasn't actually moved down.
             const tickedUp = currentUsd == null || prevUsd == null ? true : currentUsd >= prevUsd
 
@@ -346,8 +339,8 @@ export function OnchainMarketsListPage() {
                     {m.status !== MarketStatusOnchain.Open
                       ? 'Pool never got both sides in.'
                       : totalPool === 0n
-                        ? 'New market — be the first to call it.'
-                        : 'One side is in — take the other, or it refunds in full.'}
+                        ? 'New market - be the first to call it.'
+                        : 'One side is in - take the other, or it refunds in full.'}
                   </p>
                 )}
 
