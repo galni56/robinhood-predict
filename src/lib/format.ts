@@ -28,11 +28,39 @@ export function timeAgo(ts: number): string {
 // docs link, library version — which is noise to a non-technical user.
 // Show just: the wallet-rejected case, a decoded revert reason if one's
 // present, or a short generic fallback. Never the raw multi-line dump.
+const REVERT_MESSAGES: Record<string, string> = {
+  'target too close to current price':
+    'Target is too close to the current price. It must be at least 2% above or below it.',
+  'target too far from current price':
+    'Target is too far from the current price for this deadline (or the price just moved). Pick a target a bit closer.',
+  'market duration too short': 'The deadline is too soon. Pick a longer duration.',
+  'stale price feed': "The price feed hasn't updated recently. Try again in a minute.",
+  'feed not allowlisted': "This price feed isn't supported.",
+  'betting closed': 'Betting on this market has closed.',
+  'market not open': 'This market is no longer open.',
+  'already bet this side': "You've already bet on this side of this market.",
+  'exceeds max stake per side': 'Maximum stake is $50 per side of a market.',
+  'too early': "The deadline hasn't passed yet, so this market can't be resolved.",
+  'not resolved': "This market hasn't been resolved yet.",
+  'already claimed': "You've already claimed this payout.",
+  'no winning stake': 'You have no winning stake in this market.',
+  'not cancelled': "This market wasn't cancelled, so there is nothing to refund.",
+  'nothing to refund': 'You have nothing to refund on this market.',
+}
+
+// Wallets sometimes swallow the real revert reason and return only a generic
+// placeholder; showing that verbatim tells the user nothing.
+const GENERIC_WALLET_ERROR = /^(unexpected error|internal (json-rpc )?error|an internal error was received\.?|unknown error)$/i
+
 export function shortTxError(e: unknown): string {
   const raw = e instanceof Error ? ((e as { shortMessage?: string }).shortMessage ?? e.message) : String(e)
   if (/rejected/i.test(raw)) return 'Rejected in wallet'
   const reasonMatch = raw.match(/reason:\s*\n?\s*"?([^"\n]+)"?/i)
-  if (reasonMatch) return reasonMatch[1].trim()
+  if (reasonMatch) {
+    const reason = reasonMatch[1].trim()
+    if (GENERIC_WALLET_ERROR.test(reason)) return 'Transaction would fail, but the wallet did not say why. Check the values and try again.'
+    return REVERT_MESSAGES[reason.toLowerCase()] ?? reason
+  }
   return 'Transaction failed'
 }
 

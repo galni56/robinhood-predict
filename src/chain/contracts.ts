@@ -22,6 +22,12 @@ export const ALLOWLISTED_FEEDS = [
   { ticker: 'TSLA', address: '0x4A1166a659A55625345e9515b32adECea5547C38' as Address },
   { ticker: 'NVDA', address: '0x379EC4f7C378F34a1B47E4F3cbeBCbAC3E8E9F15' as Address },
   { ticker: 'AAPL', address: '0x6B22A786bAa607d76728168703a39Ea9C99f2cD0' as Address },
+  { ticker: 'AMD', address: '0x943A29E7ae51A4798823ca9eEd2ed533B2A22C72' as Address },
+  { ticker: 'ASML', address: '0xB4106147E8cce40b7d46124090d373A71b70f87D' as Address },
+  { ticker: 'BABA', address: '0x62Cc8F9b5f56a33c9C8A60c8B92779f523c4E984' as Address },
+  { ticker: 'CLSK', address: '0x810c12D3a554Bc47fd39597Fe3b3AAC4941F50eF' as Address },
+  { ticker: 'COIN', address: '0xA3a468A452940B7D6b69991207B508c609a98Ef2' as Address },
+  { ticker: 'CRCL', address: '0x6652eDf64bA3731C4F2D3ce821A0Fb1f1f6b482a' as Address },
   { ticker: 'MSFT', address: '0x45C3C877C15E6BA2EBB19eA114Ea508d14C1Af2E' as Address },
   { ticker: 'GOOGL', address: '0xF6f373a037c30F0e5010d854385cA89185AE638b' as Address },
   { ticker: 'AMZN', address: '0xD5a1508ceD74c084eBf3cBe853e2C968fB2a651C' as Address },
@@ -50,6 +56,19 @@ export const ALLOWLISTED_FEEDS = [
 
 export function feedAddressForTicker(ticker: string): Address | undefined {
   return ALLOWLISTED_FEEDS.find((f) => f.ticker.toLowerCase() === ticker.toLowerCase())?.address
+}
+
+const TICKER_BY_FEED_ADDRESS = new Map(ALLOWLISTED_FEEDS.map((f) => [f.address.toLowerCase(), f.ticker]))
+
+/** Instant, no-network ticker lookup for an allowlisted feed -- every market
+ * created through this app uses one of these, so this resolves the ticker
+ * synchronously instead of waiting on a live `description()` chain read
+ * (which otherwise adds a full extra round trip before a market page can
+ * show its own title). Falls back to undefined for a feed outside the
+ * allowlist; callers should still fall back to tickerFromFeedDescription()
+ * off a live read in that case. */
+export function tickerForFeedAddress(address?: Address): string | undefined {
+  return address ? TICKER_BY_FEED_ADDRESS.get(address.toLowerCase()) : undefined
 }
 
 /** Block the contract was deployed at, if known — narrows `getLogs` scans

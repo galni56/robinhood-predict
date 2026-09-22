@@ -4,13 +4,16 @@ import { ALLOWLISTED_FEEDS } from '@/chain/contracts'
 import { useCorePrices, useRobinhoodAssets, useRobinhoodPrices } from '@/chain/robinhoodApi'
 import { formatUsd } from '@/lib/format'
 
-// Shown when the search box is empty, instead of pulling live prices for
-// all ~194 tokens at once (keeps requests bounded — 60 req/s rate limit on
-// the underlying API, per its docs). Mix of the already-allowlisted
-// tickers plus a few more recognizable ones.
-const DEFAULT_TICKERS = ['TSLA', 'NVDA', 'AAPL', 'MSFT', 'GOOGL', 'AMZN', 'META', 'NFLX', 'AMD', 'COIN', 'PLTR', 'SPY']
-
 const ALLOWLISTED_TICKERS = new Set<string>(ALLOWLISTED_FEEDS.map((f) => f.ticker))
+
+// Shown when the search box is empty, instead of pulling live prices for
+// all ~194 tokens at once. Every allowlisted ticker (the ones you can
+// actually create a prediction on) rather than a small hardcoded mix --
+// used to be capped smaller to keep request volume bounded (60 req/s
+// rate limit on the underlying API), but prices are now served from our
+// own pre-fetched cache (see src/chain/robinhoodApi.ts's useCorePrices),
+// so showing all of them by default costs nothing extra.
+const DEFAULT_TICKERS = ALLOWLISTED_FEEDS.map((f) => f.ticker)
 
 export function TokenBrowser() {
   const [query, setQuery] = useState('')

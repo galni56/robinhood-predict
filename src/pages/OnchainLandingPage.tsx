@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { formatUnits } from 'viem'
 import { useReadContract, useReadContracts } from 'wagmi'
@@ -7,6 +8,7 @@ import {
   aggregatorV3Abi,
   predictionMarketAbi,
   MarketStatusOnchain,
+  feedAddressForTicker,
   tickerFromFeedDescription,
 } from '@/chain/contracts'
 import { useFeedSnapshot } from '@/chain/feedCache'
@@ -16,44 +18,77 @@ import { formatUsd } from '@/lib/format'
 const STEPS = [
   {
     n: '01',
-    title: 'Pick a market',
-    body: "Every market asks one thing: will this tokenized stock hit a target price before its deadline? Browse what's open or create your own.",
+    color: '#C6FF3D',
+    title: 'Markets target a real ticker and price',
+    body: "Anyone can create a market: pick an allowlisted Chainlink feed (TSLA, NVDA, whatever's live), a target price, and a deadline. The target has to sit within an allowed deviation from the live price — 2% to 20%, depending on how long the market runs — so nobody can set up a guaranteed win or an impossible long shot.",
   },
   {
     n: '02',
-    title: 'Call YES or NO',
-    body: 'Stake USDG on either side. Bet inside the first two-thirds of the window and your share of the payout is weighted up to 2x — the earlier, the bigger.',
+    color: '#38BDF8',
+    title: 'Stake USDG on YES or NO',
+    body: "Every bet goes into one shared pool per side — there's no bookmaker setting a line and no fixed odds. The live YES/NO split of the pool is the price, and it moves in real time as people bet.",
   },
   {
     n: '03',
-    title: 'Market settles',
-    body: "When the deadline hits, the Chainlink price feed decides it. If only one side ever placed a bet, the market cancels instead and everyone's stake comes back in full.",
+    color: '#FBBF24',
+    title: 'Betting early carries more weight',
+    body: 'A bet placed in the first two-thirds of the betting window counts up to 2x; the closer to the cutoff, the more that decays, down to 0.5x right before betting closes. Conviction early is worth more than sniping the obvious side at the last second.',
   },
   {
     n: '04',
-    title: 'Winners split the pool',
-    body: "Parimutuel payout: your principal always comes back, plus your weighted share of the losing side's pool, minus a small protocol fee on winnings only.",
+    color: '#A78BFA',
+    title: 'The Chainlink feed decides the outcome',
+    body: "At the deadline, the contract reads the feed's latestRoundData() directly and checks it against the target. No human calls it, no committee, no admin override — it's the same feed the whole time, on-chain.",
+  },
+  {
+    n: '05',
+    color: '#FB7185',
+    title: 'One-sided markets cancel automatically',
+    body: 'If a market reaches its deadline with bets on only one side, it cancels instead of settling — every stake comes back in full, no protocol fee taken. Conviction on one side alone never just gets swallowed.',
+  },
+  {
+    n: '06',
+    color: '#34D399',
+    title: 'Winners split the losing pool',
+    body: 'Payouts are parimutuel: your own stake always comes back first, then your weighted share of what the losing side staked — minus a 2% protocol fee that only ever applies to winnings, never to your principal.',
   },
 ] as const
 
 const FEATURES = [
   {
-    title: 'Parimutuel, not house odds',
-    body: "There's no bookmaker setting a line. Winners split what losers staked, in proportion to their weighted stake — the pool sets the price, not a spread.",
+    tag: '0% VIG',
+    color: '#38BDF8',
+    title: 'No spread. No vig. No middleman.',
+    body: "Every sportsbook, every prediction platform, most of DeFi — they all bake a spread into the price before you even click a button. Prophet doesn't. There's no market maker quietly skimming the top and no house edge disguised as odds. Winners split exactly what losers staked, pool against pool, in proportion to weighted stake. The pool is the price. Nothing else touches it.",
   },
   {
-    title: 'Early conviction pays more',
-    body: 'A bet placed the instant a market opens carries 2x weight; wait until betting is about to close and it decays to 0.5x. Sniping the obvious outcome earns less than committing early.',
+    tag: '2X → 0.5X',
+    color: '#FBBF24',
+    title: 'Early conviction is priced in — literally',
+    body: "Most platforms treat every dollar the same whether you bet the second a market opens or the second before it locks. Prophet doesn't. Bet inside the first two-thirds of the window and your stake carries up to 2x weight toward the payout; wait until the crowd has already piled in and that decays down to 0.5x. Being right isn't enough here — being right early is what actually gets paid.",
   },
   {
-    title: 'No one-sided traps',
-    body: 'If a market reaches its deadline with bets on only one side, it cancels automatically and every stake is refunded in full — no fee, no loss.',
+    tag: '100% REFUND',
+    color: '#34D399',
+    title: 'Your capital never gets trapped in a dead market',
+    body: "If a market hits its deadline and only one side ever placed a bet, there's no outcome to force. It cancels on-chain automatically and every wallet gets its full stake back — no protocol fee, no dispute process, no support ticket to file. Dead markets don't hold your money hostage here.",
   },
   {
-    title: 'Not a demo',
-    body: 'This is a real Solidity contract live on Robinhood Chain mainnet — permissionless market creation, an owner-maintained price-feed allowlist, and a target price bounded relative to the live price. Real USDG, real wallet, real transactions.',
+    tag: 'LIVE ON MAINNET',
+    color: '#C6FF3D',
+    title: 'Not a testnet. Not a simulation. Not a promise.',
+    body: 'This is a live Solidity contract deployed on Robinhood Chain mainnet, settling real USDG against real Chainlink price feeds in real time. Permissionless market creation, an owner-maintained feed allowlist, deviation-bounded targets — every rule on this page is running on-chain right now, not sitting in a deck waiting to ship.',
   },
 ] as const
+
+// A stable-per-ticker hue so each pill in the "Browse tokenized stocks"
+// section gets a distinct-but-consistent color dot -- purely decorative,
+// no meaning attached to the color itself.
+function hueForTicker(sym: string) {
+  let h = 0
+  for (let i = 0; i < sym.length; i++) h = (h * 31 + sym.charCodeAt(i)) % 360
+  return h
+}
 
 export function OnchainLandingPage() {
   const marketCount = useReadContract({
@@ -112,9 +147,19 @@ export function OnchainLandingPage() {
       return r?.status === 'success' ? { id, ...r.result } : null
     })
     .filter((m): m is NonNullable<typeof m> => m != null && m.status === MarketStatusOnchain.Open)
+    // Newest first -- a higher id was created later, since ids increment
+    // sequentially. Otherwise the preview here (and the hero market below)
+    // always shows the same oldest handful forever as more get created.
+    .sort((a, b) => (a.id > b.id ? -1 : a.id < b.id ? 1 : 0))
 
   const assets = useRobinhoodAssets()
-  const preview = openMarkets.slice(0, 3)
+  const [stockQuery, setStockQuery] = useState('')
+  const filteredAssets = (assets.data ?? []).filter((a) => {
+    const q = stockQuery.trim().toLowerCase()
+    if (!q) return true
+    return a.tokenSymbol.toLowerCase().includes(q) || a.tokenName.toLowerCase().includes(q)
+  })
+  const preview = openMarkets.slice(0, 9)
   const heroMarket = openMarkets[0]
   const heroTicker = heroMarket ? tickerFor(descByFeed.get(heroMarket.priceFeed)) : undefined
   const heroDecimals = heroMarket ? decimalsByFeed.get(heroMarket.priceFeed) : undefined
@@ -212,15 +257,35 @@ export function OnchainLandingPage() {
 
       {/* How it works */}
       <section className="border-t border-white/10 bg-[#0c0c16]/60">
-        <div className="max-w-[1500px] mx-auto px-4 py-16">
+        <div className="max-w-3xl mx-auto px-4 py-16">
           <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-center mb-2">How it works</h2>
-          <p className="text-white/40 text-sm text-center mb-10">Four steps, start to settlement.</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            {STEPS.map((s) => (
-              <div key={s.n} className="bg-[#12121c]/95 border border-white/10 rounded-2xl p-5">
-                <div className="text-[#C6FF3D]/60 font-mono text-sm mb-3">{s.n}</div>
-                <h3 className="font-bold mb-2">{s.title}</h3>
-                <p className="text-white/50 text-sm">{s.body}</p>
+          <p className="text-white/40 text-sm text-center mb-12">Six steps, start to settlement.</p>
+          <div>
+            {STEPS.map((s, i) => (
+              <div key={s.n} className="relative flex gap-5 pb-10 last:pb-0">
+                {i < STEPS.length - 1 && (
+                  <div
+                    className="absolute left-6 top-12 bottom-0 w-px"
+                    style={{ background: `linear-gradient(180deg, ${s.color}66, transparent)` }}
+                  />
+                )}
+                <div
+                  className="relative z-10 shrink-0 w-12 h-12 rounded-2xl flex items-center justify-center font-mono font-bold text-sm"
+                  style={{
+                    background: `${s.color}1a`,
+                    border: `1px solid ${s.color}55`,
+                    color: s.color,
+                    boxShadow: `0 0 24px -8px ${s.color}99`,
+                  }}
+                >
+                  {s.n}
+                </div>
+                <div className="pt-1.5">
+                  <h3 className="font-bold text-base mb-1.5" style={{ color: s.color }}>
+                    {s.title}
+                  </h3>
+                  <p className="text-white/50 text-sm leading-relaxed">{s.body}</p>
+                </div>
               </div>
             ))}
           </div>
@@ -229,13 +294,39 @@ export function OnchainLandingPage() {
 
       {/* Why Prophet */}
       <section className="max-w-[1500px] mx-auto px-4 py-16">
-        <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-center mb-2">Why Prophet</h2>
-        <p className="text-white/40 text-sm text-center mb-10">Mechanics designed around one idea: reward conviction, not luck of timing.</p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+        <p className="flex items-center justify-center gap-2 text-xs font-bold tracking-[0.2em] text-[#C6FF3D]/80 uppercase mb-4">
+          <span className="w-1.5 h-1.5 rounded-full bg-[#C6FF3D]" />
+          The Prophet difference
+        </p>
+        <h2 className="text-2xl sm:text-4xl font-extrabold tracking-tight text-center mb-3">
+          Why <span className="bg-gradient-to-r from-[#C6FF3D] to-[#8FBF1F] bg-clip-text text-transparent">Prophet</span>
+        </h2>
+        <p className="text-white/40 text-sm sm:text-base text-center mb-12 max-w-xl mx-auto">
+          No spread. No stale markets. No trust required — just math that settles itself, on-chain, in the open.
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           {FEATURES.map((f) => (
-            <div key={f.title} className="bg-[#12121c]/95 border border-white/10 rounded-2xl p-6 hover:border-[#C6FF3D]/30 transition-colors">
-              <h3 className="font-bold mb-2">{f.title}</h3>
-              <p className="text-white/50 text-sm">{f.body}</p>
+            <div
+              key={f.title}
+              className="group relative overflow-hidden rounded-3xl p-7 transition-transform duration-200 hover:-translate-y-1"
+              style={{
+                background: `linear-gradient(160deg, ${f.color}17, #0d0d16 60%)`,
+                border: `1px solid ${f.color}40`,
+                boxShadow: `0 0 50px -24px ${f.color}99`,
+              }}
+            >
+              <div
+                className="pointer-events-none absolute -top-12 -right-12 w-44 h-44 rounded-full blur-3xl transition-opacity duration-200 opacity-20 group-hover:opacity-30"
+                style={{ background: f.color }}
+              />
+              <span
+                className="relative inline-block font-mono text-[11px] font-bold tracking-widest px-2.5 py-1 rounded-full mb-5"
+                style={{ color: f.color, border: `1px solid ${f.color}55`, background: `${f.color}1a` }}
+              >
+                {f.tag}
+              </span>
+              <h3 className="relative text-xl font-extrabold tracking-tight mb-3">{f.title}</h3>
+              <p className="relative text-white/55 text-sm leading-relaxed">{f.body}</p>
             </div>
           ))}
         </div>
@@ -291,6 +382,85 @@ export function OnchainLandingPage() {
           </div>
         </section>
       )}
+
+      {/* Every tokenized stock on the chain -- names only, no price/status.
+          Deliberately not the same component as TokenBrowser (used on the
+          markets list) -- that one shows live price + allowlist status per
+          ticker; this is just "here's what exists on Robinhood Chain". */}
+      <section className="max-w-[1500px] mx-auto px-4 py-16">
+        <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-center mb-2">Browse tokenized stocks</h2>
+        <p className="text-white/40 text-sm text-center mb-6">
+          Every tokenized stock on Robinhood Chain — {assets.data?.length ?? 194} and counting.
+        </p>
+
+        <div className="max-w-sm mx-auto mb-8">
+          <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-black/30 px-4 py-2.5 focus-within:border-[#C6FF3D]/50 transition-colors">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" className="text-white/30 shrink-0">
+              <circle cx="11" cy="11" r="7" />
+              <path d="M21 21l-4.3-4.3" />
+            </svg>
+            <input
+              value={stockQuery}
+              onChange={(e) => setStockQuery(e.target.value)}
+              placeholder="Search by ticker or name…"
+              className="flex-1 bg-transparent outline-none text-sm font-mono placeholder:font-sans placeholder:text-white/30"
+            />
+            {stockQuery && (
+              <button onClick={() => setStockQuery('')} className="text-white/30 hover:text-white text-xs font-semibold shrink-0">
+                Clear
+              </button>
+            )}
+          </div>
+          <p className="text-center text-[11px] text-white/30 mt-2 font-mono">{filteredAssets.length} shown</p>
+        </div>
+
+        {filteredAssets.length > 0 ? (
+          <div className="flex flex-wrap justify-center gap-2">
+            {filteredAssets.map((a) => {
+              const hasFeed = !!feedAddressForTicker(a.tokenSymbol)
+              const dot = (
+                <span
+                  className="w-1.5 h-1.5 rounded-full shrink-0"
+                  style={{ background: hasFeed ? `hsl(${hueForTicker(a.tokenSymbol)} 70% 60%)` : 'transparent', border: hasFeed ? undefined : '1px solid rgba(255,255,255,0.25)' }}
+                />
+              )
+              const label = a.tokenName.replace(/\s*•\s*Robinhood Token$/i, '')
+
+              // Every ticker with an allowlisted Chainlink feed can actually
+              // become a market -- send it straight to market creation,
+              // prefilled, instead of an inert link. One without a feed yet
+              // simply can't be created against, so it stays a plain (but
+              // clearly-labelled, not just dead) pill instead of pretending
+              // to be clickable.
+              if (hasFeed) {
+                return (
+                  <Link
+                    key={a.tokenSymbol}
+                    to={`/onchain/create?feed=${a.tokenSymbol}`}
+                    title={`Create a market for ${label}`}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/10 bg-[#12121c]/95 text-sm text-white/60 font-mono hover:-translate-y-0.5 hover:text-white hover:border-[#C6FF3D]/30 hover:bg-[#181829] transition-all"
+                  >
+                    {dot}
+                    {a.tokenSymbol}
+                  </Link>
+                )
+              }
+              return (
+                <span
+                  key={a.tokenSymbol}
+                  title={`${label} — no price feed yet. Robinhood hasn't shipped one for this stock, so a market can't be created until they do.`}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/5 border-dashed bg-white/[0.02] text-sm text-white/30 font-mono cursor-default"
+                >
+                  {dot}
+                  {a.tokenSymbol}
+                </span>
+              )
+            })}
+          </div>
+        ) : (
+          <p className="text-center text-white/30 text-sm py-10">No stocks match "{stockQuery}".</p>
+        )}
+      </section>
 
       {/* Final CTA */}
       <section className="max-w-4xl mx-auto px-4 py-20 text-center">

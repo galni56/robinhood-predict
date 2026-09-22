@@ -35,12 +35,17 @@ export function BetModal({ marketId, initialSide, onClose }: { marketId: string;
   const cutoffMs = bettingWindowEnd(market.createdAt, market.deadline)
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    // The outer layer scrolls (rather than just centering with no overflow
+    // handling) so the modal stays fully reachable on a short viewport
+    // instead of its top clipping off-screen with no way to get to it --
+    // the same fix as SetNicknameModal, which hit this for real.
+    <div className="fixed inset-0 z-50 overflow-y-auto">
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-sm rounded-2xl border border-white/10 bg-[#121320] shadow-2xl p-5">
-        <button onClick={onClose} className="absolute top-3 right-3 text-white/40 hover:text-white text-lg leading-none">
-          ✕
-        </button>
+      <div className="relative min-h-full flex items-center justify-center p-4">
+        <div className="relative w-full max-w-sm rounded-2xl border border-white/10 bg-[#121320] shadow-2xl p-5">
+          <button onClick={onClose} className="absolute top-3 right-3 text-white/40 hover:text-white text-lg leading-none">
+            ✕
+          </button>
 
         <div className="flex items-baseline justify-between pr-6 mb-1">
           <div>
@@ -76,7 +81,8 @@ export function BetModal({ marketId, initialSide, onClose }: { marketId: string;
           )}
         </p>
 
-        <BetForm marketId={marketId} initialSide={initialSide} />
+          <BetForm marketId={marketId} initialSide={initialSide} />
+        </div>
       </div>
     </div>,
     document.body,
