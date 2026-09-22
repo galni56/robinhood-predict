@@ -12,7 +12,8 @@ import {
 } from '@/chain/contracts'
 import { demoPools, isDemoMode } from '@/chain/demo'
 import { useFeedSnapshot } from '@/chain/feedCache'
-import { useRobinhoodAssets } from '@/chain/robinhoodApi'
+import { useRobinhoodAssets, useTokenLogos } from '@/chain/robinhoodApi'
+import { TokenLogo } from '@/components/TokenLogo'
 import { formatUsd } from '@/lib/format'
 
 const STEPS = [
@@ -187,6 +188,7 @@ export function OnchainLandingPage() {
     .sort((a, b) => (a.id > b.id ? -1 : a.id < b.id ? 1 : 0))
 
   const assets = useRobinhoodAssets()
+  const logos = useTokenLogos()
   const [stockQuery, setStockQuery] = useState('')
   const [searchFocused, setSearchFocused] = useState(false)
   const [category, setCategory] = useState<'all' | 'stocks' | 'etfs'>('all')
@@ -349,9 +351,7 @@ export function OnchainLandingPage() {
                 >
                   <div className="flex items-start justify-between mb-5">
                     <div className="flex items-center gap-3">
-                      <span className="w-10 h-10 rounded-2xl bg-[#f7f1e3] text-[#241a33] grid place-items-center font-display font-bold text-lg shrink-0">
-                        {(ticker ?? '?')[0]}
-                      </span>
+                      <TokenLogo ticker={ticker} logoUrl={ticker ? logos.get(ticker) : undefined} className="w-10 h-10 rounded-2xl text-lg" />
                       <div>
                         <div className="font-bold text-sm tracking-wide leading-tight">{ticker ?? '…'}</div>
                         <div className="text-white/35 text-xs font-medium mt-0.5">{formatDeadlineUtc(m.deadline)}</div>
@@ -539,6 +539,69 @@ export function OnchainLandingPage() {
               </div>
             )
           })}
+        </div>
+      </section>
+
+      {/* Asset Races -- second product surface alongside YES/NO markets.
+          Deliberately no live race data here (a brand-new feature can have
+          zero races at any given moment, which would make a marketing
+          section look broken) -- just the pitch and a way in. */}
+      <section className="max-w-[1500px] mx-auto px-4 py-14">
+        <div className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-[#241b2f] via-[#241b2f] to-[#2c1f42] border border-white/5 px-6 py-12 sm:px-14 sm:py-16">
+          <div className="pointer-events-none absolute -top-20 -right-16 w-80 h-80 rounded-full bg-[#C6FF3D]/10 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-24 -left-16 w-72 h-72 rounded-full bg-[#8B7CF7]/20 blur-3xl" />
+          <span className="pointer-events-none absolute right-[10%] top-[14%] text-[#B3A7FA] text-2xl" style={{ animation: 'sparkle-pop 2.6s ease-in-out infinite' }}>
+            ✦
+          </span>
+
+          <div className="relative grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+            <div>
+              <p className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3.5 py-1.5 text-xs font-bold text-white/70 mb-6">
+                <span className="text-[#C6FF3D]">⚡</span>
+                New · Asset Races
+              </p>
+              <h2 className="font-display text-3xl sm:text-5xl font-bold tracking-tight leading-[1.08]">
+                Forget the target price.
+                <br />
+                Just back the fastest.
+              </h2>
+              <p className="text-white/55 text-base mt-5 max-w-md">
+                Pick 2 to 6 assets, stocks or memes, and watch the clock. Whichever moves the most before it runs out
+                takes the pool - no target price to guess, no deadline to argue about. Some races settle in as
+                little as a minute.
+              </p>
+              <div className="mt-8 flex flex-wrap items-center gap-4">
+                <Link
+                  to="/onchain/races"
+                  className="inline-flex items-center gap-3 rounded-full bg-[#C6FF3D] text-black pl-6 pr-2.5 py-2.5 text-sm font-bold hover:brightness-110 transition-all"
+                >
+                  Watch a race
+                  <span className="w-8 h-8 rounded-full bg-black/15 grid place-items-center text-sm">↗</span>
+                </Link>
+                <Link
+                  to="/onchain/races/create"
+                  className="text-sm font-bold text-white/70 hover:text-white underline underline-offset-4 decoration-2 transition-colors"
+                >
+                  Start your own race
+                </Link>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {[
+                { emoji: '⚡', title: 'Fast', body: 'As quick as a 1-minute clock - built for people who hate waiting.' },
+                { emoji: '📈🚀', title: 'Stocks or memes', body: 'Race tokenized stocks head-to-head, or go full chaos in the meme lane.' },
+                { emoji: '🏆', title: 'Fastest mover wins', body: 'Highest % move between start and finish takes the pool. No line, no odds set for you.' },
+                { emoji: '🍿', title: 'Watch it live', body: 'Prices update in real time while the clock runs - no refreshing to see who’s ahead.' },
+              ].map((f) => (
+                <div key={f.title} className="rounded-2xl bg-white/5 border border-white/10 p-5">
+                  <span className="text-2xl">{f.emoji}</span>
+                  <h3 className="font-display font-bold mt-2.5">{f.title}</h3>
+                  <p className="text-white/45 text-xs mt-1 leading-relaxed">{f.body}</p>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </section>
 

@@ -10,11 +10,14 @@ import {
   predictionMarketAbi,
   tickerFromFeedDescription,
 } from '@/chain/contracts'
+import { useTokenLogos } from '@/chain/robinhoodApi'
+import { TokenLogo } from '@/components/TokenLogo'
 import { formatUsd, timeAgo } from '@/lib/format'
 
 const BET_TOKEN_DECIMALS = 6 // USDG's real decimals
 
 export function OnchainArchivePage() {
+  const logos = useTokenLogos()
   const marketCount = useReadContract({
     address: PREDICTION_MARKET_ADDRESS,
     abi: predictionMarketAbi,
@@ -76,9 +79,7 @@ export function OnchainArchivePage() {
               to={`/onchain/${id.toString()}`}
               className="flex flex-wrap items-center gap-3 text-sm bg-[#241b2f] border border-white/5 rounded-xl px-4 py-3 hover:border-[#8B7CF7]/40 transition-colors"
             >
-              <span className="w-7 h-7 rounded-lg bg-[#f7f1e3] text-[#241a33] grid place-items-center font-display font-bold text-sm shrink-0">
-                {ticker[0]}
-              </span>
+              <TokenLogo ticker={ticker} logoUrl={logos.get(ticker)} className="w-7 h-7 rounded-lg text-sm" />
               <span className="font-bold min-w-14">{ticker}</span>
               <span className="text-white/50 flex-1 min-w-40">Will it reach {formatUsd(targetUsd)}?</span>
               {cancelled ? <CancelledBadge /> : <SideBadge side={m.outcome === MarketSideOnchain.YES ? 'YES' : 'NO'} />}

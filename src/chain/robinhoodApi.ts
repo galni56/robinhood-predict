@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { ALLOWLISTED_FEEDS } from '@/chain/contracts'
 
@@ -42,6 +43,14 @@ export function useRobinhoodAssets(enabled = true) {
     staleTime: 10 * 60_000,
     enabled,
   })
+}
+
+/** ticker -> logo URL, sourced from the same catalog as useRobinhoodAssets()
+ * (shared React Query cache, so using this alongside that hook elsewhere
+ * costs no extra request). */
+export function useTokenLogos() {
+  const assets = useRobinhoodAssets()
+  return useMemo(() => new Map(assets.data?.map((a) => [a.tokenSymbol, a.logoUrl] as const) ?? []), [assets.data])
 }
 
 async function fetchPrices(symbols: string[]) {
