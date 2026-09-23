@@ -8,7 +8,6 @@ import {
   createPublicClient,
   createWalletClient,
   defineChain,
-  encodeAbiParameters,
   getAddress,
   http,
   isAddress,
@@ -22,6 +21,7 @@ import {
   poolConfigsFromRegistry,
 } from './asset-race-pool-price-engine.mjs'
 import { withRpcRateLimit } from './asset-race-rpc-budget.mjs'
+import { chainlinkRoundProof } from './chainlink-endpoint-proof.mjs'
 
 const STATUS = {
   BETTING: 0,
@@ -150,38 +150,7 @@ const ownerAbi = [{
   inputs: [], outputs: [{ type: 'address' }],
 }]
 
-const chainlinkFeedAbi = [
-  {
-    type: 'function',
-    name: 'latestRoundData',
-    stateMutability: 'view',
-    inputs: [],
-    outputs: [
-      { name: 'roundId', type: 'uint80' },
-      { name: 'answer', type: 'int256' },
-      { name: 'startedAt', type: 'uint256' },
-      { name: 'updatedAt', type: 'uint256' },
-      { name: 'answeredInRound', type: 'uint80' },
-    ],
-  },
-  {
-    type: 'function',
-    name: 'getRoundData',
-    stateMutability: 'view',
-    inputs: [{ name: 'roundId', type: 'uint80' }],
-    outputs: [
-      { name: 'roundId', type: 'uint80' },
-      { name: 'answer', type: 'int256' },
-      { name: 'startedAt', type: 'uint256' },
-      { name: 'updatedAt', type: 'uint256' },
-      { name: 'answeredInRound', type: 'uint80' },
-    ],
-  },
-]
-
 const PROOF_TYPE = { NONE: 0, CHAINLINK_ROUND_PAIR: 1, SIGNED_POOL_BLOCK_PAIR: 2 }
-const ROUND_PHASE_SHIFT = 64n
-const AGGREGATOR_ROUND_MASK = (1n << ROUND_PHASE_SHIFT) - 1n
 
 class KeeperConfigError extends Error {}
 
@@ -412,46 +381,6 @@ class ActiveRaceTracker {
     this.observe(raceId, race)
     return race
   }
-}
-
-function feedAddressFromOracleId(oracleId) {
-  if (!/^0x0{24}[0-9a-fA-F]{40}$/.test(oracleId)) {
-    throw new Error('InvalidChainlinkOracleId')
-  }
-  return getAddress(`0x${oracleId.slice(-40)}`)
-}
-
-async function chainlinkRoundProof(publicClient, oracleId, targetTimestamp) {
-  const feed = feedAddressFromOracleId(oracleId)
-  const latest = await publicClient.readContract({ address: feed, abi: chainlinkFeedAbi, functionName: 'latestRoundData' })
-  const latestRoundId = latest[0]
-  if (latest[3] < targetTimestamp) throw new Error('EndpointObservationNotAvailable')
-
-  const phase = latestRoundId >> ROUND_PHASE_SHIFT
-  let low = 1n
-  let high = latestRoundId & AGGREGATOR_ROUND_MASK
-  while (low < high) {
-    const middle = (low + high) >> 1n
-    const roundId = (phase << ROUND_PHASE_SHIFT) | middle
-    const round = await publicClient.readContract({
-      address: feed,
-      abi: chainlinkFeedAbi,
-      functionName: 'getRoundData',
-      args: [roundId],
-    })
-    if (round[3] >= targetTimestamp) high = middle
-    else low = middle + 1n
-  }
-
-  // The predecessor is in another proxy phase. The adapter intentionally
-  // fails closed until that feed's proxy phase history is independently verified.
-  if (low === 1n) throw new Error('ChainlinkPhaseBoundaryUnsupported')
-  const selectedRoundId = (phase << ROUND_PHASE_SHIFT) | low
-  const previousRoundId = selectedRoundId - 1n
-  return encodeAbiParameters(
-    [{ type: 'uint80' }, { type: 'uint80' }],
-    [selectedRoundId, previousRoundId],
-  )
 }
 
 async function endpointProofsForRace(publicClient, contractAddress, raceId, targetTimestamp, collector) {

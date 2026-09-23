@@ -12,6 +12,8 @@
     "check:asset-race-meme-pools": "node scripts/check-asset-race-meme-pools.mjs",
     "keeper:asset-race": "node scripts/asset-race-keeper.mjs",
     "test:asset-race-keeper": "node --test scripts/asset-race-keeper.test.mjs",
+    "keeper:prediction-market": "node scripts/prediction-market-keeper.mjs",
+    "test:prediction-market-keeper": "node --test scripts/prediction-market-keeper.test.mjs",
     "e2e:asset-race-stock": "node scripts/asset-race-stock-e2e.mjs",
     "e2e:asset-race-meme": "node scripts/asset-race-stock-e2e.mjs --meme",
     "test:asset-race-collector": "node --test scripts/asset-race-pool-price-engine.test.mjs scripts/asset-race-pool-endpoints.test.mjs scripts/asset-race-native-eth.test.mjs",

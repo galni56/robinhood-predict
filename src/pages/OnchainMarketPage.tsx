@@ -5,7 +5,8 @@ import { useAccount, useChainId, useDisconnect, usePublicClient, useReadContract
 import { waitForTransactionReceipt } from 'wagmi/actions'
 import { robinhoodMainnet, wagmiConfig } from '@/chain/config'
 import { DEMO_USERS, demoBetLogs, demoPools, isDemoMode } from '@/chain/demo'
-import { useFeedSnapshot } from '@/chain/feedCache'
+import { tickerForPredictionAssetId } from '@/chain/predictionMarketAssets'
+import { useAssetRaceLiveDisplay } from '@/chain/useAssetRaceLiveDisplay'
 import { AddressLabel } from '@/components/AddressLabel'
 import { ClockIcon } from '@/components/icons'
 import { SideBadge } from '@/components/Pills'
@@ -17,13 +18,10 @@ import {
   MarketSideOnchain,
   MarketStatusOnchain,
   PREDICTION_MARKET_ADDRESS,
-  aggregatorV3Abi,
   bettingWindowEndSeconds,
   currentWeightBp,
   erc20Abi,
   predictionMarketAbi,
-  tickerForFeedAddress,
-  tickerFromFeedDescription,
 } from '@/chain/contracts'
 import { formatCountdown, formatUsd, shortTxError } from '@/lib/format'
 import { shortHash } from '@/lib/hash'
@@ -31,7 +29,7 @@ import { shortHash } from '@/lib/hash'
 const BET_TOKEN_DECIMALS = 6 // USDG's real decimals (old testnet mock token was 18)
 
 const MARKET_CREATED_EVENT = parseAbiItem(
-  'event MarketCreated(uint256 indexed id, address indexed priceFeed, int256 targetPrice, uint256 deadline)',
+  'event MarketCreated(uint256 indexed id, bytes32 indexed assetId, bytes32 indexed oracleId, int256 targetPrice, uint256 deadline)',
 )
 const BET_PLACED_EVENT = parseAbiItem(
   'event BetPlaced(uint256 indexed id, address indexed user, uint8 side, uint256 amount, uint256 weightBp)',
@@ -182,43 +180,11 @@ export function OnchainMarketPage() {
     args: [MARKET_ID],
   })
 
-  const feedAddress = market.data?.priceFeed
-
-  // See src/chain/feedCache.ts -- a backend poller keeps this snapshot
-  // fresh; the on-chain reads below only need to run (and poll) when this
-  // market's feed isn't in it.
-  const feedSnapshot = useFeedSnapshot()
-  const snapEntry = feedAddress ? feedSnapshot.data?.[feedAddress] : undefined
-
-  const feedDecimals = useReadContract({
-    address: feedAddress,
-    abi: aggregatorV3Abi,
-    functionName: 'decimals',
-    query: { enabled: !!feedAddress && !snapEntry },
-  })
-
-  const feedPrice = useReadContract({
-    address: feedAddress,
-    abi: aggregatorV3Abi,
-    functionName: 'latestRoundData',
-    query: { enabled: !!feedAddress && !snapEntry, refetchInterval: 2_000 },
-  })
-
-  const effectiveDecimals = snapEntry?.decimals ?? feedDecimals.data
-  const effectivePriceAnswer = snapEntry ? BigInt(snapEntry.answer) : feedPrice.data?.[1]
-
-  // Resolves instantly, no network call, for every allowlisted feed (which
-  // is every feed a market can actually be created against) -- avoids an
-  // extra description() round trip that used to leave the page's own title
-  // showing "…" for a beat after the market itself had already loaded.
-  const staticTicker = tickerForFeedAddress(feedAddress)
-  const feedDescription = useReadContract({
-    address: feedAddress,
-    abi: aggregatorV3Abi,
-    functionName: 'description',
-    query: { enabled: !!feedAddress && !staticTicker },
-  })
-  const ticker = staticTicker ?? tickerFromFeedDescription(feedDescription.data)
+  const ticker = tickerForPredictionAssetId(market.data?.assetId)
+  const live = useAssetRaceLiveDisplay({ enabled: true })
+  const livePrice = ticker ? live.assets[ticker] : undefined
+  const effectiveDecimals = market.data?.priceDecimals
+  const effectivePriceAnswer = livePrice && !livePrice.stale ? BigInt(livePrice.priceRaw) : undefined
 
   const betTokenBalance = useReadContract({
     address: BET_TOKEN_ADDRESS,
@@ -259,6 +225,14 @@ export function OnchainMarketPage() {
     query: { enabled: !!address },
   })
 
+  const settlement = useReadContract({
+    address: PREDICTION_MARKET_ADDRESS,
+    abi: predictionMarketAbi,
+    functionName: 'settlements',
+    args: [MARKET_ID],
+    query: { enabled: market.data?.status === MarketStatusOnchain.Resolved },
+  })
+
   const targetPriceUsd = useMemo(() => {
     if (!market.data || effectiveDecimals == null) return null
     return Number(formatUnits(market.data.targetPrice, effectiveDecimals))
@@ -269,15 +243,24 @@ export function OnchainMarketPage() {
     return Number(formatUnits(effectivePriceAnswer, effectiveDecimals))
   }, [effectivePriceAnswer, effectiveDecimals])
 
+  const settlementPriceUsd = useMemo(() => {
+    if (!settlement.data || effectiveDecimals == null) return null
+    return Number(formatUnits(settlement.data[0], effectiveDecimals))
+  }, [settlement.data, effectiveDecimals])
+
+  const displayedPriceUsd = market.data?.status === MarketStatusOnchain.Resolved
+    ? settlementPriceUsd
+    : currentPriceUsd
+
   // Colors the price by whether it just ticked up or down since the last
   // poll (not by distance from target) - ref so recording it never itself
   // triggers a re-render; read during render, updated after via the effect
   // below so this render still sees the *previous* poll's value.
   const prevPriceRef = useRef<number | null>(null)
-  const tickedUp = currentPriceUsd == null || prevPriceRef.current == null ? true : currentPriceUsd >= prevPriceRef.current
+  const tickedUp = displayedPriceUsd == null || prevPriceRef.current == null ? true : displayedPriceUsd >= prevPriceRef.current
   useEffect(() => {
-    if (currentPriceUsd != null) prevPriceRef.current = currentPriceUsd
-  }, [currentPriceUsd])
+    if (displayedPriceUsd != null) prevPriceRef.current = displayedPriceUsd
+  }, [displayedPriceUsd])
 
   async function refetchAll() {
     await Promise.all([
@@ -287,6 +270,7 @@ export function OnchainMarketPage() {
       myStakeYes.refetch(),
       myStakeNo.refetch(),
       hasClaimed.refetch(),
+      settlement.refetch(),
       refetchMarketBets(),
     ])
   }
@@ -341,12 +325,20 @@ export function OnchainMarketPage() {
   async function handleResolve() {
     setError(null)
     try {
+      if (!market.data) {
+        setError('Market data is not ready yet')
+        return
+      }
+      if (market.data.poolYes > 0n && market.data.poolNo > 0n) {
+        setError('The keeper is collecting the signed StockToken/USDG deadline price. No wallet action is needed.')
+        return
+      }
       setTx({ label: 'Confirm resolve in your wallet…' })
       const hash = await writeContractAsync({
         address: PREDICTION_MARKET_ADDRESS,
         abi: predictionMarketAbi,
         functionName: 'resolve',
-        args: [MARKET_ID],
+        args: [MARKET_ID, '0x'],
       })
       await waitForTransactionReceipt(wagmiConfig, { hash })
       setTx(null)
@@ -418,7 +410,7 @@ export function OnchainMarketPage() {
       ) : (
         <>
           <h1 className="font-display text-3xl sm:text-4xl font-bold tracking-tight mt-4 mb-1">
-            Will {ticker ?? '…'} reach {targetPriceUsd != null ? formatUsd(targetPriceUsd) : '…'}?
+            Will {ticker ?? '…'} be at or above {targetPriceUsd != null ? formatUsd(targetPriceUsd) : '…'} at the deadline?
           </h1>
           <p className="text-white/30 text-sm mb-5 flex items-center gap-1.5 flex-wrap">
             <span>On-chain market #{MARKET_ID.toString()}</span>
@@ -492,20 +484,22 @@ export function OnchainMarketPage() {
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-[#8B7CF7]" />
                 </span>
                 <span className={`font-mono text-3xl font-semibold ${tickedUp ? 'text-emerald-400' : 'text-rose-400'}`}>
-                  {currentPriceUsd != null ? formatUsd(currentPriceUsd) : '…'}
+                  {displayedPriceUsd != null ? formatUsd(displayedPriceUsd) : '…'}
                 </span>
               </div>
-              <div className="text-white/40 text-xs font-bold mt-1">current price · live</div>
+              <div className="text-white/40 text-xs font-bold mt-1">
+                {status === MarketStatusOnchain.Resolved ? 'deadline price · final' : 'current price · live'}
+              </div>
             </div>
             <div className="text-right">
               <div className="font-mono text-3xl font-semibold text-white/70">{targetPriceUsd != null ? formatUsd(targetPriceUsd) : '…'}</div>
               <div className="text-white/40 text-xs font-bold mt-1">
                 target
-                {currentPriceUsd != null && targetPriceUsd != null && currentPriceUsd > 0 && (
-                  <span className={targetPriceUsd >= currentPriceUsd ? 'text-[#B3A7FA]' : 'text-[#F2A65A]'}>
+                {displayedPriceUsd != null && targetPriceUsd != null && displayedPriceUsd > 0 && (
+                  <span className={targetPriceUsd >= displayedPriceUsd ? 'text-[#B3A7FA]' : 'text-[#F2A65A]'}>
                     {' '}
-                    · {targetPriceUsd >= currentPriceUsd ? '+' : ''}
-                    {(((targetPriceUsd - currentPriceUsd) / currentPriceUsd) * 100).toFixed(1)}% away
+                    · {targetPriceUsd >= displayedPriceUsd ? '+' : ''}
+                    {(((targetPriceUsd - displayedPriceUsd) / displayedPriceUsd) * 100).toFixed(1)}% away
                   </span>
                 )}
               </div>
@@ -637,9 +631,15 @@ export function OnchainMarketPage() {
               {status === MarketStatusOnchain.Open && (
                 <>
                   {deadlineMs <= Date.now() && (
-                    <button onClick={handleResolve} className="w-full rounded-xl bg-white/10 hover:bg-white/20 py-2.5 text-sm font-bold transition-colors">
-                      Resolve now (deadline passed)
-                    </button>
+                    market.data.poolYes === 0n || market.data.poolNo === 0n ? (
+                      <button onClick={handleResolve} className="w-full rounded-xl bg-white/10 hover:bg-white/20 py-2.5 text-sm font-bold transition-colors">
+                        Cancel one-sided market and enable refunds
+                      </button>
+                    ) : (
+                      <p className="rounded-xl bg-white/5 px-3 py-2.5 text-sm text-white/50">
+                        Deadline passed. The keeper is fixing the signed StockToken/USDG pool price automatically.
+                      </p>
+                    )
                   )}
 
                   {bettingClosed ? (

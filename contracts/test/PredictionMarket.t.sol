@@ -4,12 +4,18 @@ pragma solidity ^0.8.24;
 import {Test} from "forge-std/Test.sol";
 import {PredictionMarket} from "../src/PredictionMarket.sol";
 import {MockERC20} from "../src/mocks/MockERC20.sol";
-import {MockAggregator} from "../src/mocks/MockAggregator.sol";
+import {MockRaceOracle} from "../src/mocks/MockRaceOracle.sol";
+import {SignedPoolRaceOracle} from "../src/oracles/SignedPoolRaceOracle.sol";
 
 contract PredictionMarketTest is Test {
     PredictionMarket market;
     MockERC20 betToken;
-    MockAggregator feed;
+    MockRaceOracle oracle;
+
+    bytes32 constant ASSET_ID = bytes32("TSLA");
+    bytes32 constant ORACLE_ID = keccak256("TSLA_STOCK_TOKEN_USDG_POOL");
+    uint8 constant PRICE_DECIMALS = 18;
+    int256 constant TARGET_PRICE = 100e18;
 
     address owner = address(this);
     address alice = address(0xA11CE);
@@ -20,13 +26,8 @@ contract PredictionMarketTest is Test {
 
     function setUp() public {
         betToken = new MockERC20("Mock USD", "mUSD");
-        // $97, ~3.1% below the $100 target used by _createMarket and most tests
-        // below — inside every tier's deviation band (2%-4% short, up to 15%/20%
-        // medium/long) so the floor+ceiling guard on createMarket doesn't interfere
-        // with tests unrelated to it. Resolution-time price movement is set
-        // separately per test via feed.setAnswer().
-        feed = new MockAggregator(8, 97_00000000); // $97.00, 8 decimals like Chainlink USD feeds
-        market = new PredictionMarket(address(betToken), 0); // 0% fee by default — keeps old exact-payout math unchanged
+        oracle = new MockRaceOracle();
+        market = new PredictionMarket(address(betToken), address(oracle), 0);
 
         betToken.mint(owner, START_BALANCE);
         betToken.mint(alice, START_BALANCE);
@@ -41,116 +42,84 @@ contract PredictionMarketTest is Test {
         vm.prank(charlie);
         betToken.approve(address(market), type(uint256).max);
 
-        market.setPriceFeedAllowed(address(feed), true);
+        market.setAssetAllowed(ASSET_ID, ORACLE_ID, PRICE_DECIMALS, true);
     }
 
     function _createMarket(uint256 deadline) internal returns (uint256 id) {
-        id = market.createMarket(address(feed), 100_00000000, deadline, 0, 0); // target $100, no seed
+        id = market.createMarket(ASSET_ID, TARGET_PRICE, deadline, 0, 0);
     }
 
-    // --- createMarket: permissionless, allowlist, cap ---
+    function _setEndpoint(uint256 id, uint256 price, uint256 updatedAt) internal {
+        PredictionMarket.Market memory m = market.getMarket(id);
+        oracle.setObservation(m.oracleId, price, m.priceDecimals, updatedAt, keccak256(abi.encode(id, price, updatedAt)));
+    }
 
-    function test_CreateMarket_AnyoneCanCreate_WithAllowlistedFeed() public {
+    function _resolve(uint256 id) internal {
+        PredictionMarket.Market memory m = market.getMarket(id);
+        _setEndpoint(id, 101e18, m.deadline - 1);
+        market.resolve(id, "");
+    }
+
+    // --- createMarket: permissionless, approved assets, cap ---
+
+    function test_CreateMarket_AnyoneCanCreate_WithApprovedAsset() public {
         vm.prank(alice);
-        uint256 id = market.createMarket(address(feed), 100_00000000, block.timestamp + 1 days, 0, 0);
+        uint256 id = market.createMarket(ASSET_ID, TARGET_PRICE, block.timestamp + 1 days, 0, 0);
 
         PredictionMarket.Market memory m = market.getMarket(id);
-        assertEq(m.priceFeed, address(feed));
-        assertEq(m.targetPrice, 100_00000000);
+        assertEq(m.assetId, ASSET_ID);
+        assertEq(m.oracleId, ORACLE_ID);
+        assertEq(m.priceDecimals, PRICE_DECIMALS);
+        assertEq(m.targetPrice, TARGET_PRICE);
     }
 
-    function test_CreateMarket_RevertsForNonAllowlistedFeed() public {
-        MockAggregator rogueFeed = new MockAggregator(8, 90_00000000);
-
+    function test_CreateMarket_RevertsForNonApprovedAsset() public {
         vm.prank(alice);
-        vm.expectRevert("feed not allowlisted");
-        market.createMarket(address(rogueFeed), 100_00000000, block.timestamp + 1 days, 0, 0);
+        vm.expectRevert("asset not allowed");
+        market.createMarket(bytes32("ROGUE"), TARGET_PRICE, block.timestamp + 1 days, 0, 0);
     }
 
-    function test_CreateMarket_AllowsTargetAboveOldFlatCap() public {
-        // No absolute dollar cap anymore -- only the relative deviation
-        // guard applies, so a target well above the old $500 flat cap must
-        // succeed as long as it's within the duration-scaled band of the
-        // feed's own live price. Own feed priced at $800 so a $900 target
-        // (12.5% away) stays inside the long-duration 20% band.
-        MockAggregator pricierFeed = new MockAggregator(8, 800_00000000);
-        market.setPriceFeedAllowed(address(pricierFeed), true);
-
+    function test_CreateMarket_FreezesAssetConfiguration() public {
         vm.prank(alice);
-        uint256 id = market.createMarket(address(pricierFeed), 900_00000000, block.timestamp + 7 days, 0, 0);
+        uint256 id = market.createMarket(ASSET_ID, TARGET_PRICE, block.timestamp + 7 days, 0, 0);
+        bytes32 replacementOracleId = keccak256("REPLACEMENT");
+        market.setAssetAllowed(ASSET_ID, replacementOracleId, 8, true);
+
         PredictionMarket.Market memory m = market.getMarket(id);
-        assertEq(m.targetPrice, 900_00000000);
+        assertEq(m.oracleId, ORACLE_ID);
+        assertEq(m.priceDecimals, PRICE_DECIMALS);
     }
 
-    // --- createMarket: anti-griefing guards (min duration, target-vs-price deviation) ---
+    // --- createMarket: anti-griefing guards ---
 
     function test_CreateMarket_RevertsWhenDurationTooShort() public {
         vm.prank(alice);
         vm.expectRevert("market duration too short");
-        market.createMarket(address(feed), 100_00000000, block.timestamp + 29 minutes, 0, 0);
+        market.createMarket(ASSET_ID, TARGET_PRICE, block.timestamp + 29 minutes, 0, 0);
     }
 
     function test_CreateMarket_AllowsDurationAtExactMinimum() public {
         vm.prank(alice);
-        uint256 id = market.createMarket(address(feed), 100_00000000, block.timestamp + 30 minutes, 0, 0);
+        uint256 id = market.createMarket(ASSET_ID, TARGET_PRICE, block.timestamp + 30 minutes, 0, 0);
         assertEq(market.getMarket(id).deadline, block.timestamp + 30 minutes);
     }
 
-    function test_CreateMarket_RevertsWhenTargetTooCloseToPrice() public {
-        // Feed at $97, floor is +/-2% ($95.06-$98.94) regardless of duration —
-        // $97.50 is only ~0.5% away, a degenerate market trivial to flip with a
-        // last-second nudge to the underlying price.
-        vm.prank(alice);
-        vm.expectRevert("target too close to current price");
-        market.createMarket(address(feed), 97_50000000, block.timestamp + 7 days, 0, 0);
-    }
-
-    function test_CreateMarket_AllowsTargetAtExactFloor() public {
-        // Exactly 2% below $97 = $95.06.
-        vm.prank(alice);
-        uint256 id = market.createMarket(address(feed), 95_06000000, block.timestamp + 7 days, 0, 0);
-        assertEq(market.getMarket(id).targetPrice, 95_06000000);
-    }
-
-    function test_CreateMarket_RevertsWhenTargetTooFarFromPrice_ShortDuration() public {
-        // Feed at $100, short (<=2h) tier allows only +/-4% ($96-$104) — $110 is a
-        // "sure thing" dressed up as a market and should be rejected.
-        vm.prank(alice);
-        vm.expectRevert("target too far from current price");
-        market.createMarket(address(feed), 110_00000000, block.timestamp + 1 hours, 0, 0);
-    }
-
-    function test_CreateMarket_AllowsWiderDeviation_LongDuration() public {
-        // Same $110 target that reverts on a short-duration market is fine on a
-        // 7-day one — long tier allows +/-20% ($80-$120).
-        vm.prank(alice);
-        uint256 id = market.createMarket(address(feed), 110_00000000, block.timestamp + 7 days, 0, 0);
-        assertEq(market.getMarket(id).targetPrice, 110_00000000);
-    }
-
-    function test_CreateMarket_RevertsWhenTargetTooFarFromPrice_LongDuration() public {
-        // Even the widest (long, <=7d) tier has a limit — +/-20% of $100 tops out
-        // at $120, so $130 should still revert.
-        vm.prank(alice);
-        vm.expectRevert("target too far from current price");
-        market.createMarket(address(feed), 130_00000000, block.timestamp + 7 days, 0, 0);
-    }
-
-    function test_SetPriceFeedAllowed_OnlyOwner() public {
-        MockAggregator newFeed = new MockAggregator(8, 90_00000000);
-
+    function test_SetAssetAllowed_OnlyOwner() public {
         vm.prank(alice);
         vm.expectRevert();
-        market.setPriceFeedAllowed(address(newFeed), true);
+        market.setAssetAllowed(bytes32("NVDA"), keccak256("NVDA_POOL"), 18, true);
 
-        market.setPriceFeedAllowed(address(newFeed), true);
-        assertTrue(market.allowedPriceFeeds(address(newFeed)));
+        market.setAssetAllowed(bytes32("NVDA"), keccak256("NVDA_POOL"), 18, true);
+        (bytes32 oracleId, uint8 decimals, bool allowed) = market.approvedAssets(bytes32("NVDA"));
+        assertEq(oracleId, keccak256("NVDA_POOL"));
+        assertEq(decimals, 18);
+        assertTrue(allowed);
     }
 
     // --- House seed liquidity (owner-only, capped at $50) ---
 
     function test_CreateMarket_WithHouseSeedLiquidity() public {
-        uint256 id = market.createMarket(address(feed), 100_00000000, block.timestamp + 1 days, 25e18, 25e18);
+        uint256 id = market.createMarket(ASSET_ID, TARGET_PRICE, block.timestamp + 1 days, 25e18, 25e18);
 
         PredictionMarket.Market memory m = market.getMarket(id);
         assertEq(m.poolYes, 25e18);
@@ -162,11 +131,11 @@ contract PredictionMarketTest is Test {
 
     function test_CreateMarket_SeedLiquidity_RevertsAboveMax() public {
         vm.expectRevert("seed exceeds max");
-        market.createMarket(address(feed), 100_00000000, block.timestamp + 1 days, 30e18, 25e18); // $55 total > $50 cap
+        market.createMarket(ASSET_ID, TARGET_PRICE, block.timestamp + 1 days, 30e18, 25e18); // $55 total > $50 cap
     }
 
     function test_CreateMarket_SeedLiquidity_AllowsExactMax() public {
-        uint256 id = market.createMarket(address(feed), 100_00000000, block.timestamp + 1 days, 25e18, 25e18); // exactly $50
+        uint256 id = market.createMarket(ASSET_ID, TARGET_PRICE, block.timestamp + 1 days, 25e18, 25e18); // exactly $50
         PredictionMarket.Market memory m = market.getMarket(id);
         assertEq(m.poolYes + m.poolNo, 50e18);
     }
@@ -174,7 +143,7 @@ contract PredictionMarketTest is Test {
     function test_CreateMarket_SeedLiquidity_OwnerOnly() public {
         vm.prank(alice);
         vm.expectRevert("seed liquidity is owner-only");
-        market.createMarket(address(feed), 100_00000000, block.timestamp + 1 days, 10e18, 10e18);
+        market.createMarket(ASSET_ID, TARGET_PRICE, block.timestamp + 1 days, 10e18, 10e18);
     }
 
     // --- bet ---
@@ -256,9 +225,7 @@ contract PredictionMarketTest is Test {
         market.bet(id, PredictionMarket.Side.NO, 50e18);
 
         vm.warp(block.timestamp + 1 days + 1);
-        feed.setAnswer(101_00000000, block.timestamp); // price now above $100 target
-
-        market.resolve(id);
+        _resolve(id);
 
         PredictionMarket.Market memory m = market.getMarket(id);
         assertEq(uint8(m.status), uint8(PredictionMarket.Status.Resolved));
@@ -279,36 +246,171 @@ contract PredictionMarketTest is Test {
         vm.prank(bob);
         market.bet(id, PredictionMarket.Side.NO, 50e18);
 
-        vm.warp(block.timestamp + 1 days + 1);
-        feed.setAnswer(50_00000000, block.timestamp); // below target -> NO wins
-
-        market.resolve(id);
+        PredictionMarket.Market memory m = market.getMarket(id);
+        vm.warp(m.deadline + 1);
+        _setEndpoint(id, 50e18, m.deadline - 1);
+        market.resolve(id, "");
 
         vm.prank(alice);
         vm.expectRevert("no winning stake");
         market.claim(id);
     }
 
-    function test_Resolve_RevertsOnStalePrice() public {
-        // Deadline pushed out past MAX_PRICE_STALENESS so warping there and
-        // subtracting 4 days for the feed timestamp can't underflow the
-        // test's starting block.timestamp.
-        uint256 id = _createMarket(block.timestamp + 5 days);
-        // Need both sides staked so resolve() reaches the price-feed check
-        // instead of short-circuiting into the one-sided-market cancellation.
+    function test_Resolve_RevertsWhenEndpointTimestampIsAtOrAfterDeadline() public {
+        uint256 deadline = block.timestamp + 1 days;
+        uint256 id = _createMarket(deadline);
         vm.prank(alice);
         market.bet(id, PredictionMarket.Side.YES, 50e18);
         vm.prank(bob);
         market.bet(id, PredictionMarket.Side.NO, 50e18);
 
-        vm.warp(block.timestamp + 5 days + 1);
-        // feed was last updated far in the past relative to resolution time
-        // (beyond MAX_PRICE_STALENESS = 3 days, sized for equity feeds that
-        // don't publish over closed-market weekends)
-        feed.setAnswer(101_00000000, block.timestamp - 4 days);
+        vm.warp(deadline + 1);
+        _setEndpoint(id, 101e18, deadline);
+        vm.expectRevert("invalid endpoint timestamp");
+        market.resolve(id, "");
+    }
 
-        vm.expectRevert("stale price feed");
-        market.resolve(id);
+    function test_Resolve_UsesScheduledEndpointWhenCalledMuchLater() public {
+        uint256 deadline = block.timestamp + 1 days;
+        uint256 id = _createMarket(deadline);
+        vm.prank(alice);
+        market.bet(id, PredictionMarket.Side.YES, 50e18);
+        vm.prank(bob);
+        market.bet(id, PredictionMarket.Side.NO, 50e18);
+
+        bytes32 endpointBlockHash = keccak256("endpoint block");
+        oracle.setObservation(ORACLE_ID, 101e18, PRICE_DECIMALS, deadline - 1, endpointBlockHash);
+        vm.warp(deadline + 30 days);
+
+        market.resolve(id, "");
+
+        PredictionMarket.Market memory m = market.getMarket(id);
+        (uint256 settlePrice, uint256 settleUpdatedAt, bytes32 settleObservationId) = market.settlements(id);
+        assertEq(uint8(m.outcome), uint8(PredictionMarket.Side.YES));
+        assertEq(settlePrice, 101e18);
+        assertEq(settleUpdatedAt, deadline - 1);
+        assertEq(settleObservationId, endpointBlockHash);
+    }
+
+    function test_Resolve_IntegratesWithSignedPoolOracleAndUsesPreDeadlineBlock() public {
+        uint256 signerKey = 0x51A9E2;
+        SignedPoolRaceOracle signedOracle = new SignedPoolRaceOracle(vm.addr(signerKey));
+        PredictionMarket signedMarket = new PredictionMarket(address(betToken), address(signedOracle), 0);
+        signedMarket.setAssetAllowed(ASSET_ID, ORACLE_ID, PRICE_DECIMALS, true);
+
+        vm.prank(alice);
+        betToken.approve(address(signedMarket), type(uint256).max);
+        vm.prank(bob);
+        betToken.approve(address(signedMarket), type(uint256).max);
+
+        // Read through the cheatcode rather than the BLOCKTIMESTAMP opcode so
+        // via-IR cannot rematerialize this local after the later vm.warp.
+        uint256 deadline = vm.getBlockTimestamp() + 1 days;
+        uint256 endpointTimestamp = deadline - 1;
+        uint256 id = signedMarket.createMarket(ASSET_ID, TARGET_PRICE, deadline, 0, 0);
+        vm.prank(alice);
+        signedMarket.bet(id, PredictionMarket.Side.YES, 10e18);
+        vm.prank(bob);
+        signedMarket.bet(id, PredictionMarket.Side.NO, 10e18);
+
+        bytes32 parentHash = keccak256("signed parent");
+        bytes32 endpointHash = keccak256("signed endpoint");
+        bytes32 childHash = keccak256("signed child");
+        SignedPoolRaceOracle.SignedPoolObservation memory previous = SignedPoolRaceOracle.SignedPoolObservation({
+            oracleId: ORACLE_ID,
+            price: 99e18,
+            decimals: PRICE_DECIMALS,
+            blockNumber: 100,
+            blockHash: endpointHash,
+            parentBlockHash: parentHash,
+            blockTimestamp: endpointTimestamp
+        });
+        SignedPoolRaceOracle.SignedPoolObservation memory selected = SignedPoolRaceOracle.SignedPoolObservation({
+            oracleId: ORACLE_ID,
+            price: 500e18,
+            decimals: PRICE_DECIMALS,
+            blockNumber: 101,
+            blockHash: childHash,
+            parentBlockHash: endpointHash,
+            blockTimestamp: deadline
+        });
+        (uint8 previousV, bytes32 previousR, bytes32 previousS) =
+            vm.sign(signerKey, signedOracle.observationDigest(previous));
+        (uint8 selectedV, bytes32 selectedR, bytes32 selectedS) =
+            vm.sign(signerKey, signedOracle.observationDigest(selected));
+        bytes memory proof = abi.encode(
+            previous,
+            abi.encodePacked(previousR, previousS, previousV),
+            selected,
+            abi.encodePacked(selectedR, selectedS, selectedV)
+        );
+
+        vm.warp(deadline + 30 days);
+        signedMarket.resolve(id, proof);
+
+        PredictionMarket.Market memory resolved = signedMarket.getMarket(id);
+        (uint256 settlePrice, uint256 settleUpdatedAt, bytes32 settleObservationId) = signedMarket.settlements(id);
+        assertEq(uint8(resolved.status), uint8(PredictionMarket.Status.Resolved));
+        assertEq(uint8(resolved.outcome), uint8(PredictionMarket.Side.NO));
+        assertEq(settlePrice, 99e18);
+        assertEq(settleUpdatedAt, endpointTimestamp);
+        assertEq(settleObservationId, endpointHash);
+    }
+
+    function test_Resolve_RevertsWhenPriceDecimalsDoNotMatchFrozenAsset() public {
+        uint256 deadline = block.timestamp + 1 days;
+        uint256 id = _createMarket(deadline);
+        vm.prank(alice);
+        market.bet(id, PredictionMarket.Side.YES, 50e18);
+        vm.prank(bob);
+        market.bet(id, PredictionMarket.Side.NO, 50e18);
+
+        oracle.setObservation(ORACLE_ID, 101e8, 8, deadline - 1, keccak256("wrong decimals"));
+        vm.warp(deadline + 1);
+
+        vm.expectRevert("price decimals changed");
+        market.resolve(id, "");
+    }
+
+    function test_Resolve_CancelsWhenDeadlinePriceIsStale() public {
+        uint256 deadline = block.timestamp + 5 days;
+        uint256 id = _createMarket(deadline);
+        vm.prank(alice);
+        market.bet(id, PredictionMarket.Side.YES, 50e18);
+        vm.prank(bob);
+        market.bet(id, PredictionMarket.Side.NO, 50e18);
+
+        _setEndpoint(id, 99e18, deadline - market.MAX_PRICE_STALENESS() - 1);
+        vm.warp(deadline + 1);
+
+        market.resolve(id, "");
+
+        PredictionMarket.Market memory m = market.getMarket(id);
+        assertEq(uint8(m.status), uint8(PredictionMarket.Status.Cancelled));
+        (uint256 settlePrice, uint256 settleUpdatedAt, bytes32 settleObservationId) = market.settlements(id);
+        assertEq(settlePrice, 0);
+        assertEq(settleUpdatedAt, 0);
+        assertEq(settleObservationId, bytes32(0));
+
+        uint256 before = betToken.balanceOf(alice);
+        vm.prank(alice);
+        market.refund(id, PredictionMarket.Side.YES);
+        assertEq(betToken.balanceOf(alice), before + 50e18);
+    }
+
+    function test_Resolve_RevertsForZeroPoolPrice() public {
+        uint256 deadline = block.timestamp + 1 days;
+        uint256 id = _createMarket(deadline);
+        vm.prank(alice);
+        market.bet(id, PredictionMarket.Side.YES, 50e18);
+        vm.prank(bob);
+        market.bet(id, PredictionMarket.Side.NO, 50e18);
+
+        oracle.setObservation(ORACLE_ID, 0, PRICE_DECIMALS, deadline - 1, keccak256("zero price"));
+        vm.warp(deadline + 1);
+
+        vm.expectRevert("invalid pool price");
+        market.resolve(id, "");
     }
 
     function test_Claim_RevertsOnDoubleClaim() public {
@@ -319,8 +421,7 @@ contract PredictionMarketTest is Test {
         market.bet(id, PredictionMarket.Side.NO, 1e18); // needs a nonzero NO pool or resolve() cancels instead
 
         vm.warp(block.timestamp + 1 days + 1);
-        feed.setAnswer(101_00000000, block.timestamp);
-        market.resolve(id);
+        _resolve(id);
 
         vm.prank(alice);
         market.claim(id);
@@ -336,7 +437,7 @@ contract PredictionMarketTest is Test {
         uint256 id = _createMarket(block.timestamp + 1 days);
         vm.warp(block.timestamp + 1 days + 1);
 
-        market.resolve(id);
+        _resolve(id);
 
         PredictionMarket.Market memory m = market.getMarket(id);
         assertEq(uint8(m.status), uint8(PredictionMarket.Status.Cancelled));
@@ -352,9 +453,7 @@ contract PredictionMarketTest is Test {
         market.bet(id, PredictionMarket.Side.NO, 50e18);
 
         vm.warp(block.timestamp + 1 days + 1);
-        feed.setAnswer(150_00000000, block.timestamp);
-
-        market.resolve(id);
+        _resolve(id);
 
         PredictionMarket.Market memory m = market.getMarket(id);
         assertEq(uint8(m.status), uint8(PredictionMarket.Status.Cancelled));
@@ -369,7 +468,7 @@ contract PredictionMarketTest is Test {
 
     function test_Claim_ParimutuelPayoutWithFee_MatchesFormulaExactly() public {
         market.setFeeBp(200); // 2% — snapshotted into the market created next
-        uint256 id = market.createMarket(address(feed), 100_00000000, block.timestamp + 1 days, 0, 0);
+        uint256 id = market.createMarket(ASSET_ID, TARGET_PRICE, block.timestamp + 1 days, 0, 0);
 
         // Sole YES bettor (winning side) vs sole NO bettor (losing side).
         // 80/20 split, halved to 40/10 to respect MAX_STAKE_PER_SIDE_USD ($50) —
@@ -380,8 +479,7 @@ contract PredictionMarketTest is Test {
         market.bet(id, PredictionMarket.Side.NO, 10e18);
 
         vm.warp(block.timestamp + 1 days + 1);
-        feed.setAnswer(101_00000000, block.timestamp);
-        market.resolve(id);
+        _resolve(id);
 
         // payout = userStake + userStake * losingPool * (10000 - feeBp) / (winningPool * 10000)
         //        = 40e18 + 40e18 * 10e18 * 9800 / (40e18 * 10000)
@@ -405,8 +503,7 @@ contract PredictionMarketTest is Test {
         market.bet(id, PredictionMarket.Side.NO, 50e18);
 
         vm.warp(block.timestamp + 1 days + 1);
-        feed.setAnswer(101_00000000, block.timestamp);
-        market.resolve(id);
+        _resolve(id);
 
         uint256 balBefore = betToken.balanceOf(alice);
         vm.prank(alice);
@@ -428,7 +525,7 @@ contract PredictionMarketTest is Test {
 
     function test_WithdrawFees_OnlyOwnerAndTransfersBalance() public {
         market.setFeeBp(200);
-        uint256 id = market.createMarket(address(feed), 100_00000000, block.timestamp + 1 days, 0, 0);
+        uint256 id = market.createMarket(ASSET_ID, TARGET_PRICE, block.timestamp + 1 days, 0, 0);
 
         vm.prank(alice);
         market.bet(id, PredictionMarket.Side.YES, 40e18);
@@ -436,8 +533,7 @@ contract PredictionMarketTest is Test {
         market.bet(id, PredictionMarket.Side.NO, 10e18);
 
         vm.warp(block.timestamp + 1 days + 1);
-        feed.setAnswer(101_00000000, block.timestamp);
-        market.resolve(id);
+        _resolve(id);
 
         vm.prank(alice);
         market.claim(id);
@@ -456,7 +552,7 @@ contract PredictionMarketTest is Test {
 
     function test_BettingWindowEnd_And_CurrentWeightBp_AtCreation() public {
         uint256 deadline = block.timestamp + 15_000;
-        uint256 id = market.createMarket(address(feed), 100_00000000, deadline, 0, 0);
+        uint256 id = market.createMarket(ASSET_ID, TARGET_PRICE, deadline, 0, 0);
 
         // 15000 * 6667 / 10000 = 10000.5 -> truncates to 10000
         assertEq(market.bettingWindowEnd(id), block.timestamp + 10_000);
@@ -466,7 +562,7 @@ contract PredictionMarketTest is Test {
 
     function test_Bet_RevertsAfterBettingWindowCloses_ButBeforeDeadline() public {
         uint256 deadline = block.timestamp + 15_000;
-        uint256 id = market.createMarket(address(feed), 100_00000000, deadline, 0, 0);
+        uint256 id = market.createMarket(ASSET_ID, TARGET_PRICE, deadline, 0, 0);
 
         vm.warp(block.timestamp + 10_001); // just past the window, deadline still ~5000s away
         assertLt(block.timestamp, deadline);
@@ -478,7 +574,7 @@ contract PredictionMarketTest is Test {
 
     function test_Bet_EarlyBettorGetsBiggerPayoutThanLateBettor_SameStake() public {
         uint256 deadline = block.timestamp + 15_000; // betting window closes at +10000
-        uint256 id = market.createMarket(address(feed), 100_00000000, deadline, 0, 0);
+        uint256 id = market.createMarket(ASSET_ID, TARGET_PRICE, deadline, 0, 0);
 
         // Alice bets the instant betting opens -> max weight.
         vm.prank(alice);
@@ -494,8 +590,7 @@ contract PredictionMarketTest is Test {
         market.bet(id, PredictionMarket.Side.NO, 50e18);
 
         vm.warp(deadline);
-        feed.setAnswer(101_00000000, block.timestamp);
-        market.resolve(id);
+        _resolve(id);
 
         uint256 aliceBefore = betToken.balanceOf(alice);
         vm.prank(alice);
@@ -512,7 +607,7 @@ contract PredictionMarketTest is Test {
     }
 
     function test_CreateMarket_SeedLiquidity_GetsMaxWeight() public {
-        uint256 id = market.createMarket(address(feed), 100_00000000, block.timestamp + 1 days, 25e18, 25e18);
+        uint256 id = market.createMarket(ASSET_ID, TARGET_PRICE, block.timestamp + 1 days, 25e18, 25e18);
         PredictionMarket.Market memory m = market.getMarket(id);
         uint256 expected = (25e18 * market.MAX_WEIGHT_BP()) / 10_000;
         assertEq(m.weightedPoolYes, expected);

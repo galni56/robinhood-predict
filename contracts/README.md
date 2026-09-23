@@ -1,14 +1,12 @@
 # contracts/
 
 Solidity side of the prediction market — a parimutuel YES/NO market
-(`PredictionMarket.sol`) that settles against a Chainlink price feed for a
-tokenized stock on Robinhood Chain.
+(`PredictionMarket.sol`) that settles from the deterministic StockToken/USDG
+pool state immediately before its deadline on Robinhood Chain.
 
-Builds clean and **8/8 tests pass** (run via the official Foundry Docker
-image — Foundry itself was never installed on the host, deliberately, since
-this was authored on a company-managed workstation). Not deployed anywhere,
-and not security-reviewed. See [`CLAUDE.md`](./CLAUDE.md) for exact commands
-(including the Docker-based build/test) and the deployment checklist.
+The replacement is locally tested but not deployed or security-reviewed. See
+[`CLAUDE.md`](./CLAUDE.md) and
+[`../docs/PREDICTION_MARKET_DEADLINE_SETTLEMENT.md`](../docs/PREDICTION_MARKET_DEADLINE_SETTLEMENT.md).
 
-The frontend in `../src` is a separate, self-contained mock — it doesn't
-depend on anything here.
+The frontend in `../src` contains both the real mainnet mode and a separate
+client-side demo.

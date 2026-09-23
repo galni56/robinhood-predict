@@ -10,30 +10,27 @@ import { Sparkline } from '@/components/PriceChart'
 import { TokenBrowser } from '@/components/TokenBrowser'
 import {
   PREDICTION_MARKET_ADDRESS,
-  aggregatorV3Abi,
   predictionMarketAbi,
   MarketStatusOnchain,
   bettingWindowEndSeconds,
-  tickerForFeedAddress,
-  tickerFromFeedDescription,
 } from '@/chain/contracts'
 import { demoPools, isDemoMode } from '@/chain/demo'
-import { useFeedSnapshot } from '@/chain/feedCache'
+import { tickerForPredictionAssetId } from '@/chain/predictionMarketAssets'
+import { useAssetRaceLiveDisplay } from '@/chain/useAssetRaceLiveDisplay'
 import { formatCountdown, formatUsd } from '@/lib/format'
 import type { PricePoint } from '@/types'
 
-// A coarse, purely-cosmetic split for the asset-type filter below -- most
-// allowlisted feeds are single stocks, these few are index/commodity ETFs.
-// Update alongside ALLOWLISTED_FEEDS in src/chain/contracts.ts if that list
-// grows to include another ETF.
+// A coarse, purely-cosmetic split for the asset-type filter below. The initial
+// pool-backed prediction set contains only single stocks, but keeping the ETF
+// branch makes the list ready for a future reviewed pool without changing the
+// market ABI.
 const ETF_TICKERS = new Set(['QQQ', 'SPY', 'EWY', 'SLV', 'USO'])
 
-// How many 2s polls of real price history to keep per feed for the card
+// How many 2s polls of real pool-price history to keep per ticker for the card
 // sparkline -- 90 points is 3 minutes, enough to show a real trend without
 // growing unbounded on a page left open a long time. This is genuinely
-// polled data, not simulated -- it just only covers however long this page
-// has been open, not the market's full lifetime (Chainlink's
-// latestRoundData() has no history endpoint to backfill from).
+// polled data, not simulated -- it only covers however long this page has
+// been open, not the market's full lifetime.
 const PRICE_HISTORY_LENGTH = 90
 
 type StatusFilter = 'ALL' | 'OPEN' | 'RESOLVED' | 'CANCELLED'
@@ -56,7 +53,7 @@ export function OnchainMarketsListPage() {
   const navigate = useNavigate()
   const [filter, setFilter] = useState<StatusFilter>('ALL')
   const [assetFilter, setAssetFilter] = useState<AssetFilter>('ALL')
-  // Tracks each feed's previously-seen price so a card can color itself by
+  // Tracks each ticker's previously-seen price so a card can color itself by
   // "did it just tick up or down", not by distance from the target - a ref
   // (not state) so updating it never itself triggers a re-render.
   const prevPriceByFeed = useRef<Map<string, number>>(new Map())
@@ -87,81 +84,34 @@ export function OnchainMarketsListPage() {
     query: { enabled: count > 0 },
   })
 
-  const feedAddresses = Array.from(
-    new Set(
-      (markets.data ?? [])
-        .map((r) => (r.status === 'success' ? r.result.priceFeed : undefined))
-        .filter((a): a is `0x${string}` => !!a),
-    ),
-  )
+  const live = useAssetRaceLiveDisplay({ enabled: true })
 
-  // A backend service polls every allowlisted feed's price on its own
-  // schedule and serves the snapshot from our own origin (see
-  // src/chain/feedCache.ts) -- when it's available, that's what drives
-  // live prices here instead of this page polling the chain itself. The
-  // on-chain reads below stay as a fallback (a feed missing from the
-  // snapshot, or the endpoint being unavailable, e.g. GitHub Pages), which
-  // is why their own polling only turns on when the snapshot isn't.
-  const feedSnapshot = useFeedSnapshot()
-
-  const feedDecimals = useReadContracts({
-    contracts: feedAddresses.map((addr) => ({ address: addr, abi: aggregatorV3Abi, functionName: 'decimals' }) as const),
-    query: { enabled: feedAddresses.length > 0 },
-  })
-  const feedPrices = useReadContracts({
-    contracts: feedAddresses.map((addr) => ({ address: addr, abi: aggregatorV3Abi, functionName: 'latestRoundData' }) as const),
-    query: { enabled: feedAddresses.length > 0, refetchInterval: feedSnapshot.data ? false : 2_000 },
-  })
-  const feedDescriptions = useReadContracts({
-    contracts: feedAddresses.map((addr) => ({ address: addr, abi: aggregatorV3Abi, functionName: 'description' }) as const),
-    query: { enabled: feedAddresses.length > 0 },
-  })
-
-  const decimalsByFeed = new Map(
-    feedAddresses.map((addr, i) => {
-      const snap = feedSnapshot.data?.[addr]
-      if (snap) return [addr, snap.decimals] as const
-      return [addr, feedDecimals.data?.[i]?.status === 'success' ? feedDecimals.data[i].result : undefined] as const
-    }),
-  )
-  const priceByFeed = new Map(
-    feedAddresses.map((addr, i) => {
-      const snap = feedSnapshot.data?.[addr]
-      if (snap) return [addr, [0n, BigInt(snap.answer), 0n, BigInt(snap.updatedAt), 0n] as const] as const
-      return [addr, feedPrices.data?.[i]?.status === 'success' ? feedPrices.data[i].result : undefined] as const
-    }),
-  )
-  const descByFeed = new Map(feedAddresses.map((addr, i) => [addr, feedDescriptions.data?.[i]?.status === 'success' ? feedDescriptions.data[i].result : undefined]))
-
-  // Ticker per market id, resolved instantly for an allowlisted feed
-  // (tickerForFeedAddress) rather than waiting on the live description()
-  // read -- also used below to drive the asset-type filter and to label
-  // entries in the live bets ticker.
+  // Ticker per market id, resolved locally from the reviewed asset registry.
+  // It also drives the cosmetic asset-type filter and labels the live-bets
+  // ticker without another RPC read.
   const tickerByMarketId = new Map<string, string>()
   ids.forEach((id, i) => {
     const result = markets.data?.[i]
     if (result?.status !== 'success') return
-    const t = tickerForFeedAddress(result.result.priceFeed) ?? tickerFromFeedDescription(descByFeed.get(result.result.priceFeed))
+    const t = tickerForPredictionAssetId(result.result.assetId)
     if (t) tickerByMarketId.set(id.toString(), t)
   })
 
   // Runs after render, so the render just above still compared against last
   // poll's prices before this commits the new ones for the next comparison.
   useEffect(() => {
-    feedAddresses.forEach((addr) => {
-      const decimals = decimalsByFeed.get(addr)
-      const price = priceByFeed.get(addr)
-      if (decimals != null && price) {
-        const usd = Number(formatUnits(price[1], decimals))
-        prevPriceByFeed.current.set(addr, usd)
-        const series = priceHistoryByFeed.current.get(addr) ?? []
+    Object.entries(live.assets).forEach(([ticker, price]) => {
+      if (!price.stale) {
+        const usd = Number(formatUnits(BigInt(price.priceRaw), price.decimals))
+        prevPriceByFeed.current.set(ticker, usd)
+        const series = priceHistoryByFeed.current.get(ticker) ?? []
         series.push({ t: Date.now(), price: usd })
         if (series.length > PRICE_HISTORY_LENGTH) series.shift()
-        priceHistoryByFeed.current.set(addr, series)
+        priceHistoryByFeed.current.set(ticker, series)
       }
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [feedPrices.data, feedSnapshot.data])
+  }, [live.snapshot])
 
   const filteredIds = ids
     .filter((_id, i) => {
@@ -256,16 +206,15 @@ export function OnchainMarketsListPage() {
             const result = markets.data?.[i]
             if (!result || result.status !== 'success') return null
             const m = result.result
-            const decimals = decimalsByFeed.get(m.priceFeed)
-            const price = priceByFeed.get(m.priceFeed)
             const ticker = tickerByMarketId.get(id.toString())
-            const targetUsd = decimals != null ? Number(formatUnits(m.targetPrice, decimals)) : null
-            const currentUsd = decimals != null && price ? Number(formatUnits(price[1], decimals)) : null
+            const price = ticker ? live.assets[ticker] : undefined
+            const targetUsd = Number(formatUnits(m.targetPrice, m.priceDecimals))
+            const currentUsd = price && !price.stale ? Number(formatUnits(BigInt(price.priceRaw), price.decimals)) : null
             const deadlineMs = Number(m.deadline) * 1000
             const pools = isDemoMode() ? demoPools(id) : { poolYes: m.poolYes, poolNo: m.poolNo }
             const totalPool = pools.poolYes + pools.poolNo
             const yesPct = totalPool > 0n ? Number((pools.poolYes * 10000n) / totalPool) / 100 : 50
-            const prevUsd = prevPriceByFeed.current.get(m.priceFeed)
+            const prevUsd = ticker ? prevPriceByFeed.current.get(ticker) : undefined
             // No prior tick yet (first render) - default to green rather than
             // flashing red for a market that hasn't actually moved down.
             const tickedUp = currentUsd == null || prevUsd == null ? true : currentUsd >= prevUsd
@@ -306,11 +255,11 @@ export function OnchainMarketsListPage() {
                 </div>
 
                 <h3 className="font-display text-xl font-bold leading-snug mb-3 group-hover:text-[#B3A7FA] transition-colors">
-                  Will {ticker ?? 'it'} reach {targetUsd != null ? formatUsd(targetUsd) : '…'}?
+                  Will {ticker ?? 'it'} be at or above {targetUsd != null ? formatUsd(targetUsd) : '…'} at the deadline?
                 </h3>
 
                 {(() => {
-                  const series = priceHistoryByFeed.current.get(m.priceFeed) ?? []
+                  const series = ticker ? priceHistoryByFeed.current.get(ticker) ?? [] : []
                   return series.length > 1 ? (
                     <div className="mb-3">
                       <Sparkline data={series} color={tickedUp ? '#2dd888' : '#ff5577'} />

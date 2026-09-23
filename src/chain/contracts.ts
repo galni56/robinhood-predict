@@ -1,23 +1,19 @@
 import type { Address } from 'viem'
 
-// PredictionMarket redeployed 2026-09-10 to remove the flat $500 target-price
-// cap and make the anti-griefing guardrails (min duration, target-price
-// deviation band, max stake per side) actually live on-chain - see
-// ROADMAP.md and contracts/CLAUDE.md. Public contract addresses - not
-// secrets. Override via Vite env vars if the contracts get redeployed again.
+// This fallback is the legacy 2026-09-10 PredictionMarket. The source ABI
+// below belongs to the not-yet-deployed deadline-settlement replacement, so a
+// production build must set VITE_MARKET_ADDRESS to that replacement before
+// this frontend revision is published. See the migration gate in
+// docs/PREDICTION_MARKET_DEADLINE_SETTLEMENT.md. Addresses are public values.
 export const PREDICTION_MARKET_ADDRESS = (import.meta.env.VITE_MARKET_ADDRESS ??
   '0xd95ed19edBCd330498CADe7BA8569ac940A4182f') as Address
 export const BET_TOKEN_ADDRESS = (import.meta.env.VITE_BET_TOKEN_ADDRESS ??
   '0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168') as Address
 
-// Price feeds the owner has allowlisted so far (real Chainlink Robinhood
-// feeds, each verified on-chain via decimals()/description()/latestRoundData()
-// before allowlisting - see contracts/CLAUDE.md). `createMarket` is
-// permissionless, but the feed it settles against must already be
-// owner-allowlisted, and there's no on-chain way to enumerate allowlisted
-// feeds (it's a mapping, not a list) - so the create-market UI can only
-// offer tickers from this hardcoded list until more get allowlisted (see
-// contracts/script/AllowlistFeed.s.sol).
+// Legacy Chainlink catalog retained for the existing token browser, legacy
+// market metadata, and Chainlink-backed Asset Race adapters. The replacement
+// PredictionMarket does not use this list; its ten reviewed StockToken/USDG
+// pools come from predictionMarketAssets.ts and asset-race-assets.json.
 export const ALLOWLISTED_FEEDS = [
   { ticker: 'TSLA', address: '0x4A1166a659A55625345e9515b32adECea5547C38' as Address },
   { ticker: 'NVDA', address: '0x379EC4f7C378F34a1B47E4F3cbeBCbAC3E8E9F15' as Address },
@@ -95,7 +91,9 @@ export const predictionMarketAbi = [
       {
         type: 'tuple',
         components: [
-          { name: 'priceFeed', type: 'address' },
+          { name: 'assetId', type: 'bytes32' },
+          { name: 'oracleId', type: 'bytes32' },
+          { name: 'priceDecimals', type: 'uint8' },
           { name: 'targetPrice', type: 'int256' },
           { name: 'createdAt', type: 'uint256' },
           { name: 'deadline', type: 'uint256' },
@@ -136,7 +134,7 @@ export const predictionMarketAbi = [
     name: 'createMarket',
     stateMutability: 'nonpayable',
     inputs: [
-      { name: 'priceFeed', type: 'address' },
+      { name: 'assetId', type: 'bytes32' },
       { name: 'targetPrice', type: 'int256' },
       { name: 'deadline', type: 'uint256' },
       { name: 'initialYesAmount', type: 'uint256' },
@@ -159,8 +157,22 @@ export const predictionMarketAbi = [
     type: 'function',
     name: 'resolve',
     stateMutability: 'nonpayable',
-    inputs: [{ name: 'id', type: 'uint256' }],
+    inputs: [
+      { name: 'id', type: 'uint256' },
+      { name: 'endpointProof', type: 'bytes' },
+    ],
     outputs: [],
+  },
+  {
+    type: 'function',
+    name: 'settlements',
+    stateMutability: 'view',
+    inputs: [{ name: 'id', type: 'uint256' }],
+    outputs: [
+      { name: 'price', type: 'uint256' },
+      { name: 'updatedAt', type: 'uint256' },
+      { name: 'observationId', type: 'bytes32' },
+    ],
   },
   {
     type: 'function',
@@ -303,11 +315,11 @@ export const MAX_WEIGHT_BP = 20_000n
 export const MIN_WEIGHT_BP = 5_000n
 export const BP_DENOMINATOR = 10_000n
 
-// Mirrors the target-price floor/ceiling guard added to createMarket
-// (contracts/src/PredictionMarket.sol) - live on the mainnet contract as of
-// the 2026-09-10 redeploy (verified: MIN_TARGET_DEVIATION_BP() etc. return
-// real values, not a revert). A createMarket tx outside this range will
-// actually revert on-chain, not just get flagged in the UI.
+// Product-level target guidance. The legacy contract enforced the same band
+// on-chain, but the pool-backed replacement intentionally does not read a
+// live, signer-controlled spot proof during creation. Direct contract callers
+// can bypass this range; approved assets and deadline settlement remain
+// enforced on-chain.
 export const MIN_TARGET_DEVIATION_BP = 200n // 2%, all duration tiers
 export const SHORT_DURATION_SECONDS = 2n * 60n * 60n
 export const MEDIUM_DURATION_SECONDS = 24n * 60n * 60n
@@ -332,9 +344,8 @@ export function recommendedTargetRange(currentPrice: number, durationSeconds: nu
   return [currentPrice * (1 - mult), currentPrice * (1 + mult)]
 }
 
-/** How close (in $) a target may sit to the current price before it's
- * rejected as too close to be a real bet - the excluded band is
- * [current - this, current + this]. */
+/** UI guidance for how close (in $) a target may sit to the current price.
+ * The excluded band is [current - this, current + this]. */
 export function recommendedMinDeviationUsd(currentPrice: number): number {
   return (currentPrice * Number(MIN_TARGET_DEVIATION_BP)) / 10_000
 }

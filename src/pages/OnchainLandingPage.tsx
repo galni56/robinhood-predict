@@ -4,14 +4,12 @@ import { formatUnits } from 'viem'
 import { useReadContract, useReadContracts } from 'wagmi'
 import {
   PREDICTION_MARKET_ADDRESS,
-  aggregatorV3Abi,
   predictionMarketAbi,
   MarketStatusOnchain,
-  feedAddressForTicker,
-  tickerFromFeedDescription,
 } from '@/chain/contracts'
 import { demoPools, isDemoMode } from '@/chain/demo'
-import { useFeedSnapshot } from '@/chain/feedCache'
+import { predictionAssetForTicker, tickerForPredictionAssetId } from '@/chain/predictionMarketAssets'
+import { useAssetRaceLiveDisplay } from '@/chain/useAssetRaceLiveDisplay'
 import { useRobinhoodAssets } from '@/chain/robinhoodApi'
 import { formatUsd } from '@/lib/format'
 
@@ -20,7 +18,7 @@ const STEPS = [
     n: '01',
     color: '#8B7CF7',
     title: 'Markets target a real ticker and price',
-    body: "Anyone can create a market: pick an allowlisted Chainlink feed (TSLA, NVDA, whatever's live), a target price, and a deadline. The target has to sit within an allowed deviation from the live price - 2% to 20%, depending on how long the market runs - so nobody can set up a guaranteed win or an impossible long shot.",
+    body: 'Anyone can create a market for one of ten reviewed tokenized stocks, choose a target and a deadline. The interface keeps targets in a sensible range around the live StockToken/USDG pool price.',
   },
   {
     n: '02',
@@ -37,14 +35,14 @@ const STEPS = [
   {
     n: '04',
     color: '#ED8F3A',
-    title: 'The Chainlink feed decides the outcome',
-    body: "At the deadline, the contract reads the feed's latestRoundData() directly and checks it against the target. No human calls it, no committee, no admin override - it's the same feed the whole time, on-chain.",
+    title: 'The Robinhood pool fixes the outcome',
+    body: 'The outcome uses the StockToken/USDG pool state from the last Robinhood block strictly before the scheduled deadline. A keeper submits a signed adjacent-block proof, so resolving later cannot change which price wins.',
   },
   {
     n: '05',
     color: '#6A5AE0',
-    title: 'One-sided markets cancel automatically',
-    body: 'If a market reaches its deadline with bets on only one side, it cancels instead of settling - every stake comes back in full, no protocol fee taken. Conviction on one side alone never just gets swallowed.',
+    title: 'One-sided markets are cancelled',
+    body: 'If a market reaches its deadline with bets on only one side, the keeper cancels it instead of settling - every stake comes back in full, no protocol fee taken. Conviction on one side alone never just gets swallowed.',
   },
   {
     n: '06',
@@ -77,7 +75,7 @@ const FEATURES = [
     tag: 'LIVE ON MAINNET',
     color: '#ED8F3A',
     title: 'Not a testnet. Not a simulation. Not a promise.',
-    body: 'This is a live Solidity contract deployed on Robinhood Chain mainnet, settling real USDG against real Chainlink price feeds in real time. Permissionless market creation, an owner-maintained feed allowlist, deviation-bounded targets - every rule on this page is running on-chain right now, not sitting in a deck waiting to ship.',
+    body: 'This is a live Solidity product on Robinhood Chain mainnet, using real USDG and reviewed StockToken/USDG pools. Permissionless market creation and deterministic deadline proofs keep the core rules transparent on-chain.',
   },
 ] as const
 
@@ -138,42 +136,7 @@ export function OnchainLandingPage() {
     query: { enabled: count > 0 },
   })
 
-  const feedAddresses = Array.from(
-    new Set((markets.data ?? []).map((r) => (r.status === 'success' ? r.result.priceFeed : undefined)).filter((a): a is `0x${string}` => !!a)),
-  )
-  // See src/chain/feedCache.ts -- a backend poller keeps this snapshot
-  // fresh, so this page only reads the chain directly for a feed the
-  // snapshot doesn't have.
-  const feedSnapshot = useFeedSnapshot()
-
-  const feedDecimals = useReadContracts({
-    contracts: feedAddresses.map((addr) => ({ address: addr, abi: aggregatorV3Abi, functionName: 'decimals' }) as const),
-    query: { enabled: feedAddresses.length > 0 },
-  })
-  const feedPrices = useReadContracts({
-    contracts: feedAddresses.map((addr) => ({ address: addr, abi: aggregatorV3Abi, functionName: 'latestRoundData' }) as const),
-    query: { enabled: feedAddresses.length > 0 },
-  })
-  const feedDescriptions = useReadContracts({
-    contracts: feedAddresses.map((addr) => ({ address: addr, abi: aggregatorV3Abi, functionName: 'description' }) as const),
-    query: { enabled: feedAddresses.length > 0 },
-  })
-  const decimalsByFeed = new Map(
-    feedAddresses.map((addr, i) => {
-      const snap = feedSnapshot.data?.[addr]
-      if (snap) return [addr, snap.decimals] as const
-      return [addr, feedDecimals.data?.[i]?.status === 'success' ? feedDecimals.data[i].result : undefined] as const
-    }),
-  )
-  const priceByFeed = new Map(
-    feedAddresses.map((addr, i) => {
-      const snap = feedSnapshot.data?.[addr]
-      if (snap) return [addr, [0n, BigInt(snap.answer), 0n, BigInt(snap.updatedAt), 0n] as const] as const
-      return [addr, feedPrices.data?.[i]?.status === 'success' ? feedPrices.data[i].result : undefined] as const
-    }),
-  )
-  const descByFeed = new Map(feedAddresses.map((addr, i) => [addr, feedDescriptions.data?.[i]?.status === 'success' ? feedDescriptions.data[i].result : undefined]))
-  const tickerFor = tickerFromFeedDescription
+  const live = useAssetRaceLiveDisplay({ enabled: true })
 
   const openMarkets = ids
     .map((id, i) => {
@@ -202,7 +165,7 @@ export function OnchainLandingPage() {
 
   const categorized = openMarkets.filter((m) => {
     if (category === 'all') return true
-    const ticker = tickerFor(descByFeed.get(m.priceFeed))
+    const ticker = tickerForPredictionAssetId(m.assetId)
     if (!ticker) return category === 'stocks'
     return category === 'etfs' ? ETF_TICKERS.has(ticker) : !ETF_TICKERS.has(ticker)
   })
@@ -332,11 +295,10 @@ export function OnchainLandingPage() {
         {preview.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {preview.map((m) => {
-              const decimals = decimalsByFeed.get(m.priceFeed)
-              const price = priceByFeed.get(m.priceFeed)
-              const ticker = tickerFor(descByFeed.get(m.priceFeed))
-              const targetUsd = decimals != null ? Number(formatUnits(m.targetPrice, decimals)) : null
-              const currentUsd = decimals != null && price ? Number(formatUnits(price[1], decimals)) : null
+              const ticker = tickerForPredictionAssetId(m.assetId)
+              const price = ticker ? live.assets[ticker] : undefined
+              const targetUsd = Number(formatUnits(m.targetPrice, m.priceDecimals))
+              const currentUsd = price && !price.stale ? Number(formatUnits(BigInt(price.priceRaw), price.decimals)) : null
               const pools = isDemoMode() ? demoPools(m.id) : { poolYes: m.poolYes, poolNo: m.poolNo }
               const totalPool = pools.poolYes + pools.poolNo
               const yesPct = totalPool > 0n ? Number((pools.poolYes * 10000n) / totalPool) / 100 : 50
@@ -368,7 +330,7 @@ export function OnchainLandingPage() {
 
                   <Link to={`/onchain/${m.id}`} className="block group">
                     <h3 className="font-display text-[1.35rem] font-bold leading-snug group-hover:text-[#B3A7FA] transition-colors">
-                      Will {ticker ?? 'it'} reach {targetUsd != null ? formatUsd(targetUsd) : '…'}?
+                      Will {ticker ?? 'it'} be at or above {targetUsd != null ? formatUsd(targetUsd) : '…'} at the deadline?
                     </h3>
                   </Link>
 
@@ -565,8 +527,8 @@ export function OnchainLandingPage() {
             </p>
             <h2 className="font-display text-3xl sm:text-5xl font-bold tracking-tight mb-3">Browse tokenized stocks</h2>
             <p className="text-[#241a33]/60 text-sm sm:text-base font-medium mb-8">
-              Every tokenized stock on Robinhood Chain. A colored dot means it has a live price feed, so you can open a
-              market on it right now.
+              Tokenized stocks discovered on Robinhood Chain. A colored dot means its reviewed StockToken/USDG pool is
+              enabled, so you can open a market on it right now.
             </p>
 
             <div className="relative max-w-sm mx-auto mb-10">
@@ -583,7 +545,7 @@ export function OnchainLandingPage() {
                   onKeyDown={(e) => {
                     if (e.key === 'Escape') setStockQuery('')
                     if (e.key === 'Enter') {
-                      const first = filteredAssets.find((a) => !!feedAddressForTicker(a.tokenSymbol))
+                      const first = filteredAssets.find((a) => !!predictionAssetForTicker(a.tokenSymbol))
                       if (first && stockQuery.trim()) navigate(`/onchain/create?feed=${first.tokenSymbol}`)
                     }
                   }}
@@ -603,7 +565,7 @@ export function OnchainLandingPage() {
               {searchFocused && stockQuery.trim() && filteredAssets.length > 0 && (
                 <div className="absolute left-0 right-0 top-[calc(100%-1.25rem)] z-20 rounded-2xl bg-white shadow-[0_20px_50px_-20px_rgba(36,26,51,0.45)] overflow-hidden text-left">
                   {filteredAssets.slice(0, 6).map((a) => {
-                    const hasFeed = !!feedAddressForTicker(a.tokenSymbol)
+                    const hasFeed = !!predictionAssetForTicker(a.tokenSymbol)
                     const label = a.tokenName.replace(/\s*•\s*Robinhood Token$/i, '')
                     return (
                       <button
@@ -622,7 +584,7 @@ export function OnchainLandingPage() {
                         <span className="font-bold text-sm text-[#241a33] shrink-0">{a.tokenSymbol}</span>
                         <span className="text-xs text-[#241a33]/50 truncate flex-1">{label}</span>
                         <span className={hasFeed ? 'text-xs font-bold text-[#6A5AE0] shrink-0' : 'text-[11px] font-bold text-[#241a33]/35 shrink-0'}>
-                          {hasFeed ? 'Open market →' : 'No feed yet'}
+                          {hasFeed ? 'Open market →' : 'Pool not approved'}
                         </span>
                       </button>
                     )
@@ -635,7 +597,7 @@ export function OnchainLandingPage() {
           {filteredAssets.length > 0 ? (
             <div className="flex flex-wrap justify-center gap-2">
               {filteredAssets.map((a) => {
-                const hasFeed = !!feedAddressForTicker(a.tokenSymbol)
+                const hasFeed = !!predictionAssetForTicker(a.tokenSymbol)
                 const dot = (
                   <span
                     className="w-1.5 h-1.5 rounded-full shrink-0"
@@ -644,9 +606,9 @@ export function OnchainLandingPage() {
                 )
                 const label = a.tokenName.replace(/\s*•\s*Robinhood Token$/i, '')
 
-                // Every ticker with an allowlisted Chainlink feed can actually
+                // Every ticker with a reviewed production pool can actually
                 // become a market -- send it straight to market creation,
-                // prefilled, instead of an inert link. One without a feed yet
+                // prefilled, instead of an inert link. One without a pool yet
                 // simply can't be created against, so it stays a plain (but
                 // clearly-labelled, not just dead) pill instead of pretending
                 // to be clickable.
@@ -666,7 +628,7 @@ export function OnchainLandingPage() {
                 return (
                   <span
                     key={a.tokenSymbol}
-                    title={`${label} - no price feed yet. Robinhood hasn't shipped one for this stock, so a market can't be created until they do.`}
+                    title={`${label} - no reviewed StockToken/USDG pool is enabled for prediction markets yet.`}
                     className="flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-dashed border-[#241a33]/20 text-sm text-[#241a33]/40 font-bold cursor-default"
                   >
                     {dot}

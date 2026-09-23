@@ -6,10 +6,9 @@ import {
   MarketSideOnchain,
   MarketStatusOnchain,
   PREDICTION_MARKET_ADDRESS,
-  aggregatorV3Abi,
   predictionMarketAbi,
-  tickerFromFeedDescription,
 } from '@/chain/contracts'
+import { tickerForPredictionAssetId } from '@/chain/predictionMarketAssets'
 import { formatUsd, timeAgo } from '@/lib/format'
 
 const BET_TOKEN_DECIMALS = 6 // USDG's real decimals
@@ -38,17 +37,6 @@ export function OnchainArchivePage() {
     .filter((x): x is { id: bigint; m: NonNullable<typeof x>['m'] } => x != null)
     .sort((a, b) => Number(b.m.deadline - a.m.deadline))
 
-  // Two reads per settled market (decimals + description) so the price
-  // shows in real dollars with the right ticker, same as every other real
-  // page - feed decimals aren't assumed to be 8 across every ticker.
-  const feedMeta = useReadContracts({
-    contracts: settled.flatMap(({ m }) => [
-      { address: m.priceFeed, abi: aggregatorV3Abi, functionName: 'decimals' } as const,
-      { address: m.priceFeed, abi: aggregatorV3Abi, functionName: 'description' } as const,
-    ]),
-    query: { enabled: settled.length > 0 },
-  })
-
   return (
     <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
       <div>
@@ -61,11 +49,9 @@ export function OnchainArchivePage() {
       </div>
 
       <div className="space-y-2">
-        {settled.map(({ id, m }, i) => {
-          const decimals = feedMeta.data?.[i * 2]?.status === 'success' ? (feedMeta.data[i * 2].result as number) : 8
-          const description = feedMeta.data?.[i * 2 + 1]?.status === 'success' ? (feedMeta.data[i * 2 + 1].result as string) : undefined
-          const ticker = tickerFromFeedDescription(description) ?? '…'
-          const targetUsd = Number(formatUnits(m.targetPrice, decimals))
+        {settled.map(({ id, m }) => {
+          const ticker = tickerForPredictionAssetId(m.assetId) ?? '…'
+          const targetUsd = Number(formatUnits(m.targetPrice, m.priceDecimals))
           const totalPool = m.poolYes + m.poolNo
           const yesPct = totalPool > 0n ? Number((m.poolYes * 10000n) / totalPool) / 100 : 50
           const cancelled = m.status === MarketStatusOnchain.Cancelled
@@ -80,7 +66,7 @@ export function OnchainArchivePage() {
                 {ticker[0]}
               </span>
               <span className="font-bold min-w-14">{ticker}</span>
-              <span className="text-white/50 flex-1 min-w-40">Will it reach {formatUsd(targetUsd)}?</span>
+              <span className="text-white/50 flex-1 min-w-40">At or above {formatUsd(targetUsd)} at deadline?</span>
               {cancelled ? <CancelledBadge /> : <SideBadge side={m.outcome === MarketSideOnchain.YES ? 'YES' : 'NO'} />}
               <span className="text-white/40 text-xs w-28 text-right">
                 {yesPct.toFixed(1)}% / {(100 - yesPct).toFixed(1)}%

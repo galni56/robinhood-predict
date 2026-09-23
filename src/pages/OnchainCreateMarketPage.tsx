@@ -1,20 +1,18 @@
 import { type FormEvent, useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { formatUnits, parseUnits } from 'viem'
-import { useAccount, useChainId, useReadContract, useSwitchChain, useWriteContract } from 'wagmi'
+import { useAccount, useChainId, useSwitchChain, useWriteContract } from 'wagmi'
 import { simulateContract, waitForTransactionReceipt } from 'wagmi/actions'
 import { robinhoodMainnet, wagmiConfig } from '@/chain/config'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
 import {
-  ALLOWLISTED_FEEDS,
   PREDICTION_MARKET_ADDRESS,
-  aggregatorV3Abi,
-  feedAddressForTicker,
   predictionMarketAbi,
   recommendedMinDeviationUsd,
   recommendedTargetRange,
 } from '@/chain/contracts'
-import { readSnapshotPrice, useFeedSnapshot } from '@/chain/feedCache'
+import { PREDICTION_MARKET_ASSETS, predictionAssetForTicker } from '@/chain/predictionMarketAssets'
+import { useAssetRaceLiveDisplay } from '@/chain/useAssetRaceLiveDisplay'
 import { formatUsd, shortTxError } from '@/lib/format'
 
 const DURATION_PRESETS = [
@@ -34,45 +32,31 @@ export function OnchainCreateMarketPage() {
   // Arriving from a "Create Prediction" button on a specific token's card
   // (e.g. /onchain/create?feed=NVDA) preselects that ticker; otherwise
   // default to the first allowlisted one.
-  const preselected = feedAddressForTicker(searchParams.get('feed') ?? '')
-  const [feedAddress, setFeedAddress] = useState(preselected ?? ALLOWLISTED_FEEDS[0].address)
+  const preselected = predictionAssetForTicker(searchParams.get('feed'))
+  const [assetId, setAssetId] = useState(preselected?.assetId ?? PREDICTION_MARKET_ASSETS[0].assetId)
   const [target, setTarget] = useState('400')
   const [durationIdx, setDurationIdx] = useState(1)
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // feedDecimals is also read directly on-chain (not just from the
-  // snapshot below) because it feeds parseUnits() for the actual
-  // createMarket transaction at submit time -- real-money-adjacent values
-  // stay on the authoritative on-chain path. The snapshot only drives the
-  // displayed/prefilled current price, which can safely lag a couple of
-  // seconds behind the chain.
-  const feedDecimals = useReadContract({
-    address: feedAddress,
-    abi: aggregatorV3Abi,
-    functionName: 'decimals',
-  })
-  const feedPrice = useReadContract({
-    address: feedAddress,
-    abi: aggregatorV3Abi,
-    functionName: 'latestRoundData',
-  })
-  const feedSnapshot = useFeedSnapshot()
-  const currentPriceUsd =
-    readSnapshotPrice(feedSnapshot.data, feedAddress) ??
-    (feedPrice.data && feedDecimals.data != null ? Number(formatUnits(feedPrice.data[1], feedDecimals.data)) : null)
+  const selectedAsset = PREDICTION_MARKET_ASSETS.find((asset) => asset.assetId === assetId) ?? PREDICTION_MARKET_ASSETS[0]
+  const live = useAssetRaceLiveDisplay({ enabled: true })
+  const livePrice = live.assets[selectedAsset.ticker]
+  const currentPriceUsd = livePrice && !livePrice.stale
+    ? Number(formatUnits(BigInt(livePrice.priceRaw), livePrice.decimals))
+    : null
 
   // Pre-fill the target 3% above the live price whenever the ticker changes
   // (not on every price poll, or the user's own edits would keep getting
-  // clobbered). The live price itself is rejected on-chain (must be >=2% away),
-  // and 3% sits inside the allowed band for every duration preset.
+  // clobbered). The range is product guidance enforced by this UI; the
+  // contract itself only requires a positive target for an approved asset.
   const prefilledFor = useRef<string | null>(null)
   useEffect(() => {
-    if (currentPriceUsd != null && prefilledFor.current !== feedAddress) {
+    if (currentPriceUsd != null && prefilledFor.current !== assetId) {
       setTarget((currentPriceUsd * 1.03).toFixed(2))
-      prefilledFor.current = feedAddress
+      prefilledFor.current = assetId
     }
-  }, [feedAddress, currentPriceUsd])
+  }, [assetId, currentPriceUsd])
 
   const onRightChain = chainId === robinhoodMainnet.id
   const durationSeconds = DURATION_PRESETS[durationIdx].seconds
@@ -98,25 +82,25 @@ export function OnchainCreateMarketPage() {
       )
       return
     }
-    if (feedDecimals.data == null) {
-      setError("Couldn't read the feed's decimals() - try again")
+    if (!livePrice || livePrice.stale) {
+      setError("Live StockToken/USDG pool price isn't ready - try again")
       return
     }
 
     try {
       setPending(true)
-      const targetScaled = parseUnits(target, feedDecimals.data)
+      const targetScaled = parseUnits(target, selectedAsset.decimals)
       const deadline = BigInt(Math.floor(Date.now() / 1000) + DURATION_PRESETS[durationIdx].seconds)
       const request = {
         address: PREDICTION_MARKET_ADDRESS,
         abi: predictionMarketAbi,
         functionName: 'createMarket',
-        args: [feedAddress, targetScaled, deadline, 0n, 0n],
+        args: [selectedAsset.assetId, targetScaled, deadline, 0n, 0n],
       } as const
 
       // Dry-run against the node first: it returns the contract's real revert
-      // reason (e.g. "target too far from current price"), which the wallet
-      // often hides behind a generic "likely to fail" warning.
+      // reason (for example an unconfigured asset), which the wallet often
+      // hides behind a generic "likely to fail" warning.
       await simulateContract(wagmiConfig, { ...request, account: address, chainId: robinhoodMainnet.id })
 
       const hash = await writeContractAsync(request)
@@ -130,7 +114,7 @@ export function OnchainCreateMarketPage() {
     }
   }
 
-  const selectedTicker = ALLOWLISTED_FEEDS.find((f) => f.address === feedAddress)?.ticker ?? '…'
+  const selectedTicker = selectedAsset.ticker
   const targetNumPreview = Number(target)
 
   return (
@@ -157,8 +141,8 @@ export function OnchainCreateMarketPage() {
             <div>
               <p className="text-[11px] font-bold text-[#241a33]/50 mb-0.5">Your question</p>
               <p className="font-display text-2xl font-bold leading-snug">
-                Will {selectedTicker} reach {targetNumPreview > 0 ? formatUsd(targetNumPreview) : '…'} in{' '}
-                {DURATION_PRESETS[durationIdx].label}?
+                Will {selectedTicker} be at or above {targetNumPreview > 0 ? formatUsd(targetNumPreview) : '…'} at the{' '}
+                {DURATION_PRESETS[durationIdx].label} deadline?
               </p>
             </div>
           </div>
@@ -166,25 +150,25 @@ export function OnchainCreateMarketPage() {
 
       <form onSubmit={onSubmit} className="bg-[#241b2f] border border-white/5 rounded-3xl p-6 sm:p-8 space-y-6">
         <div>
-          <label className="block text-sm font-bold text-white/60 mb-2">Price feed</label>
+          <label className="block text-sm font-bold text-white/60 mb-2">Tokenized stock</label>
           <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
-            {ALLOWLISTED_FEEDS.map((f) => (
+            {PREDICTION_MARKET_ASSETS.map((asset) => (
               <button
                 type="button"
-                key={f.ticker}
-                onClick={() => setFeedAddress(f.address)}
+                key={asset.ticker}
+                onClick={() => setAssetId(asset.assetId)}
                 className={`rounded-xl px-3 py-2 text-sm font-bold transition-colors ${
-                  feedAddress === f.address
+                  assetId === asset.assetId
                     ? 'bg-[#8B7CF7] text-[#f7f1e3]'
                     : 'bg-white/5 text-white/60 hover:bg-white/10 hover:text-white'
                 }`}
               >
-                {f.ticker}
+                {asset.ticker}
               </button>
             ))}
           </div>
           <p className="text-[11px] text-white/30 mt-1.5">
-            Only allowlisted feeds can settle a market - only the contract owner can add more.
+            Only reviewed StockToken/USDG pools can settle a market. Ten production assets are enabled.
           </p>
         </div>
 
@@ -222,8 +206,8 @@ export function OnchainCreateMarketPage() {
           </div>
           {minRange != null && maxRange != null && minGapUsd != null && (
             <p className="text-[11px] text-white/30 mt-1.5">
-              Allowed for this duration: {formatUsd(minRange)}–{formatUsd(maxRange)}, at least {formatUsd(minGapUsd)} away
-              from the current price. Enforced on-chain - the transaction will revert outside this range.
+              Suggested for this duration: {formatUsd(minRange)}–{formatUsd(maxRange)}, at least {formatUsd(minGapUsd)} away
+              from the current pool price. This is UI guidance; asset approval and settlement are enforced on-chain.
             </p>
           )}
         </div>

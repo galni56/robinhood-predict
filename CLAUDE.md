@@ -18,7 +18,7 @@ the code level, it's the same project. Don't be thrown by the mismatch.
 A **live, real-money** prediction market on Robinhood Chain (a real EVM L2
 Robinhood launched for tokenized equities, chain id 4663). Users connect a
 real wallet (MetaMask/Phantom) and bet real USDG on whether a tokenized
-stock reaches a target price before a deadline — parimutuel payouts, no
+stock is at or above a target price at a deadline — parimutuel payouts, no
 bookmaker. This is **not a demo product** — it has real users, real money,
 and no external security audit. Treat every contract interaction
 accordingly: think before broadcasting, confirm with the user when unsure.
@@ -45,19 +45,19 @@ personal GitHub account). GitHub Pages silently stops serving if this repo
 ever goes private again — it happened once (2026-09-11), see the "Ops
 lessons" section below.
 
-## Status snapshot (2026-09-22)
+## Status snapshot (2026-09-23)
 
 | Piece | Status |
 |---|---|
-| `PredictionMarket` contract | **Live on mainnet**, redeployed 2026-09-10 at `0xd95ed19edBCd330498CADe7BA8569ac940A4182f`. No flat dollar cap on target price — instead a duration-scaled deviation band (2% floor; 4%/15%/20% ceiling for short/medium/long durations) genuinely enforced on-chain, plus min market duration (30 min) and max stake per wallet per side ($50). 2% protocol fee, taken only from the losing pool's contribution to a winner's payout. 36/36 Foundry tests pass. |
+| `PredictionMarket` contract | **Legacy version remains live on mainnet** at `0xd95ed19edBCd330498CADe7BA8569ac940A4182f`. The source contains an undeployed replacement using the same signed StockToken/USDG pool block-pair proof as Asset Race. It freezes the last Robinhood block strictly before the deadline, stores the price/timestamp/block hash, and cancels if the endpoint is over 60 seconds old. Production is limited to the 10 reviewed pool-backed Stocks. See `docs/PREDICTION_MARKET_DEADLINE_SETTLEMENT.md`. 36/36 focused Foundry tests pass. |
 | `NicknameRegistry` contract | **Live on mainnet** at `0x1Ddc13e9D4895a5E6671079478007C7371b76E75` (deployed 2026-09-11). Standalone from PredictionMarket on purpose. `setNickname(string)` — anyone can set their own, 24-char max, no admin override. 8/8 tests pass. `src/chain/nicknames.ts` + `src/components/AddressLabel.tsx` (the one place addresses should render through) wire it into the leaderboard, recent bets, and per-market bet lists. |
 | Asset Race | **Deployed and configured, staged—not publicly launched.** `SignedPoolRaceOracle` is `0x5b0f7e62E0A5fF5C5C02Ad219Afcd086F2618Db7`; `AssetRace` is `0x63E582bb395527CED97F2F94662eA93A7EDf65Ff`. All 10 approved Stocks and 13 approved Memes are registered. No race has been created; the VPS keeper/LIVE services and controlled mainnet rehearsal remain launch gates. See `docs/ASSET_RACE_PREDEPLOY_CHECKLIST.md`. |
 | Bet token | Real USDG at `0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168`, **6 decimals** (not 18 — the old testnet mock token was 18, this has tripped up the frontend before, double-check before assuming). USDG only for now; ETH support is a known, explicitly-flagged gap (see Roadmap). |
-| Price feeds | 27 real Chainlink feeds allowlisted (owner-only step, `setPriceFeedAllowed`) — full list with addresses in `src/chain/contracts.ts` (`ALLOWLISTED_FEEDS`). Each was verified on-chain (`decimals()`/`description()`/`latestRoundData()`) before allowlisting — always do this for a new one, never trust a pasted address blind. |
+| Prediction price sources | The legacy live contract still has its historical Chainlink allowlist. The undeployed replacement uses exactly 10 reviewed StockToken/USDG pools from `config/asset-race-assets.json`: NVDA, TSLA, AAPL, META, MSTR, AMZN, MSFT, GOOGL, MU, NFLX. |
 | Markets | 11 live as of this writing (TSLA + NVDA/AAPL/MSFT/GOOGL/AMZN/META/PLTR/SPY/QQQ seeded with 30-day deadlines so the site doesn't look empty, plus one real user-created market). `createMarket` is fully permissionless — anyone with an allowlisted feed can open one. |
 | Frontend ↔ contract | Fully wired: connect, browse (no wallet needed), create market, bet (approve + bet), claim, refund, resolve, view a market's own bet history, leaderboard, nicknames. Verified working with real wallets and real transactions, not just simulated. |
 | Hosting | VPS (`prophetmarkets.fun`) + GitHub Pages, both auto-serving real mainnet data. nginx on the VPS proxies Robinhood Chain's own read-only price/catalog REST API (`/api/robinhood/*`) with 15s server-side caching — see "Ops lessons" below for why that caching exists and a past outage it fixed. |
-| Audit | **None.** Said explicitly in the UI disclaimer banner on every real-mode page. Owner-centralized (one EOA controls the price-feed allowlist, protocol fee, and seed liquidity) — a known, accepted risk for this stage. |
+| Audit | **None.** Said explicitly in the UI disclaimer banner on every real-mode page. Owner-centralized (one EOA controls the approved asset/pool registry, protocol fee, and seed liquidity) — a known, accepted risk for this stage. |
 
 ## Critical operating rules (learned through actual friction — read before acting)
 

@@ -6,17 +6,17 @@ import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IER
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {AggregatorV3Interface} from "./interfaces/AggregatorV3Interface.sol";
+import {IAssetRaceOracle} from "./interfaces/IAssetRaceOracle.sol";
 
 /// @title PredictionMarket
-/// @notice Parimutuel YES/NO prediction market: "Does <stock token> reach
-/// $<target> by <deadline>?", settled by reading a Chainlink price feed.
+/// @notice Parimutuel YES/NO prediction market: "Is <StockToken> at or above
+/// <target> USDG at <deadline>?", settled from the same deterministic
+/// StockToken/USDG pool endpoint used by Asset Race.
 /// Bets are placed in a single ERC-20 bet token (e.g. a USD stablecoin).
 ///
-/// @dev STATUS: compiles clean, full Foundry suite passing (via Docker — see
-/// contracts/CLAUDE.md). Not deployed anywhere yet and has had no independent
-/// security review. Do not deploy to mainnet, or accept real user funds on
-/// any network, before that review happens.
+/// @dev STATUS: this deadline-settlement revision is tested but not deployed.
+/// A legacy revision is live on mainnet. Neither revision has had an independent
+/// security review; see contracts/CLAUDE.md before any production rollout.
 contract PredictionMarket is ReentrancyGuard, Ownable {
     using SafeERC20 for IERC20;
 
@@ -31,8 +31,10 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
     }
 
     struct Market {
-        address priceFeed; // Chainlink AggregatorV3Interface for the underlying stock token
-        int256 targetPrice; // scaled to the feed's own `decimals()`
+        bytes32 assetId; // bytes32 ticker, e.g. bytes32("TSLA")
+        bytes32 oracleId; // frozen StockToken/USDG pool identity
+        uint8 priceDecimals; // frozen price scale for target and settlement
+        int256 targetPrice; // scaled to `priceDecimals`
         uint256 createdAt; // unix timestamp at creation — anchors the betting-window/decay math below
         uint256 deadline; // unix timestamp — resolution allowed here (betting closes earlier, see BETTING_WINDOW_BP)
         uint256 poolYes;
@@ -51,14 +53,22 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
         uint256 feeBp;
     }
 
-    /// @dev Max age (seconds) a Chainlink round may have at resolution time before
-    /// it's considered stale and resolution is refused. Robinhood tokenized-equity
-    /// feeds don't publish during closed market sessions (confirmed on the live
-    /// mainnet TSLA feed 2026-09-07: updatedAt was ~45h behind the current block,
-    /// consistent with Chainlink's docs stating these feeds have no heartbeat
-    /// during off-hours) — sized to survive a long weekend/holiday, not a fixed
-    /// per-update heartbeat like a crypto feed would use.
-    uint256 public constant MAX_PRICE_STALENESS = 3 days;
+    struct Settlement {
+        uint256 price;
+        uint256 updatedAt;
+        bytes32 observationId;
+    }
+
+    struct AssetConfig {
+        bytes32 oracleId;
+        uint8 decimals;
+        bool allowed;
+    }
+
+    /// @dev The selected endpoint is the last Robinhood block strictly before
+    /// the deadline. If that block is unexpectedly farther away than one minute,
+    /// cancel rather than settle from an old pool state.
+    uint256 public constant MAX_PRICE_STALENESS = 60 seconds;
 
     /// @dev Cap on owner-supplied house seed liquidity per market, in whole
     /// bet-token units (scaled to `betToken.decimals()` at use). Keeps the
@@ -80,24 +90,6 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
     /// bet immediately, and leave no real window for a counterparty to react.
     /// Matches the shortest frontend duration preset (1 hour).
     uint256 public constant MIN_MARKET_DURATION = 30 minutes;
-
-    /// @dev Anti-griefing, two-sided: without a floor, a creator could pick a
-    /// target a hair's-breadth from the live price — a degenerate market
-    /// that's trivial to flip with a last-second nudge to the underlying
-    /// price. Without a ceiling, a creator could pick a target so far from
-    /// the live price the outcome is already a foregone conclusion —
-    /// dressing up a "sure thing" as a fair-looking market for anyone who
-    /// doesn't check the current price themselves. The floor is constant;
-    /// the ceiling scales with how long the market runs (more time = more
-    /// room for a real price move), in three tiers matching the frontend's
-    /// duration presets (1h / 24h / 7d).
-    uint256 public constant MIN_TARGET_DEVIATION_BP = 200; // +/-2%, all tiers
-
-    uint256 public constant SHORT_DURATION_THRESHOLD = 2 hours;
-    uint256 public constant MEDIUM_DURATION_THRESHOLD = 24 hours;
-    uint256 public constant SHORT_MAX_DEVIATION_BP = 400; // +/-4%
-    uint256 public constant MEDIUM_MAX_DEVIATION_BP = 1500; // +/-15%
-    uint256 public constant LONG_MAX_DEVIATION_BP = 2000; // +/-20%
 
     /// @dev Upper bound on `feeBp` itself (1000 = 10%), so `setFeeBp` can
     /// never turn into a de facto rug on winners' payouts.
@@ -132,6 +124,10 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
     /// time, this is not something the contract can detect on its own.
     IERC20 public immutable betToken;
 
+    /// @notice Shared verifier for signed historical StockToken/USDG pool
+    /// endpoint observations. It is deployed separately and also used by races.
+    IAssetRaceOracle public immutable endpointOracle;
+
     /// @notice Current protocol fee in basis points, applied to the losing
     /// pool's share of a winner's payout (never to principal). Snapshotted
     /// per-market at creation — see `Market.feeBp`.
@@ -150,40 +146,42 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
     // (used only to divide up the losing pool among winners — see Market.weightedPoolYes/No)
     mapping(uint256 => mapping(address => mapping(Side => uint256))) public weightedStakes;
     mapping(uint256 => mapping(address => bool)) public claimed;
+    mapping(uint256 => Settlement) public settlements;
 
-    /// @dev Market creation is permissionless, but the price feed it settles
-    /// against is not — an attacker could otherwise deploy their own
-    /// "Chainlink-shaped" contract that reports whatever price they want and
-    /// create a rigged market against it. Only owner-allowlisted feeds
-    /// (real Chainlink feeds, verified against
-    /// https://docs.chain.link/data-feeds/tokenized-equity-feeds/robinhood)
-    /// can be used, even though anyone can call `createMarket` itself.
-    mapping(address => bool) public allowedPriceFeeds;
+    /// @dev Market creation is permissionless, but every asset must be bound by
+    /// the owner to a reviewed pool oracle id and price scale first.
+    mapping(bytes32 => AssetConfig) public approvedAssets;
 
-    event MarketCreated(uint256 indexed id, address indexed priceFeed, int256 targetPrice, uint256 deadline);
+    event MarketCreated(
+        uint256 indexed id, bytes32 indexed assetId, bytes32 indexed oracleId, int256 targetPrice, uint256 deadline
+    );
     event BetPlaced(uint256 indexed id, address indexed user, Side side, uint256 amount, uint256 weightBp);
     event MarketResolved(uint256 indexed id, Side outcome, int256 settlePrice);
     event MarketVoided(uint256 indexed id, string reason);
     event Claimed(uint256 indexed id, address indexed user, uint256 payout);
     event Refunded(uint256 indexed id, address indexed user, Side side, uint256 amount);
-    event PriceFeedAllowlisted(address indexed feed, bool allowed);
+    event AssetConfigured(bytes32 indexed assetId, bytes32 indexed oracleId, uint8 decimals, bool allowed);
     event FeeBpUpdated(uint256 feeBp);
     event FeesWithdrawn(address indexed to, uint256 amount);
 
-    constructor(address _betToken, uint256 _feeBp) Ownable(msg.sender) {
+    constructor(address _betToken, address _endpointOracle, uint256 _feeBp) Ownable(msg.sender) {
         require(_betToken != address(0), "bet token = zero addr");
+        require(_endpointOracle != address(0), "oracle = zero addr");
         require(_feeBp <= MAX_FEE_BP, "fee exceeds max");
         betToken = IERC20(_betToken);
+        endpointOracle = IAssetRaceOracle(_endpointOracle);
         feeBp = _feeBp;
     }
 
-    /// @notice Owner-maintained allowlist of price feeds `createMarket` may settle
-    /// against. Keeps market creation itself permissionless while preventing anyone
-    /// from rigging a market with a fake "Chainlink-shaped" feed contract they control.
-    function setPriceFeedAllowed(address feed, bool allowed) external onlyOwner {
-        require(feed != address(0), "feed = zero addr");
-        allowedPriceFeeds[feed] = allowed;
-        emit PriceFeedAllowlisted(feed, allowed);
+    /// @notice Bind a public asset id to one reviewed StockToken/USDG pool.
+    /// Existing markets retain their frozen oracle id and decimals if this
+    /// configuration is later changed or disabled.
+    function setAssetAllowed(bytes32 assetId, bytes32 oracleId, uint8 decimals, bool allowed) external onlyOwner {
+        require(assetId != bytes32(0), "asset = zero id");
+        require(oracleId != bytes32(0), "oracle = zero id");
+        require(decimals > 0, "decimals = 0");
+        approvedAssets[assetId] = AssetConfig({oracleId: oracleId, decimals: decimals, allowed: allowed});
+        emit AssetConfigured(assetId, oracleId, decimals, allowed);
     }
 
     /// @notice Update the protocol fee for markets created from now on. Never
@@ -204,12 +202,9 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
     }
 
     /// @notice Create a new market. Permissionless — any address may call this —
-    /// but `priceFeed` must already be on the owner-maintained allowlist (see
-    /// `setPriceFeedAllowed`). No absolute target-price cap — instead
-    /// `targetPrice` must sit within the duration-scaled band of the feed's
-    /// live price (see MIN_TARGET_DEVIATION_BP and friends below), which
-    /// scales correctly for any stock's price level instead of a flat dollar
-    /// ceiling that stops making sense for anything trading above it.
+    /// but `assetId` must already be configured by the owner. The contract does
+    /// not read a manipulable spot price during creation; the UI shows the live
+    /// pool price and applies product-level target guidance.
     ///
     /// `initialYesAmount`/`initialNoAmount` let the owner seed both sides of a
     /// fresh market with house liquidity (e.g. to open at 50/50 odds instead of
@@ -219,52 +214,37 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
     /// never gets a bet on *both* sides by its deadline is cancelled instead of
     /// resolved — see `resolve`.
     function createMarket(
-        address priceFeed,
+        bytes32 assetId,
         int256 targetPrice,
         uint256 deadline,
         uint256 initialYesAmount,
         uint256 initialNoAmount
     ) external nonReentrant returns (uint256 id) {
-        require(priceFeed != address(0), "feed = zero addr");
-        require(allowedPriceFeeds[priceFeed], "feed not allowlisted");
+        AssetConfig memory asset = approvedAssets[assetId];
+        require(asset.allowed, "asset not allowed");
         require(deadline > block.timestamp, "deadline in the past");
         require(deadline - block.timestamp >= MIN_MARKET_DURATION, "market duration too short");
         require(targetPrice > 0, "target must be > 0");
-
-        (, int256 currentPrice,, uint256 updatedAt,) = AggregatorV3Interface(priceFeed).latestRoundData();
-        require(currentPrice > 0, "invalid feed answer");
-        require(block.timestamp - updatedAt <= MAX_PRICE_STALENESS, "stale price feed");
-
-        uint256 duration = deadline - block.timestamp;
-        uint256 maxDeviationBp = duration <= SHORT_DURATION_THRESHOLD
-            ? SHORT_MAX_DEVIATION_BP
-            : duration <= MEDIUM_DURATION_THRESHOLD ? MEDIUM_MAX_DEVIATION_BP : LONG_MAX_DEVIATION_BP;
-
-        uint256 absDeviationBp = uint256(targetPrice) >= uint256(currentPrice)
-            ? ((uint256(targetPrice) - uint256(currentPrice)) * BP_DENOMINATOR) / uint256(currentPrice)
-            : ((uint256(currentPrice) - uint256(targetPrice)) * BP_DENOMINATOR) / uint256(currentPrice);
-        require(absDeviationBp >= MIN_TARGET_DEVIATION_BP, "target too close to current price");
-        require(absDeviationBp <= maxDeviationBp, "target too far from current price");
 
         if (initialYesAmount > 0 || initialNoAmount > 0) {
             require(msg.sender == owner(), "seed liquidity is owner-only");
             uint8 betDecimals = IERC20Metadata(address(betToken)).decimals();
             require(
-                initialYesAmount + initialNoAmount <= MAX_SEED_LIQUIDITY_USD * 10 ** betDecimals,
-                "seed exceeds max"
+                initialYesAmount + initialNoAmount <= MAX_SEED_LIQUIDITY_USD * 10 ** betDecimals, "seed exceeds max"
             );
         }
 
         id = marketCount++;
         Market storage m = markets[id];
-        m.priceFeed = priceFeed;
+        m.assetId = assetId;
+        m.oracleId = asset.oracleId;
+        m.priceDecimals = asset.decimals;
         m.targetPrice = targetPrice;
         m.createdAt = block.timestamp;
         m.deadline = deadline;
         m.status = Status.Open;
         m.feeBp = feeBp;
-
-        emit MarketCreated(id, priceFeed, targetPrice, deadline);
+        emit MarketCreated(id, assetId, asset.oracleId, targetPrice, deadline);
 
         // Seed liquidity lands at creation time (elapsed = 0), so it always
         // gets MAX_WEIGHT_BP — consistent with "earliest possible bet".
@@ -349,14 +329,16 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
         emit BetPlaced(id, msg.sender, side, amount, weightBp);
     }
 
-    /// @notice Resolve a market once its deadline has passed, using the Chainlink feed.
-    /// Callable by anyone (keeper-friendly) once the deadline has passed.
+    /// @notice Resolve a market once its deadline has passed, using the last
+    /// valid StockToken/USDG pool state from the last Robinhood block strictly
+    /// before the scheduled deadline. Its adjacent child proves the boundary.
+    /// Callable by anyone (keeper-friendly); execution time cannot change the outcome.
     ///
     /// If either side never got a bet, the market is cancelled instead of resolved —
     /// there's no genuine two-sided prediction to settle, and (for the case where
     /// the empty side would've "won") no losing pool to pay a winner from anyway.
     /// Cancelling lets whoever did bet reclaim their own stake in full via `refund`.
-    function resolve(uint256 id) external nonReentrant {
+    function resolve(uint256 id, bytes calldata endpointProof) external nonReentrant {
         Market storage m = markets[id];
         require(m.status == Status.Open, "market not open");
         require(block.timestamp >= m.deadline, "too early");
@@ -367,14 +349,26 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
             return;
         }
 
-        (, int256 price,, uint256 updatedAt,) = AggregatorV3Interface(m.priceFeed).latestRoundData();
-        require(price > 0, "invalid feed answer");
-        require(block.timestamp - updatedAt <= MAX_PRICE_STALENESS, "stale price feed");
+        IAssetRaceOracle.Observation memory observation =
+            endpointOracle.endpointObservation(m.oracleId, m.deadline, MAX_PRICE_STALENESS, endpointProof);
+        require(observation.price > 0 && observation.price <= uint256(type(int256).max), "invalid pool price");
+        require(observation.decimals == m.priceDecimals, "price decimals changed");
+        require(observation.updatedAt > 0 && observation.updatedAt < m.deadline, "invalid endpoint timestamp");
+
+        if (m.deadline - observation.updatedAt > MAX_PRICE_STALENESS) {
+            m.status = Status.Cancelled;
+            emit MarketVoided(id, "stale deadline price");
+            return;
+        }
+
+        settlements[id] = Settlement({
+            price: observation.price, updatedAt: observation.updatedAt, observationId: observation.observationId
+        });
 
         m.status = Status.Resolved;
-        m.outcome = price >= m.targetPrice ? Side.YES : Side.NO;
+        m.outcome = observation.price >= uint256(m.targetPrice) ? Side.YES : Side.NO;
 
-        emit MarketResolved(id, m.outcome, price);
+        emit MarketResolved(id, m.outcome, int256(observation.price));
     }
 
     /// @notice Claim payout after a market resolves in your favor. Parimutuel with

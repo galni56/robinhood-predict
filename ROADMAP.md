@@ -41,6 +41,12 @@ plus what's actually still open.
    without a backend.
 9. **Rebrand to "Prophet"** (2026-09-11) — user-facing name changed from
    PredictX to match the actual domain; repo/package names unchanged.
+10. **Deadline-bound PredictionMarket settlement prepared** (2026-09-23) —
+    the replacement uses the same signed StockToken/USDG pool block-pair proof
+    as Asset Race. It stores the immutable last-block-before-deadline observation
+    and rejects later-price selection. A dedicated keeper builds the proof.
+    This revision is tested but not yet deployed;
+    see `docs/PREDICTION_MARKET_DEADLINE_SETTLEMENT.md`.
 
 ## Asset Race staged rollout (2026-09-22)
 
