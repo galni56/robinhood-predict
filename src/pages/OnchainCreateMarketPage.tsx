@@ -16,6 +16,7 @@ import { useAssetRaceLiveDisplay } from '@/chain/useAssetRaceLiveDisplay'
 import { formatUsd, shortTxError } from '@/lib/format'
 
 const DURATION_PRESETS = [
+  { label: '30 min', seconds: 30 * 60 },
   { label: '1 hour', seconds: 60 * 60 },
   { label: '24 hours', seconds: 24 * 60 * 60 },
   { label: '7 days', seconds: 7 * 24 * 60 * 60 },
@@ -35,7 +36,9 @@ export function OnchainCreateMarketPage() {
   const preselected = predictionAssetForTicker(searchParams.get('feed'))
   const [assetId, setAssetId] = useState(preselected?.assetId ?? PREDICTION_MARKET_ASSETS[0].assetId)
   const [target, setTarget] = useState('400')
-  const [durationIdx, setDurationIdx] = useState(1)
+  // Keep 24 hours as the default while also offering the contract's exact
+  // 30-minute minimum as a permanent short-market option.
+  const [durationIdx, setDurationIdx] = useState(2)
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -190,7 +193,7 @@ export function OnchainCreateMarketPage() {
 
         <div>
           <label className="block text-sm font-bold text-white/60 mb-2">Deadline</label>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {DURATION_PRESETS.map((d, i) => (
               <button
                 type="button"
