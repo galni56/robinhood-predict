@@ -43,7 +43,7 @@ export function TermsPage() {
         <p>
           Prophet is a parimutuel prediction market on tokenized stocks, running on Robinhood Chain (a real EVM
           network Robinhood operates for tokenized equities). <strong className="text-white/80">Real mode is the default experience</strong>: connecting
-          a browser wallet (MetaMask, Phantom, or similar) lets you interact with a live smart contract using real
+          a browser wallet (MetaMask or similar) lets you interact with a live smart contract using real
           USDG - money you can genuinely gain or lose. A separate mock demo, reachable via "Try the demo", is a
           fully client-side simulation with no wallet, no real prices, and no real funds - useful to see how the
           product works without risking anything, but distinct from real mode in every respect. Nothing here

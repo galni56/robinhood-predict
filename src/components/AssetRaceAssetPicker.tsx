@@ -33,8 +33,8 @@ export function AssetRaceAssetPicker({
       <input
         value={query}
         onChange={(event) => setQuery(event.target.value)}
-        placeholder={meme ? 'Search approved Meme assets…' : 'Search Stock Tokens…'}
-        className="w-full rounded-lg border border-white/10 bg-black/25 px-3 py-2.5 text-sm outline-none transition-colors focus:border-[#C6FF3D]/50"
+        placeholder={meme ? 'Search approved meme assets…' : 'Search Stock Tokens…'}
+        className="w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 text-sm font-medium outline-none transition-colors focus:border-[#8B7CF7]/50"
       />
       <div className="grid max-h-80 grid-cols-1 gap-2 overflow-y-auto pr-1 sm:grid-cols-2">
         {matches.map((asset) => {
@@ -47,20 +47,28 @@ export function AssetRaceAssetPicker({
               type="button"
               disabled={disabled}
               onClick={() => onSelect(asset)}
-              className={`flex min-w-0 items-center gap-3 border p-3 text-left transition-all disabled:cursor-not-allowed disabled:opacity-40 ${meme ? `rounded-2xl bg-gradient-to-r from-fuchsia-400/[0.08] to-orange-300/[0.05] hover:-translate-y-0.5 ${highlighted ? 'border-orange-300/70 shadow-[0_0_24px_-14px_rgba(251,146,60,0.9)]' : 'border-fuchsia-300/15 hover:border-orange-300/40'}` : `rounded-xl bg-white/[0.025] ${highlighted ? 'border-[#C6FF3D]/70' : 'border-white/10 hover:border-[#C6FF3D]/35'}`}`}
+              className={`flex min-w-0 items-center gap-3 rounded-2xl border p-3 text-left transition-all disabled:cursor-not-allowed disabled:opacity-40 ${
+                highlighted
+                  ? meme
+                    ? 'border-[#F2A65A]/60 bg-[#F2A65A]/10'
+                    : 'border-[#8B7CF7]/60 bg-[#8B7CF7]/10'
+                  : `border-white/5 bg-white/5 ${meme ? 'hover:border-[#F2A65A]/40' : 'hover:border-[#8B7CF7]/40'}`
+              }`}
             >
               {asset.logoUrl ? (
                 <img src={asset.logoUrl} alt="" className="h-9 w-9 shrink-0 rounded-full bg-white/5 object-contain" />
               ) : (
-                <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-black ${meme ? 'bg-gradient-to-br from-fuchsia-400/25 to-orange-300/25 text-orange-100' : 'bg-[#C6FF3D]/10 text-[#C6FF3D]'}`}>
-                  {meme ? '⚡' : asset.symbol.slice(0, 2)}
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#f7f1e3] font-display text-xs font-bold text-[#241a33]">
+                  {asset.symbol.slice(0, 2)}
                 </span>
               )}
               <span className="min-w-0 flex-1">
-                <span className="block font-black">{asset.symbol}</span>
+                <span className="block font-bold">{asset.symbol}</span>
                 <span className="block truncate text-xs text-white/40">{asset.name}</span>
               </span>
-              <span className={`text-[10px] font-bold ${meme ? 'text-orange-200' : 'text-[#C6FF3D]'}`}>{alreadySelected ? 'ADDED' : highlighted ? 'SELECTED' : 'APPROVED'}</span>
+              <span className={`text-xs font-bold ${meme ? 'text-[#F2A65A]' : 'text-[#B3A7FA]'}`}>
+                {alreadySelected ? 'Added' : highlighted ? 'Selected' : 'Approved'}
+              </span>
             </button>
           )
         })}

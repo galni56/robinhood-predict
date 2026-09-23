@@ -20,8 +20,9 @@ const SECTIONS = [
   { id: 'one-sided', label: '5. One-sided market protection' },
   { id: 'creation', label: '6. Market creation' },
   { id: 'architecture', label: '7. Architecture' },
-  { id: 'roadmap', label: '8. Roadmap' },
-  { id: 'risks', label: '9. Risks & disclaimers' },
+  { id: 'races', label: '8. Asset Races' },
+  { id: 'roadmap', label: '9. Roadmap' },
+  { id: 'risks', label: '10. Risks & disclaimers' },
 ] as const
 
 export function WhitepaperPage() {
@@ -155,7 +156,7 @@ export function WhitepaperPage() {
             <Link to="/onchain" className="text-[#8B7CF7] hover:underline">
               real mode
             </Link>{' '}
-            of this site via a standard browser wallet connection (MetaMask or Phantom) - no custodial wallet, no
+            of this site via a standard browser wallet connection (MetaMask) - no custodial wallet, no
             key ever touches this app; every transaction is signed in your own wallet extension.
           </p>
           <p>
@@ -173,7 +174,37 @@ export function WhitepaperPage() {
           </p>
         </Section>
 
-        <Section id="roadmap" title="8. Roadmap">
+        <Section id="races" title="8. Asset Races">
+          <p>
+            Asset Races are a second, standalone way to bet, separate from YES/NO markets and running on their own
+            contract with no shared state or economics - a bug in one can't touch the other. Instead of picking a
+            side of a target price, a race pits <strong>2 to 6 assets</strong> (all Stocks, or all Memes - the two
+            categories never mix in one race) against each other for a fixed window. Whichever one has the highest
+            percentage move from the start snapshot to the end snapshot wins the whole pool. If two assets tie for
+            the top spot, the race voids and every stake is refunded in full instead of picking an arbitrary winner.
+          </p>
+          <p>
+            Payouts are the same parimutuel math as markets: winners get their principal back first, then split the
+            losing side's pool in proportion to stake, minus the same <strong>2% protocol fee</strong> - taken only
+            from winnings, never from principal. A race that never gets its second required price snapshot in time
+            voids instead of guessing, and everyone gets refunded.
+          </p>
+          <p>
+            Two flavors: <strong>Featured races</strong> are set up by Prophet with fixed timing and an approved
+            asset list. <strong>Community races</strong> are permissionless - any wallet can start one and others can
+            add approved assets during a short lobby window before betting opens, up to the 6-asset cap.
+          </p>
+          <p>
+            This is the newest part of the product - live on Robinhood Chain mainnet, but younger and less
+            battle-tested than the YES/NO markets above. See{' '}
+            <Link to="/onchain/races" className="text-[#8B7CF7] hover:underline">
+              Races
+            </Link>{' '}
+            to browse what's currently running.
+          </p>
+        </Section>
+
+        <Section id="roadmap" title="9. Roadmap">
           <p>Known, explicitly open items, in rough priority order:</p>
           <ul className="list-disc pl-5 space-y-1">
             <li>External security audit of the contract - not done yet, and the highest-priority open item given real funds are already at stake.</li>
@@ -187,7 +218,7 @@ export function WhitepaperPage() {
           </ul>
         </Section>
 
-        <Section id="risks" title="9. Risks & disclaimers">
+        <Section id="risks" title="10. Risks & disclaimers">
           <p>
             Real mode is a live product on Robinhood Chain mainnet - USDG and every balance there is real, and can
             be genuinely gained or lost. The contract has not undergone an external security audit (an internal

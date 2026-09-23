@@ -33,7 +33,7 @@ export function Footer() {
           <div className="flex items-center gap-2">
             <img src={`${import.meta.env.BASE_URL}brand/mascot-small.png`} alt="" className="w-7 h-7 shrink-0" />
             <span className="font-display font-bold text-lg text-[#f7f1e3]">
-              prophet markets<span className="text-[#8B7CF7]">.</span>
+              Prophet Markets<span className="text-[#8B7CF7]">.</span>
             </span>
           </div>
           <p className="text-white/40 text-sm mt-3">
@@ -82,10 +82,10 @@ export function Footer() {
 
       <div className="border-t border-white/5">
         <div className="max-w-[1500px] mx-auto px-4 py-4 flex flex-wrap items-center justify-between gap-2 text-xs text-white/30">
-          <span>© {new Date().getFullYear()} Prophet. Demo project, not a registered financial service.</span>
+          <span>© {new Date().getFullYear()} Prophet Markets</span>
           <span>
             {isOnchain
-              ? 'Real mode: Robinhood Chain mainnet, real USDG. Not affiliated with Robinhood Markets, Inc. Contract has not had an external security audit.'
+              ? 'Independent project on Robinhood Chain, not affiliated with Robinhood Markets, Inc. Unaudited smart contract - play responsibly.'
               : RHCHAIN_META.disclaimer}
           </span>
         </div>

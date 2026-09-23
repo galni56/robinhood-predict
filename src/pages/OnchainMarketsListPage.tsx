@@ -8,6 +8,7 @@ import { OnchainMarketsSidebar } from '@/components/OnchainMarketsSidebar'
 import { CancelledBadge } from '@/components/Pills'
 import { Sparkline } from '@/components/PriceChart'
 import { TokenBrowser } from '@/components/TokenBrowser'
+import { TokenLogo } from '@/components/TokenLogo'
 import {
   PREDICTION_MARKET_ADDRESS,
   predictionMarketAbi,
@@ -17,6 +18,7 @@ import {
 import { demoPools, isDemoMode } from '@/chain/demo'
 import { tickerForPredictionAssetId } from '@/chain/predictionMarketAssets'
 import { useAssetRaceLiveDisplay } from '@/chain/useAssetRaceLiveDisplay'
+import { useTokenLogos } from '@/chain/robinhoodApi'
 import { formatCountdown, formatUsd } from '@/lib/format'
 import type { PricePoint } from '@/types'
 
@@ -51,6 +53,7 @@ const ASSET_FILTERS: { key: AssetFilter; label: string }[] = [
 
 export function OnchainMarketsListPage() {
   const navigate = useNavigate()
+  const logos = useTokenLogos()
   const [filter, setFilter] = useState<StatusFilter>('ALL')
   const [assetFilter, setAssetFilter] = useState<AssetFilter>('ALL')
   // Tracks each ticker's previously-seen price so a card can color itself by
@@ -235,9 +238,7 @@ export function OnchainMarketsListPage() {
               >
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-2.5">
-                    <span className="w-9 h-9 rounded-xl bg-[#f7f1e3] text-[#241a33] grid place-items-center font-display font-bold text-lg shrink-0">
-                      {(ticker ?? '?')[0]}
-                    </span>
+                    <TokenLogo ticker={ticker} logoUrl={ticker ? logos.get(ticker) : undefined} className="w-9 h-9 rounded-xl text-lg" />
                     <div>
                       <div className="font-bold text-sm tracking-wide flex items-center gap-2">
                         {ticker ?? '…'}
