@@ -320,23 +320,43 @@ export const BP_DENOMINATOR = 10_000n
 // live, signer-controlled spot proof during creation. Direct contract callers
 // can bypass this range; approved assets and deadline settlement remain
 // enforced on-chain.
-export const MIN_TARGET_DEVIATION_BP = 200n // 2%, all duration tiers
-export const SHORT_DURATION_SECONDS = 2n * 60n * 60n
+export const THIRTY_MINUTE_DURATION_SECONDS = 30n * 60n
+export const ONE_HOUR_DURATION_SECONDS = 60n * 60n
 export const MEDIUM_DURATION_SECONDS = 24n * 60n * 60n
-export const SHORT_MAX_DEVIATION_BP = 400n // 4%
+export const THIRTY_MINUTE_MIN_DEVIATION_BP = 25n // 0.25%
+export const THIRTY_MINUTE_MAX_DEVIATION_BP = 200n // 2%
+export const ONE_HOUR_MIN_DEVIATION_BP = 50n // 0.5%
+export const ONE_HOUR_MAX_DEVIATION_BP = 300n // 3%
+export const MEDIUM_MIN_DEVIATION_BP = 200n // 2%
 export const MEDIUM_MAX_DEVIATION_BP = 1500n // 15%
-export const LONG_MAX_DEVIATION_BP = 2000n // 20%
+export const LONG_MIN_DEVIATION_BP = 300n // 3%
+export const LONG_MAX_DEVIATION_BP = 3500n // 35%
+
+export function minDeviationBpForDuration(durationSeconds: number): bigint {
+  if (durationSeconds <= Number(THIRTY_MINUTE_DURATION_SECONDS)) return THIRTY_MINUTE_MIN_DEVIATION_BP
+  if (durationSeconds <= Number(ONE_HOUR_DURATION_SECONDS)) return ONE_HOUR_MIN_DEVIATION_BP
+  if (durationSeconds <= Number(MEDIUM_DURATION_SECONDS)) return MEDIUM_MIN_DEVIATION_BP
+  return LONG_MIN_DEVIATION_BP
+}
 
 export function maxDeviationBpForDuration(durationSeconds: number): bigint {
-  if (durationSeconds <= Number(SHORT_DURATION_SECONDS)) return SHORT_MAX_DEVIATION_BP
+  if (durationSeconds <= Number(THIRTY_MINUTE_DURATION_SECONDS)) return THIRTY_MINUTE_MAX_DEVIATION_BP
+  if (durationSeconds <= Number(ONE_HOUR_DURATION_SECONDS)) return ONE_HOUR_MAX_DEVIATION_BP
   if (durationSeconds <= Number(MEDIUM_DURATION_SECONDS)) return MEDIUM_MAX_DEVIATION_BP
   return LONG_MAX_DEVIATION_BP
+}
+
+export function suggestedTargetDeviationBpForDuration(durationSeconds: number): bigint {
+  if (durationSeconds <= Number(THIRTY_MINUTE_DURATION_SECONDS)) return 75n // 0.75%
+  if (durationSeconds <= Number(ONE_HOUR_DURATION_SECONDS)) return 150n // 1.5%
+  if (durationSeconds <= Number(MEDIUM_DURATION_SECONDS)) return 300n // 3%
+  return 500n // 5%
 }
 
 /** Outer [min, max] a target price could be for a given current price +
  * duration - plain numbers (not scaled to feed decimals), for UI display
  * only. Note this isn't one continuous valid range: the actual rule also
- * excludes a band within MIN_TARGET_DEVIATION_BP of the current price (too
+ * excludes a duration-specific band around the current price (too
  * close to be a real bet) - see recommendedMinDeviationUsd. */
 export function recommendedTargetRange(currentPrice: number, durationSeconds: number): [number, number] {
   const maxBp = maxDeviationBpForDuration(durationSeconds)
@@ -346,8 +366,8 @@ export function recommendedTargetRange(currentPrice: number, durationSeconds: nu
 
 /** UI guidance for how close (in $) a target may sit to the current price.
  * The excluded band is [current - this, current + this]. */
-export function recommendedMinDeviationUsd(currentPrice: number): number {
-  return (currentPrice * Number(MIN_TARGET_DEVIATION_BP)) / 10_000
+export function recommendedMinDeviationUsd(currentPrice: number, durationSeconds: number): number {
+  return (currentPrice * Number(minDeviationBpForDuration(durationSeconds))) / 10_000
 }
 
 /** Mirrors `PredictionMarket.bettingWindowEnd()` exactly (same truncating

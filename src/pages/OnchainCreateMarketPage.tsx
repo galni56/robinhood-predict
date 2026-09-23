@@ -10,16 +10,20 @@ import {
   predictionMarketAbi,
   recommendedMinDeviationUsd,
   recommendedTargetRange,
+  suggestedTargetDeviationBpForDuration,
 } from '@/chain/contracts'
 import { PREDICTION_MARKET_ASSETS, predictionAssetForTicker } from '@/chain/predictionMarketAssets'
 import { useAssetRaceLiveDisplay } from '@/chain/useAssetRaceLiveDisplay'
 import { formatUsd, shortTxError } from '@/lib/format'
 
 const DURATION_PRESETS = [
-  { label: '30 min', seconds: 30 * 60 },
-  { label: '1 hour', seconds: 60 * 60 },
-  { label: '24 hours', seconds: 24 * 60 * 60 },
-  { label: '7 days', seconds: 7 * 24 * 60 * 60 },
+  // The shortest preset includes an allowance for the time spent confirming
+  // the transaction in the wallet. Without it, the contract's exact
+  // 30-minute minimum could be missed by the time the transaction is mined.
+  { label: '30 min', seconds: 30 * 60, submissionBufferSeconds: 2 * 60 },
+  { label: '1 hour', seconds: 60 * 60, submissionBufferSeconds: 0 },
+  { label: '24 hours', seconds: 24 * 60 * 60, submissionBufferSeconds: 0 },
+  { label: '7 days', seconds: 7 * 24 * 60 * 60, submissionBufferSeconds: 0 },
 ] as const
 
 export function OnchainCreateMarketPage() {
@@ -43,28 +47,31 @@ export function OnchainCreateMarketPage() {
   const [error, setError] = useState<string | null>(null)
 
   const selectedAsset = PREDICTION_MARKET_ASSETS.find((asset) => asset.assetId === assetId) ?? PREDICTION_MARKET_ASSETS[0]
+  const durationPreset = DURATION_PRESETS[durationIdx]
+  const durationSeconds = durationPreset.seconds
   const live = useAssetRaceLiveDisplay({ enabled: true })
   const livePrice = live.assets[selectedAsset.ticker]
   const currentPriceUsd = livePrice && !livePrice.stale
     ? Number(formatUnits(BigInt(livePrice.priceRaw), livePrice.decimals))
     : null
 
-  // Pre-fill the target 3% above the live price whenever the ticker changes
-  // (not on every price poll, or the user's own edits would keep getting
-  // clobbered). The range is product guidance enforced by this UI; the
-  // contract itself only requires a positive target for an approved asset.
+  // Pre-fill a duration-appropriate target whenever the ticker or duration
+  // changes (not on every price poll, or the user's own edits would keep
+  // getting clobbered). The range is product guidance enforced by this UI;
+  // the contract itself only requires a positive target for an approved asset.
   const prefilledFor = useRef<string | null>(null)
   useEffect(() => {
-    if (currentPriceUsd != null && prefilledFor.current !== assetId) {
-      setTarget((currentPriceUsd * 1.03).toFixed(2))
-      prefilledFor.current = assetId
+    const prefillKey = `${assetId}:${durationSeconds}`
+    if (currentPriceUsd != null && prefilledFor.current !== prefillKey) {
+      const deviation = Number(suggestedTargetDeviationBpForDuration(durationSeconds)) / 10_000
+      setTarget((currentPriceUsd * (1 + deviation)).toFixed(2))
+      prefilledFor.current = prefillKey
     }
-  }, [assetId, currentPriceUsd])
+  }, [assetId, currentPriceUsd, durationSeconds])
 
   const onRightChain = chainId === robinhoodMainnet.id
-  const durationSeconds = DURATION_PRESETS[durationIdx].seconds
   const [minRange, maxRange] = currentPriceUsd != null ? recommendedTargetRange(currentPriceUsd, durationSeconds) : [null, null]
-  const minGapUsd = currentPriceUsd != null ? recommendedMinDeviationUsd(currentPriceUsd) : null
+  const minGapUsd = currentPriceUsd != null ? recommendedMinDeviationUsd(currentPriceUsd, durationSeconds) : null
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
@@ -93,7 +100,9 @@ export function OnchainCreateMarketPage() {
     try {
       setPending(true)
       const targetScaled = parseUnits(target, selectedAsset.decimals)
-      const deadline = BigInt(Math.floor(Date.now() / 1000) + DURATION_PRESETS[durationIdx].seconds)
+      const deadline = BigInt(
+        Math.floor(Date.now() / 1000) + durationPreset.seconds + durationPreset.submissionBufferSeconds,
+      )
       const request = {
         address: PREDICTION_MARKET_ADDRESS,
         abi: predictionMarketAbi,
@@ -211,6 +220,11 @@ export function OnchainCreateMarketPage() {
             <p className="text-[11px] text-white/30 mt-1.5">
               Suggested for this duration: {formatUsd(minRange)}–{formatUsd(maxRange)}, at least {formatUsd(minGapUsd)} away
               from the current pool price. This is UI guidance; asset approval and settlement are enforced on-chain.
+            </p>
+          )}
+          {durationPreset.submissionBufferSeconds > 0 && (
+            <p className="text-[11px] text-white/30 mt-1.5">
+              Includes up to 2 minutes for wallet confirmation; the on-chain countdown starts near 30–32 minutes.
             </p>
           )}
         </div>
