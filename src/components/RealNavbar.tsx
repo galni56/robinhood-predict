@@ -68,8 +68,8 @@ export function RealNavbar() {
             to="/onchain/races/create"
             className={({ isActive }) =>
               clsx(
-                'px-3 py-1.5 rounded-full transition-colors font-medium text-[#C6FF3D] whitespace-nowrap',
-                isActive ? 'bg-[#C6FF3D]/15' : 'hover:bg-[#C6FF3D]/10',
+                'px-3 py-1.5 rounded-full transition-colors font-medium text-[#8B7CF7] whitespace-nowrap',
+                isActive ? 'bg-[#8B7CF7]/15' : 'hover:bg-[#8B7CF7]/10',
               )
             }
           >
@@ -162,7 +162,7 @@ export function RealNavbar() {
           <NavLink
             to="/onchain/races/create"
             onClick={() => setMobileOpen(false)}
-            className="block px-3 py-2 rounded-lg text-sm font-medium text-[#C6FF3D] hover:bg-[#C6FF3D]/10"
+            className="block px-3 py-2 rounded-lg text-sm font-medium text-[#8B7CF7] hover:bg-[#8B7CF7]/10"
           >
             + Create Race
           </NavLink>
