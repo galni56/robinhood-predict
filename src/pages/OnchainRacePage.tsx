@@ -203,7 +203,7 @@ export function OnchainRacePage() {
           {ASSET_RACE_CONFIG_ERROR && <span className="mt-1 block text-rose-300">{ASSET_RACE_CONFIG_ERROR}</span>}
         </div>
       ) : (
-        <div className={`mb-5 rounded-xl border px-4 py-3 text-sm ${isLocalAssetRace ? 'border-[#C6FF3D]/30 bg-[#C6FF3D]/10 text-[#e7ffad]' : 'border-sky-500/30 bg-sky-500/10 text-sky-200'}`}>
+        <div className={`mb-5 rounded-xl border px-4 py-3 text-sm ${isLocalAssetRace ? 'border-[#8B7CF7]/30 bg-[#8B7CF7]/10 text-[#e7ffad]' : 'border-sky-500/30 bg-sky-500/10 text-sky-200'}`}>
           {isLocalAssetRace
             ? 'LOCAL TEST NETWORK · NO REAL FUNDS — contract state and transactions come from this Mac’s Anvil chain using fake USDG.'
             : 'Real AssetRace contract mode on Robinhood Chain. Wallet actions use real gas and USDG.'}
@@ -217,7 +217,7 @@ export function OnchainRacePage() {
       ) : readError ? (
         <div className="mt-5 rounded-xl border border-rose-500/25 bg-rose-500/10 p-5 text-sm text-rose-300">Could not read race #{raceId.toString()}.</div>
       ) : !race ? (
-        <div className="mt-5 rounded-xl border border-white/10 bg-[#12121c]/95 p-8 text-center text-white/45">Race not found.</div>
+        <div className="mt-5 rounded-xl border border-white/10 bg-[#241b2f]/95 p-8 text-center text-white/45">Race not found.</div>
       ) : (
         <div className={race.category === 1 ? 'asset-race-meme' : ''}>
           <div className="mb-6 mt-4 flex flex-wrap items-end justify-between gap-3">
@@ -225,7 +225,7 @@ export function OnchainRacePage() {
               <div className="flex flex-wrap items-center gap-2 text-[10px] font-black tracking-[0.2em] text-white/35">
                 {assetRaceCategoryLabel(race.category)} RACE #{race.id.toString()}
                 {race.origin === ASSET_RACE_ORIGIN.PLATFORM ? (
-                  <span className="rounded-full bg-[#C6FF3D]/15 px-2 py-0.5 text-[#C6FF3D]">FEATURED · PLATFORM</span>
+                  <span className="rounded-full bg-[#8B7CF7]/15 px-2 py-0.5 text-[#8B7CF7]">FEATURED · PLATFORM</span>
                 ) : (
                   <span className="rounded-full bg-violet-400/15 px-2 py-0.5 text-violet-300">COMMUNITY</span>
                 )}
@@ -237,7 +237,7 @@ export function OnchainRacePage() {
                 <p className="mt-1 text-xs text-white/40">Created by <AddressLabel address={race.creator} link={!isLocalAssetRace} className="font-bold text-white/65" /></p>
               )}
             </div>
-            <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-black tracking-wider text-[#C6FF3D]">{assetRaceStatusLabel(race.status)}</span>
+            <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-black tracking-wider text-[#8B7CF7]">{assetRaceStatusLabel(race.status)}</span>
           </div>
 
           {race.status === ASSET_RACE_STATUS.LOBBY ? (

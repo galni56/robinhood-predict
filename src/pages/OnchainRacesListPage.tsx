@@ -50,19 +50,19 @@ function RaceCard({ race, nowMs, tokenDecimals }: { race: AssetRaceViewModel; no
   const platform = race.origin === ASSET_RACE_ORIGIN.PLATFORM
   const meme = race.category === ASSET_RACE_CATEGORY.MEME
   return (
-    <Link to={`/onchain/races/${race.id}`} className={`group relative overflow-hidden border p-5 transition-all ${meme ? 'rounded-[1.7rem] border-fuchsia-300/20 bg-gradient-to-br from-[#251338]/95 via-[#171329]/95 to-[#321615]/90 hover:-translate-y-1 hover:border-orange-300/45 hover:shadow-[0_18px_50px_-25px_rgba(244,114,182,0.9)]' : 'rounded-2xl border-white/10 bg-[#12121c]/95 hover:border-[#C6FF3D]/35 hover:bg-[#171823]/95 hover:shadow-[0_0_35px_-20px_rgba(198,255,61,0.9)]'}`}>
-      <div className={`absolute -right-16 -top-20 h-40 w-40 rounded-full blur-3xl ${meme ? 'bg-orange-400/25' : platform ? 'bg-[#C6FF3D]/10' : 'bg-violet-400/10'}`} />
+    <Link to={`/onchain/races/${race.id}`} className={`group relative overflow-hidden border p-5 transition-all ${meme ? 'rounded-[1.7rem] border-fuchsia-300/20 bg-gradient-to-br from-[#251338]/95 via-[#171329]/95 to-[#321615]/90 hover:-translate-y-1 hover:border-orange-300/45 hover:shadow-[0_18px_50px_-25px_rgba(244,114,182,0.9)]' : 'rounded-2xl border-white/10 bg-[#241b2f]/95 hover:border-[#8B7CF7]/35 hover:bg-[#171823]/95 hover:shadow-[0_0_35px_-20px_rgba(198,255,61,0.9)]'}`}>
+      <div className={`absolute -right-16 -top-20 h-40 w-40 rounded-full blur-3xl ${meme ? 'bg-orange-400/25' : platform ? 'bg-[#8B7CF7]/10' : 'bg-violet-400/10'}`} />
       {meme && <div className="absolute -bottom-4 -left-3 rotate-12 text-5xl opacity-10 transition-transform group-hover:rotate-[-8deg]">🚀</div>}
       <div className="relative">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <div className={`text-[10px] font-black tracking-[0.18em] ${meme ? 'text-orange-200' : platform ? 'text-[#C6FF3D]' : 'text-violet-300'}`}>
+            <div className={`text-[10px] font-black tracking-[0.18em] ${meme ? 'text-orange-200' : platform ? 'text-[#8B7CF7]' : 'text-violet-300'}`}>
               {platform ? '🔥 FEATURED · PROPHET' : 'COMMUNITY RACE'} · #{race.id.toString()}
             </div>
             <h2 className="mt-1 truncate text-xl font-black">{race.title || race.assets.map((asset) => asset.symbol).join(' · ')}</h2>
             {!platform && <div className="mt-1 text-[11px] text-white/35">Created by <AddressLabel address={race.creator} link={!isLocalAssetRace} className="text-white/55" /></div>}
           </div>
-          <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-black tracking-wider ${race.status === ASSET_RACE_STATUS.RUNNING ? 'bg-[#C6FF3D]/15 text-[#C6FF3D]' : race.status === ASSET_RACE_STATUS.LOBBY ? 'bg-violet-400/15 text-violet-300' : race.status === ASSET_RACE_STATUS.BETTING ? 'bg-sky-400/15 text-sky-300' : 'bg-white/10 text-white/55'}`}>
+          <span className={`shrink-0 rounded-full px-2.5 py-1 text-[10px] font-black tracking-wider ${race.status === ASSET_RACE_STATUS.RUNNING ? 'bg-[#8B7CF7]/15 text-[#8B7CF7]' : race.status === ASSET_RACE_STATUS.LOBBY ? 'bg-violet-400/15 text-violet-300' : race.status === ASSET_RACE_STATUS.BETTING ? 'bg-sky-400/15 text-sky-300' : 'bg-white/10 text-white/55'}`}>
             {assetRaceStatusLabel(race.status)}
           </span>
         </div>
@@ -83,7 +83,7 @@ function RaceCard({ race, nowMs, tokenDecimals }: { race: AssetRaceViewModel; no
             {race.assets.map((asset) => (
               <div key={asset.assetIndex} className="grid grid-cols-[3.5rem_1fr_auto] items-center gap-2 text-xs">
                 <span className="font-bold">{asset.symbol}</span>
-                <div className="h-1.5 overflow-hidden rounded-full bg-white/5"><div className={`h-full rounded-full ${meme ? 'bg-gradient-to-r from-fuchsia-400 to-orange-300' : 'bg-[#C6FF3D]/70'}`} style={{ width: formatPoolShare(asset.pool, race.totalPool) }} /></div>
+                <div className="h-1.5 overflow-hidden rounded-full bg-white/5"><div className={`h-full rounded-full ${meme ? 'bg-gradient-to-r from-fuchsia-400 to-orange-300' : 'bg-[#8B7CF7]/70'}`} style={{ width: formatPoolShare(asset.pool, race.totalPool) }} /></div>
                 <span className="w-14 text-right font-mono text-white/40">{formatPoolShare(asset.pool, race.totalPool)}</span>
               </div>
             ))}
@@ -92,7 +92,7 @@ function RaceCard({ race, nowMs, tokenDecimals }: { race: AssetRaceViewModel; no
 
         <div className="mt-5 flex items-center justify-between gap-3 border-t border-white/10 pt-4 text-xs">
           <span className="truncate text-white/35">{race.status === ASSET_RACE_STATUS.LOBBY ? 'Betting has not started' : topBacked && race.totalPool > 0n ? `${topBacked.symbol} has most backing` : 'Waiting for racers'}</span>
-          <span className={`shrink-0 font-black tracking-wider ${meme ? 'text-orange-200' : 'text-[#C6FF3D]'}`}>{raceCta(race.status)} →</span>
+          <span className={`shrink-0 font-black tracking-wider ${meme ? 'text-orange-200' : 'text-[#8B7CF7]'}`}>{raceCta(race.status)} →</span>
         </div>
       </div>
     </Link>
@@ -129,14 +129,14 @@ export function OnchainRacesListPage() {
           {ASSET_RACE_CONFIG_ERROR && <span className="mt-1 block text-rose-300">{ASSET_RACE_CONFIG_ERROR}</span>}
         </div>
       ) : (
-        <div className={`mb-6 rounded-xl border px-4 py-3 text-sm ${isLocalAssetRace ? 'border-[#C6FF3D]/30 bg-[#C6FF3D]/10 text-[#e7ffad]' : 'border-sky-500/30 bg-sky-500/10 text-sky-200'}`}>
+        <div className={`mb-6 rounded-xl border px-4 py-3 text-sm ${isLocalAssetRace ? 'border-[#8B7CF7]/30 bg-[#8B7CF7]/10 text-[#e7ffad]' : 'border-sky-500/30 bg-sky-500/10 text-sky-200'}`}>
           {isLocalAssetRace ? 'LOCAL TEST NETWORK · NO REAL FUNDS — Asset Races use Anvil and fake USDG.' : `Asset Races are read from the configured contract. Live prices are display-only; settlement stays onchain. Pools use ${ASSET_RACE_TOKEN_LABEL}.`}
         </div>
       )}
 
       <div className="mb-7 grid grid-cols-2 rounded-2xl border border-white/10 bg-black/30 p-1.5 shadow-2xl sm:max-w-xl">
         {(['stocks', 'memes'] as const).map((item) => (
-          <button key={item} onClick={() => setSearchParams(item === 'memes' ? { mode: 'memes' } : {})} className={`rounded-xl px-5 py-3 text-sm font-black tracking-[0.16em] transition-all ${mode === item ? item === 'memes' ? 'bg-gradient-to-r from-fuchsia-500 to-orange-400 text-white shadow-lg' : 'bg-[#C6FF3D] text-black shadow-lg' : 'text-white/40 hover:text-white'}`}>
+          <button key={item} onClick={() => setSearchParams(item === 'memes' ? { mode: 'memes' } : {})} className={`rounded-xl px-5 py-3 text-sm font-black tracking-[0.16em] transition-all ${mode === item ? item === 'memes' ? 'bg-gradient-to-r from-fuchsia-500 to-orange-400 text-white shadow-lg' : 'bg-[#8B7CF7] text-black shadow-lg' : 'text-white/40 hover:text-white'}`}>
             {item === 'stocks' ? '📈 STOCKS' : '🚀 MEMES'}
           </button>
         ))}
@@ -144,13 +144,13 @@ export function OnchainRacesListPage() {
 
       <div className="mb-8 flex flex-wrap items-end justify-between gap-5">
         <div className="max-w-2xl">
-          <div className={`text-xs font-black tracking-[0.25em] ${mode === 'memes' ? 'text-orange-200' : 'text-[#C6FF3D]'}`}>PROPHET {mode === 'memes' ? 'MEME' : 'STOCK'} RACES</div>
+          <div className={`text-xs font-black tracking-[0.25em] ${mode === 'memes' ? 'text-orange-200' : 'text-[#8B7CF7]'}`}>PROPHET {mode === 'memes' ? 'MEME' : 'STOCK'} RACES</div>
           <h1 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">{mode === 'memes' ? 'Pick the meme that moons.' : 'Back the fastest asset.'}</h1>
           <p className="mt-2 text-sm leading-relaxed text-white/50">{mode === 'memes' ? 'Curated demo memes. Same transparent P0 → P1 race engine, with more chaos in the paint.' : 'Featured races concentrate liquidity. Community races let wallets assemble an approved Stock Token grid before betting begins.'}</p>
         </div>
         <div className="flex items-center gap-3">
-          <Link to={`/onchain/races/create${mode === 'memes' ? '?mode=memes' : ''}`} className={`rounded-lg px-4 py-2.5 text-sm font-black text-black transition-all hover:brightness-110 ${mode === 'memes' ? 'bg-gradient-to-r from-fuchsia-400 to-orange-300' : 'bg-[#C6FF3D]'}`}>+ CREATE {mode === 'memes' ? 'MEME' : 'STOCK'} RACE</Link>
-          <div className="rounded-xl border border-white/10 bg-[#12121c]/95 px-4 py-3 text-right">
+          <Link to={`/onchain/races/create${mode === 'memes' ? '?mode=memes' : ''}`} className={`rounded-lg px-4 py-2.5 text-sm font-bold text-white transition-all hover:brightness-110 ${mode === 'memes' ? 'bg-gradient-to-r from-fuchsia-400 to-orange-300' : 'bg-[#8B7CF7]'}`}>+ CREATE {mode === 'memes' ? 'MEME' : 'STOCK'} RACE</Link>
+          <div className="rounded-xl border border-white/10 bg-[#241b2f]/95 px-4 py-3 text-right">
             <div className="font-mono text-2xl font-bold">{modeRaceCount}</div>
             <div className="text-[10px] uppercase tracking-wider text-white/35">{isPreview ? 'preview races' : `${mode} races`}</div>
           </div>
@@ -158,14 +158,14 @@ export function OnchainRacesListPage() {
       </div>
 
       <div className="mb-6 flex gap-1 overflow-x-auto pb-1">
-        {FILTERS.map((item) => <button key={item} onClick={() => setFilter(item)} className={`rounded-full border px-3 py-1.5 text-xs font-bold transition-colors ${filter === item ? 'border-[#C6FF3D]/35 bg-[#C6FF3D]/10 text-[#C6FF3D]' : 'border-white/10 text-white/45 hover:text-white'}`}>{item}</button>)}
+        {FILTERS.map((item) => <button key={item} onClick={() => setFilter(item)} className={`rounded-full border px-3 py-1.5 text-xs font-bold transition-colors ${filter === item ? 'border-[#8B7CF7]/35 bg-[#8B7CF7]/10 text-[#8B7CF7]' : 'border-white/10 text-white/45 hover:text-white'}`}>{item}</button>)}
       </div>
 
       {isLoading ? <p className="py-16 text-center text-sm text-white/40">Loading races…</p> : error ? (
         <div className="rounded-xl border border-rose-500/25 bg-rose-500/10 p-5 text-sm text-rose-300">Could not read the AssetRace contract.</div>
       ) : featured.length === 0 && community.length === 0 ? <p className="py-16 text-center text-sm text-white/35">No {mode === 'memes' ? 'Meme' : 'Stock'} races match this filter.</p> : (
         <div className="space-y-9">
-          {featured.length > 0 && <section><h2 className={`mb-3 text-sm font-black tracking-[0.2em] ${mode === 'memes' ? 'text-orange-200' : 'text-[#C6FF3D]'}`}>FEATURED · PLATFORM RACES</h2><div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">{featured.map((race) => <RaceCard key={race.id.toString()} race={race} nowMs={raceNowMs} tokenDecimals={tokenDecimals} />)}</div></section>}
+          {featured.length > 0 && <section><h2 className={`mb-3 text-sm font-black tracking-[0.2em] ${mode === 'memes' ? 'text-orange-200' : 'text-[#8B7CF7]'}`}>FEATURED · PLATFORM RACES</h2><div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">{featured.map((race) => <RaceCard key={race.id.toString()} race={race} nowMs={raceNowMs} tokenDecimals={tokenDecimals} />)}</div></section>}
           {community.length > 0 && <section><h2 className="mb-3 text-sm font-black tracking-[0.2em] text-violet-300">COMMUNITY RACES</h2><div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">{community.map((race) => <RaceCard key={race.id.toString()} race={race} nowMs={raceNowMs} tokenDecimals={tokenDecimals} />)}</div></section>}
         </div>
       )}

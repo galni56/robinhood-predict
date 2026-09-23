@@ -82,7 +82,7 @@ h3,
 
 .race-result-enter { animation: race-result-enter 420ms ease-out both; }
 .race-confetti { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
-.race-confetti i { position: absolute; bottom: 0; color: #c6ff3d; font-style: normal; animation: race-confetti-pop 1.35s ease-out infinite; }
+.race-confetti i { position: absolute; bottom: 0; color: #b3a7fa; font-style: normal; animation: race-confetti-pop 1.35s ease-out infinite; }
 .race-confetti i:nth-child(1) { left: 8%; animation-delay: 0ms; }
 .race-confetti i:nth-child(2) { left: 24%; color: #f472b6; animation-delay: 180ms; }
 .race-confetti i:nth-child(3) { left: 42%; color: #fb923c; animation-delay: 90ms; }

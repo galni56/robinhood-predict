@@ -67,10 +67,10 @@ export function AssetRaceLobbyView({
         </div>
       </div>
 
-      <div className="rounded-2xl border border-white/10 bg-[#12121c]/95 p-5">
+      <div className="rounded-2xl border border-white/10 bg-[#241b2f]/95 p-5">
         <div className="flex items-center justify-between gap-3">
           <h3 className="font-black">Starting grid</h3>
-          <span className="shrink-0 whitespace-nowrap font-mono text-sm font-bold text-[#C6FF3D]">{race.assets.length} / 6 ASSETS</span>
+          <span className="shrink-0 whitespace-nowrap font-mono text-sm font-bold text-[#8B7CF7]">{race.assets.length} / 6 ASSETS</span>
         </div>
         <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
           {race.assets.map((asset) => (
@@ -86,7 +86,7 @@ export function AssetRaceLobbyView({
       </div>
 
       {lobbyOpen && (
-        <div className="rounded-2xl border border-white/10 bg-[#12121c]/95 p-5">
+        <div className="rounded-2xl border border-white/10 bg-[#241b2f]/95 p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h3 className="font-black">Add a contender</h3>
@@ -99,14 +99,14 @@ export function AssetRaceLobbyView({
                 setPendingAsset(null)
               }}
               disabled={raceFull || hasAddedAsset || !isConnected || !onRightChain || !!txLabel}
-              className="rounded-lg bg-[#C6FF3D] px-4 py-2 text-xs font-black text-black disabled:opacity-40"
+              className="rounded-lg bg-[#8B7CF7] px-4 py-2 text-xs font-bold text-white disabled:opacity-40"
             >
               {raceFull ? 'RACE FULL' : hasAddedAsset ? 'ASSET ADDED' : `+ ADD ${meme ? 'MEME' : 'STOCK'}`}
             </button>
           </div>
           {!isConnected && <div className="mt-4"><WalletOptionsList /></div>}
           {isConnected && !onRightChain && (
-            <button onClick={onSwitchChain} disabled={isSwitching} className="mt-4 w-full rounded-lg bg-amber-400 py-2.5 text-sm font-black text-black disabled:opacity-50">
+            <button onClick={onSwitchChain} disabled={isSwitching} className="mt-4 w-full rounded-lg bg-amber-400 py-2.5 text-sm font-bold text-white disabled:opacity-50">
               {isSwitching ? 'Switching…' : `Switch to ${assetRaceChain.name}`}
             </button>
           )}
@@ -122,7 +122,7 @@ export function AssetRaceLobbyView({
                 />
               )}
               {pendingAsset && (
-                <div className={`mt-4 rounded-xl border p-4 ${meme ? 'border-orange-300/30 bg-orange-300/[0.07]' : 'border-[#C6FF3D]/30 bg-[#C6FF3D]/[0.06]'}`}>
+                <div className={`mt-4 rounded-xl border p-4 ${meme ? 'border-orange-300/30 bg-orange-300/[0.07]' : 'border-[#8B7CF7]/30 bg-[#8B7CF7]/[0.06]'}`}>
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <div className="text-xs font-black uppercase tracking-wider text-white/45">Selected contender</div>
@@ -144,7 +144,7 @@ export function AssetRaceLobbyView({
                         type="button"
                         onClick={() => onAddAsset(pendingAsset.assetId)}
                         disabled={!!txLabel}
-                        className="flex-1 rounded-lg bg-gradient-to-r from-[#C6FF3D] to-[#8FBF1F] px-4 py-2.5 text-xs font-black text-black disabled:opacity-40 sm:flex-none"
+                        className="flex-1 rounded-lg bg-gradient-to-r from-[#8B7CF7] to-[#6A5AE0] px-4 py-2.5 text-xs font-bold text-white disabled:opacity-40 sm:flex-none"
                       >
                         {txLabel ?? `CONFIRM ADD ${pendingAsset.symbol}`}
                       </button>
@@ -158,18 +158,18 @@ export function AssetRaceLobbyView({
       )}
 
       {!lobbyOpen && (
-        <div className="rounded-2xl border border-[#C6FF3D]/25 bg-[#12160f]/90 p-5">
+        <div className="rounded-2xl border border-[#8B7CF7]/25 bg-[#241b2f]/90 p-5">
           <h3 className="font-black">Lobby closed</h3>
           <p className="mt-1 text-sm text-white/45">
             {race.assets.length >= 2 ? 'The grid is ready. Anyone can open the betting window.' : 'Fewer than two assets joined. Opening will cancel this Race with no funds involved.'}
           </p>
           <div className="mt-4">
             {!isConnected ? <WalletOptionsList /> : !onRightChain ? (
-              <button onClick={onSwitchChain} disabled={isSwitching} className="w-full rounded-lg bg-amber-400 py-2.5 text-sm font-black text-black disabled:opacity-50">
+              <button onClick={onSwitchChain} disabled={isSwitching} className="w-full rounded-lg bg-amber-400 py-2.5 text-sm font-bold text-white disabled:opacity-50">
                 {isSwitching ? 'Switching…' : `Switch to ${assetRaceChain.name}`}
               </button>
             ) : (
-              <button onClick={onOpenBetting} disabled={!!txLabel} className="w-full rounded-lg bg-gradient-to-r from-[#C6FF3D] to-[#8FBF1F] py-2.5 text-sm font-black text-black disabled:opacity-40">
+              <button onClick={onOpenBetting} disabled={!!txLabel} className="w-full rounded-lg bg-gradient-to-r from-[#8B7CF7] to-[#6A5AE0] py-2.5 text-sm font-bold text-white disabled:opacity-40">
                 {txLabel ?? (race.assets.length >= 2 ? 'OPEN BETTING' : 'CANCEL EMPTY LOBBY')}
               </button>
             )}
@@ -177,7 +177,7 @@ export function AssetRaceLobbyView({
         </div>
       )}
 
-      {txLabel && lobbyOpen && <p className="text-sm text-[#C6FF3D]">{txLabel}</p>}
+      {txLabel && lobbyOpen && <p className="text-sm text-[#8B7CF7]">{txLabel}</p>}
       {error && <p className="text-sm text-rose-400">{error}</p>}
     </div>
   )
