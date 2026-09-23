@@ -1,19 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ALLOWLISTED_FEEDS } from '@/chain/contracts'
+import { PREDICTION_MARKET_ASSETS } from '@/chain/predictionMarketAssets'
 import { useCorePrices, useRobinhoodAssets, useRobinhoodPrices } from '@/chain/robinhoodApi'
 import { formatUsd } from '@/lib/format'
 
-const ALLOWLISTED_TICKERS = new Set<string>(ALLOWLISTED_FEEDS.map((f) => f.ticker))
+const PREDICTION_TICKERS = new Set<string>(PREDICTION_MARKET_ASSETS.map((asset) => asset.ticker))
 
-// Shown when the search box is empty, instead of pulling live prices for
-// all ~194 tokens at once. Every allowlisted ticker (the ones you can
-// actually create a prediction on) rather than a small hardcoded mix --
-// used to be capped smaller to keep request volume bounded (60 req/s
-// rate limit on the underlying API), but prices are now served from our
-// own pre-fetched cache (see src/chain/robinhoodApi.ts's useCorePrices),
-// so showing all of them by default costs nothing extra.
-const DEFAULT_TICKERS = ALLOWLISTED_FEEDS.map((f) => f.ticker)
+// The empty-search view is the exact onchain PredictionMarket registry, not
+// the larger legacy Chainlink catalog. Search can still browse the complete
+// Robinhood token catalog, but unsupported tokens never get a create link.
+const DEFAULT_TICKERS = PREDICTION_MARKET_ASSETS.map((asset) => asset.ticker)
 
 export function TokenBrowser() {
   const [query, setQuery] = useState('')
@@ -28,11 +24,11 @@ export function TokenBrowser() {
       .map((a) => a.tokenSymbol)
   }, [query, assets.data])
 
-  // Allowlisted tickers (the ones you can actually create a prediction on)
+  // Supported tickers (the ones the new contract can actually create)
   // sort first, so "Not allowlisted yet" cards don't crowd out the
   // actionable ones above the fold.
   const visibleTickers = [...(matches ?? DEFAULT_TICKERS)].sort(
-    (a, b) => Number(ALLOWLISTED_TICKERS.has(b)) - Number(ALLOWLISTED_TICKERS.has(a)),
+    (a, b) => Number(PREDICTION_TICKERS.has(b)) - Number(PREDICTION_TICKERS.has(a)),
   )
   // No search: DEFAULT_TICKERS is a subset of CORE_TICKERS, so reuse the
   // shared cache (also used by TickerTape) instead of firing duplicate
@@ -64,7 +60,7 @@ export function TokenBrowser() {
       <p className="text-white/40 text-xs mb-4">
         {query.trim()
           ? `${visibleTickers.length} match${visibleTickers.length === 1 ? '' : 'es'}`
-          : `Showing a few of ~${assets.data?.length ?? 194} tokenized stocks on Robinhood Chain - search for more.`}
+          : `${DEFAULT_TICKERS.length} reviewed StockToken/USDG assets are enabled for predictions.`}
       </p>
 
       {visibleTickers.length === 0 ? (
@@ -77,7 +73,7 @@ export function TokenBrowser() {
             const bid = q ? Number(q.bid) : null
             const prev = prevByTicker.current.get(ticker)
             const tickedUp = bid == null || prev == null ? true : bid >= prev
-            const canCreate = ALLOWLISTED_TICKERS.has(ticker)
+            const canCreate = PREDICTION_TICKERS.has(ticker)
 
             return (
               <div key={ticker} className="bg-[#241b2f] border border-white/5 rounded-2xl p-4 flex items-center justify-between gap-3 hover:border-[#8B7CF7]/30 transition-colors">
@@ -94,7 +90,7 @@ export function TokenBrowser() {
                       Create Prediction
                     </Link>
                   ) : (
-                    <span className="text-[11px] text-white/20">Not allowlisted yet</span>
+                    <span className="text-[11px] text-white/20">Not enabled</span>
                   )}
                 </div>
               </div>
