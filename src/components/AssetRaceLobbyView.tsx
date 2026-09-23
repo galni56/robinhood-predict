@@ -46,51 +46,50 @@ export function AssetRaceLobbyView({
 
   return (
     <div className="space-y-5">
-      <div className={`relative overflow-hidden rounded-2xl border p-5 ${meme ? 'border-fuchsia-300/30 bg-gradient-to-br from-fuchsia-500/[0.14] to-orange-400/[0.08]' : 'border-violet-400/30 bg-violet-500/[0.08]'}`}>
-        <div className="absolute -right-16 -top-20 h-48 w-48 rounded-full bg-violet-400/10 blur-3xl" />
-        <div className="relative flex flex-wrap items-start justify-between gap-4">
+      <div className="rounded-3xl border border-white/5 bg-[#241b2f] p-6">
+        <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <div className="text-xs font-black tracking-[0.24em] text-violet-300">COMMUNITY RACE · LOBBY</div>
-            <h2 className="mt-2 text-2xl font-black">Assets are being selected.</h2>
-            <div className="mt-2 max-w-xl space-y-1 text-sm text-white/50">
-              <p>Assets are being selected.</p>
-              <p>You may add one approved asset, or simply wait for betting.</p>
-              <p>Betting starts after the Lobby closes.</p>
-              <p>The asset list cannot change after Betting opens.</p>
-            </div>
-            <p className="mt-3 text-xs text-white/40">Created by <AddressLabel address={race.creator} link={!isLocalAssetRace} className="font-bold text-white/70" /></p>
+            <p className={`text-sm font-bold ${meme ? 'text-[#F2A65A]' : 'text-[#B3A7FA]'}`}>Community race · lobby</p>
+            <h2 className="mt-1 font-display text-2xl font-bold">The grid is being assembled</h2>
+            <p className="mt-2 max-w-xl text-sm leading-relaxed text-white/50">
+              You may add one approved asset, or simply wait. Betting starts after the lobby closes, and the asset list
+              cannot change after that.
+            </p>
+            <p className="mt-3 text-xs font-medium text-white/40">Created by <AddressLabel address={race.creator} link={!isLocalAssetRace} className="font-bold text-white/70" /></p>
           </div>
           <div className="text-right">
-            <div className="font-mono text-2xl font-black">{nowMs > 0 ? formatCountdown(Number(race.lobbyEndTime) * 1_000 - nowMs) : '…'}</div>
-            <div className="text-[11px] uppercase tracking-wider text-white/35">Lobby closes in</div>
+            <div className="font-mono text-2xl font-bold">{nowMs > 0 ? formatCountdown(Number(race.lobbyEndTime) * 1_000 - nowMs) : '…'}</div>
+            <div className="mt-0.5 text-xs font-bold text-white/35">lobby closes</div>
           </div>
         </div>
       </div>
 
-      <div className="rounded-2xl border border-white/10 bg-[#241b2f]/95 p-5">
+      <div className="rounded-3xl border border-white/5 bg-[#241b2f] p-5">
         <div className="flex items-center justify-between gap-3">
-          <h3 className="font-black">Starting grid</h3>
-          <span className="shrink-0 whitespace-nowrap font-mono text-sm font-bold text-[#8B7CF7]">{race.assets.length} / 6 ASSETS</span>
+          <h3 className="font-display text-lg font-bold">Starting grid</h3>
+          <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-bold ${meme ? 'bg-[#F2A65A]/15 text-[#F2A65A]' : 'bg-[#8B7CF7]/15 text-[#B3A7FA]'}`}>
+            {race.assets.length} / 6 assets
+          </span>
         </div>
         <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
           {race.assets.map((asset) => (
-            <div key={asset.assetIndex} className="rounded-xl border border-white/10 bg-white/[0.025] px-3 py-3">
-              <div className="text-lg font-black">{asset.symbol}</div>
-              <div className={`text-[10px] font-bold tracking-wider ${meme ? 'text-orange-200' : 'text-emerald-300'}`}>APPROVED {meme ? 'MEME' : 'STOCK'}</div>
+            <div key={asset.assetIndex} className="rounded-2xl border border-white/5 bg-white/5 px-3.5 py-3">
+              <div className="font-display text-lg font-bold">{asset.symbol}</div>
+              <div className={`text-xs font-bold ${meme ? 'text-[#F2A65A]' : 'text-[#B3A7FA]'}`}>Approved {meme ? 'meme' : 'stock'}</div>
             </div>
           ))}
           {Array.from({ length: Math.max(0, 2 - race.assets.length) }, (_, index) => (
-            <div key={`empty-${index}`} className="rounded-xl border border-dashed border-white/10 px-3 py-3 text-sm text-white/25">Open slot</div>
+            <div key={`empty-${index}`} className="grid place-items-center rounded-2xl border border-dashed border-white/15 px-3 py-3 text-sm font-medium text-white/25">Open slot</div>
           ))}
         </div>
       </div>
 
       {lobbyOpen && (
-        <div className="rounded-2xl border border-white/10 bg-[#241b2f]/95 p-5">
+        <div className="rounded-3xl border border-white/5 bg-[#241b2f] p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h3 className="font-black">Add a contender</h3>
-              <p className="mt-1 text-xs text-white/40">One community-added asset per wallet for this Race.</p>
+              <h3 className="font-display text-lg font-bold">Add a contender</h3>
+              <p className="mt-1 text-xs font-medium text-white/40">One community-added asset per wallet for this race.</p>
             </div>
             <button
               type="button"
@@ -99,14 +98,14 @@ export function AssetRaceLobbyView({
                 setPendingAsset(null)
               }}
               disabled={raceFull || hasAddedAsset || !isConnected || !onRightChain || !!txLabel}
-              className="rounded-lg bg-[#8B7CF7] px-4 py-2 text-xs font-bold text-white disabled:opacity-40"
+              className="rounded-full bg-[#8B7CF7] px-4 py-2 text-xs font-bold text-[#f7f1e3] disabled:opacity-40"
             >
-              {raceFull ? 'RACE FULL' : hasAddedAsset ? 'ASSET ADDED' : `+ ADD ${meme ? 'MEME' : 'STOCK'}`}
+              {raceFull ? 'Race full' : hasAddedAsset ? 'Asset added' : `Add ${meme ? 'meme' : 'stock'}`}
             </button>
           </div>
           {!isConnected && <div className="mt-4"><WalletOptionsList /></div>}
           {isConnected && !onRightChain && (
-            <button onClick={onSwitchChain} disabled={isSwitching} className="mt-4 w-full rounded-lg bg-amber-400 py-2.5 text-sm font-bold text-white disabled:opacity-50">
+            <button onClick={onSwitchChain} disabled={isSwitching} className="mt-4 w-full rounded-full bg-[#F2A65A] py-2.5 text-sm font-bold text-[#3b2416] disabled:opacity-50">
               {isSwitching ? 'Switching…' : `Switch to ${assetRaceChain.name}`}
             </button>
           )}
@@ -122,13 +121,13 @@ export function AssetRaceLobbyView({
                 />
               )}
               {pendingAsset && (
-                <div className={`mt-4 rounded-xl border p-4 ${meme ? 'border-orange-300/30 bg-orange-300/[0.07]' : 'border-[#8B7CF7]/30 bg-[#8B7CF7]/[0.06]'}`}>
+                <div className={`mt-4 rounded-2xl border p-4 ${meme ? 'border-[#F2A65A]/30 bg-[#F2A65A]/[0.07]' : 'border-[#8B7CF7]/30 bg-[#8B7CF7]/[0.06]'}`}>
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <div className="text-xs font-black uppercase tracking-wider text-white/45">Selected contender</div>
-                      <div className="mt-1 text-lg font-black">{pendingAsset.symbol} <span className="text-sm font-normal text-white/40">{pendingAsset.name}</span></div>
-                      <p className="mt-2 max-w-xl text-xs leading-relaxed text-amber-100/75">
-                        Confirm adding {pendingAsset.symbol} to this Race. Your wallet will ask you to approve the transaction and its ETH network fee.
+                      <div className="text-xs font-bold text-white/45">Selected contender</div>
+                      <div className="mt-1 font-display text-lg font-bold">{pendingAsset.symbol} <span className="font-sans text-sm font-normal text-white/40">{pendingAsset.name}</span></div>
+                      <p className="mt-2 max-w-xl text-xs leading-relaxed text-white/50">
+                        Confirm adding {pendingAsset.symbol} to this race. Your wallet will ask you to approve the transaction and its ETH network fee.
                       </p>
                     </div>
                     <div className="flex w-full gap-2 sm:w-auto">
@@ -136,17 +135,17 @@ export function AssetRaceLobbyView({
                         type="button"
                         onClick={() => setPendingAsset(null)}
                         disabled={!!txLabel}
-                        className="flex-1 rounded-lg border border-white/15 px-4 py-2.5 text-xs font-black text-white/65 hover:border-white/30 disabled:opacity-40 sm:flex-none"
+                        className="flex-1 rounded-full border border-white/15 px-4 py-2.5 text-xs font-bold text-white/65 hover:border-white/30 disabled:opacity-40 sm:flex-none"
                       >
-                        CANCEL
+                        Cancel
                       </button>
                       <button
                         type="button"
                         onClick={() => onAddAsset(pendingAsset.assetId)}
                         disabled={!!txLabel}
-                        className="flex-1 rounded-lg bg-gradient-to-r from-[#8B7CF7] to-[#6A5AE0] px-4 py-2.5 text-xs font-bold text-white disabled:opacity-40 sm:flex-none"
+                        className="flex-1 rounded-full bg-gradient-to-r from-[#8B7CF7] to-[#6A5AE0] px-4 py-2.5 text-xs font-bold text-white disabled:opacity-40 sm:flex-none"
                       >
-                        {txLabel ?? `CONFIRM ADD ${pendingAsset.symbol}`}
+                        {txLabel ?? `Confirm ${pendingAsset.symbol}`}
                       </button>
                     </div>
                   </div>
@@ -158,19 +157,19 @@ export function AssetRaceLobbyView({
       )}
 
       {!lobbyOpen && (
-        <div className="rounded-2xl border border-[#8B7CF7]/25 bg-[#241b2f]/90 p-5">
-          <h3 className="font-black">Lobby closed</h3>
+        <div className="rounded-3xl border border-[#8B7CF7]/25 bg-[#241b2f] p-5">
+          <h3 className="font-display text-lg font-bold">Lobby closed</h3>
           <p className="mt-1 text-sm text-white/45">
-            {race.assets.length >= 2 ? 'The grid is ready. Anyone can open the betting window.' : 'Fewer than two assets joined. Opening will cancel this Race with no funds involved.'}
+            {race.assets.length >= 2 ? 'The grid is ready. Anyone can open the betting window.' : 'Fewer than two assets joined. Opening will cancel this race with no funds involved.'}
           </p>
           <div className="mt-4">
             {!isConnected ? <WalletOptionsList /> : !onRightChain ? (
-              <button onClick={onSwitchChain} disabled={isSwitching} className="w-full rounded-lg bg-amber-400 py-2.5 text-sm font-bold text-white disabled:opacity-50">
+              <button onClick={onSwitchChain} disabled={isSwitching} className="w-full rounded-full bg-[#F2A65A] py-2.5 text-sm font-bold text-[#3b2416] disabled:opacity-50">
                 {isSwitching ? 'Switching…' : `Switch to ${assetRaceChain.name}`}
               </button>
             ) : (
-              <button onClick={onOpenBetting} disabled={!!txLabel} className="w-full rounded-lg bg-gradient-to-r from-[#8B7CF7] to-[#6A5AE0] py-2.5 text-sm font-bold text-white disabled:opacity-40">
-                {txLabel ?? (race.assets.length >= 2 ? 'OPEN BETTING' : 'CANCEL EMPTY LOBBY')}
+              <button onClick={onOpenBetting} disabled={!!txLabel} className="w-full rounded-xl bg-gradient-to-r from-[#8B7CF7] to-[#6A5AE0] py-3 text-sm font-bold text-white disabled:opacity-40">
+                {txLabel ?? (race.assets.length >= 2 ? 'Open betting' : 'Cancel empty lobby')}
               </button>
             )}
           </div>

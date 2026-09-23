@@ -196,21 +196,21 @@ export function OnchainRacePage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-8">
+    <div className="mx-auto max-w-[1200px] px-4 py-8">
       {isPreview ? (
-        <div className="mb-5 rounded-xl border border-amber-400/30 bg-amber-400/10 px-4 py-3 text-sm text-amber-100">
-          <b>DEMO RACE · LOCAL PREVIEW</b> — not onchain, no wallet transaction will be sent.
+        <div className="mb-5 rounded-2xl border border-[#F2A65A]/25 bg-[#F2A65A]/10 px-4 py-3 text-sm font-medium text-[#F2A65A]">
+          Preview race - not onchain, no wallet transaction will be sent.
           {ASSET_RACE_CONFIG_ERROR && <span className="mt-1 block text-rose-300">{ASSET_RACE_CONFIG_ERROR}</span>}
         </div>
       ) : (
-        <div className={`mb-5 rounded-xl border px-4 py-3 text-sm ${isLocalAssetRace ? 'border-[#8B7CF7]/30 bg-[#8B7CF7]/10 text-[#e7ffad]' : 'border-sky-500/30 bg-sky-500/10 text-sky-200'}`}>
+        <div className="mb-5 rounded-2xl border border-[#8B7CF7]/25 bg-[#8B7CF7]/10 px-4 py-3 text-sm font-medium text-[#B3A7FA]">
           {isLocalAssetRace
-            ? 'LOCAL TEST NETWORK · NO REAL FUNDS — contract state and transactions come from this Mac’s Anvil chain using fake USDG.'
+            ? 'Local test network - contract state and transactions come from this Mac’s Anvil chain using fake USDG.'
             : 'Real AssetRace contract mode on Robinhood Chain. Wallet actions use real gas and USDG.'}
         </div>
       )}
 
-      <Link to={`/onchain/races${race ? `?mode=${raceModeForCategory(race.category)}` : ''}`} className="text-sm text-white/40 transition-colors hover:text-white/70">← All races</Link>
+      <Link to={`/onchain/races${race ? `?mode=${raceModeForCategory(race.category)}` : ''}`} className="text-sm font-bold text-white/40 transition-colors hover:text-white/70">← All races</Link>
 
       {isLoading ? (
         <p className="py-16 text-center text-sm text-white/40">Loading race…</p>
@@ -222,22 +222,20 @@ export function OnchainRacePage() {
         <div className={race.category === 1 ? 'asset-race-meme' : ''}>
           <div className="mb-6 mt-4 flex flex-wrap items-end justify-between gap-3">
             <div>
-              <div className="flex flex-wrap items-center gap-2 text-[10px] font-black tracking-[0.2em] text-white/35">
-                {assetRaceCategoryLabel(race.category)} RACE #{race.id.toString()}
-                {race.origin === ASSET_RACE_ORIGIN.PLATFORM ? (
-                  <span className="rounded-full bg-[#8B7CF7]/15 px-2 py-0.5 text-[#8B7CF7]">FEATURED · PLATFORM</span>
-                ) : (
-                  <span className="rounded-full bg-violet-400/15 px-2 py-0.5 text-violet-300">COMMUNITY</span>
-                )}
-              </div>
-              <h1 className="mt-1 text-2xl font-black sm:text-3xl">{race.title || race.assets.map((asset) => asset.symbol).join(' vs ')}</h1>
+              <p className={`flex flex-wrap items-center gap-2 text-sm font-bold ${race.category === 1 ? 'text-[#F2A65A]' : 'text-[#B3A7FA]'}`}>
+                {assetRaceCategoryLabel(race.category)} race #{race.id.toString()}
+                <span className={`rounded-full px-2.5 py-0.5 text-xs ${race.origin === ASSET_RACE_ORIGIN.PLATFORM ? 'bg-[#8B7CF7]/15 text-[#B3A7FA]' : 'bg-white/5 text-white/50'}`}>
+                  {race.origin === ASSET_RACE_ORIGIN.PLATFORM ? 'Featured' : 'Community'}
+                </span>
+              </p>
+              <h1 className="mt-1 font-display text-3xl font-bold tracking-tight sm:text-4xl">{race.title || race.assets.map((asset) => asset.symbol).join(' vs ')}</h1>
               {race.origin === ASSET_RACE_ORIGIN.PLATFORM ? (
-                <p className="mt-1 text-xs font-bold text-white/40">Created by PROPHET</p>
+                <p className="mt-1 text-xs font-medium text-white/40">Created by Prophet</p>
               ) : (
-                <p className="mt-1 text-xs text-white/40">Created by <AddressLabel address={race.creator} link={!isLocalAssetRace} className="font-bold text-white/65" /></p>
+                <p className="mt-1 text-xs font-medium text-white/40">Created by <AddressLabel address={race.creator} link={!isLocalAssetRace} className="font-bold text-white/65" /></p>
               )}
             </div>
-            <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-black tracking-wider text-[#8B7CF7]">{assetRaceStatusLabel(race.status)}</span>
+            <span className="rounded-full bg-[#8B7CF7]/15 px-3 py-1 text-xs font-bold text-[#B3A7FA]">{assetRaceStatusLabel(race.status)}</span>
           </div>
 
           {race.status === ASSET_RACE_STATUS.LOBBY ? (

@@ -80,20 +80,23 @@ export function AssetRaceLeaderboard({
         return (
           <div
             key={entry.assetIndex}
-            className={`rounded-xl border px-3 py-3 transition-colors ${
-              isMine ? meme ? 'border-orange-300/55 bg-fuchsia-400/[0.09]' : 'border-[#8B7CF7]/55 bg-[#8B7CF7]/8' : 'border-white/10 bg-white/[0.025]'
+            className={`rounded-2xl border px-3 py-3 transition-colors ${
+              isMine ? (meme ? 'border-[#F2A65A]/50 bg-[#F2A65A]/[0.07]' : 'border-[#8B7CF7]/50 bg-[#8B7CF7]/[0.07]') : 'border-white/5 bg-[#241b2f]'
             }`}
-            style={meme && !final ? { transform: `translateX(${Math.max(0, 3 - rank) * 2}px)` } : undefined}
           >
             <div className="flex items-center gap-3">
-              <span className={`w-6 text-center font-mono text-sm ${rank === 0 ? meme ? 'text-orange-200' : 'text-[#8B7CF7]' : 'text-white/35'}`}>
+              <span
+                className={`grid h-6 w-6 shrink-0 place-items-center rounded-full text-xs font-bold ${
+                  rank === 0 ? 'bg-[#f7f1e3] text-[#241a33]' : 'text-white/35'
+                }`}
+              >
                 {rank + 1}
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <span className="font-extrabold tracking-wide">{entry.symbol}</span>
-                  {isMine && <span className="rounded-full bg-[#8B7CF7]/15 px-2 py-0.5 text-[10px] font-bold text-[#8B7CF7]">YOUR PICK</span>}
-                  {isWinner && <span className="rounded-full bg-emerald-400/15 px-2 py-0.5 text-[10px] font-bold text-emerald-300">WINNER</span>}
+                  <span className="font-display font-bold tracking-wide">{entry.symbol}</span>
+                  {isMine && <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${meme ? 'bg-[#F2A65A]/15 text-[#F2A65A]' : 'bg-[#8B7CF7]/15 text-[#B3A7FA]'}`}>Your pick</span>}
+                  {isWinner && <span className="rounded-full bg-[#f7f1e3]/10 px-2 py-0.5 text-[10px] font-bold text-[#f7f1e3]">Winner</span>}
                 </div>
                 <div className="mt-2 relative h-2 rounded-full bg-white/5 overflow-hidden">
                   <div className="absolute inset-y-0 left-1/2 w-px bg-white/25" />
