@@ -10,6 +10,7 @@ import { useAssetRaceLiveDisplay } from '@/chain/useAssetRaceLiveDisplay'
 import { AddressLabel } from '@/components/AddressLabel'
 import { ClockIcon } from '@/components/icons'
 import { SideBadge } from '@/components/Pills'
+import { ShareInviteButton } from '@/components/ShareInviteButton'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
 import {
   BET_TOKEN_ADDRESS,
@@ -416,20 +417,23 @@ export function OnchainMarketPage() {
           <div className="h-4 w-40 rounded bg-white/5 animate-pulse mb-5" />
         </>
       ) : (
-        <>
-          <h1 className="font-display text-3xl sm:text-4xl font-bold tracking-tight mt-4 mb-1">
-            Will {ticker ?? '…'} be at or above {targetPriceUsd != null ? formatUsd(targetPriceUsd) : '…'} at the deadline?
-          </h1>
-          <p className="text-white/30 text-sm mb-5 flex items-center gap-1.5 flex-wrap">
-            <span>On-chain market #{MARKET_ID.toString()}</span>
-            {creator && (
-              <>
-                <span>· created by</span>
-                <AddressLabel address={creator} className="text-white/40 hover:text-white/70" />
-              </>
-            )}
-          </p>
-        </>
+        <div className="mt-4 mb-5 flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <h1 className="font-display text-3xl sm:text-4xl font-bold tracking-tight">
+              Will {ticker ?? '…'} be at or above {targetPriceUsd != null ? formatUsd(targetPriceUsd) : '…'} at the deadline?
+            </h1>
+            <p className="mt-1 flex flex-wrap items-center gap-1.5 text-sm text-white/30">
+              <span>On-chain market #{MARKET_ID.toString()}</span>
+              {creator && (
+                <>
+                  <span>· created by</span>
+                  <AddressLabel address={creator} className="text-white/40 hover:text-white/70" />
+                </>
+              )}
+            </p>
+          </div>
+          <ShareInviteButton kind="market" id={MARKET_ID} />
+        </div>
       )}
 
       <div className="grid lg:grid-cols-[1fr_400px] gap-8 items-start mt-2">

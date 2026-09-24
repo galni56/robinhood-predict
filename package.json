@@ -16,6 +16,8 @@
     "test:prediction-market-keeper": "node --test scripts/prediction-market-keeper.test.mjs",
     "keeper:price-arena": "node scripts/price-arena-keeper.mjs",
     "test:price-arena-keeper": "node --test scripts/price-arena-keeper.test.mjs",
+    "serve:share-preview": "node scripts/share-preview-server.mjs",
+    "test:share-preview": "node --test scripts/share-preview-server.test.mjs",
     "config:price-arena": "node scripts/price-arena-deployment-config.mjs",
     "e2e:asset-race-stock": "node scripts/asset-race-stock-e2e.mjs",
     "e2e:asset-race-meme": "node scripts/asset-race-stock-e2e.mjs --meme",

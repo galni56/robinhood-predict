@@ -24,6 +24,7 @@ import { AssetRaceLiveView } from '@/components/AssetRaceLiveView'
 import { AssetRaceLobbyView } from '@/components/AssetRaceLobbyView'
 import { AssetRaceResultView } from '@/components/AssetRaceResultView'
 import { AddressLabel } from '@/components/AddressLabel'
+import { ShareInviteButton } from '@/components/ShareInviteButton'
 import { shortTxError } from '@/lib/format'
 
 type TxState = { label: string } | null
@@ -235,7 +236,10 @@ export function OnchainRacePage() {
                 <p className="mt-1 text-xs font-medium text-white/40">Created by <AddressLabel address={race.creator} link={!isLocalAssetRace} className="font-bold text-white/65" /></p>
               )}
             </div>
-            <span className="rounded-full bg-[#8B7CF7]/15 px-3 py-1 text-xs font-bold text-[#B3A7FA]">{assetRaceStatusLabel(race.status)}</span>
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <ShareInviteButton kind="race" id={race.id} />
+              <span className="rounded-full bg-[#8B7CF7]/15 px-3 py-1 text-xs font-bold text-[#B3A7FA]">{assetRaceStatusLabel(race.status)}</span>
+            </div>
           </div>
 
           {race.status === ASSET_RACE_STATUS.LOBBY ? (

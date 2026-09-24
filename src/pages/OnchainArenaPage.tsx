@@ -19,6 +19,7 @@ import {
   type PriceArenaEntry,
 } from '@/chain/priceArena'
 import { AddressLabel } from '@/components/AddressLabel'
+import { ShareInviteButton } from '@/components/ShareInviteButton'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
 import { formatCountdown, shortTxError } from '@/lib/format'
 
@@ -140,7 +141,7 @@ export function OnchainArenaPage() {
       {isLoading ? <p className="py-20 text-center text-white/40">Loading arena…</p> : readError ? <div className="mt-6 rounded-2xl border border-rose-500/25 bg-rose-500/10 p-5 text-rose-300">Could not read this arena.</div> : !arena ? <p className="py-20 text-center text-white/40">Arena not found.</p> : <>
         <div className="mt-5 flex flex-wrap items-end justify-between gap-4">
           <div><p className={`text-sm font-bold ${arena.category === 1 ? 'text-[#F2A65A]' : 'text-[#B3A7FA]'}`}>{arena.asset?.symbol} Price Arena · #{arena.id.toString()}</p><h1 className="mt-1 font-display text-3xl font-bold sm:text-4xl">{arena.title}</h1><p className="mt-1 text-xs text-white/40">Created by <AddressLabel address={arena.creator} className="text-white/60" /> · {arenaDurationLabel(arena.duration)} game</p></div>
-          <div className="text-right"><div className="text-xs font-bold uppercase tracking-wider text-white/35">{arenaPhaseLabel(arena.phase)}</div><div className="font-mono text-3xl font-bold">{clock}</div></div>
+          <div className="flex items-center gap-3"><ShareInviteButton kind="arena" id={arena.id} /><div className="text-right"><div className="text-xs font-bold uppercase tracking-wider text-white/35">{arenaPhaseLabel(arena.phase)}</div><div className="font-mono text-3xl font-bold">{clock}</div></div></div>
         </div>
 
         <div className="mt-6 grid gap-4 sm:grid-cols-3">
