@@ -68,12 +68,13 @@ export const assetRaceChain = assetRaceNetworkKey === 'local'
     ? robinhoodTestnet
     : robinhoodMainnet
 
-// `injected()` auto-discovers every EIP-6963-announcing wallet in the
-// browser (MetaMask, etc.) rather than hardcoding one - the connect UI
-// lists whichever of these the user actually has installed.
+// Only MetaMask is supported. Disable EIP-6963 multi-provider discovery so
+// other injected wallets (for example Phantom) cannot be added as connectors
+// behind the explicitly targeted MetaMask connector.
 export const wagmiConfig = createConfig({
   chains: [robinhoodMainnet, robinhoodTestnet, localAnvil],
-  connectors: [injected()],
+  connectors: [injected({ target: 'metaMask' })],
+  multiInjectedProviderDiscovery: false,
   transports: {
     [robinhoodMainnet.id]: http(),
     [robinhoodTestnet.id]: http(),

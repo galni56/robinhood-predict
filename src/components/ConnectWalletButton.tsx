@@ -7,11 +7,8 @@ import { SetNicknameModal } from '@/components/SetNicknameModal'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
 import { robinhoodMainnet } from '@/chain/config'
 
-/** Wallet connect entry point for the real (mainnet) side - replaces a
- * generic "Connect Wallet" button with the actual installed wallets shown
- * immediately (icon + name each, via EIP-6963 discovery - wagmi's
- * `injected()` connector populates `connector.icon` from what the wallet
- * extension itself announces), one click to connect. When connected, shows
+/** Wallet connect entry point for the real (mainnet) side - connects only
+ * through the installed MetaMask extension. When connected, shows
  * an address-derived avatar (see AddressAvatar) plus its nickname if one's
  * set (see AddressLabel/NicknameRegistry), and an account menu (portfolio,
  * set nickname, copy address, view on explorer, disconnect) - there's no

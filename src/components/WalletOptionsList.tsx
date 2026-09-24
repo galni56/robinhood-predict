@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useConnect } from 'wagmi'
 
 // MetaMask is a desktop browser extension - it can't be installed on a phone
@@ -25,17 +25,43 @@ function useIsNarrowViewport(maxWidthPx: number) {
 export function WalletOptionsList({ onConnect }: { onConnect?: () => void }) {
   const { connectors: allConnectors, connect, isPending } = useConnect()
   const isMobile = useIsNarrowViewport(MOBILE_BREAKPOINT_PX)
+  const metaMaskConnectors = useMemo(
+    () => allConnectors.filter((connector) => connector.id === 'metaMask'),
+    [allConnectors],
+  )
+  const [availableConnectorUids, setAvailableConnectorUids] = useState<Set<string>>(new Set())
+  const [isCheckingWallet, setIsCheckingWallet] = useState(true)
 
-  // wagmi's injected() connector object is always present in `allConnectors`
-  // - even with zero extensions installed - so `allConnectors.length === 0`
-  // never happens and can't be used to detect "no wallet". Whether a real
-  // wallet exists is instead: did any EIP-6963 announcer give it a real name
-  // (MetaMask, ...)? If not, `named` is empty and clicking the leftover
-  // generic "Injected" button would just fail silently, so show the
-  // no-wallet message instead of that dead-end button.
-  const named = allConnectors.filter((c) => c.id !== 'injected')
+  // A targeted injected connector exists even when its extension does not.
+  // Resolve the provider before rendering the button so visitors without
+  // MetaMask get the installation guidance instead of a dead connect action.
+  useEffect(() => {
+    let cancelled = false
 
-  if (named.length === 0) {
+    void Promise.all(metaMaskConnectors.map(async (connector) => {
+      try {
+        return await connector.getProvider() ? connector.uid : null
+      } catch {
+        return null
+      }
+    })).then((uids) => {
+      if (cancelled) return
+      setAvailableConnectorUids(new Set(uids.filter((uid): uid is string => uid !== null)))
+      setIsCheckingWallet(false)
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [metaMaskConnectors])
+
+  const availableConnectors = metaMaskConnectors.filter((connector) => availableConnectorUids.has(connector.uid))
+
+  if (isCheckingWallet) {
+    return <p className="px-4 py-3.5 text-sm text-white/40">Looking for MetaMask...</p>
+  }
+
+  if (availableConnectors.length === 0) {
     const metamaskAppLink = `https://metamask.app.link/dapp/${window.location.host}${window.location.pathname}${window.location.hash}`
     return (
       <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3.5 text-sm text-white/60">
@@ -61,7 +87,7 @@ export function WalletOptionsList({ onConnect }: { onConnect?: () => void }) {
 
   return (
     <div className="space-y-2">
-      {named.map((c) => (
+      {availableConnectors.map((c) => (
         <button
           key={c.uid}
           disabled={isPending}
