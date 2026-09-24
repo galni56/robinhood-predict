@@ -6,7 +6,29 @@ import { useConnect } from 'wagmi'
 // MetaMask app's own built-in browser instead of telling them to "install
 // MetaMask", which isn't actionable there.
 const MOBILE_BREAKPOINT_PX = 500
-const METAMASK_ICON_DATA_URL = 'data:image/png;base64,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'
+
+function MetaMaskIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 35 35" className="h-5 w-5" fill="none">
+      <g strokeLinecap="round" strokeLinejoin="round" strokeWidth="0.25">
+        <path d="m32.958 2-13.134 9.718 2.442-5.727z" fill="#e17726" stroke="#e17726" />
+        <g fill="#e27625" stroke="#e27625">
+          <path d="m2.663 2 13.017 9.809-2.325-5.818zM28.23 24.533l-3.495 5.34 7.483 2.06 2.143-7.283zm-26.957.117 2.13 7.282 7.47-2.06-3.481-5.339z" />
+          <path d="M10.47 15.515 8.393 18.65l7.405.337-.247-7.97zm14.68 0-5.157-4.587-.169 8.06 7.405-.337zM10.873 29.872l4.482-2.164-3.858-3.006zm9.393-2.164 4.469 2.164-.61-5.17z" />
+        </g>
+        <path d="m24.735 29.872-4.47-2.164.365 2.903-.04 1.23zm-13.862 0 4.157 1.97-.026-1.231.351-2.903z" fill="#d5bfb2" stroke="#d5bfb2" />
+        <path d="m15.108 22.784-3.715-1.088 2.624-1.205zm5.405 0 1.09-2.293 2.638 1.205z" fill="#233447" stroke="#233447" />
+        <path d="m10.873 29.872.65-5.339-4.131.117zm13.225-5.339.637 5.34 3.494-5.223zm3.132-5.883-7.406.338.689 3.796 1.09-2.293 2.638 1.205zm-15.837 3.046 2.624-1.205 1.091 2.293.689-3.796-7.405-.337z" fill="#cc6228" stroke="#cc6228" />
+        <path d="m8.392 18.65 3.105 6.052-.104-3.006zm15.849 3.046-.117 3.006 3.105-6.051zm-8.444-2.708-.689 3.796.87 4.484.196-5.91zm4.027 0-.364 2.358.182 5.922.87-4.484z" fill="#e27525" stroke="#e27525" />
+        <path d="m20.513 22.784-.87 4.484.623.44 3.858-3.006.117-3.006zm-9.12-1.088.104 3.006 3.858 3.006.624-.44-.87-4.484z" fill="#f5841f" stroke="#f5841f" />
+        <path d="m20.59 31.842.04-1.231-.338-.285h-4.963l-.325.285.026 1.23-4.157-1.969 1.455 1.192 2.95 2.035h5.053l2.962-2.035 1.442-1.192z" fill="#c0ac9d" stroke="#c0ac9d" />
+        <path d="m20.266 27.708-.624-.44H15.98l-.624.44-.35 2.903.324-.285h4.963l.338.285z" fill="#161616" stroke="#161616" />
+        <path d="M33.517 12.353 34.62 6.99 32.958 2l-12.692 9.394 4.885 4.12 6.898 2.01 1.52-1.776-.663-.48 1.053-.958-.806-.622 1.052-.804zM1 6.989l1.117 5.364-.714.531 1.065.804-.805.622 1.052.959-.663.48 1.52 1.774 6.899-2.008 4.884-4.12L2.663 2z" fill="#763e1a" stroke="#763e1a" />
+        <path d="m32.049 17.523-6.898-2.008 2.078 3.136-3.105 6.051 4.106-.052h6.131zM10.47 15.515l-6.898 2.008-2.3 7.127h6.12l4.105.052-3.105-6.051zm9.354 3.473.442-7.594 2-5.403h-8.911l2 5.403.442 7.594.169 2.384.013 5.896h3.663l.013-5.896z" fill="#f5841f" stroke="#f5841f" />
+      </g>
+    </svg>
+  )
+}
 
 function useIsNarrowViewport(maxWidthPx: number) {
   const query = `(max-width: ${maxWidthPx}px)`
@@ -88,20 +110,20 @@ export function WalletOptionsList({ onConnect }: { onConnect?: () => void }) {
 
   return (
     <div className="space-y-2">
-      {availableConnectors.map((c) => (
+      {availableConnectors.map((connector) => (
         <button
-          key={c.uid}
+          key={connector.uid}
           disabled={isPending}
           onClick={() => {
-            connect({ connector: c })
+            connect({ connector })
             onConnect?.()
           }}
           className="group w-full flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-left text-sm font-bold hover:border-[#8B7CF7]/50 hover:bg-[#8B7CF7]/10 transition-all disabled:opacity-50"
         >
           <span className="w-9 h-9 rounded-xl bg-white/10 grid place-items-center shrink-0">
-            <img src={c.icon ?? METAMASK_ICON_DATA_URL} alt="" className="w-5 h-5 rounded-md" />
+            <MetaMaskIcon />
           </span>
-          {c.name}
+          {connector.name}
           <span className="ml-auto inline-flex items-center gap-1.5 text-xs font-bold text-[#B3A7FA] opacity-0 group-hover:opacity-100 transition-opacity">
             Connect
             <span className="transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5">↗</span>
