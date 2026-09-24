@@ -2,11 +2,8 @@ import type { MouseEvent, ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 
 // The app uses HashRouter (routes live in the URL hash, e.g. "#/whitepaper"),
-// which a plain same-page anchor link (href="#section-id") conflicts with --
-// clicking one replaces the whole hash, so the router reads "section-id" as
-// a brand new (unmatched) route instead of scrolling. Scrolling manually and
-// preventing the default navigation keeps the in-page jump without touching
-// the URL the router is watching.
+// which conflicts with normal same-page anchor navigation. Scroll manually so
+// the router keeps the current route while the contents links still work.
 function scrollToSection(e: MouseEvent, id: string) {
   e.preventDefault()
   document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
@@ -14,31 +11,30 @@ function scrollToSection(e: MouseEvent, id: string) {
 
 const SECTIONS = [
   { id: 'overview', label: '1. Overview' },
-  { id: 'markets', label: '2. How a market works' },
-  { id: 'weighting', label: '3. Early-bet weighting' },
-  { id: 'fees', label: '4. Fees' },
-  { id: 'one-sided', label: '5. One-sided market protection' },
-  { id: 'creation', label: '6. Market creation' },
-  { id: 'architecture', label: '7. Architecture' },
-  { id: 'races', label: '8. Asset Races' },
-  { id: 'roadmap', label: '9. Roadmap' },
-  { id: 'risks', label: '10. Risks & disclaimers' },
+  { id: 'shared', label: '2. Shared foundations' },
+  { id: 'markets', label: '3. Prediction Markets' },
+  { id: 'market-payouts', label: '4. Market payouts' },
+  { id: 'races', label: '5. Asset Races' },
+  { id: 'race-payouts', label: '6. Race settlement' },
+  { id: 'arena', label: '7. Price Arena' },
+  { id: 'arena-payouts', label: '8. Arena ranking' },
+  { id: 'prices', label: '9. Prices & keepers' },
 ] as const
 
 export function WhitepaperPage() {
   return (
-    <div className="max-w-6xl mx-auto px-4 py-10 grid grid-cols-1 lg:grid-cols-[200px_1fr] gap-10">
+    <div className="mx-auto grid max-w-6xl grid-cols-1 gap-10 px-4 py-10 lg:grid-cols-[200px_1fr]">
       <aside className="hidden lg:block">
         <div className="sticky top-20 space-y-1 text-sm">
-          <p className="text-xs font-bold tracking-wider text-white/40 uppercase mb-2">Contents</p>
-          {SECTIONS.map((s) => (
+          <p className="mb-2 text-xs font-bold uppercase tracking-wider text-white/40">Contents</p>
+          {SECTIONS.map((section) => (
             <a
-              key={s.id}
-              href={`#${s.id}`}
-              onClick={(e) => scrollToSection(e, s.id)}
-              className="block py-1 text-white/50 hover:text-white transition-colors"
+              key={section.id}
+              href={`#${section.id}`}
+              onClick={(event) => scrollToSection(event, section.id)}
+              className="block py-1 text-white/50 transition-colors hover:text-white"
             >
-              {s.label}
+              {section.label}
             </a>
           ))}
         </div>
@@ -46,193 +42,269 @@ export function WhitepaperPage() {
 
       <article className="min-w-0 space-y-12">
         <div>
-          <p className="text-xs font-bold tracking-[0.2em] text-[#8B7CF7]/80 uppercase mb-2">Whitepaper</p>
-          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight">Prophet: parimutuel prediction markets for tokenized stocks</h1>
-          <p className="text-white/40 text-sm mt-3">
-            Version 1.0 · Robinhood Chain mainnet. This document describes the real, live product - real wallet,
-            real USDG, real money. It is not audited, and not legal or investment advice - see{' '}
+          <p className="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-[#8B7CF7]/80">Whitepaper</p>
+          <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">
+            Prophet: three onchain prediction games for tokenized assets
+          </h1>
+          <p className="mt-3 text-sm text-white/40">
+            Version 2.0 · Robinhood Chain mainnet. This document describes the product as it works today: real
+            wallets, real USDG and real-money outcomes. Prophet has not received an external security audit and this
+            document is not legal, financial or investment advice. See the{' '}
             <Link to="/terms" className="text-[#8B7CF7] hover:underline">
               Terms of Service
-            </Link>{' '}
-            §9 for the full disclaimer.
+            </Link>
+            .
           </p>
         </div>
 
         <Section id="overview" title="1. Overview">
           <p>
-            Prophet lets anyone bet on whether a tokenized stock will be at or above a target price at a deadline.
-            Markets are two-sided (YES / NO), settle parimutuel - everyone on the losing side funds the payout to
-            everyone on the winning side, in proportion to their stake - and require no bookmaker to set odds. The
-            pool itself is the price discovery mechanism.
+            Prophet offers three independent games built around prices on Robinhood Chain. <strong>Prediction
+            Markets</strong> ask whether a tokenized stock will finish above or below a target. <strong>Asset
+            Races</strong> compare the percentage performance of several assets over the same interval. <strong>Price
+            Arena</strong> asks players to predict one asset&apos;s exact finishing price, then rewards the closest half
+            of the field.
           </p>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <ModeCard title="Markets" accent="text-[#B3A7FA]" link="/onchain">
+              Pick YES or NO on a target price. Earlier correct calls receive more payout weight.
+            </ModeCard>
+            <ModeCard title="Races" accent="text-[#F2A65A]" link="/onchain/races">
+              Back one of 2–6 assets. The highest percentage return wins the race.
+            </ModeCard>
+            <ModeCard title="Arena" accent="text-emerald-300" link="/onchain/arenas">
+              Enter an exact price prediction. The closest 50% share the losing half&apos;s stakes.
+            </ModeCard>
+          </div>
           <p>
-            The real product uses Solidity on Robinhood Chain <strong>mainnet</strong>, settling
-            real USDG against reviewed StockToken/USDG pool prices. A separate, fully client-side mock demo (reachable via
-            "Try the demo") mirrors the same rules with simulated prices and no wallet, for anyone who wants to see
-            how it works before risking real funds - but it's a different implementation, not a sandboxed version
-            of the same contract.
+            Each mode has its own Solidity contract, lifecycle and accounting. Funds and game state are not shared
+            between the three modes. A failure or cancellation in one game cannot change another game&apos;s result.
           </p>
         </Section>
 
-        <Section id="markets" title="2. How a market works">
-          <p>Every market has:</p>
-          <ul className="list-disc pl-5 space-y-1">
-            <li>a reviewed <strong>tokenized stock</strong> and a <strong>target price</strong>, with the interface
-              guiding creators toward a sensible range around the live pool price;</li>
-            <li>a <strong>deadline</strong>, whose last Robinhood block strictly before that timestamp fixes the outcome,</li>
-            <li>two pools, <strong>YES</strong> and <strong>NO</strong>, that anyone can stake into - once each, per
-              side, per market (no adding to an existing position or hedging both sides beyond one bet each), capped
-              at $50 per wallet per side.</li>
-          </ul>
-          <p>
-            At resolution, a signed adjacent-block proof fixes the StockToken/USDG pool state at the deadline.
-            Resolving late cannot replace the deadline observation with a newer price. Winners receive their principal back in full, plus a
-            share of the losing pool proportional to their <em>weighted</em> stake (see §3) relative to the total
-            weighted stake on the winning side.
-          </p>
-        </Section>
-
-        <Section id="weighting" title="3. Early-bet weighting">
-          <p>
-            Betting doesn't stay open for a market's entire life - it closes at two-thirds of the way to the
-            deadline, leaving the final third purely for the outcome to become clear and for resolution. Within that
-            betting window, every bet is stamped with a weight that decays linearly from <strong>2.00x</strong> at
-            the instant betting opens down to <strong>0.50x</strong> right before it closes.
-          </p>
-          <p>
-            That weight only affects how the losing pool is split - it never inflates or reduces principal. The
-            effect: a bet placed early, while the outcome is still genuinely uncertain, is worth up to 4x more in
-            the payout split than one placed late, once the direction is already obvious. It's a direct incentive
-            against waiting for near-certainty before committing.
-          </p>
-        </Section>
-
-        <Section id="fees" title="4. Fees">
-          <p>
-            A protocol fee of <strong>2%</strong> is taken - and only ever taken - from the winnings portion of a
-            payout (the losing-pool share), never from a winner's own principal and never from a losing bet
-            (there's nothing further to take from a loss; the stake is already gone to the winning side). There is
-            no fee on losing bets, on refunds, or on cancelled markets.
-          </p>
-        </Section>
-
-        <Section id="one-sided" title="5. One-sided market protection">
-          <p>
-            If a market reaches its deadline with stakes on only one side - or no stakes at all - there is no
-            genuine two-sided prediction to settle, and no losing pool to fund a payout from. Rather than let one
-            side "win" a market nobody actually bet against, it cancels automatically and every position is
-            refunded in full, with no fee.
-          </p>
-        </Section>
-
-        <Section id="creation" title="6. Market creation & guardrails">
-          <p>
-            Market creation is permissionless - any wallet can open one, not just curators. The main guardrails are:
-            from being abused:
-          </p>
-          <ul className="list-disc pl-5 space-y-1">
+        <Section id="shared" title="2. Shared foundations">
+          <ul className="list-disc space-y-1 pl-5">
+            <li><strong>Network:</strong> all real games run on Robinhood Chain mainnet.</li>
+            <li><strong>Bet token:</strong> stakes and payouts use USDG. Wallets also need ETH for network gas.</li>
             <li>
-              The tokenized stock must already be bound onchain to an owner-reviewed StockToken/USDG pool identity -
-              permissionless creation, but not against an arbitrary or fake price source.
+              <strong>Reviewed assets:</strong> Markets use 10 approved tokenized stocks. Races and Arena support
+              those 10 Stocks plus 13 Memes; Stocks and Memes remain separate categories.
             </li>
             <li>
-              The interface recommends a duration-scaled target range around the live pool price. This is transparent
-              product guidance rather than an onchain invariant; users must review the target before signing.
+              <strong>Non-custodial:</strong> Prophet never receives a wallet&apos;s private key. Approvals, entries,
+              claims and refunds are signed by the player in MetaMask.
             </li>
-            <li>Every market also has a 30-minute minimum duration.</li>
-          </ul>
-          <p>
-            The contract owner may also seed a market with initial liquidity (capped at $50 combined across both
-            sides) so it doesn't have to open at literally zero pools.
-          </p>
-        </Section>
-
-        <Section id="architecture" title="7. Architecture">
-          <p>
-            The replacement implementation is a Solidity contract (OpenZeppelin's <code className="text-[#8B7CF7]">Ownable</code>,{' '}
-            <code className="text-[#8B7CF7]">ReentrancyGuard</code>, <code className="text-[#8B7CF7]">SafeERC20</code>) for{' '}
-            Robinhood Chain mainnet, verifying signed historical pool observations through the shared{' '}
-            <code className="text-[#8B7CF7]">SignedPoolRaceOracle</code>. It's wired into the{' '}
-            <Link to="/onchain" className="text-[#8B7CF7] hover:underline">
-              real mode
-            </Link>{' '}
-            of this site via a standard browser wallet connection (MetaMask) - no custodial wallet, no
-            key ever touches this app; every transaction is signed in your own wallet extension.
-          </p>
-          <p>
-            A transaction keeper watches deadlines and submits observations from two consecutive Robinhood blocks
-            around the boundary, signed by a separate trusted price attester. The oracle verifies the signatures,
-            signed parent linkage and timestamps, uses the last block strictly before the deadline, then stores its
-            price, timestamp and block hash permanently. The relayer cannot choose a later favorable price, but the
-            signer remains a trust assumption because the EVM cannot reread arbitrary historical pool storage itself.
-          </p>
-          <p>
-            A separate mock app (everything under <code className="text-[#8B7CF7]">/demo</code>) runs entirely in
-            your browser instead - a simulated chain, simulated price feeds, and localStorage-backed accounts, with
-            zero backend and zero real funds. It's a different, parallel implementation of similar rules, not a
-            sandboxed mode of the real contract.
-          </p>
-        </Section>
-
-        <Section id="races" title="8. Asset Races">
-          <p>
-            Asset Races are a second, standalone way to bet, separate from YES/NO markets and running on their own
-            contract with no shared state or economics - a bug in one can't touch the other. Instead of picking a
-            side of a target price, a race pits <strong>2 to 6 assets</strong> (all Stocks, or all Memes - the two
-            categories never mix in one race) against each other for a fixed window. Whichever one has the highest
-            percentage move from the start snapshot to the end snapshot wins the whole pool. If two assets tie for
-            the top spot, the race voids and every stake is refunded in full instead of picking an arbitrary winner.
-          </p>
-          <p>
-            Payouts are the same parimutuel math as markets: winners get their principal back first, then split the
-            losing side's pool in proportion to stake, minus the same <strong>2% protocol fee</strong> - taken only
-            from winnings, never from principal. A race that never gets its second required price snapshot in time
-            voids instead of guessing, and everyone gets refunded.
-          </p>
-          <p>
-            Two flavors: <strong>Featured races</strong> are set up by Prophet with fixed timing and an approved
-            asset list. <strong>Community races</strong> are permissionless - any wallet can start one and others can
-            add approved assets during a short lobby window before betting opens, up to the 6-asset cap.
-          </p>
-          <p>
-            This is the newest part of the product - live on Robinhood Chain mainnet, but younger and less
-            battle-tested than the YES/NO markets above. See{' '}
-            <Link to="/onchain/races" className="text-[#8B7CF7] hover:underline">
-              Races
-            </Link>{' '}
-            to browse what's currently running.
-          </p>
-        </Section>
-
-        <Section id="roadmap" title="9. Roadmap">
-          <p>Known, explicitly open items, in rough priority order:</p>
-          <ul className="list-disc pl-5 space-y-1">
-            <li>External security audit of the contract - not done yet, and the highest-priority open item given real funds are already at stake.</li>
-            <li>ETH as a second bet currency, alongside USDG.</li>
-            <li>WalletConnect support, for mobile wallets that aren't a desktop browser extension.</li>
             <li>
-              An AMM-style continuous-pricing mode as an alternative to parimutuel settlement, for markets that want
-              a live, tradeable price instead of a resolve-at-deadline payout.
+              <strong>Parimutuel economics:</strong> players compete against one another rather than a bookmaker.
+              The available payout comes from stakes already locked in that game.
             </li>
-            <li>Legal and regulatory review - deliberately not done yet, see §9.</li>
+            <li>
+              <strong>Claims and refunds:</strong> after an onchain result or cancellation, eligible players claim
+              their payout or refund from the relevant contract.
+            </li>
           </ul>
         </Section>
 
-        <Section id="risks" title="10. Risks & disclaimers">
+        <Section id="markets" title="3. Prediction Markets · YES or NO">
           <p>
-            Real mode is a live product on Robinhood Chain mainnet - USDG and every balance there is real, and can
-            be genuinely gained or lost. The contract has not undergone an external security audit (an internal
-            self-review only), and is owner-centralized: a single address controls the approved asset/pool registry and the
-            protocol fee. Nothing here is financial, investment, or legal advice, and none of it should be treated
-            as an offer to trade a regulated financial product. Legal/regulatory review has been deliberately
-            deferred and is not resolved by this document existing - see the full{' '}
-            <Link to="/terms" className="text-[#8B7CF7] hover:underline">
-              Terms of Service
-            </Link>
-            . The separate mock demo (<code className="text-[#8B7CF7]">/demo</code>) is simulated and involves no
-            real funds - everything in this section is about real mode specifically.
+            A market asks: <em>Will this stock be at or above the target price at the deadline?</em> A YES position
+            wins when the final price is greater than or equal to the target; otherwise NO wins. Touching the target
+            at any earlier moment does not count—the only price that determines the outcome is the scheduled
+            deadline price.
+          </p>
+          <p>The current market lifecycle is:</p>
+          <ol className="list-decimal space-y-2 pl-5">
+            <li>
+              Any wallet creates a market for one of the 10 approved StockToken/USDG pools, chooses a positive target
+              and selects a deadline. The interface offers 30 minutes, 1 hour, 24 hours and 7 days. Thirty minutes is
+              the onchain minimum.
+            </li>
+            <li>
+              Players stake USDG on YES or NO. A wallet may place one bet per side, up to 50 USDG on each side. It is
+              possible to hold both a YES and a NO position, but neither position can be increased after its first bet.
+            </li>
+            <li>
+              Betting closes after the first two-thirds of the market&apos;s lifetime. The final third accepts no new
+              bets and exists only for the price outcome to develop.
+            </li>
+            <li>
+              After the deadline, the keeper submits the historical pool observation for the last Robinhood block
+              strictly before that deadline. Calling resolution later cannot substitute a newer price.
+            </li>
+            <li>Winning wallets claim; a cancelled market lets every participant reclaim their original stake.</li>
+          </ol>
+          <p>
+            Creation is permissionless, but asset approval is not: a market can only use a pool identity reviewed and
+            registered by the protocol. The target ranges shown during creation are interface guidance, not an onchain
+            target-distance rule. The owner may seed a new market with up to 50 USDG total across both sides.
           </p>
         </Section>
+
+        <Section id="market-payouts" title="4. Market weighting, payouts and cancellation">
+          <p>
+            A winning bet earns its principal back plus a share of the losing pool. The share is based on
+            <strong> weighted stake</strong>, which rewards taking risk earlier. Weight falls linearly from
+            <strong> 2.00×</strong> when the market opens to <strong>0.50×</strong> immediately before betting closes.
+            Weight changes only the distribution of profit; it never changes principal.
+          </p>
+          <Formula>
+            payout = stake + (weighted stake ÷ total weighted winning stake) × losing pool × 98%
+          </Formula>
+          <p>
+            The 2% protocol fee applies only to each winner&apos;s share of the losing pool. It is not charged on returned
+            principal or refunds. Integer division can leave a small amount of rounding dust in the contract.
+          </p>
+          <p>
+            If either YES or NO has no stake at the deadline, the market is cancelled: there is no genuine opposing
+            pool, so all existing positions are refundable in full. A stale or unusable deadline observation also
+            cancels the market rather than allowing an arbitrary current price to decide it.
+          </p>
+        </Section>
+
+        <Section id="races" title="5. Asset Races · highest return wins">
+          <p>
+            A Race compares <strong>2–6 assets from one category</strong>. Stock races use StockToken/USDG prices;
+            Meme races use MemeToken/ETH prices. Players back one asset, and the winner is the asset with the highest
+            percentage return between the common start and end snapshots—not the asset with the highest dollar price.
+          </p>
+          <p>The live community-race policy is:</p>
+          <ol className="list-decimal space-y-2 pl-5">
+            <li>
+              The creator chooses Stocks or Memes, a title and an approved race duration of 1, 5 or 15 minutes. The
+              creator may add initial assets or leave the list open.
+            </li>
+            <li>
+              A 5-minute lobby opens. No betting occurs yet. Each wallet may add one approved asset of the chosen
+              category, up to six candidates total. Fewer than two candidates at lobby close cancels the empty race.
+            </li>
+            <li>
+              Betting then opens for 5 minutes. A wallet selects one asset with an initial stake of at least 1 USDG
+              and may top up the same selection to a cumulative maximum of 50 USDG. The selected asset cannot be
+              changed for that race.
+            </li>
+            <li>
+              At betting close, only assets with a non-zero pool become active. At least two active contenders are
+              required; otherwise the race cancels and all stakes are refundable.
+            </li>
+            <li>
+              The start snapshot P0 is fixed at the betting cutoff. After the selected race duration, the end
+              snapshot P1 is fixed at the scheduled finish. The interface may show movement between them, but only
+              the two onchain settlement snapshots decide the result.
+            </li>
+          </ol>
+          <Formula>asset return = (P1 − P0) ÷ P0</Formula>
+          <p>
+            The highest return wins even when every contender fell in price—the least negative return is still the
+            highest. Stocks and Memes never compete in the same race because they use different quote units.
+          </p>
+        </Section>
+
+        <Section id="race-payouts" title="6. Race settlement, payouts and voids">
+          <p>
+            Every player who backed the winning asset receives principal plus a stake-proportional share of the
+            losing assets&apos; combined pool. Race bets are not time-weighted.
+          </p>
+          <Formula>payout = stake + (stake ÷ winning pool) × losing pool × 98%</Formula>
+          <p>
+            The 2% fee comes only from the losing pool. If two or more active assets finish with exactly the same top
+            return, the race is void and every stake is refundable in full—no arbitrary tiebreaker selects an asset.
+            A race also becomes refundable if a valid start or end snapshot cannot be fixed within its onchain grace
+            window.
+          </p>
+          <p>
+            Prophet can label platform-created races as Featured, while wallet-created races are Community races.
+            Both settle with the same return calculation and payout rules.
+          </p>
+        </Section>
+
+        <Section id="arena" title="7. Price Arena · closest prediction wins">
+          <p>
+            Price Arena is a fixed-field forecasting contest for one approved Stock or Meme. Instead of choosing a
+            direction, every player enters the exact price they expect at the end of the game. Available game
+            durations are <strong>1, 5, 15 and 60 minutes</strong>.
+          </p>
+          <ol className="list-decimal space-y-2 pl-5">
+            <li>
+              Any wallet creates an Arena. Creation opens a fixed 10-minute lobby; the selected game duration begins
+              only after that lobby ends.
+            </li>
+            <li>
+              Between 2 and 20 wallets may enter. The initial stake must be 1–50 USDG. During the lobby a player may
+              change the predicted price and add more USDG up to 50 total, but cannot reduce the stake or withdraw.
+            </li>
+            <li>
+              The regular interface and contract getter hide predicted prices during the lobby while showing stakes.
+              This is display privacy, <strong>not cryptographic secrecy</strong>: calldata and blockchain storage are
+              public and can be inspected by advanced users.
+            </li>
+            <li>
+              Entry and edits close automatically when the lobby ends; no separate start transaction is required.
+              Predictions then become visible and the game runs for the chosen duration.
+            </li>
+            <li>
+              The final price comes from the last Robinhood block strictly before the Arena deadline. The keeper&apos;s
+              transaction time cannot move that boundary.
+            </li>
+          </ol>
+          <p>
+            Stock Arenas predict a StockToken/USDG price in USDG. Meme Arenas predict a MemeToken/ETH price in ETH.
+            USDG remains the stake and payout token in both categories.
+          </p>
+        </Section>
+
+        <Section id="arena-payouts" title="8. Arena ranking and payout mathematics">
+          <p>
+            Every entry is ranked by absolute error. The winning count is <strong>floor(player count ÷ 2)</strong>, so
+            the closest half wins: 2 players produce 1 winner, 3 produce 1 winner, 4 produce 2 winners, and so on.
+          </p>
+          <Formula>error = |predicted price − final price|</Formula>
+          <p>
+            Equal error is broken first by the earlier most recent prediction update, then deterministically by wallet
+            address. Adding stake without changing the prediction preserves the original tiebreak priority; changing
+            the prediction resets it to the edit time.
+          </p>
+          <p>
+            Winners recover their principal and divide the losing half&apos;s pool according to both stake and accuracy.
+            The least accurate winner at the cutoff receives a 1× accuracy multiplier; more accurate winners scale up
+            toward 3×.
+          </p>
+          <Formula>
+            score = stake × [1 + 2 × (cutoff error − player error) ÷ cutoff error]
+          </Formula>
+          <Formula>payout = stake + (player score ÷ total winner scores) × losing pool × 98%</Formula>
+          <p>
+            If the cutoff error is zero, exact-price winners use a 1× multiplier and stake alone determines their
+            shares. The 2% fee applies only to the losing pool; integer rounding dust also remains protocol funds.
+            Fewer than two players or a stale deadline price cancels the Arena and enables full refunds.
+          </p>
+        </Section>
+
+        <Section id="prices" title="9. Live prices, deadline settlement and keepers">
+          <p>
+            Prices visible in the interface come from the reviewed Robinhood Chain liquidity pools. A shared live
+            service polls those pools every two seconds and distributes one synchronized snapshot to the ticker,
+            cards and game screens. These values are for display and do not themselves settle a game.
+          </p>
+          <p>
+            Markets, Races and Arena use the shared <code className="text-[#8B7CF7]">SignedPoolRaceOracle</code> for
+            settlement. A keeper watches scheduled boundaries and submits signed proofs containing two adjacent
+            Robinhood blocks. The oracle verifies signatures, parent linkage and timestamps, then selects the last
+            block strictly before the required boundary. The resulting price, timestamp and observation identifier
+            are stored onchain.
+          </p>
+          <p>
+            This design separates <strong>when the outcome is measured</strong> from <strong>when the resolve
+            transaction is mined</strong>. A delayed keeper can delay finalization, but it cannot choose a later price.
+            Keeper actions are permissionless at the contract level where applicable, while Prophet operates the
+            production automation and pays its gas.
+          </p>
+          <p>
+            The three game contracts are non-upgradeable deployments with separate balances and accounting. The owner
+            controls approved asset identities, protocol configuration and accumulated fee withdrawal; new activity
+            can be paused where supported without blocking already-available claims and refunds.
+          </p>
+        </Section>
+
       </article>
     </div>
   )
@@ -241,8 +313,38 @@ export function WhitepaperPage() {
 function Section({ id, title, children }: { id: string; title: string; children: ReactNode }) {
   return (
     <section id={id} className="scroll-mt-20">
-      <h2 className="text-xl font-bold mb-3">{title}</h2>
-      <div className="text-white/60 text-sm leading-relaxed space-y-3">{children}</div>
+      <h2 className="mb-3 text-xl font-bold">{title}</h2>
+      <div className="space-y-3 text-sm leading-relaxed text-white/60">{children}</div>
     </section>
+  )
+}
+
+function ModeCard({
+  title,
+  accent,
+  link,
+  children,
+}: {
+  title: string
+  accent: string
+  link: string
+  children: ReactNode
+}) {
+  return (
+    <Link
+      to={link}
+      className="rounded-2xl border border-white/10 bg-[#241b2f] p-4 transition-colors hover:border-[#8B7CF7]/40"
+    >
+      <span className={`font-display text-lg font-bold ${accent}`}>{title}</span>
+      <span className="mt-1 block text-xs leading-relaxed text-white/45">{children}</span>
+    </Link>
+  )
+}
+
+function Formula({ children }: { children: ReactNode }) {
+  return (
+    <div className="overflow-x-auto rounded-xl border border-[#8B7CF7]/20 bg-[#8B7CF7]/10 px-4 py-3 font-mono text-xs text-[#d7d0ff]">
+      {children}
+    </div>
   )
 }
