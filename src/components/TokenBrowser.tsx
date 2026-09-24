@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { formatUnits } from 'viem'
 import { PREDICTION_MARKET_ASSETS } from '@/chain/predictionMarketAssets'
-import { useCorePrices, useRobinhoodAssets } from '@/chain/robinhoodApi'
+import { useRobinhoodAssets } from '@/chain/robinhoodApi'
+import { useAssetRaceLiveDisplay } from '@/chain/useAssetRaceLiveDisplay'
 import { TokenLogo } from '@/components/TokenLogo'
 import { formatUsd } from '@/lib/format'
 
@@ -23,13 +25,17 @@ export function TokenBrowser() {
   }, [query, assets.data])
 
   const visibleTickers = matches ?? DEFAULT_TICKERS
-  const prices = useCorePrices()
+  const live = useAssetRaceLiveDisplay({ enabled: true })
   const prevByTicker = useRef<Map<string, number>>(new Map())
 
   useEffect(() => {
-    if (!prices.data) return
-    for (const [ticker, q] of prices.data) prevByTicker.current.set(ticker, Number(q.bid))
-  }, [prices.data])
+    for (const ticker of DEFAULT_TICKERS) {
+      const price = live.assets[ticker]
+      if (price && !price.stale) {
+        prevByTicker.current.set(ticker, Number(formatUnits(BigInt(price.priceRaw), price.decimals)))
+      }
+    }
+  }, [live.assets])
 
   const nameByTicker = new Map((assets.data ?? []).map((a) => [a.tokenSymbol, a]))
 
@@ -56,10 +62,12 @@ export function TokenBrowser() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {visibleTickers.map((ticker) => {
             const asset = nameByTicker.get(ticker)
-            const q = prices.data?.get(ticker)
-            const bid = q ? Number(q.bid) : null
+            const price = live.assets[ticker]
+            const current = price && !price.stale
+              ? Number(formatUnits(BigInt(price.priceRaw), price.decimals))
+              : null
             const prev = prevByTicker.current.get(ticker)
-            const tickedUp = bid == null || prev == null ? true : bid >= prev
+            const tickedUp = current == null || prev == null ? true : current >= prev
             return (
               <div key={ticker} className="bg-[#241b2f] border border-white/5 rounded-2xl p-4 flex items-center justify-between gap-3 hover:border-[#8B7CF7]/30 transition-colors">
                 <div className="flex min-w-0 items-center gap-3">
@@ -73,7 +81,7 @@ export function TokenBrowser() {
                 </div>
                 <div className="text-right shrink-0">
                   <div className={`font-mono text-sm font-semibold ${tickedUp ? 'text-emerald-400' : 'text-rose-400'}`}>
-                    {bid != null ? formatUsd(bid) : '…'}
+                    {current != null ? formatUsd(current) : '…'}
                   </div>
                   <Link to={`/onchain/create?feed=${ticker}`} className="text-[11px] font-bold text-[#B3A7FA] hover:underline">
                     Create Prediction

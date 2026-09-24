@@ -1,12 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { formatUnits } from 'viem'
+import { formatUnits, type Hex } from 'viem'
 import { useReadContract, useReadContracts } from 'wagmi'
 import { ClockIcon } from '@/components/icons'
 import { LiveBetsTicker } from '@/components/LiveBetsTicker'
 import { OnchainMarketsSidebar } from '@/components/OnchainMarketsSidebar'
 import { CancelledBadge } from '@/components/Pills'
-import { Sparkline } from '@/components/PriceChart'
 import { TokenBrowser } from '@/components/TokenBrowser'
 import { TokenLogo } from '@/components/TokenLogo'
 import {
@@ -20,16 +19,19 @@ import { tickerForPredictionAssetId } from '@/chain/predictionMarketAssets'
 import { useAssetRaceLiveDisplay } from '@/chain/useAssetRaceLiveDisplay'
 import { useTokenLogos } from '@/chain/robinhoodApi'
 import { formatCountdown, formatUsd } from '@/lib/format'
-import type { PricePoint } from '@/types'
-
-// How many 2s polls of real pool-price history to keep per ticker for the card
-// sparkline -- 90 points is 3 minutes, enough to show a real trend without
-// growing unbounded on a page left open a long time. This is genuinely
-// polled data, not simulated -- it only covers however long this page has
-// been open, not the market's full lifetime.
-const PRICE_HISTORY_LENGTH = 90
 
 type StatusFilter = 'ALL' | 'OPEN' | 'RESOLVED' | 'CANCELLED'
+
+interface MarketCardData {
+  assetId: Hex
+  priceDecimals: number
+  targetPrice: bigint
+  createdAt: bigint
+  deadline: bigint
+  poolYes: bigint
+  poolNo: bigint
+  status: number
+}
 
 const STATUS_FILTERS: { key: StatusFilter; label: string }[] = [
   { key: 'ALL', label: 'All' },
@@ -46,10 +48,6 @@ export function OnchainMarketsListPage() {
   // "did it just tick up or down", not by distance from the target - a ref
   // (not state) so updating it never itself triggers a re-render.
   const prevPriceByFeed = useRef<Map<string, number>>(new Map())
-  // Real prices accumulated client-side since this page was opened, for the
-  // card sparkline - also a ref, piggybacking on the same effect below; the
-  // next 2s poll's re-render is what actually shows the appended point.
-  const priceHistoryByFeed = useRef<Map<string, PricePoint[]>>(new Map())
 
   const marketCount = useReadContract({
     address: PREDICTION_MARKET_ADDRESS,
@@ -61,17 +59,33 @@ export function OnchainMarketsListPage() {
   const ids = Array.from({ length: count }, (_, i) => BigInt(i))
 
   const markets = useReadContracts({
-    contracts: ids.map(
-      (id) =>
-        ({
+    // Market data and its immutable deadline settlement share one multicall,
+    // so resolved cards can show the final price without another RPC request.
+    contracts: ids.flatMap((id) => [
+      ({
           address: PREDICTION_MARKET_ADDRESS,
           abi: predictionMarketAbi,
           functionName: 'getMarket',
           args: [id],
-        }) as const,
-    ),
+      }) as const,
+      ({
+        address: PREDICTION_MARKET_ADDRESS,
+        abi: predictionMarketAbi,
+        functionName: 'settlements',
+        args: [id],
+      }) as const,
+    ]),
     query: { enabled: count > 0 },
   })
+
+  const marketAt = (index: number) => {
+    const result = markets.data?.[index * 2]
+    return result?.status === 'success' ? result.result as MarketCardData : undefined
+  }
+  const settlementPriceAt = (index: number) => {
+    const result = markets.data?.[index * 2 + 1]
+    return result?.status === 'success' ? (result.result as readonly [bigint, bigint, Hex])[0] : 0n
+  }
 
   const live = useAssetRaceLiveDisplay({ enabled: true })
 
@@ -80,9 +94,9 @@ export function OnchainMarketsListPage() {
   // ticker without another RPC read.
   const tickerByMarketId = new Map<string, string>()
   ids.forEach((id, i) => {
-    const result = markets.data?.[i]
-    if (result?.status !== 'success') return
-    const t = tickerForPredictionAssetId(result.result.assetId)
+    const market = marketAt(i)
+    if (!market) return
+    const t = tickerForPredictionAssetId(market.assetId)
     if (t) tickerByMarketId.set(id.toString(), t)
   })
 
@@ -93,10 +107,6 @@ export function OnchainMarketsListPage() {
       if (!price.stale) {
         const usd = Number(formatUnits(BigInt(price.priceRaw), price.decimals))
         prevPriceByFeed.current.set(ticker, usd)
-        const series = priceHistoryByFeed.current.get(ticker) ?? []
-        series.push({ t: Date.now(), price: usd })
-        if (series.length > PRICE_HISTORY_LENGTH) series.shift()
-        priceHistoryByFeed.current.set(ticker, series)
       }
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -105,9 +115,9 @@ export function OnchainMarketsListPage() {
   const filteredIds = ids
     .filter((_id, i) => {
       if (filter === 'ALL') return true
-      const result = markets.data?.[i]
-      if (!result || result.status !== 'success') return false
-      const status = result.result.status
+      const market = marketAt(i)
+      if (!market) return false
+      const status = market.status
       if (filter === 'OPEN') return status === MarketStatusOnchain.Open
       if (filter === 'RESOLVED') return status === MarketStatusOnchain.Resolved
       return status === MarketStatusOnchain.Cancelled
@@ -173,13 +183,17 @@ export function OnchainMarketsListPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredIds.map((id) => {
             const i = ids.indexOf(id)
-            const result = markets.data?.[i]
-            if (!result || result.status !== 'success') return null
-            const m = result.result
+            const m = marketAt(i)
+            if (!m) return null
             const ticker = tickerByMarketId.get(id.toString())
             const price = ticker ? live.assets[ticker] : undefined
             const targetUsd = Number(formatUnits(m.targetPrice, m.priceDecimals))
-            const currentUsd = price && !price.stale ? Number(formatUnits(BigInt(price.priceRaw), price.decimals)) : null
+            const liveUsd = price && !price.stale ? Number(formatUnits(BigInt(price.priceRaw), price.decimals)) : null
+            const finalPriceRaw = settlementPriceAt(i)
+            const isResolved = m.status === MarketStatusOnchain.Resolved
+            const displayedUsd = isResolved && finalPriceRaw > 0n
+              ? Number(formatUnits(finalPriceRaw, m.priceDecimals))
+              : liveUsd
             const deadlineMs = Number(m.deadline) * 1000
             const pools = isDemoMode() ? demoPools(id) : { poolYes: m.poolYes, poolNo: m.poolNo }
             const totalPool = pools.poolYes + pools.poolNo
@@ -187,7 +201,7 @@ export function OnchainMarketsListPage() {
             const prevUsd = ticker ? prevPriceByFeed.current.get(ticker) : undefined
             // No prior tick yet (first render) - default to green rather than
             // flashing red for a market that hasn't actually moved down.
-            const tickedUp = currentUsd == null || prevUsd == null ? true : currentUsd >= prevUsd
+            const tickedUp = liveUsd == null || prevUsd == null ? true : liveUsd >= prevUsd
 
             const canBet = m.status === MarketStatusOnchain.Open
             function goToMarket(side?: 'YES' | 'NO') {
@@ -215,25 +229,18 @@ export function OnchainMarketsListPage() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <div className={`font-mono font-semibold ${tickedUp ? 'text-emerald-400' : 'text-rose-400'}`}>
-                      {currentUsd != null ? formatUsd(currentUsd) : '…'}
+                    <div className={`font-mono font-semibold ${isResolved ? 'text-white/70' : tickedUp ? 'text-emerald-400' : 'text-rose-400'}`}>
+                      {displayedUsd != null ? formatUsd(displayedUsd) : '…'}
                     </div>
-                    <div className="text-xs text-white/40">{targetUsd != null ? `target ${formatUsd(targetUsd)}` : ''}</div>
+                    <div className="text-xs text-white/40">
+                      {isResolved ? 'final · ' : ''}{targetUsd != null ? `target ${formatUsd(targetUsd)}` : ''}
+                    </div>
                   </div>
                 </div>
 
                 <h3 className="font-display text-xl font-bold leading-snug mb-3 group-hover:text-[#B3A7FA] transition-colors">
                   Will {ticker ?? 'it'} be at or above {targetUsd != null ? formatUsd(targetUsd) : '…'} at the deadline?
                 </h3>
-
-                {(() => {
-                  const series = ticker ? priceHistoryByFeed.current.get(ticker) ?? [] : []
-                  return series.length > 1 ? (
-                    <div className="mb-3">
-                      <Sparkline data={series} color={tickedUp ? '#2dd888' : '#ff5577'} />
-                    </div>
-                  ) : null
-                })()}
 
                 {/* Honest pool state: a split bar only once both sides have
                     real money in; otherwise one quiet status line. The

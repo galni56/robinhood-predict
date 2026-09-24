@@ -40,6 +40,7 @@ import { TermsPage } from '@/pages/TermsPage'
 import { TxDetailPage } from '@/pages/TxDetailPage'
 import { WhitepaperPage } from '@/pages/WhitepaperPage'
 import { isLocalAssetRace } from '@/chain/config'
+import { AssetRaceLiveDisplayProvider } from '@/chain/useAssetRaceLiveDisplay'
 
 export default function App() {
   const { pathname } = useLocation()
@@ -55,21 +56,22 @@ export default function App() {
   const isLocalRaceRoute = isLocalAssetRace && pathname.startsWith('/onchain/races')
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <AnimatedBackground />
-      <ChainEngine />
-      <DisclaimerBanner />
-      {isRealMode ? (
-        <>
-          <RealNavbar />
-          {!isLocalRaceRoute && <TickerTape />}
-        </>
-      ) : (
-        <Navbar />
-      )}
+    <AssetRaceLiveDisplayProvider enabled={isRealMode}>
+      <div className="min-h-screen flex flex-col">
+        <AnimatedBackground />
+        <ChainEngine />
+        <DisclaimerBanner />
+        {isRealMode ? (
+          <>
+            <RealNavbar />
+            {!isLocalRaceRoute && <TickerTape />}
+          </>
+        ) : (
+          <Navbar />
+        )}
 
-      <main className="flex-1">
-        <Routes>
+        <main className="flex-1">
+          <Routes>
           <Route path="/" element={<OnchainLandingPage />} />
           <Route path="/demo" element={<LandingPage />} />
           <Route path="/whitepaper" element={<WhitepaperPage />} />
@@ -122,10 +124,11 @@ export default function App() {
           <Route path="/explorer/address/:address" element={<AddressDetailPage />} />
 
           <Route path="*" element={<NotFoundPage />} />
-        </Routes>
-      </main>
+          </Routes>
+        </main>
 
-      <Footer />
-    </div>
+        <Footer />
+      </div>
+    </AssetRaceLiveDisplayProvider>
   )
 }
