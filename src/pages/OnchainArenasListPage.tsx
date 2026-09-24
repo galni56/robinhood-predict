@@ -13,6 +13,8 @@ import {
   type PriceArenaViewModel,
 } from '@/chain/priceArena'
 import { AddressLabel } from '@/components/AddressLabel'
+import { GameActivitySidebar } from '@/components/GameActivitySidebar'
+import { TokenLogo } from '@/components/TokenLogo'
 import { formatCountdown } from '@/lib/format'
 
 const FILTERS = ['ALL', 'LOBBY', 'LIVE', 'FINISHED'] as const
@@ -36,7 +38,7 @@ function ArenaCard({ arena, nowMs }: { arena: PriceArenaViewModel; nowMs: number
         <span className="rounded-full bg-white/5 px-2.5 py-1 text-xs font-bold text-white/60">{arenaPhaseLabel(arena.phase)}</span>
       </div>
       <div className="mt-5 grid grid-cols-3 gap-3 rounded-2xl bg-black/10 p-3 text-sm">
-        <div><div className="text-xs text-white/30">Asset</div><div className="mt-1 font-bold">{arena.asset?.symbol ?? '—'}</div></div>
+        <div><div className="text-xs text-white/30">Asset</div><div className="mt-1 flex items-center gap-2 font-bold"><TokenLogo ticker={arena.asset?.symbol} className="h-7 w-7 rounded-lg" />{arena.asset?.symbol ?? '—'}</div></div>
         <div><div className="text-xs text-white/30">Players</div><div className="mt-1 font-mono font-bold">{arena.participantCount} / 20</div></div>
         <div><div className="text-xs text-white/30">Prize pool</div><div className="mt-1 font-mono font-bold">{Number(formatUnits(arena.totalPool, 6)).toFixed(2)} USDG</div></div>
       </div>
@@ -82,10 +84,17 @@ export function OnchainArenasListPage() {
         <div className="flex gap-1.5">{FILTERS.map((item) => <button key={item} onClick={() => setFilter(item)} className={`rounded-full px-3.5 py-1.5 text-xs font-bold ${filter === item ? 'bg-[#8B7CF7]' : 'text-white/50 hover:bg-white/5'}`}>{item.charAt(0) + item.slice(1).toLowerCase()}</button>)}</div>
       </div>
 
-      {isLoading ? <p className="py-20 text-center text-white/40">Loading arenas…</p>
-        : error ? <div className="mt-8 rounded-2xl border border-rose-500/25 bg-rose-500/10 p-5 text-rose-300">Could not read Price Arena.</div>
-          : visible.length === 0 ? <p className="py-20 text-center text-white/35">No {mode} arenas yet.</p>
-            : <div className="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-3">{visible.map((arena) => <ArenaCard key={arena.id.toString()} arena={arena} nowMs={nowMs} />)}</div>}
+      <div className="mt-6 flex items-start gap-6">
+        <main className="min-w-0 flex-1">
+          {isLoading ? <p className="py-20 text-center text-white/40">Loading arenas…</p>
+            : error ? <div className="rounded-2xl border border-rose-500/25 bg-rose-500/10 p-5 text-rose-300">Could not read Price Arena.</div>
+              : visible.length === 0 ? <p className="py-20 text-center text-white/35">No {mode} arenas yet.</p>
+                : <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">{visible.map((arena) => <ArenaCard key={arena.id.toString()} arena={arena} nowMs={nowMs} />)}</div>}
+        </main>
+        <aside className="sticky top-20 hidden w-72 shrink-0 lg:block">
+          <GameActivitySidebar kind="arena" symbolFor={(gameId) => arenas.find((arena) => arena.id === gameId)?.asset?.symbol} />
+        </aside>
+      </div>
     </div>
   )
 }

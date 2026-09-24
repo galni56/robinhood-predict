@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import type { Hex } from 'viem'
 import { ASSET_RACE_CATEGORY, type ApprovedRaceAsset } from '@/chain/assetRaces'
+import { TokenLogo } from '@/components/TokenLogo'
 
 export function AssetRaceAssetPicker({
   assets,
@@ -55,13 +56,7 @@ export function AssetRaceAssetPicker({
                   : `border-white/5 bg-white/5 ${meme ? 'hover:border-[#F2A65A]/40' : 'hover:border-[#8B7CF7]/40'}`
               }`}
             >
-              {asset.logoUrl ? (
-                <img src={asset.logoUrl} alt="" className="h-9 w-9 shrink-0 rounded-full bg-white/5 object-contain" />
-              ) : (
-                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#f7f1e3] font-display text-xs font-bold text-[#241a33]">
-                  {asset.symbol.slice(0, 2)}
-                </span>
-              )}
+              <TokenLogo ticker={asset.symbol} logoUrl={asset.logoUrl} className="h-9 w-9 rounded-xl" />
               <span className="min-w-0 flex-1">
                 <span className="block font-bold">{asset.symbol}</span>
                 <span className="block truncate text-xs text-white/40">{asset.name}</span>

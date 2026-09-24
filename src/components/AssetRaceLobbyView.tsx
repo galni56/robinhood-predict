@@ -5,6 +5,7 @@ import { useApprovedRaceAssets } from '@/chain/useApprovedRaceAssets'
 import { AddressLabel } from '@/components/AddressLabel'
 import { AssetRaceAssetPicker } from '@/components/AssetRaceAssetPicker'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
+import { TokenLogo } from '@/components/TokenLogo'
 import { formatCountdown } from '@/lib/format'
 import { ASSET_RACE_CATEGORY, type ApprovedRaceAsset, type AssetRaceViewModel } from '@/chain/assetRaces'
 
@@ -74,7 +75,7 @@ export function AssetRaceLobbyView({
         <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
           {race.assets.map((asset) => (
             <div key={asset.assetIndex} className="rounded-2xl border border-white/5 bg-white/5 px-3.5 py-3">
-              <div className="font-display text-lg font-bold">{asset.symbol}</div>
+              <div className="flex items-center gap-2"><TokenLogo ticker={asset.symbol} className="h-9 w-9 rounded-xl" /><div className="font-display text-lg font-bold">{asset.symbol}</div></div>
               <div className={`text-xs font-bold ${meme ? 'text-[#F2A65A]' : 'text-[#B3A7FA]'}`}>Approved {meme ? 'meme' : 'stock'}</div>
             </div>
           ))}

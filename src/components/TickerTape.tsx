@@ -1,8 +1,9 @@
 import { useEffect, useRef } from 'react'
 import { CORE_TICKERS, useCorePrices } from '@/chain/robinhoodApi'
+import { TokenLogo } from '@/components/TokenLogo'
 import { formatUsd } from '@/lib/format'
 
-/** Horizontal auto-scrolling price strip - 30 tickers, live bid price,
+/** Horizontal auto-scrolling price strip for the reviewed stocks, live bid price,
  * colored by whether it just ticked up or down since the last 15s poll
  * (compared client-side, since the API gives a snapshot, not history).
  * Shares its price cache with TokenBrowser's default view via
@@ -40,6 +41,7 @@ export function TickerTape() {
       <div className="flex w-max animate-[ticker-scroll_60s_linear_infinite] group-hover:[animation-play-state:paused]">
         {track.map((item, i) => (
           <span key={`${item.ticker}-${i}`} className="flex items-center gap-1.5 px-4 py-2 text-xs whitespace-nowrap shrink-0">
+            <TokenLogo ticker={item.ticker} className="h-5 w-5 rounded-md" />
             <span className="font-bold text-white/70">{item.ticker}</span>
             <span className={item.tickedUp ? 'font-mono text-emerald-400' : 'font-mono text-rose-400'}>{formatUsd(item.bid)}</span>
           </span>

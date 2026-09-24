@@ -2,6 +2,8 @@ import { formatUnits } from 'viem'
 import { truncateAddress } from '@/components/AddressLabel'
 import { useBetLogs } from '@/chain/betLogs'
 import { MarketSideOnchain } from '@/chain/contracts'
+import { TokenLogo } from '@/components/TokenLogo'
+import { assetIconUrl } from '@/lib/assetIcons'
 
 const BET_TOKEN_DECIMALS = 6 // USDG's real decimals
 
@@ -41,6 +43,7 @@ export function LiveBetsTicker({ tickerByMarketId }: { tickerByMarketId: Map<str
             <span className="text-white/30">bet</span>
             <span className="font-mono text-white/70">{item.amount} USDG</span>
             <span className="text-white/30">on</span>
+            {assetIconUrl(item.ticker) && <TokenLogo ticker={item.ticker} className="h-5 w-5 rounded-md" />}
             <span className="font-bold text-white/70">{item.ticker}</span>
           </span>
         ))}

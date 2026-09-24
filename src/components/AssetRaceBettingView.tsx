@@ -3,6 +3,7 @@ import { parseUnits } from 'viem'
 import { assetRaceChain } from '@/chain/config'
 import { ClockIcon } from '@/components/icons'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
+import { TokenLogo } from '@/components/TokenLogo'
 import { formatCountdown } from '@/lib/format'
 import {
   ASSET_RACE_CATEGORY,
@@ -110,7 +111,7 @@ export function AssetRaceBettingView({
                 }`}
               >
                 <div className="flex items-center justify-between">
-                  <span className="font-display text-lg font-bold">{asset.symbol}</span>
+                  <span className="flex items-center gap-2 font-display text-lg font-bold"><TokenLogo ticker={asset.symbol} className="h-9 w-9 rounded-xl" />{asset.symbol}</span>
                   {selectedNow && <span className={`text-xs font-bold ${accentText}`}>Selected</span>}
                 </div>
                 <div className="mt-3 flex items-end justify-between gap-3">
@@ -133,8 +134,8 @@ export function AssetRaceBettingView({
           <div className="flex items-center justify-between gap-3">
             <h3 className="font-display text-lg font-bold">Your bet</h3>
             {selected && (
-              <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${meme ? 'bg-[#F2A65A]/15 text-[#F2A65A]' : 'bg-[#8B7CF7]/15 text-[#B3A7FA]'}`}>
-                {selected.symbol}
+              <span className={`inline-flex items-center gap-1.5 rounded-full py-1 pl-1 pr-2.5 text-xs font-bold ${meme ? 'bg-[#F2A65A]/15 text-[#F2A65A]' : 'bg-[#8B7CF7]/15 text-[#B3A7FA]'}`}>
+                <TokenLogo ticker={selected.symbol} className="h-5 w-5 rounded-md" />{selected.symbol}
               </span>
             )}
           </div>

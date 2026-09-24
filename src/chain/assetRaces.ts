@@ -1,7 +1,6 @@
 import { getAddress, hexToString, isAddress, type Address, type Hex } from 'viem'
 import { assetRaceNetworkConfigError, isLocalAssetRace } from '@/chain/config'
 import { ALLOWLISTED_FEEDS } from '@/chain/contracts'
-import { assetRaceCatalog } from '@/chain/assetRaceRegistry'
 
 export const ASSET_RACE_STATUS = {
   BETTING: 0,
@@ -544,7 +543,9 @@ function previewRace(
 }
 
 export function buildPreviewRaces(nowSeconds = BigInt(Math.floor(Date.now() / 1000))) {
-  const memeSymbols = assetRaceCatalog.filter(({ category }) => category === 'MEME').slice(0, 4).map(({ symbol }) => symbol)
+  // Mirror the currently enabled production meme set in preview cards, so
+  // every preview contender has the same supplied artwork as real games.
+  const memeSymbols = ['AI', 'CASHCAT', 'HOOD', 'BLORB']
 
   return [
     previewRace(0n, ASSET_RACE_STATUS.BETTING, nowSeconds, [

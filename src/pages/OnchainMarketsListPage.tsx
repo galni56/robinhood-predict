@@ -22,12 +22,6 @@ import { useTokenLogos } from '@/chain/robinhoodApi'
 import { formatCountdown, formatUsd } from '@/lib/format'
 import type { PricePoint } from '@/types'
 
-// A coarse, purely-cosmetic split for the asset-type filter below. The initial
-// pool-backed prediction set contains only single stocks, but keeping the ETF
-// branch makes the list ready for a future reviewed pool without changing the
-// market ABI.
-const ETF_TICKERS = new Set(['QQQ', 'SPY', 'EWY', 'SLV', 'USO'])
-
 // How many 2s polls of real pool-price history to keep per ticker for the card
 // sparkline -- 90 points is 3 minutes, enough to show a real trend without
 // growing unbounded on a page left open a long time. This is genuinely
@@ -36,7 +30,6 @@ const ETF_TICKERS = new Set(['QQQ', 'SPY', 'EWY', 'SLV', 'USO'])
 const PRICE_HISTORY_LENGTH = 90
 
 type StatusFilter = 'ALL' | 'OPEN' | 'RESOLVED' | 'CANCELLED'
-type AssetFilter = 'ALL' | 'STOCKS' | 'ETFS'
 
 const STATUS_FILTERS: { key: StatusFilter; label: string }[] = [
   { key: 'ALL', label: 'All' },
@@ -45,17 +38,10 @@ const STATUS_FILTERS: { key: StatusFilter; label: string }[] = [
   { key: 'CANCELLED', label: 'Cancelled' },
 ]
 
-const ASSET_FILTERS: { key: AssetFilter; label: string }[] = [
-  { key: 'ALL', label: 'All assets' },
-  { key: 'STOCKS', label: 'Single stocks' },
-  { key: 'ETFS', label: 'ETFs' },
-]
-
 export function OnchainMarketsListPage() {
   const navigate = useNavigate()
   const logos = useTokenLogos()
   const [filter, setFilter] = useState<StatusFilter>('ALL')
-  const [assetFilter, setAssetFilter] = useState<AssetFilter>('ALL')
   // Tracks each ticker's previously-seen price so a card can color itself by
   // "did it just tick up or down", not by distance from the target - a ref
   // (not state) so updating it never itself triggers a re-render.
@@ -126,12 +112,6 @@ export function OnchainMarketsListPage() {
       if (filter === 'RESOLVED') return status === MarketStatusOnchain.Resolved
       return status === MarketStatusOnchain.Cancelled
     })
-    .filter((id) => {
-      if (assetFilter === 'ALL') return true
-      const ticker = tickerByMarketId.get(id.toString())
-      const isEtf = !!ticker && ETF_TICKERS.has(ticker)
-      return assetFilter === 'ETFS' ? isEtf : !isEtf
-    })
     // Newest first -- a higher id was created later. Otherwise a market
     // created today can land at the very end of a long list, indistinguishable
     // from one that's been sitting there for weeks (this confused a real
@@ -162,27 +142,14 @@ export function OnchainMarketsListPage() {
 
       <div className="flex gap-6 items-start">
         <div className="flex-1 min-w-0">
-      <div className="flex flex-wrap items-center justify-between gap-y-2 mb-6">
-        <div className="flex gap-1.5">
+      <div className="mb-6 flex flex-wrap items-center justify-end gap-y-2">
+        <div className="flex gap-1.5 overflow-x-auto pb-1">
           {STATUS_FILTERS.map((f) => (
             <button
               key={f.key}
               onClick={() => setFilter(f.key)}
               className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-colors ${
-                filter === f.key ? 'bg-[#f7f1e3] text-[#241a33]' : 'text-white/50 hover:text-white hover:bg-white/5'
-              }`}
-            >
-              {f.label}
-            </button>
-          ))}
-        </div>
-        <div className="flex gap-1.5">
-          {ASSET_FILTERS.map((f) => (
-            <button
-              key={f.key}
-              onClick={() => setAssetFilter(f.key)}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-colors ${
-                assetFilter === f.key ? 'bg-[#8B7CF7] text-[#f7f1e3]' : 'text-white/50 hover:text-white hover:bg-white/5'
+                filter === f.key ? 'bg-[#8B7CF7] text-[#f7f1e3]' : 'text-white/50 hover:text-white hover:bg-white/5'
               }`}
             >
               {f.label}

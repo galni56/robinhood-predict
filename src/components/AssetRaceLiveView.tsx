@@ -1,4 +1,5 @@
 import { AssetRaceLeaderboard } from '@/components/AssetRaceLeaderboard'
+import { TokenLogo } from '@/components/TokenLogo'
 import { formatCountdown } from '@/lib/format'
 import { ASSET_RACE_CATEGORY, formatUsdRaw, type AssetRacePosition, type AssetRaceViewModel } from '@/chain/assetRaces'
 
@@ -31,7 +32,7 @@ export function AssetRaceLiveView({ race, position, nowMs, tokenDecimals, tokenL
 
       {position?.exists && selectedAsset && (
         <div className="grid grid-cols-2 gap-3 rounded-3xl border border-white/5 bg-[#241b2f] p-4 text-sm sm:grid-cols-3">
-          <div><div className="text-xs font-bold text-white/35">Your asset</div><div className={`font-display font-bold ${meme ? 'text-[#F2A65A]' : 'text-[#B3A7FA]'}`}>{selectedAsset.symbol}</div></div>
+          <div><div className="text-xs font-bold text-white/35">Your asset</div><div className={`mt-1 flex items-center gap-2 font-display font-bold ${meme ? 'text-[#F2A65A]' : 'text-[#B3A7FA]'}`}><TokenLogo ticker={selectedAsset.symbol} className="h-7 w-7 rounded-lg" />{selectedAsset.symbol}</div></div>
           <div><div className="text-xs font-bold text-white/35">Your stake</div><div className="font-mono">{formatUsdRaw(position.stake, tokenDecimals)} {tokenLabel}</div></div>
           <div className="col-span-2 sm:col-span-1"><div className="text-xs font-bold text-white/35">Position</div><div>Locked until result</div></div>
         </div>

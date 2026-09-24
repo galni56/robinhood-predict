@@ -25,6 +25,7 @@ import { AssetRaceLobbyView } from '@/components/AssetRaceLobbyView'
 import { AssetRaceResultView } from '@/components/AssetRaceResultView'
 import { AddressLabel } from '@/components/AddressLabel'
 import { ShareInviteButton } from '@/components/ShareInviteButton'
+import { TokenLogo } from '@/components/TokenLogo'
 import { shortTxError } from '@/lib/format'
 
 type TxState = { label: string } | null
@@ -222,7 +223,11 @@ export function OnchainRacePage() {
       ) : (
         <div className={race.category === 1 ? 'asset-race-meme' : ''}>
           <div className="mb-6 mt-4 flex flex-wrap items-end justify-between gap-3">
-            <div>
+            <div className="flex items-start gap-3">
+              <div className="flex shrink-0 -space-x-2 pt-1">
+                {race.assets.slice(0, 4).map((asset) => <TokenLogo key={asset.assetIndex} ticker={asset.symbol} className="h-10 w-10 rounded-xl border-2 border-[#17111f]" />)}
+              </div>
+              <div>
               <p className={`flex flex-wrap items-center gap-2 text-sm font-bold ${race.category === 1 ? 'text-[#F2A65A]' : 'text-[#B3A7FA]'}`}>
                 {assetRaceCategoryLabel(race.category)} race #{race.id.toString()}
                 <span className={`rounded-full px-2.5 py-0.5 text-xs ${race.origin === ASSET_RACE_ORIGIN.PLATFORM ? 'bg-[#8B7CF7]/15 text-[#B3A7FA]' : 'bg-white/5 text-white/50'}`}>
@@ -235,6 +240,7 @@ export function OnchainRacePage() {
               ) : (
                 <p className="mt-1 text-xs font-medium text-white/40">Created by <AddressLabel address={race.creator} link={!isLocalAssetRace} className="font-bold text-white/65" /></p>
               )}
+              </div>
             </div>
             <div className="flex flex-wrap items-center justify-end gap-2">
               <ShareInviteButton kind="race" id={race.id} />

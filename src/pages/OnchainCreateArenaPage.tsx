@@ -14,6 +14,7 @@ import {
   type PriceArenaMode,
 } from '@/chain/priceArena'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
+import { TokenLogo } from '@/components/TokenLogo'
 import { shortTxError } from '@/lib/format'
 
 export function OnchainCreateArenaPage() {
@@ -72,7 +73,7 @@ export function OnchainCreateArenaPage() {
       {!PRICE_ARENA_ADDRESS ? <div className="mt-6 rounded-2xl border border-amber-400/25 bg-amber-400/10 p-5 text-amber-100">Deploy and configure Price Arena before creating games.</div> : (
         <div className="mt-6 space-y-6 rounded-3xl border border-white/5 bg-[#241b2f] p-6 sm:p-8">
           <label className="block"><span className="mb-2 block text-sm font-bold text-white/60">Arena title</span><input value={title} onChange={(event) => setTitle(event.target.value)} maxLength={64} placeholder={mode === 'memes' ? 'Meme price showdown' : 'NVDA closing shot'} className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 outline-none focus:border-[#8B7CF7]/50" /><span className="mt-1 block text-right text-xs text-white/30">{titleBytes} / 64 bytes</span></label>
-          <div><div className="mb-2 text-sm font-bold text-white/60">Asset</div><div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{assets.map((asset) => <button key={asset.assetId} onClick={() => setAssetId(asset.assetId)} className={`rounded-xl border px-4 py-3 text-left ${selected?.assetId === asset.assetId ? (mode === 'memes' ? 'border-[#F2A65A] bg-[#F2A65A]/10' : 'border-[#8B7CF7] bg-[#8B7CF7]/10') : 'border-white/5 bg-white/[0.03]'}`}><div className="font-bold">{asset.symbol}</div><div className="text-xs text-white/35">{asset.name}</div></button>)}</div>{assets.length === 0 && <p className="py-5 text-sm text-white/40">Loading configured assets…</p>}</div>
+          <div><div className="mb-2 text-sm font-bold text-white/60">Asset</div><div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{assets.map((asset) => <button key={asset.assetId} onClick={() => setAssetId(asset.assetId)} className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-left ${selected?.assetId === asset.assetId ? (mode === 'memes' ? 'border-[#F2A65A] bg-[#F2A65A]/10' : 'border-[#8B7CF7] bg-[#8B7CF7]/10') : 'border-white/5 bg-white/[0.03]'}`}><TokenLogo ticker={asset.symbol} className="h-10 w-10 rounded-xl" /><div><div className="font-bold">{asset.symbol}</div><div className="text-xs text-white/35">{asset.name}</div></div></button>)}</div>{assets.length === 0 && <p className="py-5 text-sm text-white/40">Loading configured assets…</p>}</div>
           <div><div className="mb-2 text-sm font-bold text-white/60">Game duration</div><div className="grid grid-cols-2 gap-2 sm:grid-cols-4">{PRICE_ARENA_DURATIONS.map((seconds) => <button key={seconds.toString()} onClick={() => setDuration(seconds)} className={`rounded-xl border px-3 py-3 text-sm font-bold ${duration === seconds ? 'border-[#8B7CF7] bg-[#8B7CF7]/15 text-[#B3A7FA]' : 'border-white/5 bg-white/[0.03] text-white/50'}`}>{arenaDurationLabel(seconds)}</button>)}</div></div>
           <div className="rounded-xl border border-[#8B7CF7]/20 bg-[#8B7CF7]/10 p-4 text-xs leading-relaxed text-[#B3A7FA]">Lobby: 10 minutes · players: 2–20 · stake: 1–50 USDG · closest 50% win · 2% fee from the losing pool only.</div>
           {error && <p className="text-sm text-rose-400">{error}</p>}

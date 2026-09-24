@@ -5,6 +5,7 @@ import { useAccount, useChainId, useSwitchChain, useWriteContract } from 'wagmi'
 import { simulateContract, waitForTransactionReceipt } from 'wagmi/actions'
 import { robinhoodMainnet, wagmiConfig } from '@/chain/config'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
+import { TokenLogo } from '@/components/TokenLogo'
 import {
   PREDICTION_MARKET_ADDRESS,
   predictionMarketAbi,
@@ -169,12 +170,13 @@ export function OnchainCreateMarketPage() {
                 type="button"
                 key={asset.ticker}
                 onClick={() => setAssetId(asset.assetId)}
-                className={`rounded-xl px-3 py-2 text-sm font-bold transition-colors ${
+                className={`flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-bold transition-colors ${
                   assetId === asset.assetId
                     ? 'bg-[#8B7CF7] text-[#f7f1e3]'
                     : 'bg-white/5 text-white/60 hover:bg-white/10 hover:text-white'
                 }`}
               >
+                <TokenLogo ticker={asset.ticker} className="h-6 w-6 rounded-lg" />
                 {asset.ticker}
               </button>
             ))}

@@ -8,6 +8,7 @@ import { assetRaceChain, isLocalAssetRace, wagmiConfig } from '@/chain/config'
 import { useApprovedRaceAssets } from '@/chain/useApprovedRaceAssets'
 import { AssetRaceAssetPicker } from '@/components/AssetRaceAssetPicker'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
+import { TokenLogo } from '@/components/TokenLogo'
 import { shortTxError } from '@/lib/format'
 
 function durationLabel(seconds: bigint) {
@@ -152,8 +153,8 @@ export function OnchainCreateRacePage() {
             {selected.length > 0 && (
               <div className="mb-3 flex flex-wrap gap-2">
                 {selected.map((asset) => (
-                  <button key={asset.assetId} type="button" onClick={() => toggleAsset(asset)} className="rounded-full bg-[#8B7CF7]/15 px-3 py-1 text-xs font-bold text-[#B3A7FA] hover:bg-[#8B7CF7]/25">
-                    {asset.symbol} ×
+                  <button key={asset.assetId} type="button" onClick={() => toggleAsset(asset)} className="inline-flex items-center gap-1.5 rounded-full bg-[#8B7CF7]/15 py-1 pl-1 pr-3 text-xs font-bold text-[#B3A7FA] hover:bg-[#8B7CF7]/25">
+                    <TokenLogo ticker={asset.symbol} className="h-5 w-5 rounded-md" />{asset.symbol} ×
                   </button>
                 ))}
               </div>

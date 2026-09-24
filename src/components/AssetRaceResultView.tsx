@@ -2,6 +2,7 @@ import { formatUnits } from 'viem'
 import { AssetRaceLeaderboard } from '@/components/AssetRaceLeaderboard'
 import { TrophyIcon } from '@/components/icons'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
+import { TokenLogo } from '@/components/TokenLogo'
 import { assetRaceChain } from '@/chain/config'
 import {
   ASSET_RACE_CATEGORY,
@@ -78,7 +79,7 @@ export function AssetRaceResultView({
         )}
         {won && <div aria-hidden="true" className="race-confetti"><i>●</i><i>◆</i><i>★</i><i>●</i><i>◆</i><i>★</i></div>}
         <div className={`relative text-sm font-bold ${meme ? 'text-[#F2A65A]' : 'text-[#B3A7FA]'}`}>{resolved ? won ? 'You won' : 'Winner' : voided ? 'Race void' : 'Race cancelled'}</div>
-        <h2 className="relative mt-1 pr-16 font-display text-3xl font-bold">{winner ? `${winner.symbol} ${formatReturnWad(winner.returnValue)}` : voided ? 'No legitimate winner' : 'Race never started'}</h2>
+        <h2 className="relative mt-1 flex items-center gap-3 pr-16 font-display text-3xl font-bold">{winner && <TokenLogo ticker={winner.symbol} className="h-11 w-11 rounded-xl" />}{winner ? `${winner.symbol} ${formatReturnWad(winner.returnValue)}` : voided ? 'No legitimate winner' : 'Race never started'}</h2>
         <p className="mt-2 text-sm text-white/50">
           {won ? `Your pick took the crown. ${meme ? 'Absolute scenes.' : 'Claim your payout below.'}` : lost ? 'Better luck next race. Final ranking uses the immutable P0/P1 values.' : resolved ? 'Final ranking uses the immutable P0/P1 values stored by AssetRace.' : voided ? 'Every principal stake is refundable. No protocol fee was charged.' : 'The start conditions were not met. Every principal stake is refundable with no fee.'}
         </p>
@@ -86,7 +87,7 @@ export function AssetRaceResultView({
 
       {position?.exists && (
         <div className={`grid grid-cols-2 gap-3 rounded-3xl border p-4 transition-all sm:grid-cols-4 ${lost ? 'border-white/5 bg-[#241b2f]/75 opacity-80' : won ? `${meme ? 'border-[#F2A65A]/30' : 'border-[#8B7CF7]/25'} bg-[#241b2f]` : 'border-white/5 bg-[#241b2f]'}`}>
-          <div><div className="text-xs font-bold text-white/35">Your asset</div><div className="font-display font-bold">{myAsset?.symbol}</div></div>
+          <div><div className="text-xs font-bold text-white/35">Your asset</div><div className="mt-1 flex items-center gap-2 font-display font-bold"><TokenLogo ticker={myAsset?.symbol} className="h-7 w-7 rounded-lg" />{myAsset?.symbol}</div></div>
           <div><div className="text-xs font-bold text-white/35">Your stake</div><div className="font-mono">{formatUsdRaw(position.stake, tokenDecimals)}</div></div>
           <div><div className="text-xs font-bold text-white/35">Result</div><div className={won ? 'font-bold text-[#B3A7FA]' : resolved ? 'font-bold text-rose-400' : 'font-bold text-[#F2A65A]'}>{won ? 'Won' : resolved ? 'Lost' : 'Refund'}</div></div>
           <div><div className="text-xs font-bold text-white/35">Claimable</div><div className="font-mono">{won ? formatUsdRaw(payout, tokenDecimals) : refundable ? formatUsdRaw(position.stake, tokenDecimals) : '0'} {tokenLabel}</div></div>
@@ -105,7 +106,7 @@ export function AssetRaceResultView({
         <h3 className="mb-3 font-display text-lg font-bold">Final standings</h3>
         {resolved || voided ? <AssetRaceLeaderboard race={race} position={position} final /> : (
           <div className="space-y-2">
-            {race.assets.map((asset) => <div key={asset.assetIndex} className="flex justify-between rounded-lg border border-white/10 bg-[#241b2f]/95 px-3 py-2 text-sm"><span>{asset.symbol}</span><span className="font-mono text-white/45">{formatUsdRaw(asset.pool, tokenDecimals)} {tokenLabel} backed</span></div>)}
+            {race.assets.map((asset) => <div key={asset.assetIndex} className="flex justify-between rounded-lg border border-white/10 bg-[#241b2f]/95 px-3 py-2 text-sm"><span className="flex items-center gap-2 font-bold"><TokenLogo ticker={asset.symbol} className="h-6 w-6 rounded-md" />{asset.symbol}</span><span className="font-mono text-white/45">{formatUsdRaw(asset.pool, tokenDecimals)} {tokenLabel} backed</span></div>)}
           </div>
         )}
       </div>
@@ -114,7 +115,7 @@ export function AssetRaceResultView({
         <div className="overflow-x-auto rounded-xl border border-white/10">
           <table className="w-full min-w-[560px] text-left text-xs">
             <thead className="bg-white/5 text-white/35"><tr><th className="px-3 py-2">Asset</th><th className="px-3 py-2">P0</th><th className="px-3 py-2">P1</th><th className="px-3 py-2">Return</th></tr></thead>
-            <tbody>{race.assets.filter((asset) => asset.active).map((asset) => <tr key={asset.assetIndex} className="border-t border-white/10"><td className="px-3 py-2 font-bold">{asset.symbol}</td><td className="px-3 py-2 font-mono">${formatUnits(asset.startPrice, asset.expectedDecimals)}</td><td className="px-3 py-2 font-mono">${formatUnits(asset.endPrice, asset.expectedDecimals)}</td><td className={`px-3 py-2 font-mono ${asset.returnValue >= 0n ? 'text-emerald-300' : 'text-rose-400'}`}>{formatReturnWad(asset.returnValue)}</td></tr>)}</tbody>
+            <tbody>{race.assets.filter((asset) => asset.active).map((asset) => <tr key={asset.assetIndex} className="border-t border-white/10"><td className="px-3 py-2 font-bold"><span className="flex items-center gap-2"><TokenLogo ticker={asset.symbol} className="h-6 w-6 rounded-md" />{asset.symbol}</span></td><td className="px-3 py-2 font-mono">${formatUnits(asset.startPrice, asset.expectedDecimals)}</td><td className="px-3 py-2 font-mono">${formatUnits(asset.endPrice, asset.expectedDecimals)}</td><td className={`px-3 py-2 font-mono ${asset.returnValue >= 0n ? 'text-emerald-300' : 'text-rose-400'}`}>{formatReturnWad(asset.returnValue)}</td></tr>)}</tbody>
           </table>
         </div>
       )}

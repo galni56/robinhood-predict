@@ -1,6 +1,7 @@
 import { formatUnits } from 'viem'
 import { displayedRaceReturnWad } from '@/chain/assetRaceLiveDisplay'
 import { assetRaceCatalogById, assetRaceMemeQuote } from '@/chain/assetRaceRegistry'
+import { TokenLogo } from '@/components/TokenLogo'
 import {
   ASSET_RACE_CATEGORY,
   formatReturnWad,
@@ -92,6 +93,7 @@ export function AssetRaceLeaderboard({
               >
                 {rank + 1}
               </span>
+              <TokenLogo ticker={entry.symbol} className="h-8 w-8 rounded-lg" />
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <span className="font-display font-bold tracking-wide">{entry.symbol}</span>

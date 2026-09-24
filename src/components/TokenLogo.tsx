@@ -1,19 +1,19 @@
 import { useState } from 'react'
+import { assetIconUrl } from '@/lib/assetIcons'
 
-/** A tokenized stock's real logo (from Robinhood's own catalog, see
- * useTokenLogos in robinhoodApi.ts), falling back to the ticker's first
- * letter if there's no logo URL or the image fails to load. `className`
- * carries size/rounding/text-size so each caller matches its own card. */
+/** Uses the project's reviewed stock/meme artwork first, an optional remote
+ * logo second, then the ticker's first letter as the final fallback. */
 export function TokenLogo({ ticker, logoUrl, className }: { ticker: string | null | undefined; logoUrl?: string; className: string }) {
-  const [failed, setFailed] = useState(false)
+  const resolvedUrl = assetIconUrl(ticker) ?? logoUrl
+  const [failedUrl, setFailedUrl] = useState<string>()
 
-  if (logoUrl && !failed) {
+  if (resolvedUrl && failedUrl !== resolvedUrl) {
     return (
       <img
-        src={logoUrl}
-        alt=""
-        onError={() => setFailed(true)}
-        className={`object-contain bg-[#f7f1e3] shrink-0 ${className}`}
+        src={resolvedUrl}
+        alt={ticker ? `${ticker} logo` : 'Asset logo'}
+        onError={() => setFailedUrl(resolvedUrl)}
+        className={`object-contain bg-white shrink-0 ${className}`}
       />
     )
   }

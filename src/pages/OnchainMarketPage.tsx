@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { formatUnits, parseAbiItem, parseUnits } from 'viem'
-import { useAccount, useChainId, useDisconnect, usePublicClient, useReadContract, useSwitchChain, useWriteContract } from 'wagmi'
+import { useAccount, useChainId, usePublicClient, useReadContract, useSwitchChain, useWriteContract } from 'wagmi'
 import { waitForTransactionReceipt } from 'wagmi/actions'
 import { robinhoodMainnet, wagmiConfig } from '@/chain/config'
 import { DEMO_USERS, demoBetLogs, demoPools, isDemoMode } from '@/chain/demo'
@@ -11,6 +11,7 @@ import { AddressLabel } from '@/components/AddressLabel'
 import { ClockIcon } from '@/components/icons'
 import { SideBadge } from '@/components/Pills'
 import { ShareInviteButton } from '@/components/ShareInviteButton'
+import { TokenLogo } from '@/components/TokenLogo'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
 import {
   BET_TOKEN_ADDRESS,
@@ -51,7 +52,6 @@ export function OnchainMarketPage() {
   const MARKET_ID = BigInt(id)
   const { address, isConnected } = useAccount()
   const chainId = useChainId()
-  const { disconnect } = useDisconnect()
   const { switchChain, isPending: isSwitching } = useSwitchChain()
   const { writeContractAsync } = useWriteContract()
 
@@ -418,7 +418,9 @@ export function OnchainMarketPage() {
         </>
       ) : (
         <div className="mt-4 mb-5 flex flex-wrap items-end justify-between gap-4">
-          <div>
+          <div className="flex items-start gap-3">
+            <TokenLogo ticker={ticker} className="mt-1 h-12 w-12 rounded-2xl" />
+            <div>
             <h1 className="font-display text-3xl sm:text-4xl font-bold tracking-tight">
               Will {ticker ?? '…'} be at or above {targetPriceUsd != null ? formatUsd(targetPriceUsd) : '…'} at the deadline?
             </h1>
@@ -431,6 +433,7 @@ export function OnchainMarketPage() {
                 </>
               )}
             </p>
+            </div>
           </div>
           <ShareInviteButton kind="market" id={MARKET_ID} />
         </div>
@@ -631,11 +634,12 @@ export function OnchainMarketPage() {
         </div>
       ) : (
         <div className="space-y-4">
-          <div className="flex items-center justify-between text-sm text-white/60">
-            <span>{address}</span>
-            <button onClick={() => disconnect()} className="text-white/40 hover:text-white">
-              Disconnect
-            </button>
+          <div className="flex items-center gap-3 rounded-2xl border border-emerald-400/20 bg-emerald-400/[0.07] px-4 py-3">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-emerald-400/15 text-lg text-emerald-300">✓</span>
+            <div>
+              <div className="text-sm font-bold text-emerald-200">Wallet connected</div>
+              <div className="text-xs text-white/40">Ready to place an onchain prediction.</div>
+            </div>
           </div>
 
           {market.data && (

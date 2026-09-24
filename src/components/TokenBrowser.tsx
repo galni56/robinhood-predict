@@ -1,14 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { PREDICTION_MARKET_ASSETS } from '@/chain/predictionMarketAssets'
-import { useCorePrices, useRobinhoodAssets, useRobinhoodPrices } from '@/chain/robinhoodApi'
+import { useCorePrices, useRobinhoodAssets } from '@/chain/robinhoodApi'
+import { TokenLogo } from '@/components/TokenLogo'
 import { formatUsd } from '@/lib/format'
 
-const PREDICTION_TICKERS = new Set<string>(PREDICTION_MARKET_ASSETS.map((asset) => asset.ticker))
-
-// The empty-search view is the exact onchain PredictionMarket registry, not
-// the larger legacy Chainlink catalog. Search can still browse the complete
-// Robinhood token catalog, but unsupported tokens never get a create link.
 const DEFAULT_TICKERS = PREDICTION_MARKET_ASSETS.map((asset) => asset.ticker)
 
 export function TokenBrowser() {
@@ -18,25 +14,16 @@ export function TokenBrowser() {
   const matches = useMemo(() => {
     if (!query.trim()) return null
     const q = query.trim().toLowerCase()
-    return (assets.data ?? [])
-      .filter((a) => a.tokenSymbol.toLowerCase().includes(q) || a.tokenName.toLowerCase().includes(q))
-      .slice(0, 15)
-      .map((a) => a.tokenSymbol)
+    return PREDICTION_MARKET_ASSETS
+      .filter((asset) => {
+        const catalogName = (assets.data ?? []).find((item) => item.tokenSymbol === asset.ticker)?.tokenName ?? asset.displayName
+        return asset.ticker.toLowerCase().includes(q) || catalogName.toLowerCase().includes(q)
+      })
+      .map((asset) => asset.ticker)
   }, [query, assets.data])
 
-  // Supported tickers (the ones the new contract can actually create)
-  // sort first, so "Not allowlisted yet" cards don't crowd out the
-  // actionable ones above the fold.
-  const visibleTickers = [...(matches ?? DEFAULT_TICKERS)].sort(
-    (a, b) => Number(PREDICTION_TICKERS.has(b)) - Number(PREDICTION_TICKERS.has(a)),
-  )
-  // No search: DEFAULT_TICKERS is a subset of CORE_TICKERS, so reuse the
-  // shared cache (also used by TickerTape) instead of firing duplicate
-  // requests for the same symbols. Searching for something outside that
-  // core set genuinely needs its own fetch.
-  const corePrices = useCorePrices()
-  const searchPrices = useRobinhoodPrices(matches ?? [])
-  const prices = matches ? searchPrices : corePrices
+  const visibleTickers = matches ?? DEFAULT_TICKERS
+  const prices = useCorePrices()
   const prevByTicker = useRef<Map<string, number>>(new Map())
 
   useEffect(() => {
@@ -73,25 +60,24 @@ export function TokenBrowser() {
             const bid = q ? Number(q.bid) : null
             const prev = prevByTicker.current.get(ticker)
             const tickedUp = bid == null || prev == null ? true : bid >= prev
-            const canCreate = PREDICTION_TICKERS.has(ticker)
-
             return (
               <div key={ticker} className="bg-[#241b2f] border border-white/5 rounded-2xl p-4 flex items-center justify-between gap-3 hover:border-[#8B7CF7]/30 transition-colors">
-                <div className="min-w-0">
-                  <div className="font-bold">{ticker}</div>
-                  <div className="text-white/40 text-xs truncate">{asset?.tokenName.replace(/\s*•\s*Robinhood Token$/i, '') ?? '…'}</div>
+                <div className="flex min-w-0 items-center gap-3">
+                  <TokenLogo ticker={ticker} className="h-11 w-11 rounded-xl" />
+                  <div className="min-w-0">
+                    <div className="font-bold">{ticker}</div>
+                    <div className="text-white/40 text-xs truncate">
+                      {asset?.tokenName.replace(/\s*•\s*Robinhood Token$/i, '') ?? PREDICTION_MARKET_ASSETS.find((item) => item.ticker === ticker)?.displayName ?? '…'}
+                    </div>
+                  </div>
                 </div>
                 <div className="text-right shrink-0">
                   <div className={`font-mono text-sm font-semibold ${tickedUp ? 'text-emerald-400' : 'text-rose-400'}`}>
                     {bid != null ? formatUsd(bid) : '…'}
                   </div>
-                  {canCreate ? (
-                    <Link to={`/onchain/create?feed=${ticker}`} className="text-[11px] font-bold text-[#B3A7FA] hover:underline">
-                      Create Prediction
-                    </Link>
-                  ) : (
-                    <span className="text-[11px] text-white/20">Not enabled</span>
-                  )}
+                  <Link to={`/onchain/create?feed=${ticker}`} className="text-[11px] font-bold text-[#B3A7FA] hover:underline">
+                    Create Prediction
+                  </Link>
                 </div>
               </div>
             )

@@ -17,6 +17,8 @@ import { useAssetRaces } from '@/chain/useAssetRaces'
 import { useAssetRaceClock } from '@/chain/useAssetRaceClock'
 import { AddressLabel } from '@/components/AddressLabel'
 import { ClockIcon } from '@/components/icons'
+import { GameActivitySidebar } from '@/components/GameActivitySidebar'
+import { TokenLogo } from '@/components/TokenLogo'
 import { formatCountdown } from '@/lib/format'
 
 const FILTERS = ['ALL', 'LOBBY', 'BETTING', 'RUNNING', 'FINISHED'] as const
@@ -100,7 +102,8 @@ function RaceCard({ race, nowMs, tokenDecimals }: { race: AssetRaceViewModel; no
 
       <div className="mt-4 flex flex-wrap gap-1.5">
         {race.assets.map((asset) => (
-          <span key={asset.assetIndex} className="rounded-full bg-white/5 px-2.5 py-1 text-xs font-bold">
+          <span key={asset.assetIndex} className="inline-flex items-center gap-1.5 rounded-full bg-white/5 py-1 pl-1 pr-2.5 text-xs font-bold">
+            <TokenLogo ticker={asset.symbol} className="h-5 w-5 rounded-md" />
             {asset.symbol}
           </span>
         ))}
@@ -114,8 +117,8 @@ function RaceCard({ race, nowMs, tokenDecimals }: { race: AssetRaceViewModel; no
       {race.status !== ASSET_RACE_STATUS.LOBBY && (
         <div className="mt-4 space-y-2">
           {race.assets.map((asset) => (
-            <div key={asset.assetIndex} className="grid grid-cols-[3.5rem_1fr_auto] items-center gap-2 text-xs">
-              <span className="font-bold">{asset.symbol}</span>
+            <div key={asset.assetIndex} className="grid grid-cols-[5rem_1fr_auto] items-center gap-2 text-xs">
+              <span className="flex items-center gap-1.5 font-bold"><TokenLogo ticker={asset.symbol} className="h-5 w-5 rounded-md" />{asset.symbol}</span>
               <div className="h-1.5 overflow-hidden rounded-full bg-white/5">
                 <div
                   className={`h-full rounded-full ${meme ? 'bg-[#F2A65A]' : 'bg-[#8B7CF7]'}`}
@@ -242,6 +245,8 @@ export function OnchainRacesListPage() {
         </div>
       </div>
 
+      <div className="flex items-start gap-6">
+        <main className="min-w-0 flex-1">
       {isLoading ? (
         <p className="py-16 text-center text-sm text-white/40">Loading races…</p>
       ) : error ? (
@@ -278,6 +283,14 @@ export function OnchainRacesListPage() {
       )}
 
       <p className="mt-8 text-xs text-white/30">Crowd backing shows pool share, not probability or guaranteed odds.</p>
+        </main>
+        <aside className="sticky top-20 hidden w-72 shrink-0 lg:block">
+          <GameActivitySidebar
+            kind="race"
+            symbolFor={(gameId, assetIndex) => races.find((race) => race.id === gameId)?.assets.find((asset) => asset.assetIndex === assetIndex)?.symbol}
+          />
+        </aside>
+      </div>
     </div>
   )
 }
