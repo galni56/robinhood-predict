@@ -351,6 +351,10 @@ export function OnchainMarketPage() {
 
   async function handleClaimOrRefund(fn: 'claim' | 'refund', side?: 0 | 1) {
     setError(null)
+    if (fn === 'claim' && (winningStake ?? 0n) === 0n) {
+      setError('This wallet has no winning stake to claim')
+      return
+    }
     try {
       setTx({ label: `Confirm ${fn} in your wallet…` })
       const hash = await writeContractAsync(
@@ -391,6 +395,10 @@ export function OnchainMarketPage() {
   const hasBetNo = (myStakeNo.data ?? 0n) > 0n
   const sideAlreadyBet = side === 'YES' ? hasBetYes : hasBetNo
   const bothSidesUsed = hasBetYes && hasBetNo
+  const hasAnyStake = hasBetYes || hasBetNo
+  const winningSide = market.data?.outcome === MarketSideOnchain.YES ? 'YES' : 'NO'
+  const winningStake = market.data?.outcome === MarketSideOnchain.YES ? myStakeYes.data : myStakeNo.data
+  const positionReady = myStakeYes.data !== undefined && myStakeNo.data !== undefined && hasClaimed.data !== undefined
 
   return (
     <div className="max-w-[1200px] mx-auto px-4 py-8">
@@ -718,13 +726,33 @@ export function OnchainMarketPage() {
               )}
 
               {status === MarketStatusOnchain.Resolved && (
-                <button
-                  onClick={() => handleClaimOrRefund('claim')}
-                  disabled={!!tx || hasClaimed.data === true}
-                  className="w-full rounded-xl bg-gradient-to-r from-[#8B7CF7] to-[#6A5AE0] hover:brightness-110 text-white font-bold py-2.5 text-sm disabled:opacity-50 transition-all"
-                >
-                  {hasClaimed.data ? 'Already claimed' : tx ? tx.label : 'Claim winnings'}
-                </button>
+                !positionReady ? (
+                  <div className="w-full rounded-xl bg-white/5 px-3 py-2.5 text-center text-sm font-bold text-white/40">
+                    Checking your position…
+                  </div>
+                ) : hasClaimed.data ? (
+                  <div className="w-full rounded-xl bg-emerald-500/10 border border-emerald-500/20 px-3 py-2.5 text-center text-sm font-bold text-emerald-300">
+                    Already claimed
+                  </div>
+                ) : (winningStake ?? 0n) > 0n ? (
+                  <button
+                    onClick={() => handleClaimOrRefund('claim')}
+                    disabled={!!tx}
+                    className="w-full rounded-xl bg-gradient-to-r from-[#8B7CF7] to-[#6A5AE0] hover:brightness-110 text-white font-bold py-2.5 text-sm disabled:opacity-50 transition-all"
+                  >
+                    {tx ? tx.label : 'Claim winnings'}
+                  </button>
+                ) : hasAnyStake ? (
+                  <div className="w-full rounded-xl bg-rose-500/10 border border-rose-500/20 px-3 py-2.5 text-center">
+                    <p className="text-sm font-bold text-rose-300">Your position lost</p>
+                    <p className="text-xs text-white/40 mt-0.5">{winningSide} won this market. There is no payout to claim.</p>
+                  </div>
+                ) : (
+                  <div className="w-full rounded-xl bg-white/5 border border-white/10 px-3 py-2.5 text-center">
+                    <p className="text-sm font-bold text-white/60">No winning position</p>
+                    <p className="text-xs text-white/35 mt-0.5">This wallet did not place a winning bet on this market.</p>
+                  </div>
+                )
               )}
 
               {status === MarketStatusOnchain.Cancelled && (
