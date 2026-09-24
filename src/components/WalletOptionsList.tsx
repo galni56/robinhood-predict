@@ -19,8 +19,8 @@ function useIsNarrowViewport(maxWidthPx: number) {
   return narrow
 }
 
-/** Shared "pick a wallet" list - icon (from EIP-6963 `connector.icon`) + name,
- * one click to connect. Used both inside ConnectWalletButton's dropdown and
+/** Shared "pick a wallet" list - MetaMask icon + name, one click to connect.
+ * Used both inside ConnectWalletButton's dropdown and
  * inline wherever a page prompts for a wallet before showing its content. */
 export function WalletOptionsList({ onConnect }: { onConnect?: () => void }) {
   const { connectors: allConnectors, connect, isPending } = useConnect()
@@ -98,7 +98,7 @@ export function WalletOptionsList({ onConnect }: { onConnect?: () => void }) {
           className="group w-full flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-left text-sm font-bold hover:border-[#8B7CF7]/50 hover:bg-[#8B7CF7]/10 transition-all disabled:opacity-50"
         >
           <span className="w-9 h-9 rounded-xl bg-white/10 grid place-items-center shrink-0">
-            {c.icon ? <img src={c.icon} alt="" className="w-5 h-5 rounded-md" /> : <span className="w-5 h-5 rounded-md bg-white/15" />}
+            <img src={c.icon ?? `${import.meta.env.BASE_URL}metamask-icon.svg`} alt="" className="w-5 h-5 rounded-md" />
           </span>
           {c.name}
           <span className="ml-auto inline-flex items-center gap-1.5 text-xs font-bold text-[#B3A7FA] opacity-0 group-hover:opacity-100 transition-opacity">
