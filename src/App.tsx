@@ -29,6 +29,9 @@ import { OnchainPortfolioPage } from '@/pages/OnchainPortfolioPage'
 import { OnchainRacePage } from '@/pages/OnchainRacePage'
 import { OnchainCreateRacePage } from '@/pages/OnchainCreateRacePage'
 import { OnchainRacesListPage } from '@/pages/OnchainRacesListPage'
+import { OnchainArenasListPage } from '@/pages/OnchainArenasListPage'
+import { OnchainCreateArenaPage } from '@/pages/OnchainCreateArenaPage'
+import { OnchainArenaPage } from '@/pages/OnchainArenaPage'
 import { PortfolioPage } from '@/pages/PortfolioPage'
 import { PublicProfilePage } from '@/pages/PublicProfilePage'
 import { RegisterPage } from '@/pages/RegisterPage'
@@ -82,6 +85,9 @@ export default function App() {
             <Route path="races" element={<OnchainRacesListPage />} />
             <Route path="races/create" element={<OnchainCreateRacePage />} />
             <Route path="races/:raceId" element={<OnchainRacePage />} />
+            <Route path="arenas" element={<OnchainArenasListPage />} />
+            <Route path="arenas/create" element={<OnchainCreateArenaPage />} />
+            <Route path="arenas/:arenaId" element={<OnchainArenaPage />} />
             <Route path=":id" element={<OnchainMarketPage />} />
           </Route>
 

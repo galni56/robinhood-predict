@@ -7,6 +7,7 @@ import { ConnectWalletButton } from '@/components/ConnectWalletButton'
 const links = [
   { to: '/onchain', label: 'Markets', end: true },
   { to: '/onchain/races', label: 'Races' },
+  { to: '/onchain/arenas', label: 'Arena' },
   { to: '/onchain/portfolio', label: 'Portfolio' },
   { to: '/onchain/leaderboard', label: 'Leaderboard' },
   { to: '/onchain/archive', label: 'Archive' },
@@ -74,6 +75,17 @@ export function RealNavbar() {
             }
           >
             + Race
+          </NavLink>
+          <NavLink
+            to="/onchain/arenas/create"
+            className={({ isActive }) =>
+              clsx(
+                'px-3 py-1.5 rounded-full transition-colors font-medium text-emerald-300 whitespace-nowrap',
+                isActive ? 'bg-emerald-300/15' : 'hover:bg-emerald-300/10',
+              )
+            }
+          >
+            + Arena
           </NavLink>
           {!localRaceRoute && <a
             href={robinhoodMainnet.blockExplorers.default.url}
@@ -165,6 +177,13 @@ export function RealNavbar() {
             className="block px-3 py-2 rounded-lg text-sm font-medium text-[#8B7CF7] hover:bg-[#8B7CF7]/10"
           >
             + Create Race
+          </NavLink>
+          <NavLink
+            to="/onchain/arenas/create"
+            onClick={() => setMobileOpen(false)}
+            className="block px-3 py-2 rounded-lg text-sm font-medium text-emerald-300 hover:bg-emerald-300/10"
+          >
+            + Create Arena
           </NavLink>
           {!localRaceRoute && <a
             href={robinhoodMainnet.blockExplorers.default.url}
