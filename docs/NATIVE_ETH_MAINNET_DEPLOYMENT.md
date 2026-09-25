@@ -1,8 +1,9 @@
 # Native ETH mainnet deployment record
 
 Status: **the corrected PredictionMarket, AssetRace and PriceArena are deployed
-and configured. Tiny-value canaries and public frontend/service binding are
-pending.**
+and configured. PredictionMarket canary creation passed and its deadline phase
+is pending; AssetRace/PriceArena canaries and public frontend/service binding
+remain pending.**
 
 Deployment date: 2026-09-25. Original release source: `455744a`; corrected
 PredictionMarket source: `c53ba0a`. Chain ID: `4663`.
@@ -49,6 +50,31 @@ requires both funded sides and at least two distinct participant addresses.
 All 84 receipts returned success. The redundant configuration rewrote the same
 bindings on the unused superseded contract and affected no player state. Paid
 values are the actual receipt totals, not pre-broadcast estimates.
+
+## PredictionMarket canary — in progress
+
+The guarded creation phase produced two TSLA markets with deadline `1790352582`
+and `0.0001 ETH` per position. All six receipts succeeded in blocks
+`72338166–72338192`, using 1,025,287 gas and paying
+`0.00003679941931 ETH`:
+
+- create settlement market #0:
+  `0x0448937ad1037f04842ecf4696ab967e709eafbd533b41683420d8b803235d59`;
+- owner YES on #0:
+  `0x584d8d116a9767566084449ef85b93015dbe50ea6fc1bfddc39ec16e1e93cb76`;
+- create cancellation market #1:
+  `0x595ebc7e31eb9f485524bd1bd39d7e64e0f5fe9aa0dbb6f428443de1a615a37c`;
+- owner YES and NO on #1:
+  `0x695ef7799700da1bc1d9134d05fdbf8b39bef662b42a6ae8021703493837c3dd`
+  and `0xe63b4684a10f3ced82c30ee63fdacdb05e415393642471be792d209ba7e57d46`;
+- distinct player NO on #0:
+  `0x9387f90f86c397ab86c785e11ae37ab0d65dce108749620b09308c0311af75be`.
+
+Independent public-RPC reads confirmed `marketCount=2`; participant counts are
+`2` for #0 and `1` for #1; every expected stake is exactly `0.0001 ETH`; both
+pools on both markets are `0.0001 ETH`; both statuses are Open; and the contract
+balance is exactly `0.0004 ETH`. Keeper settlement, winner claim and both
+cancellation refunds have not run yet.
 
 ## Verified postconditions
 
