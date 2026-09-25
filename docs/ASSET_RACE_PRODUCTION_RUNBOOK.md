@@ -23,7 +23,7 @@ and rechecks chain, owner, signer, pause state and exact NVDA/TSLA registry
 bindings. Its three separately simulated/broadcast phases are:
 
 1. `CreateAssetRaceCanaries`: create settlement race #0 and insufficient-active-
-   contender cancellation race #1 with a delayed three-minute betting window;
+   contender cancellation race #1 with a delayed five-minute betting window;
 2. `FundAssetRaceCanaries`: put two distinct wallets on different assets in #0
    and only the owner on one asset in #1, using `0.0001 ETH` per position;
 3. after keeper start/capture/resolve, `FinalizeAssetRaceCanaries`: claim the

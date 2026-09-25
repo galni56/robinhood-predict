@@ -10,8 +10,8 @@ import {SignedPoolRaceOracle} from "../src/oracles/SignedPoolRaceOracle.sol";
 abstract contract AssetRaceCanaryBase is Script {
     uint256 internal constant ROBINHOOD_MAINNET_CHAIN_ID = 4663;
     uint256 internal constant CANARY_STAKE = 0.0001 ether;
-    uint64 internal constant BETTING_START_DELAY = 2 minutes;
-    uint64 internal constant BETTING_DURATION = 3 minutes;
+    uint64 internal constant BETTING_START_DELAY = 1 minutes;
+    uint64 internal constant BETTING_DURATION = 5 minutes;
     uint64 internal constant RACE_DURATION = 1 minutes;
     uint64 internal constant START_GRACE = 3 minutes;
     uint64 internal constant RESOLUTION_GRACE = 5 minutes;
@@ -99,7 +99,7 @@ abstract contract AssetRaceCanaryBase is Script {
 }
 
 /// @notice Creates a settlement race (#0) and an insufficient-contender
-/// cancellation race (#1). Betting deliberately opens two minutes later so
+/// cancellation race (#1). Betting deliberately opens one minute later so
 /// fixed timestamps remain safe across separately mined broadcast transactions.
 contract CreateAssetRaceCanaries is AssetRaceCanaryBase {
     function run() external returns (uint256 settlementRaceId, uint256 cancellationRaceId) {
