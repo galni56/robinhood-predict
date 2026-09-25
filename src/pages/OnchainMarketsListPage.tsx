@@ -10,6 +10,7 @@ import { TokenBrowser } from '@/components/TokenBrowser'
 import { TokenLogo } from '@/components/TokenLogo'
 import {
   PREDICTION_MARKET_ADDRESS,
+  PREDICTION_MARKET_CONFIGURED,
   predictionMarketAbi,
   MarketStatusOnchain,
   bettingWindowEndSeconds,
@@ -53,6 +54,7 @@ export function OnchainMarketsListPage() {
     address: PREDICTION_MARKET_ADDRESS,
     abi: predictionMarketAbi,
     functionName: 'marketCount',
+    query: { enabled: PREDICTION_MARKET_CONFIGURED || isDemoMode() },
   })
 
   const count = marketCount.data != null ? Number(marketCount.data) : 0
@@ -150,6 +152,12 @@ export function OnchainMarketsListPage() {
 
       <LiveBetsTicker tickerByMarketId={tickerByMarketId} />
 
+      {!PREDICTION_MARKET_CONFIGURED && !isDemoMode() && (
+        <div className="mb-6 rounded-2xl border border-amber-400/25 bg-amber-400/10 p-4 text-sm text-amber-100">
+          The new native ETH PredictionMarket is not configured in this build. Existing USDG claims and refunds remain available under <Link to="/onchain/legacy" className="font-bold underline">Legacy claims</Link>.
+        </div>
+      )}
+
       <div className="flex gap-6 items-start">
         <div className="flex-1 min-w-0">
       <div className="mb-6 flex flex-wrap items-center justify-end gap-y-2">
@@ -168,7 +176,9 @@ export function OnchainMarketsListPage() {
         </div>
       </div>
 
-      {marketCount.isLoading ? (
+      {!PREDICTION_MARKET_CONFIGURED && !isDemoMode() ? (
+        <p className="py-16 text-center text-sm text-white/35">Native ETH markets will appear after the new deployment address is configured.</p>
+      ) : marketCount.isLoading ? (
         <p className="text-white/50 text-sm">Loading…</p>
       ) : count === 0 ? (
         <div className="text-center py-16 text-white/40 text-sm">

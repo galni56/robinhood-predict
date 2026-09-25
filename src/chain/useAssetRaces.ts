@@ -2,9 +2,9 @@ import { useMemo } from 'react'
 import { zeroAddress } from 'viem'
 import { useReadContract, useReadContracts } from 'wagmi'
 import { assetRaceChain } from '@/chain/config'
-import { erc20Abi } from '@/chain/contracts'
 import {
   ASSET_RACE_ADDRESS,
+  ETH_DECIMALS,
   MAX_RACES_TO_LIST,
   assetRaceAbi,
   buildPreviewRaces,
@@ -25,22 +25,6 @@ export function useAssetRaces() {
     abi: assetRaceAbi,
     functionName: 'raceCount',
     query: { enabled: !isPreview, refetchInterval: 10_000 },
-  })
-
-  const tokenQuery = useReadContract({
-    address: readAddress,
-    chainId: assetRaceChain.id,
-    abi: assetRaceAbi,
-    functionName: 'betToken',
-    query: { enabled: !isPreview },
-  })
-
-  const tokenDecimalsQuery = useReadContract({
-    address: tokenQuery.data ?? zeroAddress,
-    chainId: assetRaceChain.id,
-    abi: erc20Abi,
-    functionName: 'decimals',
-    query: { enabled: !isPreview && !!tokenQuery.data },
   })
 
   const count = countQuery.data == null ? 0 : Number(countQuery.data)
@@ -81,10 +65,10 @@ export function useAssetRaces() {
     races: isPreview ? previewRaces : onchainRaces,
     isPreview,
     configuredAddress: ASSET_RACE_ADDRESS,
-    tokenDecimals: isPreview ? 6 : Number(tokenDecimalsQuery.data ?? 6),
+    tokenDecimals: ETH_DECIMALS,
     totalRaceCount: isPreview ? previewRaces.length : count,
-    isLoading: !isPreview && (countQuery.isLoading || raceQueries.isLoading || assetQueries.isLoading || tokenQuery.isLoading),
-    error: countQuery.error ?? tokenQuery.error ?? tokenDecimalsQuery.error ?? raceQueries.error ?? assetQueries.error,
+    isLoading: !isPreview && (countQuery.isLoading || raceQueries.isLoading || assetQueries.isLoading),
+    error: countQuery.error ?? raceQueries.error ?? assetQueries.error,
     refetch,
   }
 }

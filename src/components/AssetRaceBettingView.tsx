@@ -1,5 +1,3 @@
-import { useMemo } from 'react'
-import { parseUnits } from 'viem'
 import { assetRaceChain } from '@/chain/config'
 import { ClockIcon } from '@/components/icons'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
@@ -9,7 +7,7 @@ import {
   ASSET_RACE_CATEGORY,
   estimateRacePayout,
   formatPoolShare,
-  formatUsdRaw,
+  formatStakeRaw,
   type AssetRacePosition,
   type AssetRaceViewModel,
 } from '@/chain/assetRaces'
@@ -32,6 +30,9 @@ export function AssetRaceBettingView({
   nowMs,
   tokenDecimals,
   tokenLabel,
+  amountRaw,
+  exactEth,
+  quoteReady,
 }: {
   race: AssetRaceViewModel
   position?: AssetRacePosition
@@ -50,17 +51,13 @@ export function AssetRaceBettingView({
   nowMs: number
   tokenDecimals: number
   tokenLabel: string
+  amountRaw: bigint
+  exactEth: string | null
+  quoteReady: boolean
 }) {
   const meme = race.category === ASSET_RACE_CATEGORY.MEME
   const accentText = meme ? 'text-[#F2A65A]' : 'text-[#B3A7FA]'
   const selected = race.assets[selectedAssetIndex]
-  const amountRaw = useMemo(() => {
-    try {
-      return parseUnits(amount || '0', tokenDecimals)
-    } catch {
-      return 0n
-    }
-  }, [amount, tokenDecimals])
   const existingStake = position?.exists ? position.stake : 0n
   const estimate = selected
     ? estimateRacePayout(selected.pool, race.totalPool, existingStake, amountRaw, race.feeBp)
@@ -118,7 +115,7 @@ export function AssetRaceBettingView({
                   <div>
                     <div className="text-xs font-bold text-white/30">Backing pool</div>
                     <div className="font-mono text-sm">
-                      {formatUsdRaw(asset.pool, tokenDecimals)} {tokenLabel}
+                      {formatStakeRaw(asset.pool, tokenDecimals)} {tokenLabel}
                     </div>
                   </div>
                   <div className="font-mono text-sm text-white/55">{formatPoolShare(asset.pool, race.totalPool)}</div>
@@ -144,7 +141,7 @@ export function AssetRaceBettingView({
             <p className="text-sm text-white/55">
               Your pick is locked to <b className={accentText}>{race.assets[position.assetIndex]?.symbol}</b> with a current stake of{' '}
               <b className="font-mono text-white/80">
-                {formatUsdRaw(existingStake, tokenDecimals)} {tokenLabel}
+                {formatStakeRaw(existingStake, tokenDecimals)} {tokenLabel}
               </b>
               . You can top up this asset only.
             </p>
@@ -152,22 +149,26 @@ export function AssetRaceBettingView({
 
           <div>
             <label className="mb-1.5 block text-sm font-bold text-white/60">
-              {position?.exists ? 'Additional stake' : 'Stake'} in {tokenLabel}
+              {position?.exists ? 'Additional stake' : 'Stake'} in USD
             </label>
             <input
               type="number"
-              min="0"
+              min="1"
+              max="50"
               step="0.01"
               value={amount}
               onChange={(event) => setAmount(event.target.value)}
               className="w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 font-mono outline-none transition-colors focus:border-[#8B7CF7]/50"
             />
+            <p className="mt-2 text-xs font-medium text-white/45">
+              {exactEth ? `Wallet will send exactly ${exactEth} ETH` : quoteReady ? 'Enter $1–$50.' : 'ETH/USD quote unavailable or stale.'}
+            </p>
             <div className="mt-1.5 flex flex-wrap justify-between gap-2 text-[11px] font-medium text-white/30">
               <span>
-                Min first stake {formatUsdRaw(race.minStake, tokenDecimals)} {tokenLabel}
+                Min first stake {formatStakeRaw(race.minStake, tokenDecimals)} {tokenLabel}
               </span>
               <span>
-                Max cumulative {formatUsdRaw(race.maxStakePerWallet, tokenDecimals)} {tokenLabel}
+                Max cumulative {formatStakeRaw(race.maxStakePerWallet, tokenDecimals)} {tokenLabel}
               </span>
             </div>
           </div>
@@ -178,18 +179,18 @@ export function AssetRaceBettingView({
               {selected?.symbol ?? 'selected asset'} wins
             </div>
             <div className={`mt-1 font-display text-2xl font-bold ${accentText}`}>
-              {formatUsdRaw(estimate, tokenDecimals)} {tokenLabel}
+              {formatStakeRaw(estimate, tokenDecimals)} {tokenLabel}
             </div>
             <div className="mt-1 space-y-0.5 text-[11px] font-medium text-white/35">
               {position?.exists && amountRaw > 0n && (
                 <div>
-                  Current {formatUsdRaw(existingStake, tokenDecimals)} + top-up {formatUsdRaw(amountRaw, tokenDecimals)} ={' '}
-                  {formatUsdRaw(stakeAfterAction, tokenDecimals)} {tokenLabel} staked
+                  Current {formatStakeRaw(existingStake, tokenDecimals)} + top-up {formatStakeRaw(amountRaw, tokenDecimals)} ={' '}
+                  {formatStakeRaw(stakeAfterAction, tokenDecimals)} {tokenLabel} staked
                 </div>
               )}
               {stakeAfterAction > 0n && (
                 <div>
-                  Includes stake · estimated profit {formatUsdRaw(estimatedProfit, tokenDecimals)} {tokenLabel}
+                  Includes stake · estimated profit {formatStakeRaw(estimatedProfit, tokenDecimals)} {tokenLabel}
                 </div>
               )}
             </div>
@@ -197,7 +198,7 @@ export function AssetRaceBettingView({
 
           {balance != null && (
             <p className="text-xs font-medium text-white/40">
-              Wallet balance: {formatUsdRaw(balance, tokenDecimals)} {tokenLabel}
+              Wallet balance: {formatStakeRaw(balance, tokenDecimals)} {tokenLabel}
             </p>
           )}
           {belowMinimum && <p className="text-xs font-bold text-[#F2A65A]">The first stake is below this race's minimum.</p>}
@@ -224,7 +225,7 @@ export function AssetRaceBettingView({
               disabled={!bettingOpen || amountRaw <= 0n || belowMinimum || exceedsMax || !!txLabel}
               className="w-full rounded-xl bg-gradient-to-r from-[#8B7CF7] to-[#6A5AE0] py-3 text-sm font-bold text-white transition-all hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              {txLabel ?? (position?.exists ? `Top up ${selected?.symbol}` : `Approve + bet on ${selected?.symbol}`)}
+              {txLabel ?? (position?.exists ? `Top up ${selected?.symbol}` : `Bet on ${selected?.symbol}`)}
             </button>
           )}
 

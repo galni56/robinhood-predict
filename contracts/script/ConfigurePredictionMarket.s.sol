@@ -20,7 +20,7 @@ contract ConfigurePredictionMarket is Script {
         bytes32[] memory oracleIds = vm.envBytes32("ASSET_ORACLE_IDS", ",");
         require(symbols.length > 0 && symbols.length == oracleIds.length, "asset config length mismatch");
 
-        PredictionMarket market = PredictionMarket(marketAddress);
+        PredictionMarket market = PredictionMarket(payable(marketAddress));
 
         vm.startBroadcast(ownerKey);
         for (uint256 i = 0; i < symbols.length; i++) {

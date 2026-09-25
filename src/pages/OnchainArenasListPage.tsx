@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { formatUnits } from 'viem'
+import { formatEther } from 'viem'
 import { useAssetRaceClock } from '@/chain/useAssetRaceClock'
 import { usePriceArenas } from '@/chain/usePriceArenas'
 import {
@@ -40,7 +40,7 @@ function ArenaCard({ arena, nowMs }: { arena: PriceArenaViewModel; nowMs: number
       <div className="mt-5 grid grid-cols-3 gap-3 rounded-2xl bg-black/10 p-3 text-sm">
         <div><div className="text-xs text-white/30">Asset</div><div className="mt-1 flex items-center gap-2 font-bold"><TokenLogo ticker={arena.asset?.symbol} className="h-7 w-7 rounded-lg" />{arena.asset?.symbol ?? '—'}</div></div>
         <div><div className="text-xs text-white/30">Players</div><div className="mt-1 font-mono font-bold">{arena.participantCount} / 20</div></div>
-        <div><div className="text-xs text-white/30">Prize pool</div><div className="mt-1 font-mono font-bold">{Number(formatUnits(arena.totalPool, 6)).toFixed(2)} USDG</div></div>
+        <div><div className="text-xs text-white/30">Prize pool</div><div className="mt-1 font-mono font-bold">{formatEther(arena.totalPool)} ETH</div></div>
       </div>
       <div className="mt-4 flex items-center justify-between text-xs">
         <span className="text-white/40">{arenaDurationLabel(arena.duration)} round · {countdown(arena, nowMs)}</span>

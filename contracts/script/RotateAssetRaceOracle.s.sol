@@ -14,7 +14,7 @@ import {AssetRaceOperatorSafety} from "./helpers/AssetRaceOperatorSafety.sol";
 contract RotateAssetRaceOracle is Script {
     function run() external returns (uint256 rotated) {
         uint256 deployerKey = vm.envUint("ASSET_RACE_DEPLOYER_PRIVATE_KEY");
-        AssetRace race = AssetRace(vm.envAddress("ASSET_RACE_ADDRESS"));
+        AssetRace race = AssetRace(payable(vm.envAddress("ASSET_RACE_ADDRESS")));
         address oldOracle = vm.envAddress("ASSET_RACE_OLD_SIGNED_POOL_ORACLE_ADDRESS");
         SignedPoolRaceOracle newOracle = SignedPoolRaceOracle(vm.envAddress("ASSET_RACE_SIGNED_POOL_ORACLE_ADDRESS"));
         address expectedSigner = vm.envAddress("ASSET_RACE_PRICE_SIGNER_ADDRESS");

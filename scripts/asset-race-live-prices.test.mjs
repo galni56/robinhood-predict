@@ -11,12 +11,15 @@ import {
 } from './asset-race-live-server.mjs'
 import { poolConfigsFromRegistry } from './asset-race-pool-price-engine.mjs'
 import {
+  ETH_USD_MIN_REFRESH_MS,
+  EthUsdQuoteCache,
   StockPoolLiveCollector,
   StockLivePriceCollector,
   buildDexScreenerPairsUrl,
   decimalToUnits,
   liveStockConfigsFromRegistry,
   selectConfiguredDexPrices,
+  selectCoinbaseEthUsdQuote,
 } from './asset-race-live-prices.mjs'
 
 const registry = JSON.parse(readFileSync(fileURLToPath(new URL('../config/asset-race-assets.json', import.meta.url)), 'utf8'))
@@ -175,6 +178,85 @@ function pairFor(config, overrides = {}) {
 function response(payload, ok = true, status = 200) {
   return { ok, status, json: async () => payload }
 }
+
+test('ETH/USD quote validates Coinbase price into fixed-point units', () => {
+  const quote = selectCoinbaseEthUsdQuote({ price: '2500.125' }, 1_000)
+  assert.equal(quote.provider, 'COINBASE_EXCHANGE')
+  assert.equal(quote.pair, 'ETH-USD')
+  assert.equal(quote.priceRaw, '250012500000')
+  assert.equal(quote.decimals, 8)
+  assert.throws(() => selectCoinbaseEthUsdQuote({ price: 'NaN' }, 1_000), /InvalidDecimalPrice/)
+})
+
+test('ETH/USD cache never refreshes faster than 15 seconds across consumers', async () => {
+  let now = 1_000
+  let calls = 0
+  const cache = new EthUsdQuoteCache({
+    now: () => now,
+    fetchFn: async () => {
+      calls += 1
+      return response({ price: '2500.00' })
+    },
+  })
+
+  const first = await cache.refresh()
+  assert.equal(first.quote.priceRaw, '250000000000')
+  await cache.refresh()
+  now += ETH_USD_MIN_REFRESH_MS - 1
+  await cache.refresh()
+  assert.equal(calls, 1)
+
+  now += 1
+  await cache.refresh()
+  assert.equal(calls, 2)
+})
+
+test('ETH/USD cache retains the last quote and marks it stale after failures', async () => {
+  let now = 1_000
+  let fail = false
+  const cache = new EthUsdQuoteCache({
+    now: () => now,
+    staleAfterMs: 45_000,
+    fetchFn: async () => fail ? response({}, false, 503) : response({ price: '2500.00' }),
+  })
+  await cache.refresh()
+  fail = true
+  now += ETH_USD_MIN_REFRESH_MS
+  const failed = await cache.refresh()
+  assert.equal(failed.quote.stale, false)
+  assert.equal(failed.error, 'EthUsdQuoteUnavailable')
+
+  now = 46_001
+  const stale = cache.snapshot()
+  assert.equal(stale.quote.priceRaw, '250000000000')
+  assert.equal(stale.quote.stale, true)
+})
+
+test('pool polling reuses one shared ETH/USD request inside the cache window', async () => {
+  let now = 1_000
+  let quoteCalls = 0
+  const ethUsdQuoteCache = new EthUsdQuoteCache({
+    now: () => now,
+    fetchFn: async () => {
+      quoteCalls += 1
+      return response({ price: '2500.00' })
+    },
+  })
+  const engine = { latestSnapshot: async () => ({ assets: {} }) }
+  const collector = new StockPoolLiveCollector({ engine, ethUsdQuoteCache, now: () => now })
+
+  await collector.poll()
+  now = 3_000
+  await collector.poll()
+  now = 15_999
+  await collector.poll()
+  assert.equal(quoteCalls, 1)
+  assert.equal(collector.snapshot().ethUsd.stale, false)
+
+  now = 16_000
+  await collector.poll()
+  assert.equal(quoteCalls, 2)
+})
 
 test('configured pair selection uses exact chain, pair, Stock Token, USDG, and orientation', () => {
   const config = configs[0]

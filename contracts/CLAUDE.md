@@ -1,11 +1,14 @@
-## Status right now (2026-09-23)
+## Status right now (2026-09-25)
 
 **The legacy contract is live on Robinhood Chain mainnet with real money and
 no audit. The deadline-settlement replacement is implemented and tested but is
 not deployed.** `forge build` and `forge test` are green:
 
-- Legacy `PredictionMarket`: `0xd95ed19edBCd330498CADe7BA8569ac940A4182f`
-  (redeployed 2026-09-10). The replacement source has **36/36 focused tests
+- Deployed USDG deadline `PredictionMarket`:
+  `0x1a62098AcEd3F7F8C41fff1bc1395A541678b0F1`; its live keeper has submitted
+  real resolutions. The older funded Chainlink contract is
+  `0xd95ed19edBCd330498CADe7BA8569ac940A4182f` and remains a claim/refund
+  compatibility target. The native-ETH replacement source has **43/43 focused tests
   passing** and settles from the same signed StockToken/USDG pool endpoint as
   Asset Race: the last Robinhood block strictly before the deadline. The
   price/timestamp/block hash are stored in `settlements(id)`; an endpoint over
@@ -13,7 +16,7 @@ not deployed.** `forge build` and `forge test` are green:
   for owner-configured `assetId -> oracleId/decimals` bindings. The initial
   production set is exactly NVDA, TSLA, AAPL, META, MSTR, AMZN, MSFT, GOOGL,
   MU, and NFLX. It also enforces `MIN_MARKET_DURATION` (30 min) and
-  `MAX_STAKE_PER_SIDE_USD` ($50 per wallet per side). Target-range validation
+  deployment-configured `maxStakePerSideWei`. Target-range validation
   is UI guidance in this revision, not an onchain invariant. Deployment and
   migration details are in `../docs/PREDICTION_MARKET_DEADLINE_SETTLEMENT.md`.
 - `NicknameRegistry`: `0x1Ddc13e9D4895a5E6671079478007C7371b76E75`
@@ -22,11 +25,12 @@ not deployed.** `forge build` and `forge test` are green:
   same frontend — `mapping(address => string) nicknameOf`, `setNickname`
   only ever writes `msg.sender`'s own entry.
 
-Bet token is **real USDG** at `0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168`
-— 6 decimals (the old testnet `MockERC20` was 18; this mismatch has bitten
-the frontend before, double-check before assuming either way). The legacy
-deployment retains its Chainlink allowlist; the replacement instead uses the
-ten reviewed pool configurations in `../config/asset-race-assets.json`.
+New PredictionMarket, AssetRace and PriceArena source uses **native ETH only**
+for stakes, pools, payouts, refunds and fees. Payable entry points require
+`msg.value == amount`; there is no WETH, ERC-20 approval or swap. USDG remains
+the 6-decimal Stock pool quote and the currency of old deployed positions. The
+legacy deployments retain their existing configuration; replacements use the
+reviewed pool configurations in `../config/asset-race-assets.json`.
 
 **Redeploying either contract means configuring asset bindings again** — they
 are mappings on the new address and nothing carries over automatically.
@@ -39,7 +43,7 @@ are mappings on the new address and nothing carries over automatically.
 - **House seed liquidity:** `createMarket`'s new `initialYesAmount`/
   `initialNoAmount` params let the owner seed both sides atomically at
   creation (e.g. to open at 50/50 odds) — owner-only when non-zero, capped
-  combined at `MAX_SEED_LIQUIDITY_USD` ($50, in bet-token units).
+  combined at the immutable `maxSeedLiquidityWei` deployment cap.
 - **Protocol fee:** `feeBp` (basis points, owner-settable via `setFeeBp`,
   capped at `MAX_FEE_BP` = 10%) is taken only from the losing pool's
   contribution to a winner's payout in `claim()` — principal always comes
@@ -96,7 +100,7 @@ need `export PATH="$PATH:$HOME/.foundry/bin"` in a fresh shell):
 ```bash
 cd contracts
 forge build
-forge test          # 145/145 as of 2026-09-23 (all contract suites)
+forge test          # run the complete suite before any deployment review
 ```
 
 If `lib/` is missing on a fresh checkout (it's gitignored):
@@ -133,13 +137,11 @@ timestamps/decimals/prices, stale endpoint cancellation, early-bet weighting, an
 nickname set/overwrite/clear/length limits. Add a test here first for any new
 feature.
 
-**Known, accepted risks (from the 2026-09-06 self-review, still true):**
-- `betToken` must be a standard ERC20 — no fee-on-transfer, no rebasing.
-  `safeTransferFrom` is trusted to credit the contract exactly what it was
-  told; a non-standard token would silently under-fund it relative to what
-  it believes it owes bettors. Documented inline on the `betToken`
-  declaration. USDG (what's actually in use) is a standard token, this is
-  a latent risk only if the bet token is ever changed.
+**Known, accepted risks:**
+- Native ETH outbound calls can invoke recipient code. All three contracts use
+  checks-effects-interactions plus `ReentrancyGuard`; failed receivers revert
+  and restore accounting. Direct `receive`/`fallback` calls revert, while
+  forced ETH is deliberately excluded from liability accounting.
 - Pool spot prices can be manipulated in shallow liquidity; keep exposure
   bounded and review liquidity before approving more assets.
 - Historical pool storage is not directly verifiable by the EVM. The separate
@@ -156,16 +158,15 @@ feature.
 - Solvency: summed over all winners, total payout for a resolved market =
   `winningPool + losingPool*(10000-feeBp)/10000`, always ≤ `totalPool`
   (fee only ever reduces payout, integer rounding always rounds down) — the
-  contract can never owe more than it holds for a given market, modulo the
-  `betToken` assumption above.
+  contract can never owe more than its accounted pool for a given market.
 - **No external security audit.** Owner-centralized: one EOA controls the
   approved asset/pool bindings, protocol fee, and seed liquidity cap for
   `PredictionMarket`. Said explicitly in the product's own UI, not hidden.
 
 ### Deploying the replacement to mainnet
 
-The replacement is designed for Robinhood Chain mainnet (chain id 4663) and
-reuses deployed `SignedPoolRaceOracle` plus real USDG. It is not deployed yet.
+The replacement is designed for Robinhood Chain mainnet (chain id 4663), uses
+native ETH, and reuses the deployed `SignedPoolRaceOracle`. It is not deployed.
 
 **Steps 0 and 1 below are for the user to run themselves, in their own
 terminal, never through Claude** — a private key printed into a chat
@@ -175,7 +176,8 @@ Solidity, so the key never appears on the CLI or in anything Claude reads.
 
 0. User: generate a fresh burner wallet (`cast wallet new`), fund it with
    real ETH for gas, fill `contracts/.env` themselves.
-1. User: set `BET_TOKEN_ADDRESS` (USDG) and `SIGNED_POOL_ORACLE_ADDRESS`.
+1. User: set `SIGNED_POOL_ORACLE_ADDRESS`, `MAX_SEED_LIQUIDITY_WEI` and
+   `MAX_STAKE_PER_SIDE_WEI`. The wei values are approximate dollar guardrails.
 2. Deploy `PredictionMarket`:
    ```bash
    forge script script/Deploy.s.sol --rpc-url robinhood_mainnet --broadcast
@@ -186,7 +188,8 @@ Solidity, so the key never appears on the CLI or in anything Claude reads.
    cast call <new addr> "endpointOracle()(address)" --rpc-url robinhood_mainnet
    cast call <new addr> "MAX_PRICE_STALENESS()(uint256)" --rpc-url robinhood_mainnet
    cast call <new addr> "MIN_MARKET_DURATION()(uint256)" --rpc-url robinhood_mainnet
-   cast call <new addr> "MAX_STAKE_PER_SIDE_USD()(uint256)" --rpc-url robinhood_mainnet
+   cast call <new addr> "maxSeedLiquidityWei()(uint256)" --rpc-url robinhood_mainnet
+   cast call <new addr> "maxStakePerSideWei()(uint256)" --rpc-url robinhood_mainnet
    ```
 4. Generate the ten reviewed symbols/oracle IDs from the registry and simulate
    configuration before any broadcast:
@@ -225,7 +228,7 @@ for the split. The real-mode pieces relevant to contracts work:
   mobile, non-extension wallets) needs a free Project ID from
   cloud.walletconnect.com that only the project owner can obtain — not
   wired up yet.
-- `src/chain/contracts.ts` — `PREDICTION_MARKET_ADDRESS`, `BET_TOKEN_ADDRESS`,
+- `src/chain/contracts.ts` — explicit new and legacy contract addresses,
   the replacement ABI, and client-side mirrors of betting constants and target
   guidance. `src/chain/predictionMarketAssets.ts` derives the ten pool-backed
   assets from `config/asset-race-assets.json`.
@@ -233,6 +236,5 @@ for the split. The real-mode pieces relevant to contracts work:
 - Reads: `getMarket(id)` for pool/status and the Asset Race LIVE service for
   display-only current pool prices. Writes: `bet`/`claim`/`refund`/`resolve`/
   `createMarket`/`setNickname` all go through the connected wallet (it
-  signs, no key ever held by the app). `bet` needs an ERC20 `approve`
-  first — a separate signed transaction, surfaced as two explicit steps in
-  the UI rather than made to look like one action.
+  signs, no key ever held by the app). `bet` attaches the exact frozen native
+  ETH value and needs one wallet transaction with no approval.

@@ -9,7 +9,7 @@ import {
   ASSET_RACE_TOKEN_LABEL,
   assetRaceStatusLabel,
   formatPoolShare,
-  formatUsdRaw,
+  formatStakeRaw,
   type AssetRaceViewModel,
   type AssetRaceMode,
 } from '@/chain/assetRaces'
@@ -136,7 +136,7 @@ function RaceCard({ race, nowMs, tokenDecimals }: { race: AssetRaceViewModel; no
           {race.status === ASSET_RACE_STATUS.LOBBY
             ? 'Betting has not started'
             : topBacked && race.totalPool > 0n
-              ? `${formatUsdRaw(race.totalPool, tokenDecimals)} pool · ${topBacked.symbol} leads the backing`
+              ? `${formatStakeRaw(race.totalPool, tokenDecimals)} pool · ${topBacked.symbol} leads the backing`
               : 'Waiting for the first bet'}
         </span>
         <span className={`inline-flex shrink-0 items-center gap-1.5 text-sm font-bold ${accentText}`}>
@@ -180,7 +180,7 @@ export function OnchainRacesListPage() {
       ) : (
         <div className="mb-6 rounded-2xl border border-[#8B7CF7]/25 bg-[#8B7CF7]/10 px-4 py-3 text-sm font-medium text-[#B3A7FA]">
           {isLocalAssetRace
-            ? 'Local test network - races use Anvil and fake USDG, no real funds.'
+            ? 'Local test network - races use Anvil and local ETH, no real funds.'
             : `Races are read from the configured contract. Live prices are display-only; settlement stays onchain. Pools use ${ASSET_RACE_TOKEN_LABEL}.`}
         </div>
       )}

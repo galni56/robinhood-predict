@@ -17,7 +17,7 @@ contract AllowlistFeed is Script {
         bytes32 assetId = vm.envBytes32("ASSET_ID");
         bytes32 oracleId = vm.envBytes32("ASSET_ORACLE_ID");
 
-        PredictionMarket market = PredictionMarket(marketAddr);
+        PredictionMarket market = PredictionMarket(payable(marketAddr));
 
         vm.startBroadcast(ownerKey);
         market.setAssetAllowed(assetId, oracleId, 18, true);

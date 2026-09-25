@@ -6,6 +6,7 @@ REPO_DIR="$(dirname "$CONTRACTS_DIR")"
 FOUNDRY_BIN="${FOUNDRY_BIN:-/Users/dima/.foundry/bin}"
 FORGE="$FOUNDRY_BIN/forge"
 ANVIL="$FOUNDRY_BIN/anvil"
+CAST="$FOUNDRY_BIN/cast"
 RPC_URL="${LOCAL_RPC_URL:-http://127.0.0.1:8545}"
 CONFIG_FILE="$CONTRACTS_DIR/.asset-race.local"
 ASSET_REGISTRY_FILE="$REPO_DIR/config/asset-race-assets.json"
@@ -23,15 +24,15 @@ usage() {
     '  ./local-demo.sh chain' \
     '  ./local-demo.sh deploy [wallet-a-address] [wallet-b-address] [wallet-c-address]' \
     '  ./local-demo.sh serve' \
-    '  ./local-demo.sh fund <wallet-address> [whole-token-amount]' \
+    '  ./local-demo.sh fund <wallet-address> [whole-ETH-amount]' \
     '  ./local-demo.sh community-create [stocks|memes] [title] [duration-seconds]' \
     '  ./local-demo.sh add-a <symbol> [race-id]' \
     '  ./local-demo.sh add-b <symbol> [race-id]' \
     '  ./local-demo.sh add-c <symbol> [race-id]' \
     '  ./local-demo.sh open-betting [race-id]' \
-    '  ./local-demo.sh bet-a <symbol> [whole-token-amount] [race-id]' \
-    '  ./local-demo.sh bet-b <symbol> [whole-token-amount] [race-id]' \
-    '  ./local-demo.sh bet-c <symbol> [whole-token-amount] [race-id]' \
+    '  ./local-demo.sh bet-a <symbol> [whole-ETH-amount] [race-id]' \
+    '  ./local-demo.sh bet-b <symbol> [whole-ETH-amount] [race-id]' \
+    '  ./local-demo.sh bet-c <symbol> [whole-ETH-amount] [race-id]' \
     '  ./local-demo.sh advance <seconds>' \
     '  ./local-demo.sh start [race-id]' \
     '  ./local-demo.sh prices <start|winner|negative|tie>' \
@@ -48,7 +49,7 @@ usage() {
 }
 
 require_tools() {
-  if [[ ! -x "$FORGE" || ! -x "$ANVIL" ]]; then
+  if [[ ! -x "$FORGE" || ! -x "$ANVIL" || ! -x "$CAST" ]]; then
     printf 'Foundry binaries were not found in %s\n' "$FOUNDRY_BIN" >&2
     exit 1
   fi
@@ -75,7 +76,6 @@ write_config() {
     "VITE_ASSET_RACE_NETWORK=local" \
     "VITE_ASSET_RACE_ADDRESS=$LOCAL_ASSET_RACE_ADDRESS" \
     "VITE_LOCAL_RPC_URL=$RPC_URL" \
-    "LOCAL_TOKEN_ADDRESS=$LOCAL_TOKEN_ADDRESS" \
     "LOCAL_ORACLE_ADDRESS=$LOCAL_ORACLE_ADDRESS" \
     "LOCAL_ASSET_RACE_ADDRESS=$LOCAL_ASSET_RACE_ADDRESS" \
     "LOCAL_RACE_ID=$LOCAL_RACE_ID" \
@@ -111,10 +111,9 @@ case "$command_name" in
     LOCAL_WALLET_C="${4:-$DEFAULT_WALLET_C}"
     deploy_output="$({ LOCAL_WALLET_A="$LOCAL_WALLET_A" LOCAL_WALLET_B="$LOCAL_WALLET_B" LOCAL_WALLET_C="$LOCAL_WALLET_C" run_broadcast_script DeployLocalAssetRace "$DEPLOYER_ADDRESS"; })"
     printf '%s\n' "$deploy_output"
-    LOCAL_TOKEN_ADDRESS="$(printf '%s\n' "$deploy_output" | awk '$1 == "LOCAL_TOKEN_ADDRESS" { print $2 }' | tail -n 1)"
     LOCAL_ORACLE_ADDRESS="$(printf '%s\n' "$deploy_output" | awk '$1 == "LOCAL_ORACLE_ADDRESS" { print $2 }' | tail -n 1)"
     LOCAL_ASSET_RACE_ADDRESS="$(printf '%s\n' "$deploy_output" | awk '$1 == "LOCAL_ASSET_RACE_ADDRESS" { print $2 }' | tail -n 1)"
-    if [[ -z "$LOCAL_TOKEN_ADDRESS" || -z "$LOCAL_ORACLE_ADDRESS" || -z "$LOCAL_ASSET_RACE_ADDRESS" ]]; then
+    if [[ -z "$LOCAL_ORACLE_ADDRESS" || -z "$LOCAL_ASSET_RACE_ADDRESS" ]]; then
       printf 'Could not parse local deployment addresses.\n' >&2
       exit 1
     fi
@@ -142,7 +141,7 @@ case "$command_name" in
     require_config
     recipient="${2:?Usage: ./local-demo.sh fund <wallet-address> [amount]}"
     amount="${3:-1000}"
-    LOCAL_TOKEN_ADDRESS="$LOCAL_TOKEN_ADDRESS" LOCAL_RECIPIENT="$recipient" LOCAL_AMOUNT_TOKENS="$amount" \
+    LOCAL_RECIPIENT="$recipient" LOCAL_AMOUNT_WEI="$("$CAST" to-wei "$amount" ether)" \
       run_broadcast_script FundLocalAssetRaceWallet "$DEPLOYER_ADDRESS"
     ;;
   community-create)
@@ -189,7 +188,7 @@ case "$command_name" in
       bet-c) sender="$LOCAL_WALLET_C" ;;
     esac
     LOCAL_ASSET_RACE_ADDRESS="$LOCAL_ASSET_RACE_ADDRESS" LOCAL_RACE_ID="$race_id" \
-      LOCAL_ASSET_SYMBOL="$asset" LOCAL_AMOUNT_TOKENS="$amount" \
+      LOCAL_ASSET_SYMBOL="$asset" LOCAL_AMOUNT_WEI="$("$CAST" to-wei "$amount" ether)" \
       run_broadcast_script BetLocalAssetRace "$sender"
     ;;
   advance)

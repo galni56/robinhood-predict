@@ -16,8 +16,9 @@ export function TermsPage() {
         <h1 className="text-3xl font-extrabold tracking-tight">Terms of Service</h1>
         <p className="text-white/40 text-sm mt-3">
           Last updated {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}.
-          Prophet's real mode is a live mainnet product - real wallet, real USDG, real money. See §9 before
-          assuming legal/regulatory review is complete; it isn't.
+          Prophet's real mode is a live mainnet product - real wallet and real money. Existing production positions
+          use the USDG contract generation; the native-ETH successors in this build are not deployed yet. See §9
+          before assuming legal/regulatory review is complete; it isn't.
         </p>
       </div>
 
@@ -43,8 +44,11 @@ export function TermsPage() {
         <p>
           Prophet is a parimutuel prediction market on tokenized stocks, running on Robinhood Chain (a real EVM
           network Robinhood operates for tokenized equities). <strong className="text-white/80">Real mode is the default experience</strong>: connecting
-          a browser wallet (MetaMask or similar) lets you interact with a live smart contract using real
-          USDG - money you can genuinely gain or lose. A separate mock demo, reachable via "Try the demo", is a
+          a browser wallet (MetaMask or similar) lets you interact with live smart contracts and money you can
+          genuinely gain or lose. Existing production positions use the USDG contract generation and remain
+          available through Legacy recovery. Once the separately deployed successors are explicitly configured,
+          dollar stake fields are only a conversion convenience: the wallet sends the exact displayed native ETH
+          value and those contracts account in wei. A separate mock demo, reachable via "Try the demo", is a
           fully client-side simulation with no wallet, no real prices, and no real funds - useful to see how the
           product works without risking anything, but distinct from real mode in every respect. Nothing here
           constitutes a regulated financial product, exchange, or brokerage, and using it doesn't make Prophet one.

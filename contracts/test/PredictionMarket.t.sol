@@ -3,13 +3,60 @@ pragma solidity ^0.8.24;
 
 import {Test} from "forge-std/Test.sol";
 import {PredictionMarket} from "../src/PredictionMarket.sol";
-import {MockERC20} from "../src/mocks/MockERC20.sol";
 import {MockRaceOracle} from "../src/mocks/MockRaceOracle.sol";
 import {SignedPoolRaceOracle} from "../src/oracles/SignedPoolRaceOracle.sol";
 
+contract RejectingPredictionReceiver {
+    PredictionMarket private immutable market;
+
+    constructor(PredictionMarket _market) {
+        market = _market;
+    }
+
+    function placeBet(uint256 id, PredictionMarket.Side side) external payable {
+        market.bet{value: msg.value}(id, side, msg.value);
+    }
+
+    function claim(uint256 id) external {
+        market.claim(id);
+    }
+
+    function refund(uint256 id, PredictionMarket.Side side) external {
+        market.refund(id, side);
+    }
+
+    receive() external payable {
+        revert("reject ETH");
+    }
+}
+
+contract ReentrantPredictionReceiver {
+    PredictionMarket private immutable market;
+    uint256 private marketId;
+    bool public reentryAttempted;
+    bool public reentrySucceeded;
+
+    constructor(PredictionMarket _market) {
+        market = _market;
+    }
+
+    function placeBet(uint256 id, PredictionMarket.Side side) external payable {
+        marketId = id;
+        market.bet{value: msg.value}(id, side, msg.value);
+    }
+
+    function claim() external {
+        market.claim(marketId);
+    }
+
+    receive() external payable {
+        reentryAttempted = true;
+        (reentrySucceeded,) = address(market).call(abi.encodeCall(PredictionMarket.claim, (marketId)));
+    }
+}
+
 contract PredictionMarketTest is Test {
     PredictionMarket market;
-    MockERC20 betToken;
     MockRaceOracle oracle;
 
     bytes32 constant ASSET_ID = bytes32("TSLA");
@@ -22,25 +69,18 @@ contract PredictionMarketTest is Test {
     address bob = address(0xB0B);
     address charlie = address(0xC4A511E);
 
-    uint256 constant START_BALANCE = 10_000e18;
+    uint256 constant MAX_SEED_LIQUIDITY = 50 ether;
+    uint256 constant MAX_STAKE_PER_SIDE = 50 ether;
+    uint256 constant START_BALANCE = 10_000 ether;
 
     function setUp() public {
-        betToken = new MockERC20("Mock USD", "mUSD");
         oracle = new MockRaceOracle();
-        market = new PredictionMarket(address(betToken), address(oracle), 0);
+        market = new PredictionMarket(address(oracle), 0, MAX_SEED_LIQUIDITY, MAX_STAKE_PER_SIDE);
 
-        betToken.mint(owner, START_BALANCE);
-        betToken.mint(alice, START_BALANCE);
-        betToken.mint(bob, START_BALANCE);
-        betToken.mint(charlie, START_BALANCE);
-
-        betToken.approve(address(market), type(uint256).max);
-        vm.prank(alice);
-        betToken.approve(address(market), type(uint256).max);
-        vm.prank(bob);
-        betToken.approve(address(market), type(uint256).max);
-        vm.prank(charlie);
-        betToken.approve(address(market), type(uint256).max);
+        vm.deal(owner, START_BALANCE);
+        vm.deal(alice, START_BALANCE);
+        vm.deal(bob, START_BALANCE);
+        vm.deal(charlie, START_BALANCE);
 
         market.setAssetAllowed(ASSET_ID, ORACLE_ID, PRICE_DECIMALS, true);
     }
@@ -51,7 +91,9 @@ contract PredictionMarketTest is Test {
 
     function _setEndpoint(uint256 id, uint256 price, uint256 updatedAt) internal {
         PredictionMarket.Market memory m = market.getMarket(id);
-        oracle.setObservation(m.oracleId, price, m.priceDecimals, updatedAt, keccak256(abi.encode(id, price, updatedAt)));
+        oracle.setObservation(
+            m.oracleId, price, m.priceDecimals, updatedAt, keccak256(abi.encode(id, price, updatedAt))
+        );
     }
 
     function _resolve(uint256 id) internal {
@@ -119,23 +161,23 @@ contract PredictionMarketTest is Test {
     // --- House seed liquidity (owner-only, capped at $50) ---
 
     function test_CreateMarket_WithHouseSeedLiquidity() public {
-        uint256 id = market.createMarket(ASSET_ID, TARGET_PRICE, block.timestamp + 1 days, 25e18, 25e18);
+        uint256 id = market.createMarket{value: 50e18}(ASSET_ID, TARGET_PRICE, block.timestamp + 1 days, 25e18, 25e18);
 
         PredictionMarket.Market memory m = market.getMarket(id);
         assertEq(m.poolYes, 25e18);
         assertEq(m.poolNo, 25e18);
         assertEq(market.stakes(id, owner, PredictionMarket.Side.YES), 25e18);
         assertEq(market.stakes(id, owner, PredictionMarket.Side.NO), 25e18);
-        assertEq(betToken.balanceOf(address(market)), 50e18);
+        assertEq(address(market).balance, 50e18);
     }
 
     function test_CreateMarket_SeedLiquidity_RevertsAboveMax() public {
         vm.expectRevert("seed exceeds max");
-        market.createMarket(ASSET_ID, TARGET_PRICE, block.timestamp + 1 days, 30e18, 25e18); // $55 total > $50 cap
+        market.createMarket{value: 55e18}(ASSET_ID, TARGET_PRICE, block.timestamp + 1 days, 30e18, 25e18);
     }
 
     function test_CreateMarket_SeedLiquidity_AllowsExactMax() public {
-        uint256 id = market.createMarket(ASSET_ID, TARGET_PRICE, block.timestamp + 1 days, 25e18, 25e18); // exactly $50
+        uint256 id = market.createMarket{value: 50e18}(ASSET_ID, TARGET_PRICE, block.timestamp + 1 days, 25e18, 25e18);
         PredictionMarket.Market memory m = market.getMarket(id);
         assertEq(m.poolYes + m.poolNo, 50e18);
     }
@@ -143,7 +185,15 @@ contract PredictionMarketTest is Test {
     function test_CreateMarket_SeedLiquidity_OwnerOnly() public {
         vm.prank(alice);
         vm.expectRevert("seed liquidity is owner-only");
-        market.createMarket(ASSET_ID, TARGET_PRICE, block.timestamp + 1 days, 10e18, 10e18);
+        market.createMarket{value: 20e18}(ASSET_ID, TARGET_PRICE, block.timestamp + 1 days, 10e18, 10e18);
+    }
+
+    function test_CreateMarket_SeedLiquidity_RequiresExactMsgValue() public {
+        vm.expectRevert("incorrect ETH amount");
+        market.createMarket{value: 49e18}(ASSET_ID, TARGET_PRICE, block.timestamp + 1 days, 25e18, 25e18);
+
+        vm.expectRevert("incorrect ETH amount");
+        market.createMarket{value: 1}(ASSET_ID, TARGET_PRICE, block.timestamp + 1 days, 0, 0);
     }
 
     // --- bet ---
@@ -152,21 +202,21 @@ contract PredictionMarketTest is Test {
         uint256 id = _createMarket(block.timestamp + 1 days);
 
         vm.prank(alice);
-        market.bet(id, PredictionMarket.Side.YES, 50e18);
+        market.bet{value: 50e18}(id, PredictionMarket.Side.YES, 50e18);
 
         PredictionMarket.Market memory m = market.getMarket(id);
         assertEq(m.poolYes, 50e18);
         assertEq(m.poolNo, 0);
-        assertEq(betToken.balanceOf(address(market)), 50e18);
+        assertEq(address(market).balance, 50e18);
     }
 
     function test_Bet_AllowsOneBetPerSide() public {
         uint256 id = _createMarket(block.timestamp + 1 days);
 
         vm.prank(alice);
-        market.bet(id, PredictionMarket.Side.YES, 50e18);
+        market.bet{value: 50e18}(id, PredictionMarket.Side.YES, 50e18);
         vm.prank(alice);
-        market.bet(id, PredictionMarket.Side.NO, 30e18);
+        market.bet{value: 30e18}(id, PredictionMarket.Side.NO, 30e18);
 
         assertEq(market.stakes(id, alice, PredictionMarket.Side.YES), 50e18);
         assertEq(market.stakes(id, alice, PredictionMarket.Side.NO), 30e18);
@@ -176,11 +226,11 @@ contract PredictionMarketTest is Test {
         uint256 id = _createMarket(block.timestamp + 1 days);
 
         vm.prank(alice);
-        market.bet(id, PredictionMarket.Side.YES, 50e18);
+        market.bet{value: 50e18}(id, PredictionMarket.Side.YES, 50e18);
 
         vm.prank(alice);
         vm.expectRevert("already bet this side");
-        market.bet(id, PredictionMarket.Side.YES, 50e18);
+        market.bet{value: 50e18}(id, PredictionMarket.Side.YES, 50e18);
     }
 
     function test_Bet_RevertsWhenAboveMaxStakePerSide() public {
@@ -188,7 +238,24 @@ contract PredictionMarketTest is Test {
 
         vm.prank(alice);
         vm.expectRevert("exceeds max stake per side");
-        market.bet(id, PredictionMarket.Side.YES, 50e18 + 1);
+        market.bet{value: 50e18 + 1}(id, PredictionMarket.Side.YES, 50e18 + 1);
+    }
+
+    function test_Bet_RevertsWhenMsgValueDoesNotEqualAmount() public {
+        uint256 id = _createMarket(block.timestamp + 1 days);
+
+        vm.prank(alice);
+        vm.expectRevert("incorrect ETH amount");
+        market.bet{value: 49e18}(id, PredictionMarket.Side.YES, 50e18);
+
+        assertEq(market.stakes(id, alice, PredictionMarket.Side.YES), 0);
+        assertEq(address(market).balance, 0);
+    }
+
+    function test_DirectEthTransfersRevert() public {
+        (bool success,) = address(market).call{value: 1}("");
+        assertFalse(success);
+        assertEq(address(market).balance, 0);
     }
 
     function test_Bet_AllowsExactMaxStakePerSide_BothSidesIndependently() public {
@@ -197,8 +264,8 @@ contract PredictionMarketTest is Test {
         // Same wallet can hit the $50 cap on YES *and* the $50 cap on NO —
         // the cap is per-side, not a combined per-wallet total.
         vm.startPrank(alice);
-        market.bet(id, PredictionMarket.Side.YES, 50e18);
-        market.bet(id, PredictionMarket.Side.NO, 50e18);
+        market.bet{value: 50e18}(id, PredictionMarket.Side.YES, 50e18);
+        market.bet{value: 50e18}(id, PredictionMarket.Side.NO, 50e18);
         vm.stopPrank();
 
         assertEq(market.stakes(id, alice, PredictionMarket.Side.YES), 50e18);
@@ -211,7 +278,7 @@ contract PredictionMarketTest is Test {
 
         vm.prank(alice);
         vm.expectRevert("betting closed");
-        market.bet(id, PredictionMarket.Side.YES, 1e18);
+        market.bet{value: 1e18}(id, PredictionMarket.Side.YES, 1e18);
     }
 
     // --- resolve / claim ---
@@ -220,9 +287,9 @@ contract PredictionMarketTest is Test {
         uint256 id = _createMarket(block.timestamp + 1 days);
 
         vm.prank(alice);
-        market.bet(id, PredictionMarket.Side.YES, 50e18);
+        market.bet{value: 50e18}(id, PredictionMarket.Side.YES, 50e18);
         vm.prank(bob);
-        market.bet(id, PredictionMarket.Side.NO, 50e18);
+        market.bet{value: 50e18}(id, PredictionMarket.Side.NO, 50e18);
 
         vm.warp(block.timestamp + 1 days + 1);
         _resolve(id);
@@ -231,20 +298,20 @@ contract PredictionMarketTest is Test {
         assertEq(uint8(m.status), uint8(PredictionMarket.Status.Resolved));
         assertEq(uint8(m.outcome), uint8(PredictionMarket.Side.YES));
 
-        uint256 balBefore = betToken.balanceOf(alice);
+        uint256 balBefore = alice.balance;
         vm.prank(alice);
         market.claim(id);
         // sole YES bettor takes the whole pool (50 + 50), 0% fee
-        assertEq(betToken.balanceOf(alice) - balBefore, 100e18);
+        assertEq(alice.balance - balBefore, 100e18);
     }
 
     function test_Resolve_NoWins_LoserCannotClaim() public {
         uint256 id = _createMarket(block.timestamp + 1 days);
 
         vm.prank(alice);
-        market.bet(id, PredictionMarket.Side.YES, 50e18);
+        market.bet{value: 50e18}(id, PredictionMarket.Side.YES, 50e18);
         vm.prank(bob);
-        market.bet(id, PredictionMarket.Side.NO, 50e18);
+        market.bet{value: 50e18}(id, PredictionMarket.Side.NO, 50e18);
 
         PredictionMarket.Market memory m = market.getMarket(id);
         vm.warp(m.deadline + 1);
@@ -260,9 +327,9 @@ contract PredictionMarketTest is Test {
         uint256 deadline = block.timestamp + 1 days;
         uint256 id = _createMarket(deadline);
         vm.prank(alice);
-        market.bet(id, PredictionMarket.Side.YES, 50e18);
+        market.bet{value: 50e18}(id, PredictionMarket.Side.YES, 50e18);
         vm.prank(bob);
-        market.bet(id, PredictionMarket.Side.NO, 50e18);
+        market.bet{value: 50e18}(id, PredictionMarket.Side.NO, 50e18);
 
         vm.warp(deadline + 1);
         _setEndpoint(id, 101e18, deadline);
@@ -274,9 +341,9 @@ contract PredictionMarketTest is Test {
         uint256 deadline = block.timestamp + 1 days;
         uint256 id = _createMarket(deadline);
         vm.prank(alice);
-        market.bet(id, PredictionMarket.Side.YES, 50e18);
+        market.bet{value: 50e18}(id, PredictionMarket.Side.YES, 50e18);
         vm.prank(bob);
-        market.bet(id, PredictionMarket.Side.NO, 50e18);
+        market.bet{value: 50e18}(id, PredictionMarket.Side.NO, 50e18);
 
         bytes32 endpointBlockHash = keccak256("endpoint block");
         oracle.setObservation(ORACLE_ID, 101e18, PRICE_DECIMALS, deadline - 1, endpointBlockHash);
@@ -295,13 +362,9 @@ contract PredictionMarketTest is Test {
     function test_Resolve_IntegratesWithSignedPoolOracleAndUsesPreDeadlineBlock() public {
         uint256 signerKey = 0x51A9E2;
         SignedPoolRaceOracle signedOracle = new SignedPoolRaceOracle(vm.addr(signerKey));
-        PredictionMarket signedMarket = new PredictionMarket(address(betToken), address(signedOracle), 0);
+        PredictionMarket signedMarket =
+            new PredictionMarket(address(signedOracle), 0, MAX_SEED_LIQUIDITY, MAX_STAKE_PER_SIDE);
         signedMarket.setAssetAllowed(ASSET_ID, ORACLE_ID, PRICE_DECIMALS, true);
-
-        vm.prank(alice);
-        betToken.approve(address(signedMarket), type(uint256).max);
-        vm.prank(bob);
-        betToken.approve(address(signedMarket), type(uint256).max);
 
         // Read through the cheatcode rather than the BLOCKTIMESTAMP opcode so
         // via-IR cannot rematerialize this local after the later vm.warp.
@@ -309,9 +372,9 @@ contract PredictionMarketTest is Test {
         uint256 endpointTimestamp = deadline - 1;
         uint256 id = signedMarket.createMarket(ASSET_ID, TARGET_PRICE, deadline, 0, 0);
         vm.prank(alice);
-        signedMarket.bet(id, PredictionMarket.Side.YES, 10e18);
+        signedMarket.bet{value: 10e18}(id, PredictionMarket.Side.YES, 10e18);
         vm.prank(bob);
-        signedMarket.bet(id, PredictionMarket.Side.NO, 10e18);
+        signedMarket.bet{value: 10e18}(id, PredictionMarket.Side.NO, 10e18);
 
         bytes32 parentHash = keccak256("signed parent");
         bytes32 endpointHash = keccak256("signed endpoint");
@@ -361,9 +424,9 @@ contract PredictionMarketTest is Test {
         uint256 deadline = block.timestamp + 1 days;
         uint256 id = _createMarket(deadline);
         vm.prank(alice);
-        market.bet(id, PredictionMarket.Side.YES, 50e18);
+        market.bet{value: 50e18}(id, PredictionMarket.Side.YES, 50e18);
         vm.prank(bob);
-        market.bet(id, PredictionMarket.Side.NO, 50e18);
+        market.bet{value: 50e18}(id, PredictionMarket.Side.NO, 50e18);
 
         oracle.setObservation(ORACLE_ID, 101e8, 8, deadline - 1, keccak256("wrong decimals"));
         vm.warp(deadline + 1);
@@ -376,9 +439,9 @@ contract PredictionMarketTest is Test {
         uint256 deadline = block.timestamp + 5 days;
         uint256 id = _createMarket(deadline);
         vm.prank(alice);
-        market.bet(id, PredictionMarket.Side.YES, 50e18);
+        market.bet{value: 50e18}(id, PredictionMarket.Side.YES, 50e18);
         vm.prank(bob);
-        market.bet(id, PredictionMarket.Side.NO, 50e18);
+        market.bet{value: 50e18}(id, PredictionMarket.Side.NO, 50e18);
 
         _setEndpoint(id, 99e18, deadline - market.MAX_PRICE_STALENESS() - 1);
         vm.warp(deadline + 1);
@@ -392,19 +455,19 @@ contract PredictionMarketTest is Test {
         assertEq(settleUpdatedAt, 0);
         assertEq(settleObservationId, bytes32(0));
 
-        uint256 before = betToken.balanceOf(alice);
+        uint256 before = alice.balance;
         vm.prank(alice);
         market.refund(id, PredictionMarket.Side.YES);
-        assertEq(betToken.balanceOf(alice), before + 50e18);
+        assertEq(alice.balance, before + 50e18);
     }
 
     function test_Resolve_RevertsForZeroPoolPrice() public {
         uint256 deadline = block.timestamp + 1 days;
         uint256 id = _createMarket(deadline);
         vm.prank(alice);
-        market.bet(id, PredictionMarket.Side.YES, 50e18);
+        market.bet{value: 50e18}(id, PredictionMarket.Side.YES, 50e18);
         vm.prank(bob);
-        market.bet(id, PredictionMarket.Side.NO, 50e18);
+        market.bet{value: 50e18}(id, PredictionMarket.Side.NO, 50e18);
 
         oracle.setObservation(ORACLE_ID, 0, PRICE_DECIMALS, deadline - 1, keccak256("zero price"));
         vm.warp(deadline + 1);
@@ -416,9 +479,9 @@ contract PredictionMarketTest is Test {
     function test_Claim_RevertsOnDoubleClaim() public {
         uint256 id = _createMarket(block.timestamp + 1 days);
         vm.prank(alice);
-        market.bet(id, PredictionMarket.Side.YES, 50e18);
+        market.bet{value: 50e18}(id, PredictionMarket.Side.YES, 50e18);
         vm.prank(bob);
-        market.bet(id, PredictionMarket.Side.NO, 1e18); // needs a nonzero NO pool or resolve() cancels instead
+        market.bet{value: 1e18}(id, PredictionMarket.Side.NO, 1e18); // needs a nonzero NO pool or resolve() cancels instead
 
         vm.warp(block.timestamp + 1 days + 1);
         _resolve(id);
@@ -429,6 +492,47 @@ contract PredictionMarketTest is Test {
         vm.prank(alice);
         vm.expectRevert("already claimed");
         market.claim(id);
+    }
+
+    function test_Claim_FailedReceiverRollsBackStateAndFees() public {
+        market.setFeeBp(200);
+        uint256 id = _createMarket(block.timestamp + 1 days);
+        RejectingPredictionReceiver rejector = new RejectingPredictionReceiver(market);
+
+        rejector.placeBet{value: 40e18}(id, PredictionMarket.Side.YES);
+        vm.prank(bob);
+        market.bet{value: 10e18}(id, PredictionMarket.Side.NO, 10e18);
+
+        vm.warp(block.timestamp + 1 days + 1);
+        _resolve(id);
+
+        vm.expectRevert("ETH transfer failed");
+        rejector.claim(id);
+
+        assertFalse(market.claimed(id, address(rejector)));
+        assertEq(market.accumulatedFees(), 0);
+        assertEq(address(market).balance, 50e18);
+    }
+
+    function test_Claim_ReentrancyAttemptFailsButOuterPayoutSucceeds() public {
+        market.setFeeBp(200);
+        uint256 id = _createMarket(block.timestamp + 1 days);
+        ReentrantPredictionReceiver receiver = new ReentrantPredictionReceiver(market);
+
+        receiver.placeBet{value: 40e18}(id, PredictionMarket.Side.YES);
+        vm.prank(bob);
+        market.bet{value: 10e18}(id, PredictionMarket.Side.NO, 10e18);
+
+        vm.warp(block.timestamp + 1 days + 1);
+        _resolve(id);
+        receiver.claim();
+
+        assertTrue(receiver.reentryAttempted());
+        assertFalse(receiver.reentrySucceeded());
+        assertTrue(market.claimed(id, address(receiver)));
+        assertEq(address(receiver).balance, 49.8e18);
+        assertEq(market.accumulatedFees(), 0.2e18);
+        assertEq(address(market).balance, 0.2e18);
     }
 
     // --- one-sided market cancellation + full refund ---
@@ -450,7 +554,7 @@ contract PredictionMarketTest is Test {
         // with an empty pool. Market should cancel instead of resolve, before
         // even reading the price feed.
         vm.prank(alice);
-        market.bet(id, PredictionMarket.Side.NO, 50e18);
+        market.bet{value: 50e18}(id, PredictionMarket.Side.NO, 50e18);
 
         vm.warp(block.timestamp + 1 days + 1);
         _resolve(id);
@@ -458,10 +562,25 @@ contract PredictionMarketTest is Test {
         PredictionMarket.Market memory m = market.getMarket(id);
         assertEq(uint8(m.status), uint8(PredictionMarket.Status.Cancelled));
 
-        uint256 balBefore = betToken.balanceOf(alice);
+        uint256 balBefore = alice.balance;
         vm.prank(alice);
         market.refund(id, PredictionMarket.Side.NO);
-        assertEq(betToken.balanceOf(alice) - balBefore, 50e18); // 100% back, no fee on a cancelled market
+        assertEq(alice.balance - balBefore, 50e18); // 100% back, no fee on a cancelled market
+    }
+
+    function test_Refund_FailedReceiverRollsBackStake() public {
+        uint256 id = _createMarket(block.timestamp + 1 days);
+        RejectingPredictionReceiver rejector = new RejectingPredictionReceiver(market);
+        rejector.placeBet{value: 10e18}(id, PredictionMarket.Side.YES);
+
+        vm.warp(block.timestamp + 1 days + 1);
+        market.resolve(id, "");
+
+        vm.expectRevert("ETH transfer failed");
+        rejector.refund(id, PredictionMarket.Side.YES);
+
+        assertEq(market.stakes(id, address(rejector), PredictionMarket.Side.YES), 10e18);
+        assertEq(address(market).balance, 10e18);
     }
 
     // --- parimutuel payout math with a protocol fee ---
@@ -474,9 +593,9 @@ contract PredictionMarketTest is Test {
         // 80/20 split, halved to 40/10 to respect MAX_STAKE_PER_SIDE_USD ($50) —
         // same ratio, same fee math, smaller numbers.
         vm.prank(alice);
-        market.bet(id, PredictionMarket.Side.YES, 40e18);
+        market.bet{value: 40e18}(id, PredictionMarket.Side.YES, 40e18);
         vm.prank(bob);
-        market.bet(id, PredictionMarket.Side.NO, 10e18);
+        market.bet{value: 10e18}(id, PredictionMarket.Side.NO, 10e18);
 
         vm.warp(block.timestamp + 1 days + 1);
         _resolve(id);
@@ -484,13 +603,14 @@ contract PredictionMarketTest is Test {
         // payout = userStake + userStake * losingPool * (10000 - feeBp) / (winningPool * 10000)
         //        = 40e18 + 40e18 * 10e18 * 9800 / (40e18 * 10000)
         //        = 40e18 + 9.8e18 = 49.8e18
-        uint256 balBefore = betToken.balanceOf(alice);
+        uint256 balBefore = alice.balance;
         vm.prank(alice);
         market.claim(id);
-        assertEq(betToken.balanceOf(alice) - balBefore, 49.8e18);
+        assertEq(alice.balance - balBefore, 49.8e18);
 
         // fee = 40e18 * 10e18 * 200 / (40e18 * 10000) = 0.2e18
         assertEq(market.accumulatedFees(), 0.2e18);
+        assertEq(address(market).balance, 0.2e18);
     }
 
     function test_Claim_FeeIsSnapshotted_LaterFeeChangeDoesNotAffectOpenMarket() public {
@@ -498,18 +618,18 @@ contract PredictionMarketTest is Test {
         market.setFeeBp(500); // owner raises the fee after the market is already open
 
         vm.prank(alice);
-        market.bet(id, PredictionMarket.Side.YES, 50e18);
+        market.bet{value: 50e18}(id, PredictionMarket.Side.YES, 50e18);
         vm.prank(bob);
-        market.bet(id, PredictionMarket.Side.NO, 50e18);
+        market.bet{value: 50e18}(id, PredictionMarket.Side.NO, 50e18);
 
         vm.warp(block.timestamp + 1 days + 1);
         _resolve(id);
 
-        uint256 balBefore = betToken.balanceOf(alice);
+        uint256 balBefore = alice.balance;
         vm.prank(alice);
         market.claim(id);
         // still the 0% fee from creation time, not the 5% set afterwards
-        assertEq(betToken.balanceOf(alice) - balBefore, 100e18);
+        assertEq(alice.balance - balBefore, 100e18);
     }
 
     function test_SetFeeBp_RevertsAboveMax() public {
@@ -528,9 +648,9 @@ contract PredictionMarketTest is Test {
         uint256 id = market.createMarket(ASSET_ID, TARGET_PRICE, block.timestamp + 1 days, 0, 0);
 
         vm.prank(alice);
-        market.bet(id, PredictionMarket.Side.YES, 40e18);
+        market.bet{value: 40e18}(id, PredictionMarket.Side.YES, 40e18);
         vm.prank(bob);
-        market.bet(id, PredictionMarket.Side.NO, 10e18);
+        market.bet{value: 10e18}(id, PredictionMarket.Side.NO, 10e18);
 
         vm.warp(block.timestamp + 1 days + 1);
         _resolve(id);
@@ -542,10 +662,32 @@ contract PredictionMarketTest is Test {
         vm.expectRevert();
         market.withdrawFees(alice);
 
-        uint256 balBefore = betToken.balanceOf(owner);
-        market.withdrawFees(owner);
-        assertEq(betToken.balanceOf(owner) - balBefore, 0.2e18);
+        uint256 balBefore = charlie.balance;
+        market.withdrawFees(charlie);
+        assertEq(charlie.balance - balBefore, 0.2e18);
         assertEq(market.accumulatedFees(), 0);
+        assertEq(address(market).balance, 0);
+    }
+
+    function test_WithdrawFees_FailedReceiverRollsBackAccounting() public {
+        market.setFeeBp(200);
+        uint256 id = _createMarket(block.timestamp + 1 days);
+        vm.prank(alice);
+        market.bet{value: 40e18}(id, PredictionMarket.Side.YES, 40e18);
+        vm.prank(bob);
+        market.bet{value: 10e18}(id, PredictionMarket.Side.NO, 10e18);
+
+        vm.warp(block.timestamp + 1 days + 1);
+        _resolve(id);
+        vm.prank(alice);
+        market.claim(id);
+
+        RejectingPredictionReceiver rejector = new RejectingPredictionReceiver(market);
+        vm.expectRevert("ETH transfer failed");
+        market.withdrawFees(address(rejector));
+
+        assertEq(market.accumulatedFees(), 0.2e18);
+        assertEq(address(market).balance, 0.2e18);
     }
 
     // --- early-bet weight decay + betting window ---
@@ -569,7 +711,7 @@ contract PredictionMarketTest is Test {
 
         vm.prank(alice);
         vm.expectRevert("betting closed");
-        market.bet(id, PredictionMarket.Side.YES, 10e18);
+        market.bet{value: 10e18}(id, PredictionMarket.Side.YES, 10e18);
     }
 
     function test_Bet_EarlyBettorGetsBiggerPayoutThanLateBettor_SameStake() public {
@@ -578,36 +720,36 @@ contract PredictionMarketTest is Test {
 
         // Alice bets the instant betting opens -> max weight.
         vm.prank(alice);
-        market.bet(id, PredictionMarket.Side.YES, 50e18);
+        market.bet{value: 50e18}(id, PredictionMarket.Side.YES, 50e18);
 
         // Bob bets the same amount, same side, but halfway through the window -> lower weight.
         vm.warp(block.timestamp + 5_000);
         vm.prank(bob);
-        market.bet(id, PredictionMarket.Side.YES, 50e18);
+        market.bet{value: 50e18}(id, PredictionMarket.Side.YES, 50e18);
 
         // Charlie funds the losing side so there's something to win.
         vm.prank(charlie);
-        market.bet(id, PredictionMarket.Side.NO, 50e18);
+        market.bet{value: 50e18}(id, PredictionMarket.Side.NO, 50e18);
 
         vm.warp(deadline);
         _resolve(id);
 
-        uint256 aliceBefore = betToken.balanceOf(alice);
+        uint256 aliceBefore = alice.balance;
         vm.prank(alice);
         market.claim(id);
-        uint256 alicePayout = betToken.balanceOf(alice) - aliceBefore;
+        uint256 alicePayout = alice.balance - aliceBefore;
 
-        uint256 bobBefore = betToken.balanceOf(bob);
+        uint256 bobBefore = bob.balance;
         vm.prank(bob);
         market.claim(id);
-        uint256 bobPayout = betToken.balanceOf(bob) - bobBefore;
+        uint256 bobPayout = bob.balance - bobBefore;
 
         // Same stake, same side, same outcome — the only difference is when they bet.
         assertGt(alicePayout, bobPayout);
     }
 
     function test_CreateMarket_SeedLiquidity_GetsMaxWeight() public {
-        uint256 id = market.createMarket(ASSET_ID, TARGET_PRICE, block.timestamp + 1 days, 25e18, 25e18);
+        uint256 id = market.createMarket{value: 50e18}(ASSET_ID, TARGET_PRICE, block.timestamp + 1 days, 25e18, 25e18);
         PredictionMarket.Market memory m = market.getMarket(id);
         uint256 expected = (25e18 * market.MAX_WEIGHT_BP()) / 10_000;
         assertEq(m.weightedPoolYes, expected);

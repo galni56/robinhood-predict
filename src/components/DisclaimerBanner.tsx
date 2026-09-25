@@ -9,13 +9,13 @@ export function DisclaimerBanner() {
   const isLocalRaceRoute = isLocalAssetRace && pathname.startsWith('/onchain/races')
 
   return (
-    <div className="flex items-center justify-center gap-2 bg-[#2a1f16] border-b border-[#F2A65A]/20 text-[#F2A65A]/90 text-xs font-medium text-center py-1.5 px-4">
+    <div className="flex items-center justify-center gap-2 overflow-hidden bg-[#2a1f16] border-b border-[#F2A65A]/20 text-[#F2A65A]/90 text-xs font-medium text-center py-1.5 px-4">
       {isOnchain && !isLocalRaceRoute ? <ChainIcon className="w-3.5 h-3.5 shrink-0" /> : <AlertIcon className="w-3.5 h-3.5 shrink-0" />}
-      <span>
+      <span className="min-w-0 break-words">
         {isLocalRaceRoute
-          ? 'LOCAL TEST NETWORK · NO REAL FUNDS - Asset Race transactions use Anvil and fake USDG only.'
+          ? 'LOCAL TEST NETWORK · NO REAL FUNDS - Asset Race transactions use Anvil and test ETH only.'
           : isOnchain
-          ? 'Real mode: actual transactions on Robinhood Chain mainnet via your wallet. Real USDG, real money - contract has not had an external security audit. Betting currency is USDG only for now; ETH support is planned for a future update.'
+          ? 'Real mode: current mainnet positions use the legacy USDG contracts. Native-ETH successors in this build are not deployed yet; stock prices remain quoted in USDG. Real money - contracts have not had an external security audit.'
           : `Demo / prototype running on mock data. ${RHCHAIN_META.disclaimer}`}
       </span>
     </div>

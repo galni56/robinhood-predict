@@ -2,39 +2,51 @@
 pragma solidity ^0.8.24;
 
 import {Test} from "forge-std/Test.sol";
-import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {AssetRace} from "../src/AssetRace.sol";
-import {MockERC20} from "../src/mocks/MockERC20.sol";
 import {MockRaceOracle} from "../src/mocks/MockRaceOracle.sol";
 
-contract ReentrantRaceToken is ERC20 {
-    AssetRace public race;
-    uint256 public raceId;
-    uint8 public assetIndex;
-    bool public attackArmed;
+contract ReentrantRaceReceiver {
+    AssetRace private immutable race;
+    uint256 private raceId;
+    bool public reentryAttempted;
     bool public reentrySucceeded;
 
-    constructor() ERC20("Reentrant test token", "RTT") {}
-
-    function mint(address to, uint256 amount) external {
-        _mint(to, amount);
+    constructor(AssetRace _race) {
+        race = _race;
     }
 
-    function arm(AssetRace target, uint256 targetRaceId, uint8 targetAssetIndex) external {
-        race = target;
+    function placeBet(uint256 targetRaceId, uint8 assetIndex) external payable {
         raceId = targetRaceId;
-        assetIndex = targetAssetIndex;
-        attackArmed = true;
+        race.bet{value: msg.value}(targetRaceId, assetIndex, msg.value);
     }
 
-    function transferFrom(address from, address to, uint256 value) public override returns (bool) {
-        if (attackArmed) {
-            attackArmed = false;
-            try race.bet(raceId, assetIndex, 1) {
-                reentrySucceeded = true;
-            } catch {}
-        }
-        return super.transferFrom(from, to, value);
+    function claim() external {
+        race.claim(raceId);
+    }
+
+    receive() external payable {
+        reentryAttempted = true;
+        (reentrySucceeded,) = address(race).call(abi.encodeCall(AssetRace.claim, (raceId)));
+    }
+}
+
+contract RejectingRaceReceiver {
+    AssetRace private immutable race;
+
+    constructor(AssetRace _race) {
+        race = _race;
+    }
+
+    function placeBet(uint256 raceId, uint8 assetIndex) external payable {
+        race.bet{value: msg.value}(raceId, assetIndex, msg.value);
+    }
+
+    function claim(uint256 raceId) external {
+        race.claim(raceId);
+    }
+
+    receive() external payable {
+        revert("reject ETH");
     }
 }
 
@@ -42,7 +54,6 @@ contract AssetRaceTest is Test {
     uint256 internal constant UNIT = 1e6;
     uint8 internal constant DECIMALS = 8;
 
-    MockERC20 internal token;
     MockRaceOracle internal oracle;
     AssetRace internal race;
 
@@ -54,21 +65,19 @@ contract AssetRaceTest is Test {
 
     function setUp() public {
         vm.warp(1_000_000);
-        token = new MockERC20("Mock USDG", "mUSDG");
         oracle = new MockRaceOracle();
-        race = new AssetRace(address(token));
+        race = new AssetRace();
 
-        _fundAndApprove(alice, race, token);
-        _fundAndApprove(bob, race, token);
-        _fundAndApprove(charlie, race, token);
-        _fundAndApprove(dave, race, token);
-        _fundAndApprove(erin, race, token);
+        _fund(address(this));
+        _fund(alice);
+        _fund(bob);
+        _fund(charlie);
+        _fund(dave);
+        _fund(erin);
     }
 
-    function _fundAndApprove(address user, AssetRace target, MockERC20 paymentToken) internal {
-        paymentToken.mint(user, 100_000 * UNIT);
-        vm.prank(user);
-        paymentToken.approve(address(target), type(uint256).max);
+    function _fund(address user) internal {
+        vm.deal(user, 100_000 * UNIT);
     }
 
     function _config(uint8 minimumActive, uint16 feeBp)
@@ -119,7 +128,7 @@ contract AssetRaceTest is Test {
 
     function _bet(uint256 raceId, address user, uint8 assetIndex, uint256 amount) internal {
         vm.prank(user);
-        race.bet(raceId, assetIndex, amount);
+        race.bet{value: amount}(raceId, assetIndex, amount);
     }
 
     function _refresh(uint8 count, uint256[] memory prices, uint8[] memory decimals_) internal {
@@ -251,7 +260,7 @@ contract AssetRaceTest is Test {
         race.createRace(pausedConfig, pausedCandidates);
         vm.prank(alice);
         vm.expectRevert(AssetRace.ActivityPaused.selector);
-        race.bet(id, 0, UNIT);
+        race.bet{value: UNIT}(id, 0, UNIT);
 
         AssetRace.Race memory data = race.getRace(id);
         vm.warp(uint256(data.bettingEndTime) + data.startGrace + 1);
@@ -267,7 +276,7 @@ contract AssetRaceTest is Test {
 
         vm.prank(alice);
         vm.expectRevert(AssetRace.BettingNotOpen.selector);
-        race.bet(id, 0, UNIT);
+        race.bet{value: UNIT}(id, 0, UNIT);
 
         vm.warp(config.bettingStartTime);
         _bet(id, alice, 0, UNIT);
@@ -275,7 +284,7 @@ contract AssetRaceTest is Test {
         vm.warp(config.bettingEndTime);
         vm.prank(bob);
         vm.expectRevert(AssetRace.BettingNotOpen.selector);
-        race.bet(id, 1, UNIT);
+        race.bet{value: UNIT}(id, 1, UNIT);
     }
 
     function test_Bet_OneAssetPerWalletAndSameAssetTopUps() public {
@@ -290,7 +299,7 @@ contract AssetRaceTest is Test {
 
         vm.prank(alice);
         vm.expectRevert(AssetRace.WrongAsset.selector);
-        race.bet(id, 2, UNIT);
+        race.bet{value: UNIT}(id, 2, UNIT);
     }
 
     function test_Bet_EnforcesMinimumFirstStakeAndCumulativeMaximum() public {
@@ -301,7 +310,7 @@ contract AssetRaceTest is Test {
 
         vm.prank(alice);
         vm.expectRevert(AssetRace.StakeBelowMinimum.selector);
-        race.bet(id, 0, 9 * UNIT);
+        race.bet{value: 9 * UNIT}(id, 0, 9 * UNIT);
 
         _bet(id, alice, 0, 20 * UNIT);
         _bet(id, alice, 0, 30 * UNIT);
@@ -309,7 +318,24 @@ contract AssetRaceTest is Test {
 
         vm.prank(alice);
         vm.expectRevert(AssetRace.StakeExceedsMaximum.selector);
-        race.bet(id, 0, 1);
+        race.bet{value: 1}(id, 0, 1);
+    }
+
+    function test_Bet_RequiresExactMsgValue() public {
+        uint256 id = _create(2);
+
+        vm.prank(alice);
+        vm.expectRevert(AssetRace.IncorrectEthAmount.selector);
+        race.bet{value: UNIT - 1}(id, 0, UNIT);
+
+        assertFalse(race.getPosition(id, alice).exists);
+        assertEq(address(race).balance, 0);
+    }
+
+    function test_DirectEthTransfersRevert() public {
+        (bool success,) = address(race).call{value: 1}("");
+        assertFalse(success);
+        assertEq(address(race).balance, 0);
     }
 
     function test_StartRace_ExcludesInactiveZeroPoolCandidates() public {
@@ -333,10 +359,10 @@ contract AssetRaceTest is Test {
 
         assertEq(uint8(race.getRace(id).status), uint8(AssetRace.RaceStatus.CANCELLED));
         assertEq(race.accumulatedFees(), 0);
-        uint256 before = token.balanceOf(alice);
+        uint256 before = alice.balance;
         vm.prank(alice);
         race.refund(id);
-        assertEq(token.balanceOf(alice) - before, 25 * UNIT);
+        assertEq(alice.balance - before, 25 * UNIT);
     }
 
     function test_StartRace_UsesAtomicActualT0AndExactDuration() public {
@@ -741,10 +767,10 @@ contract AssetRaceTest is Test {
         assertEq(uint8(race.getRace(id).status), uint8(AssetRace.RaceStatus.VOID));
         assertEq(race.accumulatedFees(), 0);
 
-        uint256 before = token.balanceOf(alice);
+        uint256 before = alice.balance;
         vm.prank(alice);
         race.refund(id);
-        assertEq(token.balanceOf(alice) - before, 10 * UNIT);
+        assertEq(alice.balance - before, 10 * UNIT);
     }
 
     function test_PayoutExample_500_200_200_100_PepeWinner() public {
@@ -776,11 +802,11 @@ contract AssetRaceTest is Test {
         assertEq(data.protocolFee, 16 * UNIT);
         assertEq(data.distributableLosingPool, 784 * UNIT);
 
-        uint256 before = token.balanceOf(alice);
+        uint256 before = alice.balance;
         vm.prank(alice);
         uint256 payout = race.claim(id);
         assertEq(payout, 246 * UNIT);
-        assertEq(token.balanceOf(alice) - before, 246 * UNIT);
+        assertEq(alice.balance - before, 246 * UNIT);
     }
 
     function test_MultipleWinningUsersSplitLosingPoolProportionally() public {
@@ -936,7 +962,7 @@ contract AssetRaceTest is Test {
         AssetRace.Race memory data = race.getRace(id);
         assertLe(totalPayout + data.protocolFee, data.totalPool);
         assertEq(race.accumulatedFees(), data.protocolFee);
-        assertEq(token.balanceOf(address(race)), race.totalUserLiability() + race.accumulatedFees());
+        assertEq(address(race).balance, race.totalUserLiability() + race.accumulatedFees());
         assertGt(data.remainingLiability, 0); // deterministic rounding dust stays locked, not fee income
     }
 
@@ -957,33 +983,75 @@ contract AssetRaceTest is Test {
 
         assertEq(race.accumulatedFees(), 2 * UNIT);
         vm.expectRevert(AssetRace.InsufficientFeeBalance.selector);
-        race.withdrawFees(address(this), 2 * UNIT + 1);
-        race.withdrawFees(address(this), 2 * UNIT);
-        assertEq(token.balanceOf(address(race)), race.totalUserLiability());
+        race.withdrawFees(dave, 2 * UNIT + 1);
+        race.withdrawFees(dave, 2 * UNIT);
+        assertEq(address(race).balance, race.totalUserLiability());
 
         vm.prank(alice);
         assertEq(race.claim(id), 198 * UNIT);
-        assertEq(token.balanceOf(address(race)), 0);
+        assertEq(address(race).balance, 0);
         assertEq(race.totalUserLiability(), 0);
     }
 
-    function test_BetIsReentrancyProtected() public {
-        ReentrantRaceToken attackingToken = new ReentrantRaceToken();
-        AssetRace guardedRace = new AssetRace(address(attackingToken));
+    function test_ClaimIsReentrancyProtected() public {
+        AssetRace guardedRace = new AssetRace();
         AssetRace.CandidateInput[] memory candidates = _candidates(2);
         for (uint256 i = 0; i < candidates.length; ++i) {
             guardedRace.setApprovedAsset(candidates[i], true);
         }
         uint256 id = guardedRace.createRace(_config(2, 0), candidates);
-        attackingToken.mint(alice, 100 * UNIT);
-        vm.prank(alice);
-        attackingToken.approve(address(guardedRace), type(uint256).max);
-        attackingToken.arm(guardedRace, id, 0);
+        ReentrantRaceReceiver receiver = new ReentrantRaceReceiver(guardedRace);
+        receiver.placeBet{value: 10 * UNIT}(id, 0);
+        vm.prank(bob);
+        guardedRace.bet{value: 10 * UNIT}(id, 1, 10 * UNIT);
 
-        vm.prank(alice);
-        guardedRace.bet(id, 0, 10 * UNIT);
-        assertFalse(attackingToken.reentrySucceeded());
-        assertEq(guardedRace.getPosition(id, alice).stake, 10 * UNIT);
+        vm.warp(guardedRace.getRace(id).bettingEndTime);
+        uint256[] memory starts = new uint256[](2);
+        starts[0] = 100e8;
+        starts[1] = 100e8;
+        _refresh(2, starts, _uniformDecimals(2));
+        guardedRace.startRace(id);
+
+        vm.warp(guardedRace.getRace(id).raceEndTime);
+        uint256[] memory ends = new uint256[](2);
+        ends[0] = 110e8;
+        ends[1] = 90e8;
+        _refresh(2, ends, _uniformDecimals(2));
+        guardedRace.captureEndSnapshots(id, _proofs(2));
+        guardedRace.resolveRace(id);
+        receiver.claim();
+
+        assertTrue(receiver.reentryAttempted());
+        assertFalse(receiver.reentrySucceeded());
+        assertTrue(guardedRace.getPosition(id, address(receiver)).settled);
+        assertEq(address(receiver).balance, 20 * UNIT);
+        assertEq(address(guardedRace).balance, 0);
+    }
+
+    function test_ClaimFailedReceiverRollsBackLiabilityAndSettlement() public {
+        uint256 id = _create(2);
+        RejectingRaceReceiver rejector = new RejectingRaceReceiver(race);
+        rejector.placeBet{value: 10 * UNIT}(id, 0);
+        _bet(id, bob, 1, 10 * UNIT);
+
+        vm.warp(race.getRace(id).bettingEndTime);
+        uint256[] memory starts = new uint256[](2);
+        starts[0] = 100e8;
+        starts[1] = 100e8;
+        _refresh(2, starts, _uniformDecimals(2));
+        race.startRace(id);
+        uint256[] memory ends = new uint256[](2);
+        ends[0] = 110e8;
+        ends[1] = 90e8;
+        _resolve(id, ends, _uniformDecimals(2));
+
+        uint256 liabilityBefore = race.totalUserLiability();
+        vm.expectRevert(AssetRace.EthTransferFailed.selector);
+        rejector.claim(id);
+
+        assertFalse(race.getPosition(id, address(rejector)).settled);
+        assertEq(race.totalUserLiability(), liabilityBefore);
+        assertEq(address(race).balance, 20 * UNIT);
     }
 
     function testGas_AssetCounts_2() public {
@@ -1008,7 +1076,7 @@ contract AssetRaceTest is Test {
         address[5] memory users = [alice, bob, charlie, dave, erin];
         for (uint8 i = 0; i < count; ++i) {
             address user = i < 5 ? users[i] : address(0xF6);
-            if (i == 5) _fundAndApprove(user, race, token);
+            if (i == 5) _fund(user);
             _bet(id, user, i, UNIT);
         }
         vm.warp(race.getRace(id).bettingEndTime);
@@ -1048,7 +1116,6 @@ contract AssetRaceCommunityTest is Test {
     uint8 internal constant DECIMALS = 8;
     uint64 internal constant RACE_DURATION = 60;
 
-    MockERC20 internal token;
     MockRaceOracle internal oracle;
     AssetRace internal race;
 
@@ -1058,9 +1125,8 @@ contract AssetRaceCommunityTest is Test {
 
     function setUp() public {
         vm.warp(3_000_000);
-        token = new MockERC20("Community USDG", "cUSDG");
         oracle = new MockRaceOracle();
-        race = new AssetRace(address(token));
+        race = new AssetRace();
         race.setCommunityPolicy(
             AssetRace.CommunityPolicyInput({
                 lobbyDuration: 30,
@@ -1082,9 +1148,9 @@ contract AssetRaceCommunityTest is Test {
             oracle.setObservation(candidate.oracleId, 100e8, DECIMALS, block.timestamp, bytes32(uint256(1)));
         }
 
-        _fundAndApprove(alice);
-        _fundAndApprove(bob);
-        _fundAndApprove(charlie);
+        _fund(alice);
+        _fund(bob);
+        _fund(charlie);
     }
 
     function _candidate(uint8 index) internal view returns (AssetRace.CandidateInput memory) {
@@ -1118,10 +1184,8 @@ contract AssetRaceCommunityTest is Test {
         race.openBetting(id);
     }
 
-    function _fundAndApprove(address user) internal {
-        token.mint(user, 10_000 * UNIT);
-        vm.prank(user);
-        token.approve(address(race), type(uint256).max);
+    function _fund(address user) internal {
+        vm.deal(user, 10_000 * UNIT);
     }
 
     function test_CommunityCreationStoresMetadataAndStartsInLobby() public {
@@ -1225,12 +1289,12 @@ contract AssetRaceCommunityTest is Test {
 
     function test_BettingDuringLobbyRejectsAndNoFundsMove() public {
         uint256 id = _createCommunity(alice, 2);
-        uint256 beforeBalance = token.balanceOf(alice);
+        uint256 beforeBalance = alice.balance;
         vm.prank(alice);
         vm.expectRevert(AssetRace.InvalidRaceStatus.selector);
-        race.bet(id, 0, 10 * UNIT);
-        assertEq(token.balanceOf(alice), beforeBalance);
-        assertEq(token.balanceOf(address(race)), 0);
+        race.bet{value: 10 * UNIT}(id, 0, 10 * UNIT);
+        assertEq(alice.balance, beforeBalance);
+        assertEq(address(race).balance, 0);
     }
 
     function test_OpenBettingCancelsLobbyWithFewerThanTwoAssets() public {
@@ -1290,9 +1354,9 @@ contract AssetRaceCommunityTest is Test {
         _openBetting(id);
 
         vm.prank(alice);
-        race.bet(id, 0, 10 * UNIT);
+        race.bet{value: 10 * UNIT}(id, 0, 10 * UNIT);
         vm.prank(bob);
-        race.bet(id, 1, 10 * UNIT);
+        race.bet{value: 10 * UNIT}(id, 1, 10 * UNIT);
 
         vm.warp(race.getRace(id).bettingEndTime);
         oracle.setObservation(bytes32(uint256(1)), 100e8, DECIMALS, block.timestamp, bytes32(uint256(2)));
@@ -1310,10 +1374,10 @@ contract AssetRaceCommunityTest is Test {
         assertEq(uint8(data.status), uint8(AssetRace.RaceStatus.RESOLVED));
         assertEq(data.winningAssetIndex, 0);
         assertEq(data.protocolFee, 200_000);
-        uint256 balanceBefore = token.balanceOf(alice);
+        uint256 balanceBefore = alice.balance;
         vm.prank(alice);
         assertEq(race.claim(id), 19_800_000);
-        assertEq(token.balanceOf(alice) - balanceBefore, 19_800_000);
+        assertEq(alice.balance - balanceBefore, 19_800_000);
     }
 
     function test_PlatformRaceUsesRegistryAndStillBeginsInBetting() public {

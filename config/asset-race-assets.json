@@ -9,7 +9,7 @@
       "chainId": 31337,
       "label": "Local Anvil",
       "production": false,
-      "settlementToken": {
+      "stockQuoteToken": {
         "symbol": "fake USDG",
         "address": null,
         "addressSource": "LOCAL_DEPLOYMENT",
@@ -21,14 +21,14 @@
       "chainId": 46630,
       "label": "Robinhood Chain Testnet",
       "production": false,
-      "settlementToken": null,
+      "stockQuoteToken": null,
       "allowedOracleTypes": []
     },
     "robinhood-mainnet": {
       "chainId": 4663,
       "label": "Robinhood Chain",
       "production": true,
-      "settlementToken": {
+      "stockQuoteToken": {
         "symbol": "USDG",
         "address": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
         "addressSource": "EXISTING_VERIFIED_PROJECT_DEPLOYMENT",

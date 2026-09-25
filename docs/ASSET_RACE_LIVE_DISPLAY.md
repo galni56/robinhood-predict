@@ -78,12 +78,11 @@ Do not expose port 8787 publicly. Run the service as an unprivileged user and
 restart it automatically with the existing service manager.
 
 GitHub Pages has no same-origin backend, so its workflow sets
-`VITE_ASSET_RACE_LIVE_ENABLED=false`. It still reads real races and final
-onchain results from the deployed contract, but shows provisional pool movement
-as unavailable and does not open a reconnecting EventSource against a missing
-Pages `/api` route. Enable LIVE there only after a public endpoint has explicit
-CORS support; never expose the archive RPC or a credential-bearing URL to the
-browser.
+`VITE_ASSET_RACE_LIVE_ENABLED=false`. During the native-ETH migration it also
+leaves the successor contract address unset, because the deployed AssetRace is
+the incompatible USDG generation. Enable a native address and LIVE there only
+after the new contract is deployed and a public endpoint has explicit CORS
+support; never expose the archive RPC or a credential-bearing URL to the browser.
 
 ## Display semantics and fallback
 

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { formatUnits, parseAbiItem } from 'viem'
+import { formatEther, formatUnits, parseAbiItem } from 'viem'
 import { usePublicClient } from 'wagmi'
 import { AddressLabel } from '@/components/AddressLabel'
 import { BoltIcon, TrophyIcon } from '@/components/icons'
@@ -8,13 +8,11 @@ import { SideBadge } from '@/components/Pills'
 import { robinhoodMainnet } from '@/chain/config'
 import { useBetLogs } from '@/chain/betLogs'
 import { DEMO_MARKET_IDS, demoBetLogs, demoClaimLogs, isDemoMode, loadDemoLeaderboard } from '@/chain/demo'
-import { DEPLOY_BLOCK, MarketSideOnchain, PREDICTION_MARKET_ADDRESS } from '@/chain/contracts'
-import { formatUsd } from '@/lib/format'
+import { DEPLOY_BLOCK, MarketSideOnchain, PREDICTION_MARKET_ADDRESS, PREDICTION_MARKET_CONFIGURED } from '@/chain/contracts'
 import { shortHash } from '@/lib/hash'
+import { formatUsd } from '@/lib/format'
 
 const CLAIMED_EVENT = parseAbiItem('event Claimed(uint256 indexed id, address indexed user, uint256 payout)')
-
-const BET_TOKEN_DECIMALS = 6 // USDG's real decimals
 
 interface UserStats {
   address: `0x${string}`
@@ -69,7 +67,7 @@ export function OnchainMarketsSidebar() {
       return
     }
 
-    if (!client || !betLogs.data) return
+    if (!client || !betLogs.data || (!PREDICTION_MARKET_CONFIGURED && !isDemoMode())) return
     let cancelled = false
 
     async function run() {
@@ -159,7 +157,7 @@ export function OnchainMarketsSidebar() {
                   <AddressLabel address={s.address} link={false} className="font-mono text-xs truncate flex-1" />
                   <span className={`font-mono text-xs ${net >= 0n ? 'text-[#B3A7FA]' : 'text-rose-400'}`}>
                     {net >= 0n ? '+' : ''}
-                    {formatUsd(Number(formatUnits(net, BET_TOKEN_DECIMALS)), 0)}
+                    {isDemoMode() ? formatUsd(Number(formatUnits(net, 6)), 0) : `${formatEther(net)} ETH`}
                   </span>
                 </a>
               )
@@ -186,7 +184,7 @@ export function OnchainMarketsSidebar() {
                   <AddressLabel address={log.user} className="font-mono text-white/60 hover:text-white truncate" />
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  <span className="font-mono text-white/70">{formatUnits(log.amount, BET_TOKEN_DECIMALS)} USDG</span>
+                  <span className="font-mono text-white/70">{isDemoMode() ? `${formatUnits(log.amount, 6)} USDG` : `${formatEther(log.amount)} ETH`}</span>
                   <a
                     href={`${robinhoodMainnet.blockExplorers.default.url}/tx/${log.txHash}`}
                     target="_blank"

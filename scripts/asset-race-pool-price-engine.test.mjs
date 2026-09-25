@@ -41,7 +41,7 @@ test('approved thirteen Memes bind canonical ERC20s to verified WETH/native pool
     assert.equal(asset.tokenVerification.confidence, 'HIGH')
   }
   const wrong = structuredClone(registry)
-  wrong.assets.find((asset) => asset.assetId === 'AI').marketSource.quoteToken = wrong.networks['robinhood-mainnet'].settlementToken.address
+  wrong.assets.find((asset) => asset.assetId === 'AI').marketSource.quoteToken = wrong.networks['robinhood-mainnet'].stockQuoteToken.address
   assert.throws(() => poolConfigsFromRegistry(wrong), /WrongPoolQuoteToken/)
   const wrongToken = structuredClone(registry)
   wrongToken.assets.find((asset) => asset.assetId === 'AI').marketSource.baseToken = memes[1].baseToken
@@ -181,14 +181,14 @@ test('registry exposes ten approved pool-bound configs and reconstructs every V4
     assert.equal(v4PoolId(config.poolKey).toLowerCase(), config.poolIdentifier.toLowerCase())
   }
   const wrong = structuredClone(registry)
-  wrong.assets.find((asset) => asset.assetId === 'AAPL').marketSource.poolKey.currency1 = wrong.networks['robinhood-mainnet'].settlementToken.address
+  wrong.assets.find((asset) => asset.assetId === 'AAPL').marketSource.poolKey.currency1 = wrong.networks['robinhood-mainnet'].stockQuoteToken.address
   assert.throws(() => poolConfigsFromRegistry(wrong), /InvalidV4PoolKey|WrongV4PoolPair/)
 })
 
 test('13-Stock catalog uses the shared engine; five verified candidate tokens all quote canonical USDG', () => {
   const configs = poolConfigsFromRegistry(registry, { includeDisabled: true, category: 'STOCK' })
   assert.equal(configs.length, 13)
-  const quote = registry.networks['robinhood-mainnet'].settlementToken.address.toLowerCase()
+  const quote = registry.networks['robinhood-mainnet'].stockQuoteToken.address.toLowerCase()
   for (const config of configs) {
     assert.equal(config.quoteToken.toLowerCase(), quote)
     assert.equal(config.baseDecimals, 18)

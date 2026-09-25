@@ -6,6 +6,7 @@ const LIVE_ENABLED = import.meta.env.VITE_ASSET_RACE_LIVE_ENABLED?.trim() !== 'f
 
 interface AssetRaceLiveDisplayState {
   assets: AssetRaceLiveSnapshot['assets']
+  ethUsd: AssetRaceLiveSnapshot['ethUsd']
   disconnected: boolean
   snapshot: AssetRaceLiveSnapshot | undefined
 }
@@ -38,7 +39,12 @@ function useLiveConnection(enabled: boolean): AssetRaceLiveDisplayState {
   }, [enabled])
 
   const disconnected = !snapshot || now - lastEventAt > snapshot.staleAfterMs
-  return { assets: disconnected ? {} : snapshot.assets, disconnected, snapshot }
+  return {
+    assets: disconnected ? {} : snapshot.assets,
+    ethUsd: disconnected ? undefined : snapshot.ethUsd,
+    disconnected,
+    snapshot,
+  }
 }
 
 /**
@@ -63,6 +69,6 @@ export function useAssetRaceLiveDisplay({ enabled }: { enabled: boolean }) {
   // Keep the hook usable in isolated component tests/previews that do not mount
   // App's provider, while disabling this fallback in the real application.
   const standalone = useLiveConnection(enabled && shared == null)
-  if (!enabled) return { assets: {}, disconnected: true, snapshot: shared?.snapshot }
+  if (!enabled) return { assets: {}, ethUsd: undefined, disconnected: true, snapshot: shared?.snapshot }
   return shared ?? standalone
 }

@@ -1,6 +1,6 @@
 import { getAddress, hexToString, isAddress, type Address, type Hex } from 'viem'
 import { assetRaceNetworkConfigError, isLocalAssetRace } from '@/chain/config'
-import { ALLOWLISTED_FEEDS } from '@/chain/contracts'
+import { ALLOWLISTED_FEEDS, LEGACY_ASSET_RACE_ADDRESS } from '@/chain/contracts'
 
 export const ASSET_RACE_STATUS = {
   BETTING: 0,
@@ -14,19 +14,22 @@ export const ASSET_RACE_STATUS = {
 export const ASSET_RACE_CATEGORY = { STOCK: 0, MEME: 1 } as const
 export type AssetRaceMode = 'stocks' | 'memes'
 export const ASSET_RACE_ORIGIN = { PLATFORM: 0, COMMUNITY: 1 } as const
-export const USDG_DECIMALS = 6
+export const ETH_DECIMALS = 18
 export const RETURN_SCALE = 10n ** 18n
 export const BP_DENOMINATOR = 10_000n
 export const MAX_RACES_TO_LIST = 50
-export const ASSET_RACE_TOKEN_LABEL = isLocalAssetRace ? 'fake USDG' : 'USDG'
+export const ASSET_RACE_TOKEN_LABEL = isLocalAssetRace ? 'local ETH' : 'ETH'
 
 const configuredAddress = import.meta.env.VITE_ASSET_RACE_ADDRESS?.trim()
+const normalizedAddress = configuredAddress && isAddress(configuredAddress) ? getAddress(configuredAddress) : undefined
+const usesLegacyUsdG = normalizedAddress?.toLowerCase() === LEGACY_ASSET_RACE_ADDRESS.toLowerCase()
 
 export const ASSET_RACE_ADDRESS: Address | undefined =
-  !assetRaceNetworkConfigError && configuredAddress && isAddress(configuredAddress) ? getAddress(configuredAddress) : undefined
+  !assetRaceNetworkConfigError && normalizedAddress && !usesLegacyUsdG ? normalizedAddress : undefined
 
 export const ASSET_RACE_CONFIG_ERROR =
   assetRaceNetworkConfigError
+  ?? (usesLegacyUsdG ? 'VITE_ASSET_RACE_ADDRESS points to the legacy USDG contract.' : null)
   ?? (configuredAddress && !ASSET_RACE_ADDRESS ? 'VITE_ASSET_RACE_ADDRESS is not a valid EVM address.' : null)
 
 export interface AssetRaceData {
@@ -123,13 +126,6 @@ export const assetRaceAbi = [
     stateMutability: 'view',
     inputs: [],
     outputs: [{ type: 'uint256' }],
-  },
-  {
-    type: 'function',
-    name: 'betToken',
-    stateMutability: 'view',
-    inputs: [],
-    outputs: [{ type: 'address' }],
   },
   {
     type: 'function',
@@ -293,7 +289,7 @@ export const assetRaceAbi = [
   {
     type: 'function',
     name: 'bet',
-    stateMutability: 'nonpayable',
+    stateMutability: 'payable',
     inputs: [
       { name: 'raceId', type: 'uint256' },
       { name: 'assetIndex', type: 'uint8' },
@@ -396,7 +392,7 @@ export function normalizeRaceAssets(assets: readonly Omit<AssetRaceAsset, 'asset
   }))
 }
 
-export function formatUsdRaw(raw: bigint, decimals = USDG_DECIMALS, maxFractionDigits = 2) {
+export function formatStakeRaw(raw: bigint, decimals = ETH_DECIMALS, maxFractionDigits = 6) {
   const negative = raw < 0n
   const value = negative ? -raw : raw
   const base = 10n ** BigInt(decimals)
@@ -451,6 +447,7 @@ export function resolvedPositionPayout(race: AssetRaceViewModel, position?: Asse
 
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000' as Address
 const ZERO_BYTES = `0x${'0'.repeat(64)}` as Hex
+const PREVIEW_SIX_DECIMAL_UNITS_TO_WEI = 10n ** 9n
 
 function previewAsset(
   assetIndex: number,
@@ -461,6 +458,7 @@ function previewAsset(
 ): AssetRaceAsset {
   const feed = ALLOWLISTED_FEEDS.find((item) => item.ticker === symbol)?.address
   const endPrice = startPrice + (startPrice * returnValue) / RETURN_SCALE
+  const poolWei = pool * PREVIEW_SIX_DECIMAL_UNITS_TO_WEI
   return {
     assetIndex,
     assetId: ZERO_BYTES,
@@ -469,8 +467,8 @@ function previewAsset(
     expectedDecimals: 8,
     maxPriceAge: 120n,
     maxEndpointLag: 120n,
-    active: pool > 0n,
-    pool,
+    active: poolWei > 0n,
+    pool: poolWei,
     startPrice,
     endPrice,
     startOracleUpdatedAt: 0n,
@@ -517,8 +515,8 @@ function previewRace(
     activeCount: status === ASSET_RACE_STATUS.BETTING ? 0 : assets.filter((asset) => asset.active).length,
     winningAssetIndex,
     endSnapshotsCaptured: status === ASSET_RACE_STATUS.RESOLVED || status === ASSET_RACE_STATUS.VOID,
-    minStake: 1_000_000n,
-    maxStakePerWallet: 50_000_000n,
+    minStake: 1_000_000n * PREVIEW_SIX_DECIMAL_UNITS_TO_WEI,
+    maxStakePerWallet: 50_000_000n * PREVIEW_SIX_DECIMAL_UNITS_TO_WEI,
     totalPool,
     winningPool,
     distributableLosingPool: totalPool - winningPool - fee,
@@ -534,7 +532,7 @@ function previewRace(
       status === ASSET_RACE_STATUS.BETTING
         ? undefined
         : {
-            stake: 12_000_000n,
+            stake: 12_000_000n * PREVIEW_SIX_DECIMAL_UNITS_TO_WEI,
             assetIndex: status === ASSET_RACE_STATUS.RESOLVED ? winningAssetIndex : status === ASSET_RACE_STATUS.CANCELLED ? 0 : 1,
             exists: true,
             settled: false,

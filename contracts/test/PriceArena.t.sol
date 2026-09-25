@@ -3,20 +3,55 @@ pragma solidity ^0.8.24;
 
 import {Test} from "forge-std/Test.sol";
 import {PriceArena} from "../src/PriceArena.sol";
-import {MockERC20} from "../src/mocks/MockERC20.sol";
 import {MockRaceOracle} from "../src/mocks/MockRaceOracle.sol";
 
-contract MockUSDG is MockERC20 {
-    constructor() MockERC20("Mock USDG", "mUSDG") {}
+contract RejectingArenaReceiver {
+    PriceArena private immutable arena;
 
-    function decimals() public pure override returns (uint8) {
-        return 6;
+    constructor(PriceArena _arena) {
+        arena = _arena;
+    }
+
+    function enter(uint256 arenaId, uint256 prediction) external payable {
+        arena.enter{value: msg.value}(arenaId, prediction, msg.value);
+    }
+
+    function claim(uint256 arenaId) external {
+        arena.claim(arenaId);
+    }
+
+    receive() external payable {
+        revert("reject ETH");
+    }
+}
+
+contract ReentrantArenaReceiver {
+    PriceArena private immutable arena;
+    uint256 private arenaId;
+    bool public reentryAttempted;
+    bool public reentrySucceeded;
+
+    constructor(PriceArena _arena) {
+        arena = _arena;
+    }
+
+    function enter(uint256 targetArenaId, uint256 prediction) external payable {
+        arenaId = targetArenaId;
+        arena.enter{value: msg.value}(targetArenaId, prediction, msg.value);
+    }
+
+    function claim() external {
+        arena.claim(arenaId);
+    }
+
+    receive() external payable {
+        reentryAttempted = true;
+        (reentrySucceeded,) = address(arena).call(abi.encodeCall(PriceArena.claim, (arenaId)));
     }
 }
 
 contract PriceArenaTest is Test {
     PriceArena arena;
-    MockERC20 token;
     MockRaceOracle oracle;
 
     uint256 private constant UNIT = 1e6;
@@ -32,17 +67,17 @@ contract PriceArenaTest is Test {
     address private dave = address(0xDA7E);
 
     function setUp() public {
-        token = new MockUSDG();
         oracle = new MockRaceOracle();
-        arena = new PriceArena(address(token));
+        arena = new PriceArena(UNIT, 50 * UNIT);
 
         arena.setAsset(STOCK_ID, address(oracle), STOCK_ORACLE_ID, 18, PriceArena.Category.STOCK, true);
         arena.setAsset(MEME_ID, address(oracle), MEME_ORACLE_ID, 18, PriceArena.Category.MEME, true);
 
-        _fundAndApprove(alice);
-        _fundAndApprove(bob);
-        _fundAndApprove(charlie);
-        _fundAndApprove(dave);
+        _fund(address(this));
+        _fund(alice);
+        _fund(bob);
+        _fund(charlie);
+        _fund(dave);
     }
 
     function test_CreateArena_UsesFixedLobbyAndSelectedDuration() public {
@@ -97,7 +132,7 @@ contract PriceArenaTest is Test {
 
         vm.warp(block.timestamp + 5);
         vm.prank(alice);
-        arena.updateEntry(id, 102e18, 2 * UNIT);
+        arena.updateEntry{value: 2 * UNIT}(id, 102e18, 2 * UNIT);
 
         PriceArena.PublicEntry memory entry = arena.getEntry(id, alice);
         assertEq(entry.stake, 3 * UNIT);
@@ -116,7 +151,7 @@ contract PriceArenaTest is Test {
         vm.warp(block.timestamp + 10);
 
         vm.prank(alice);
-        arena.updateEntry(id, 0, UNIT);
+        arena.updateEntry{value: UNIT}(id, 0, UNIT);
         assertEq(arena.getEntry(id, alice).predictionUpdatedAt, originalUpdatedAt);
     }
 
@@ -126,7 +161,46 @@ contract PriceArenaTest is Test {
 
         vm.prank(alice);
         vm.expectRevert("lobby closed");
-        arena.enter(id, FINAL_PRICE, UNIT);
+        arena.enter{value: UNIT}(id, FINAL_PRICE, UNIT);
+    }
+
+    function test_EntryAndUpdateRequireExactMsgValue() public {
+        uint256 id = _createStockArena(1 minutes);
+
+        vm.prank(alice);
+        vm.expectRevert("incorrect ETH amount");
+        arena.enter{value: UNIT - 1}(id, FINAL_PRICE, UNIT);
+
+        _enter(id, alice, FINAL_PRICE, UNIT);
+        vm.prank(alice);
+        vm.expectRevert("incorrect ETH amount");
+        arena.updateEntry{value: UNIT - 1}(id, 0, UNIT);
+
+        assertEq(arena.getEntry(id, alice).stake, UNIT);
+        assertEq(address(arena).balance, UNIT);
+    }
+
+    function test_EntryAndUpdateEnforceWeiStakeCaps() public {
+        uint256 id = _createStockArena(1 minutes);
+
+        vm.prank(alice);
+        vm.expectRevert("invalid initial stake");
+        arena.enter{value: UNIT - 1}(id, FINAL_PRICE, UNIT - 1);
+
+        vm.prank(alice);
+        vm.expectRevert("invalid initial stake");
+        arena.enter{value: 50 * UNIT + 1}(id, FINAL_PRICE, 50 * UNIT + 1);
+
+        _enter(id, alice, FINAL_PRICE, 50 * UNIT);
+        vm.prank(alice);
+        vm.expectRevert("stake exceeds max");
+        arena.updateEntry{value: 1}(id, 0, 1);
+    }
+
+    function test_DirectEthTransfersRevert() public {
+        (bool success,) = address(arena).call{value: 1}("");
+        assertFalse(success);
+        assertEq(address(arena).balance, 0);
     }
 
     function test_CancelIfInsufficient_RefundsFullStake() public {
@@ -135,10 +209,10 @@ contract PriceArenaTest is Test {
         vm.warp(arena.getArena(id).startsAt);
         arena.cancelIfInsufficient(id);
 
-        uint256 before = token.balanceOf(alice);
+        uint256 before = alice.balance;
         vm.prank(alice);
         arena.refund(id);
-        assertEq(token.balanceOf(alice) - before, 3 * UNIT);
+        assertEq(alice.balance - before, 3 * UNIT);
         assertEq(arena.totalUserLiability(), 0);
     }
 
@@ -232,14 +306,47 @@ contract PriceArenaTest is Test {
         arena.claim(id);
 
         uint256 expected = arena.getEntry(id, alice).payout;
-        uint256 before = token.balanceOf(alice);
+        uint256 before = alice.balance;
         vm.prank(alice);
         arena.claim(id);
-        assertEq(token.balanceOf(alice) - before, expected);
+        assertEq(alice.balance - before, expected);
 
         vm.prank(alice);
         vm.expectRevert("already claimed");
         arena.claim(id);
+    }
+
+    function test_ClaimFailedReceiverRollsBackSettlementAndLiability() public {
+        uint256 id = _createStockArena(1 minutes);
+        RejectingArenaReceiver rejector = new RejectingArenaReceiver(arena);
+        rejector.enter{value: UNIT}(id, FINAL_PRICE);
+        _enter(id, bob, 120e18, UNIT);
+        _resolve(id, FINAL_PRICE, 1);
+
+        uint256 liabilityBefore = arena.totalUserLiability();
+        vm.expectRevert("ETH transfer failed");
+        rejector.claim(id);
+
+        assertFalse(arena.getEntry(id, address(rejector)).settled);
+        assertEq(arena.totalUserLiability(), liabilityBefore);
+        assertEq(address(arena).balance, 2 * UNIT);
+    }
+
+    function test_ClaimReentrancyAttemptFailsButOuterPayoutSucceeds() public {
+        uint256 id = _createStockArena(1 minutes);
+        ReentrantArenaReceiver receiver = new ReentrantArenaReceiver(arena);
+        receiver.enter{value: UNIT}(id, FINAL_PRICE);
+        _enter(id, bob, 120e18, UNIT);
+        _resolve(id, FINAL_PRICE, 1);
+
+        uint256 expectedPayout = arena.getEntry(id, address(receiver)).payout;
+        receiver.claim();
+
+        assertTrue(receiver.reentryAttempted());
+        assertFalse(receiver.reentrySucceeded());
+        assertTrue(arena.getEntry(id, address(receiver)).settled);
+        assertEq(address(receiver).balance, expectedPayout);
+        assertEq(address(arena).balance, arena.accumulatedFees());
     }
 
     function test_AssetConfigurationIsFrozenPerArena() public {
@@ -259,16 +366,17 @@ contract PriceArenaTest is Test {
         _resolve(id, FINAL_PRICE, 1);
 
         uint256 fees = arena.accumulatedFees();
-        arena.withdrawFees(address(this));
-        assertEq(token.balanceOf(address(arena)), arena.totalUserLiability());
-        assertEq(token.balanceOf(address(this)), fees);
+        uint256 before = dave.balance;
+        arena.withdrawFees(dave);
+        assertEq(address(arena).balance, arena.totalUserLiability());
+        assertEq(dave.balance - before, fees);
     }
 
     function test_Resolve_MaximumTwentyPlayersStaysExecutable() public {
         uint256 id = _createStockArena(1 minutes);
         for (uint256 i; i < 20; ++i) {
             address player = address(uint160(0x1000 + i));
-            _fundAndApprove(player);
+            _fund(player);
             _enter(id, player, FINAL_PRICE + (20 - i) * 1e18, UNIT);
         }
         _resolve(id, FINAL_PRICE, 1);
@@ -276,21 +384,21 @@ contract PriceArenaTest is Test {
         PriceArena.Arena memory data = arena.getArena(id);
         assertEq(data.participantCount, 20);
         assertEq(data.winnerCount, 10);
-        assertEq(token.balanceOf(address(arena)), arena.totalUserLiability() + arena.accumulatedFees());
+        assertEq(address(arena).balance, arena.totalUserLiability() + arena.accumulatedFees());
     }
 
     function test_Entry_RejectsTwentyFirstPlayer() public {
         uint256 id = _createStockArena(1 minutes);
         for (uint256 i; i < 20; ++i) {
             address player = address(uint160(0x2000 + i));
-            _fundAndApprove(player);
+            _fund(player);
             _enter(id, player, FINAL_PRICE + i, UNIT);
         }
         address overflowPlayer = address(0xFFFF);
-        _fundAndApprove(overflowPlayer);
+        _fund(overflowPlayer);
         vm.prank(overflowPlayer);
         vm.expectRevert("arena is full");
-        arena.enter(id, FINAL_PRICE, UNIT);
+        arena.enter{value: UNIT}(id, FINAL_PRICE, UNIT);
     }
 
     function _createStockArena(uint256 duration) private returns (uint256) {
@@ -299,7 +407,7 @@ contract PriceArenaTest is Test {
 
     function _enter(uint256 id, address player, uint256 prediction, uint256 amount) private {
         vm.prank(player);
-        arena.enter(id, prediction, amount);
+        arena.enter{value: amount}(id, prediction, amount);
     }
 
     function _resolve(uint256 id, uint256 finalPrice, uint256 secondsBeforeDeadline) private {
@@ -315,9 +423,7 @@ contract PriceArenaTest is Test {
         arena.resolve(id, "");
     }
 
-    function _fundAndApprove(address user) private {
-        token.mint(user, 1_000 * UNIT);
-        vm.prank(user);
-        token.approve(address(arena), type(uint256).max);
+    function _fund(address user) private {
+        vm.deal(user, 1_000 * UNIT);
     }
 }

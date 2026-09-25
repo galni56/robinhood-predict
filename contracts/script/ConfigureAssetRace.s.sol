@@ -15,7 +15,7 @@ contract ConfigureAssetRace is Script {
 
     function run() external {
         uint256 deployerKey = vm.envUint("ASSET_RACE_DEPLOYER_PRIVATE_KEY");
-        AssetRace race = AssetRace(vm.envAddress("ASSET_RACE_ADDRESS"));
+        AssetRace race = AssetRace(payable(vm.envAddress("ASSET_RACE_ADDRESS")));
         SignedPoolRaceOracle oracle = SignedPoolRaceOracle(vm.envAddress("ASSET_RACE_SIGNED_POOL_ORACLE_ADDRESS"));
         address expectedSigner = vm.envAddress("ASSET_RACE_PRICE_SIGNER_ADDRESS");
         require(oracle.TRUSTED_SIGNER() == expectedSigner, "price signer mismatch");
@@ -54,8 +54,8 @@ contract ConfigureAssetRace is Script {
                 maxOracleTimestampSkew: maxOracleTimestampSkew,
                 feeBp: uint16(feeBpValue),
                 minActiveContenders: uint8(minimumContendersValue),
-                minStake: vm.envUint("ASSET_RACE_MIN_STAKE"),
-                maxStakePerWallet: vm.envUint("ASSET_RACE_MAX_STAKE_PER_WALLET")
+                minStake: vm.envUint("ASSET_RACE_MIN_STAKE_WEI"),
+                maxStakePerWallet: vm.envUint("ASSET_RACE_MAX_STAKE_PER_WALLET_WEI")
             })
         );
         _enableDurationPreset(race, "ASSET_RACE_DURATION_PRESET_1");

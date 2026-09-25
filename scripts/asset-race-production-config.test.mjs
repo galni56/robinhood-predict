@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import test from 'node:test'
-import { validateAssetRaceProductionBuild } from '../vite.config.ts'
+import { validateAssetRaceProductionBuild, validateNativeEthProductionBindings } from '../vite.config.ts'
 import { archiveLookbacks, archiveRpcMinIntervalMs, archiveRpcUrl } from './asset-race-archive-options.mjs'
 
 const configured = { VITE_ASSET_RACE_NETWORK: 'robinhood-mainnet',
@@ -63,11 +63,26 @@ test('implicit mainnet with a contract cannot omit its oracle; network typos and
     VITE_ASSET_RACE_SIGNED_POOL_ORACLE_ADDRESS: configured.VITE_ASSET_RACE_ADDRESS }), /different contract/)
 })
 
-test('GitHub Pages builds against the deployed mainnet contracts without a nonexistent same-origin LIVE service', () => {
-  assert.match(pagesWorkflow, /VITE_ASSET_RACE_NETWORK: robinhood-mainnet/)
-  assert.match(pagesWorkflow, /VITE_ASSET_RACE_ADDRESS: ["']?0x63E582bb395527CED97F2F94662eA93A7EDf65Ff/)
-  assert.match(pagesWorkflow, /VITE_ASSET_RACE_SIGNED_POOL_ORACLE_ADDRESS: ["']?0x5b0f7e62E0A5fF5C5C02Ad219Afcd086F2618Db7/)
+test('GitHub Pages stays fail-closed until native-ETH contracts are deployed', () => {
+  assert.doesNotMatch(pagesWorkflow, /VITE_(?:MARKET|ASSET_RACE|PRICE_ARENA)_ADDRESS:/)
+  assert.doesNotMatch(pagesWorkflow, /0x63E582bb395527CED97F2F94662eA93A7EDf65Ff/i)
   assert.match(pagesWorkflow, /VITE_ASSET_RACE_LIVE_ENABLED: ["']false["']/)
+})
+
+test('native-ETH builds reject every known USDG contract binding', () => {
+  for (const [name, address] of [
+    ['VITE_MARKET_ADDRESS', '0x1a62098AcEd3F7F8C41fff1bc1395A541678b0F1'],
+    ['VITE_MARKET_ADDRESS', '0xd95ed19edBCd330498CADe7BA8569ac940A4182f'],
+    ['VITE_ASSET_RACE_ADDRESS', '0x63E582bb395527CED97F2F94662eA93A7EDf65Ff'],
+    ['VITE_PRICE_ARENA_ADDRESS', '0xBAca2605914d8f7f0DF5663AA01f79FB8a6DA8ae'],
+  ]) {
+    assert.throws(() => validateNativeEthProductionBindings({ [name]: address }), /legacy USDG/)
+  }
+  validateNativeEthProductionBindings({
+    VITE_MARKET_ADDRESS: '0x1111111111111111111111111111111111111111',
+    VITE_ASSET_RACE_ADDRESS: '0x2222222222222222222222222222222222222222',
+    VITE_PRICE_ARENA_ADDRESS: '0x3333333333333333333333333333333333333333',
+  })
 })
 
 test('LIVE enablement rejects build-time typos', () => {

@@ -4,6 +4,7 @@ import { formatUnits } from 'viem'
 import { useReadContract, useReadContracts } from 'wagmi'
 import {
   PREDICTION_MARKET_ADDRESS,
+  PREDICTION_MARKET_CONFIGURED,
   predictionMarketAbi,
   MarketStatusOnchain,
 } from '@/chain/contracts'
@@ -24,7 +25,7 @@ const STEPS = [
   {
     n: '02',
     color: '#F2A65A',
-    title: 'Stake USDG on YES or NO',
+    title: 'Stake native ETH on YES or NO',
     body: "Every bet goes into one shared pool per side - there's no bookmaker setting a line and no fixed odds. The live YES/NO split of the pool is the price, and it moves in real time as people bet.",
   },
   {
@@ -76,7 +77,7 @@ const FEATURES = [
     tag: 'LIVE ON MAINNET',
     color: '#ED8F3A',
     title: 'Not a testnet. Not a simulation. Not a promise.',
-    body: 'This is a live Solidity product on Robinhood Chain mainnet, using real USDG and reviewed StockToken/USDG pools. Permissionless market creation and deterministic deadline proofs keep the core rules transparent on-chain.',
+    body: 'The live USDG generation remains available for existing positions. This build prepares separately deployed native-ETH successors while preserving reviewed StockToken/USDG pools for stock prices. Permissionless market creation and deterministic deadline proofs keep the core rules transparent on-chain.',
   },
 ] as const
 
@@ -128,6 +129,7 @@ export function OnchainLandingPage() {
     address: PREDICTION_MARKET_ADDRESS,
     abi: predictionMarketAbi,
     functionName: 'marketCount',
+    query: { enabled: PREDICTION_MARKET_CONFIGURED || isDemoMode() },
   })
   const count = marketCount.data != null ? Number(marketCount.data) : 0
   const ids = Array.from({ length: count }, (_, i) => BigInt(i))
@@ -384,7 +386,7 @@ export function OnchainLandingPage() {
 
         <div className="flex flex-wrap items-center justify-between gap-3 pt-8 text-xs font-bold text-white/40">
           <span>
-            Real markets use USDG · 2% fee on winnings ·{' '}
+            Real markets use native ETH · one wallet transaction, no approval · 2% fee on winnings ·{' '}
             <Link to="/onchain" className="text-[#B3A7FA] hover:underline">
               View all {openMarkets.length} markets →
             </Link>

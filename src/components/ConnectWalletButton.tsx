@@ -94,7 +94,7 @@ export function ConnectWalletButton() {
         onClick={() => setOpen((v) => !v)}
         className="text-xs px-4 py-2 rounded-full bg-gradient-to-r from-[#8B7CF7] to-[#6A5AE0] hover:brightness-110 text-white font-bold transition-all shadow-[0_4px_16px_-4px_rgba(106,90,224,0.6)]"
       >
-        Connect wallet ↗
+        Connect<span className="hidden sm:inline"> wallet ↗</span>
       </button>
       {open && (
         <>

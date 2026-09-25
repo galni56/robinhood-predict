@@ -127,7 +127,7 @@ test('mixed WETH/native LIVE and historical endpoints share blocks and stay fixe
 
 test('other Meme quotes remain rejected and approved native Memes preserve the Stock catalog', () => {
   const { registry, asset } = fixture()
-  asset.marketSource.quoteToken = registry.networks['robinhood-mainnet'].settlementToken.address
+  asset.marketSource.quoteToken = registry.networks['robinhood-mainnet'].stockQuoteToken.address
   asset.marketSource.quoteKind = 'WETH'
   assert.throws(() => poolConfigsFromRegistry(registry), /WrongPoolQuoteToken/)
   const memes = poolConfigsFromRegistry(original, { category: 'MEME' })

@@ -17,9 +17,10 @@ the code level, it's the same project. Don't be thrown by the mismatch.
 
 A **live, real-money** prediction market on Robinhood Chain (a real EVM L2
 Robinhood launched for tokenized equities, chain id 4663). Users connect a
-real wallet (MetaMask/Phantom) and bet real USDG on whether a tokenized
+real wallet (MetaMask/Phantom) and stake real funds on whether a tokenized
 stock is at or above a target price at a deadline — parimutuel payouts, no
-bookmaker. This is **not a demo product** — it has real users, real money,
+bookmaker. Existing production games use USDG; the next contract generation in
+this branch uses native ETH for all three modes. This is **not a demo product** — it has real users, real money,
 and no external security audit. Treat every contract interaction
 accordingly: think before broadcasting, confirm with the user when unsure.
 
@@ -38,25 +39,27 @@ Two parts, both live:
 - **https://prophetmarkets.fun** — the real product, self-hosted VPS,
   primary/canonical
 - **https://galni56.github.io/robinhood-predict/** — GitHub Pages mirror,
-  auto-deploys on push to `main`. Same code, same real mainnet contracts.
+  auto-deploys on push to `main`. Native game addresses are deliberately unset
+  there until the replacement contracts are deployed and approved; legacy USDG
+  recovery remains available.
 
 Repo: **https://github.com/galni56/robinhood-predict** (public, owner's
 personal GitHub account). GitHub Pages silently stops serving if this repo
 ever goes private again — it happened once (2026-09-11), see the "Ops
 lessons" section below.
 
-## Status snapshot (2026-09-23)
+## Status snapshot (2026-09-25)
 
 | Piece | Status |
 |---|---|
-| `PredictionMarket` contract | **Legacy version remains live on mainnet** at `0xd95ed19edBCd330498CADe7BA8569ac940A4182f`. The source contains an undeployed replacement using the same signed StockToken/USDG pool block-pair proof as Asset Race. It freezes the last Robinhood block strictly before the deadline, stores the price/timestamp/block hash, and cancels if the endpoint is over 60 seconds old. Production is limited to the 10 reviewed pool-backed Stocks. See `docs/PREDICTION_MARKET_DEADLINE_SETTLEMENT.md`. 36/36 focused Foundry tests pass. |
+| `PredictionMarket` contract | The USDG deadline-settlement contract is live at `0x1a62098AcEd3F7F8C41fff1bc1395A541678b0F1`; its keeper is active and has submitted real resolutions. The older funded Chainlink contract at `0xd95ed19edBCd330498CADe7BA8569ac940A4182f` still requires a claim/refund path. The source branch contains an undeployed native-ETH successor. 43/43 focused Foundry tests pass. |
 | `NicknameRegistry` contract | **Live on mainnet** at `0x1Ddc13e9D4895a5E6671079478007C7371b76E75` (deployed 2026-09-11). Standalone from PredictionMarket on purpose. `setNickname(string)` — anyone can set their own, 24-char max, no admin override. 8/8 tests pass. `src/chain/nicknames.ts` + `src/components/AddressLabel.tsx` (the one place addresses should render through) wire it into the leaderboard, recent bets, and per-market bet lists. |
-| Asset Race | **Deployed and configured, staged—not publicly launched.** `SignedPoolRaceOracle` is `0x5b0f7e62E0A5fF5C5C02Ad219Afcd086F2618Db7`; `AssetRace` is `0x63E582bb395527CED97F2F94662eA93A7EDf65Ff`. All 10 approved Stocks and 13 approved Memes are registered. No race has been created; the VPS keeper/LIVE services and controlled mainnet rehearsal remain launch gates. See `docs/ASSET_RACE_PREDEPLOY_CHECKLIST.md`. |
-| Bet token | Real USDG at `0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168`, **6 decimals** (not 18 — the old testnet mock token was 18, this has tripped up the frontend before, double-check before assuming). USDG only for now; ETH support is a known, explicitly-flagged gap (see Roadmap). |
+| Asset Race / Price Arena | USDG deployments are `0x63E582bb395527CED97F2F94662eA93A7EDf65Ff` and `0xBAca2605914d8f7f0DF5663AA01f79FB8a6DA8ae`. Price Arena's live keeper resolved arenas #0–#3 on 2026-09-24. Native-ETH successors are implemented locally but not deployed. The shared `SignedPoolRaceOracle` remains `0x5b0f7e62E0A5fF5C5C02Ad219Afcd086F2618Db7`. |
+| Wager currency | New contracts account only in native ETH/wei and require exact payable value; there is no WETH or swap. The UI converts $1–$50 with one cached ETH/USD quote and fixed-point arithmetic. USDG remains only a Stock price quote and the legacy claim currency. |
 | Prediction price sources | The legacy live contract still has its historical Chainlink allowlist. The undeployed replacement uses exactly 10 reviewed StockToken/USDG pools from `config/asset-race-assets.json`: NVDA, TSLA, AAPL, META, MSTR, AMZN, MSFT, GOOGL, MU, NFLX. |
 | Markets | 11 live as of this writing (TSLA + NVDA/AAPL/MSFT/GOOGL/AMZN/META/PLTR/SPY/QQQ seeded with 30-day deadlines so the site doesn't look empty, plus one real user-created market). `createMarket` is fully permissionless — anyone with an allowlisted feed can open one. |
-| Frontend ↔ contract | Fully wired: connect, browse (no wallet needed), create market, bet (approve + bet), claim, refund, resolve, view a market's own bet history, leaderboard, nicknames. Verified working with real wallets and real transactions, not just simulated. |
-| Hosting | VPS (`prophetmarkets.fun`) + GitHub Pages, both auto-serving real mainnet data. nginx on the VPS proxies Robinhood Chain's own read-only price/catalog REST API (`/api/robinhood/*`) with 15s server-side caching — see "Ops lessons" below for why that caching exists and a past outage it fixed. |
+| Frontend ↔ contract | The native-ETH frontend is wired locally for one payable bet transaction with no approval. New addresses are fail-closed until explicitly configured. `/onchain/legacy` preserves claim/refund access to old USDG positions. No native replacement has been deployed or exercised on mainnet. |
+| Hosting | VPS (`prophetmarkets.fun`) is the canonical live site. GitHub Pages mirrors the code but leaves native successor addresses unset until deployment, preventing an automatic build from binding payable UI to USDG contracts. nginx on the VPS proxies Robinhood Chain's read-only price/catalog REST API (`/api/robinhood/*`) with 15s server-side caching. |
 | Audit | **None.** Said explicitly in the UI disclaimer banner on every real-mode page. Owner-centralized (one EOA controls the approved asset/pool registry, protocol fee, and seed liquidity) — a known, accepted risk for this stage. |
 
 ## Critical operating rules (learned through actual friction — read before acting)
@@ -140,6 +143,16 @@ lessons" section below.
   last good answer instead of erroring. Requires `VITE_RPC_URL=/api/rpc/`
   at VPS build time (see rule 3 above) — GitHub Pages has no proxy
   available and is unaffected/unfixed either way.
+- **Current VPS RPC routing (operator report, 2026-09-25):** the site plus
+  `prophet-asset-race-keeper`, `prophet-asset-race-live`,
+  `prophet-prediction-market-keeper`, and `prophet-price-arena-keeper` all use
+  one paid Alchemy account. Keep per-service environment variable boundaries,
+  but do not regress any of them to public Robinhood or mixed free endpoints.
+  Never record the key itself in repository documentation.
+- **Production deploy source is singular:** publish through `main` and build
+  from `/opt/robinhood-predict`. Do not point nginx at ad-hoc
+  `/opt/robinhood-predict-asset-race/dist-*` directories; that caused the domain
+  to alternate between unreviewed and rolled-back builds.
 - **Feed prices are now pre-fetched by us, not read live per-visitor.**
   `predictx-feed-poller.service` (systemd) polls all 27 allowlisted
   Chainlink feeds on its own schedule and writes a snapshot nginx serves at
@@ -165,12 +178,10 @@ lessons" section below.
 Full history in [`ROADMAP.md`](./ROADMAP.md). Known, explicitly-flagged
 gaps as of this writing:
 
-- **ETH as a second bet currency** — discussed, not started. The clean
-  path is a second, parallel `PredictionMarket` deployment with WETH as
-  `betToken` (the contract already supports any ERC20, no code change
-  needed) rather than a same-contract multi-currency rewrite — keeps the
-  well-tested pool/fee/claim logic untouched, at the cost of ETH markets
-  and USDG markets being separate liquidity pools.
+- **Native ETH rollout** — implementation is local and deliberately replaces
+  wager currency only; it does not change StockToken/USDG settlement prices.
+  Deployment, tiny-value lifecycle rehearsals, keeper/service switching and
+  production frontend configuration remain separate approval gates.
 - **WalletConnect** for mobile Safari / non-extension wallets — needs a
   free Project ID from cloud.walletconnect.com that only the project
   owner can obtain, not started.

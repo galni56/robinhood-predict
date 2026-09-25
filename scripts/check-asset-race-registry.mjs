@@ -59,8 +59,8 @@ function validate() {
   assert(registry.networks.local.chainId === 31337, 'local chain ID must be 31337')
   assert(registry.networks['robinhood-testnet'].chainId === 46630, 'Robinhood testnet chain ID must be 46630')
   assert(registry.networks['robinhood-mainnet'].chainId === 4663, 'Robinhood mainnet chain ID must be 4663')
-  assert(registry.networks['robinhood-mainnet'].settlementToken?.symbol === 'USDG', 'mainnet settlement token must be USDG')
-  assert(isAddress(registry.networks['robinhood-mainnet'].settlementToken?.address ?? ''), 'mainnet USDG address is invalid')
+  assert(registry.networks['robinhood-mainnet'].stockQuoteToken?.symbol === 'USDG', 'mainnet Stock quote token must be USDG')
+  assert(isAddress(registry.networks['robinhood-mainnet'].stockQuoteToken?.address ?? ''), 'mainnet Stock quote USDG address is invalid')
   assert(registry.poolInfrastructure?.chainId === ROBINHOOD_CHAIN_ID, 'pool infrastructure chain ID mismatch')
   assert(registry.poolInfrastructure?.outputDecimals === POOL_PRICE_DECIMALS, 'pool output decimals mismatch')
   assert(registry.poolInfrastructure?.uniswapV3Factory?.toLowerCase() === UNISWAP_V3_FACTORY.toLowerCase(), 'V3 factory mismatch')
@@ -80,7 +80,7 @@ function validate() {
   assert(liveProfile?.pollIntervalMs === 2_000, 'Stock live display poll interval must be two seconds')
   assert(liveProfile?.staleAfterMs >= liveProfile.pollIntervalMs, 'Stock live display staleness must cover one poll')
   assert(
-    liveProfile?.quoteTokenAddress?.toLowerCase() === registry.networks['robinhood-mainnet'].settlementToken.address.toLowerCase(),
+    liveProfile?.quoteTokenAddress?.toLowerCase() === registry.networks['robinhood-mainnet'].stockQuoteToken.address.toLowerCase(),
     'Stock live display quote token must be canonical USDG',
   )
 

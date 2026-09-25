@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { parseAbiItem } from 'viem'
 import { usePublicClient } from 'wagmi'
-import { DEPLOY_BLOCK, PREDICTION_MARKET_ADDRESS } from '@/chain/contracts'
+import { DEPLOY_BLOCK, PREDICTION_MARKET_ADDRESS, PREDICTION_MARKET_CONFIGURED } from '@/chain/contracts'
 import { DEMO_MARKET_IDS, demoBetLogs, isDemoMode } from '@/chain/demo'
 
 const BET_PLACED_EVENT = parseAbiItem(
@@ -48,7 +48,7 @@ export function useBetLogs() {
       if (!isDemoMode()) return real
       return [...real, ...demoBetLogs(DEMO_MARKET_IDS)]
     },
-    enabled: !!client,
+    enabled: !!client && (PREDICTION_MARKET_CONFIGURED || isDemoMode()),
     refetchInterval: 10_000,
     retry: 1,
   })

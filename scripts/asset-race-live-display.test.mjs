@@ -6,6 +6,11 @@ import {
   displayedRaceReturnWad,
   parseAssetRaceLiveSnapshot,
 } from '../src/chain/assetRaceLiveDisplay.ts'
+import {
+  freezeUsdStakeQuote,
+  parseUsdCents,
+  usdCentsToWei,
+} from '../src/chain/ethUsd.ts'
 
 test('Meme WETH heartbeat uses official P0 across refresh/late viewers, not a USD/display anchor', () => {
   const entry = { assetId: 'AI', oracleId: `0x${'11'.repeat(32)}`, priceQuote: '0.0011', quoteSymbol: 'WETH',
@@ -37,4 +42,27 @@ test('official final return replaces provisional live return', () => {
     livePrice: 200n,
   })
   assert.equal(result, -5n)
+})
+
+test('USD stake conversion uses fixed-point bigint math only', () => {
+  const priceRaw = 2500n * 10n ** 8n
+  assert.equal(parseUsdCents('1'), 100n)
+  assert.equal(parseUsdCents('12.34'), 1_234n)
+  assert.equal(usdCentsToWei(100n, priceRaw, 8), 400_000_000_000_000n)
+  assert.equal(usdCentsToWei(5_000n, priceRaw, 8), 20_000_000_000_000_000n)
+  assert.throws(() => parseUsdCents('1.005'), /InvalidUsdAmount/)
+})
+
+test('wallet quote freezes exact wei and rejects stale or out-of-range input', () => {
+  const quote = {
+    provider: 'COINBASE_EXCHANGE', pair: 'ETH-USD', priceUsd: '2500.00',
+    priceRaw: '250000000000', decimals: 8, receivedAt: 10_000,
+    staleAfterMs: 45_000, stale: false,
+  }
+  const frozen = freezeUsdStakeQuote('50.00', quote, 20_000)
+  assert.equal(frozen.usdCents, 5_000n)
+  assert.equal(frozen.wei, 20_000_000_000_000_000n)
+  assert.equal(frozen.ethUsdPriceRaw, 250_000_000_000n)
+  assert.throws(() => freezeUsdStakeQuote('50.01', quote, 20_000), /UsdStakeOutOfRange/)
+  assert.throws(() => freezeUsdStakeQuote('1', quote, 60_001), /EthUsdQuoteStale/)
 })

@@ -34,6 +34,7 @@ body,
 
 body {
   margin: 0;
+  overflow-x: hidden;
   /* Static background painted directly on body — see git history: extra
      compositing layers intermittently left text unpainted. Brand purple
      (#8b7cf7 / #6a5ae0) + a warm orange kiss, kept subtle under content. */

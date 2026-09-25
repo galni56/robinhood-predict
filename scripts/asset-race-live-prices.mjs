@@ -1,6 +1,9 @@
 export const DEXSCREENER_CHAIN_ID = 'robinhood'
 export const DEXSCREENER_PRICE_DECIMALS = 18
 export const DEXSCREENER_PAIRS_API = 'https://api.dexscreener.com/latest/dex/pairs'
+export const ETH_USD_TICKER_API = 'https://api.exchange.coinbase.com/products/ETH-USD/ticker'
+export const ETH_USD_PRICE_DECIMALS = 8
+export const ETH_USD_MIN_REFRESH_MS = 15_000
 
 function normalize(value) {
   return typeof value === 'string' ? value.toLowerCase() : ''
@@ -16,6 +19,84 @@ export function decimalToUnits(value, decimals = DEXSCREENER_PRICE_DECIMALS) {
   const result = BigInt(whole) * (10n ** BigInt(decimals)) + BigInt(padded || '0')
   if (result <= 0n) throw new Error('NonPositivePrice')
   return result
+}
+
+export function selectCoinbaseEthUsdQuote(payload, receivedAt) {
+  if (!Number.isSafeInteger(receivedAt) || receivedAt <= 0) throw new Error('InvalidReceivedAt')
+  const priceUsd = payload?.price
+  const priceRaw = decimalToUnits(priceUsd, ETH_USD_PRICE_DECIMALS)
+  return {
+    provider: 'COINBASE_EXCHANGE',
+    pair: 'ETH-USD',
+    priceUsd,
+    priceRaw: priceRaw.toString(),
+    decimals: ETH_USD_PRICE_DECIMALS,
+    receivedAt,
+    stale: false,
+  }
+}
+
+/// One process-wide public ETH/USD cache. Calls inside the refresh window reuse
+/// the same quote, including after failures, so visitors never multiply load.
+export class EthUsdQuoteCache {
+  constructor({
+    fetchFn = fetch,
+    now = Date.now,
+    minRefreshMs = ETH_USD_MIN_REFRESH_MS,
+    staleAfterMs = 45_000,
+    url = ETH_USD_TICKER_API,
+  } = {}) {
+    if (typeof fetchFn !== 'function' || typeof now !== 'function') throw new Error('InvalidEthUsdDependency')
+    if (!Number.isSafeInteger(minRefreshMs) || minRefreshMs < ETH_USD_MIN_REFRESH_MS) {
+      throw new Error('EthUsdRefreshTooFrequent')
+    }
+    if (!Number.isSafeInteger(staleAfterMs) || staleAfterMs < minRefreshMs) throw new Error('InvalidEthUsdStaleThreshold')
+    this.fetchFn = fetchFn
+    this.now = now
+    this.minRefreshMs = minRefreshMs
+    this.staleAfterMs = staleAfterMs
+    this.url = url
+    this.quote = undefined
+    this.error = undefined
+    this.lastAttemptAt = 0
+    this.hasAttempted = false
+    this.inFlight = undefined
+    this.upstreamRequestCount = 0
+  }
+
+  snapshot(at = this.now()) {
+    return {
+      quote: this.quote ? { ...this.quote, stale: at - this.quote.receivedAt > this.staleAfterMs } : undefined,
+      error: this.error,
+      upstreamRequestCount: this.upstreamRequestCount,
+      minRefreshMs: this.minRefreshMs,
+      staleAfterMs: this.staleAfterMs,
+    }
+  }
+
+  async refresh() {
+    const requestedAt = this.now()
+    if (this.inFlight) return this.inFlight
+    if (this.hasAttempted && requestedAt - this.lastAttemptAt < this.minRefreshMs) return this.snapshot(requestedAt)
+    this.hasAttempted = true
+    this.lastAttemptAt = requestedAt
+    this.upstreamRequestCount += 1
+    this.inFlight = (async () => {
+      try {
+        const response = await this.fetchFn(this.url, { headers: { accept: 'application/json' } })
+        if (!response?.ok) throw new Error('EthUsdHttpError')
+        this.quote = selectCoinbaseEthUsdQuote(await response.json(), this.now())
+        this.error = undefined
+      } catch {
+        // Never publish upstream response text: it may contain infrastructure detail.
+        this.error = 'EthUsdQuoteUnavailable'
+      } finally {
+        this.inFlight = undefined
+      }
+      return this.snapshot(this.now())
+    })()
+    return this.inFlight
+  }
 }
 
 export function liveStockConfigsFromRegistry(registry) {
@@ -178,10 +259,11 @@ export function poolLiveConfigsFromRegistry(registry) {
 /// @notice One process polls one fixed Robinhood block and fans the snapshot
 /// out to every SSE client. Settlement and live pricing share PoolPriceEngine.
 export class StockPoolLiveCollector {
-  constructor({ engine, now = Date.now, staleAfterMs = 5_000 }) {
+  constructor({ engine, ethUsdQuoteCache, now = Date.now, staleAfterMs = 5_000 }) {
     if (!engine?.latestSnapshot || typeof now !== 'function') throw new Error('InvalidPoolLiveCollector')
     if (!Number.isSafeInteger(staleAfterMs) || staleAfterMs < 1_000) throw new Error('InvalidStaleThreshold')
     this.engine = engine
+    this.ethUsdQuoteCache = ethUsdQuoteCache
     this.now = now
     this.staleAfterMs = staleAfterMs
     this.assets = {}
@@ -200,19 +282,22 @@ export class StockPoolLiveCollector {
     for (const [assetId, entry] of Object.entries(this.assets)) {
       assets[assetId] = { ...entry, stale: at - entry.receivedAt > this.staleAfterMs }
     }
+    const ethUsd = this.ethUsdQuoteCache?.snapshot(at)
     return {
       provider: 'ROBINHOOD_POOL_RPC',
       heartbeatAt: at,
       staleAfterMs: this.staleAfterMs,
       upstreamRequestCount: this.upstreamRequestCount,
       assets,
-      errors: { ...this.errors },
+      ethUsd: ethUsd?.quote ? { ...ethUsd.quote, staleAfterMs: ethUsd.staleAfterMs } : undefined,
+      errors: { ...this.errors, ...(ethUsd?.error ? { ethUsd: ethUsd.error } : {}) },
     }
   }
 
   async poll() {
     this.upstreamRequestCount += 1
     const receivedAt = this.now()
+    await this.ethUsdQuoteCache?.refresh()
     try {
       const snapshot = await this.engine.latestSnapshot()
       const nextAssets = {}

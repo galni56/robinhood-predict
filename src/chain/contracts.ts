@@ -1,14 +1,26 @@
-import type { Address } from 'viem'
+import { getAddress, isAddress, zeroAddress, type Address } from 'viem'
 
-// This fallback is the legacy 2026-09-10 PredictionMarket. The source ABI
-// below belongs to the not-yet-deployed deadline-settlement replacement, so a
-// production build must set VITE_MARKET_ADDRESS to that replacement before
-// this frontend revision is published. See the migration gate in
-// docs/PREDICTION_MARKET_DEADLINE_SETTLEMENT.md. Addresses are public values.
-export const PREDICTION_MARKET_ADDRESS = (import.meta.env.VITE_MARKET_ADDRESS ??
-  '0xd95ed19edBCd330498CADe7BA8569ac940A4182f') as Address
-export const BET_TOKEN_ADDRESS = (import.meta.env.VITE_BET_TOKEN_ADDRESS ??
-  '0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168') as Address
+export const USDG_DEADLINE_PREDICTION_MARKET_ADDRESS = '0x1a62098AcEd3F7F8C41fff1bc1395A541678b0F1' as Address
+export const LEGACY_CHAINLINK_PREDICTION_MARKET_ADDRESS = '0xd95ed19edBCd330498CADe7BA8569ac940A4182f' as Address
+export const LEGACY_ASSET_RACE_ADDRESS = '0x63E582bb395527CED97F2F94662eA93A7EDf65Ff' as Address
+export const LEGACY_PRICE_ARENA_ADDRESS = '0xBAca2605914d8f7f0DF5663AA01f79FB8a6DA8ae' as Address
+export const LEGACY_USDG_ADDRESS = '0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168' as Address
+
+// Native-ETH deployments are always explicit. A missing address leaves the
+// new market UI read-only instead of silently routing writes to the legacy
+// USDG contract retained below for claims and refunds.
+const configuredMarketAddress = import.meta.env.VITE_MARKET_ADDRESS?.trim()
+const normalizedMarketAddress = configuredMarketAddress && isAddress(configuredMarketAddress)
+  ? getAddress(configuredMarketAddress)
+  : undefined
+const marketUsesLegacyUsdG = normalizedMarketAddress != null && [
+  USDG_DEADLINE_PREDICTION_MARKET_ADDRESS,
+  LEGACY_CHAINLINK_PREDICTION_MARKET_ADDRESS,
+].some((address) => address.toLowerCase() === normalizedMarketAddress.toLowerCase())
+export const PREDICTION_MARKET_ADDRESS = normalizedMarketAddress && !marketUsesLegacyUsdG
+  ? normalizedMarketAddress
+  : zeroAddress
+export const PREDICTION_MARKET_CONFIGURED = PREDICTION_MARKET_ADDRESS !== zeroAddress
 
 // Legacy Chainlink catalog retained for the existing token browser, legacy
 // market metadata, and Chainlink-backed Asset Race adapters. The replacement
@@ -132,7 +144,7 @@ export const predictionMarketAbi = [
   {
     type: 'function',
     name: 'createMarket',
-    stateMutability: 'nonpayable',
+    stateMutability: 'payable',
     inputs: [
       { name: 'assetId', type: 'bytes32' },
       { name: 'targetPrice', type: 'int256' },
@@ -145,7 +157,7 @@ export const predictionMarketAbi = [
   {
     type: 'function',
     name: 'bet',
-    stateMutability: 'nonpayable',
+    stateMutability: 'payable',
     inputs: [
       { name: 'id', type: 'uint256' },
       { name: 'side', type: 'uint8' },

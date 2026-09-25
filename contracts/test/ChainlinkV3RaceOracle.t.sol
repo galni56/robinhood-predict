@@ -6,7 +6,6 @@ import {AssetRace} from "../src/AssetRace.sol";
 import {IAssetRaceOracle} from "../src/interfaces/IAssetRaceOracle.sol";
 import {ChainlinkV3RaceOracle} from "../src/oracles/ChainlinkV3RaceOracle.sol";
 import {MockAggregator} from "../src/mocks/MockAggregator.sol";
-import {MockERC20} from "../src/mocks/MockERC20.sol";
 
 contract ChainlinkV3RaceOracleTest is Test {
     address internal constant BETTOR_A = address(0xA11CE);
@@ -15,7 +14,6 @@ contract ChainlinkV3RaceOracleTest is Test {
     ChainlinkV3RaceOracle internal adapter;
     MockAggregator internal feedA;
     MockAggregator internal feedB;
-    MockERC20 internal token;
 
     function setUp() public {
         vm.warp(1_000_000);
@@ -37,8 +35,7 @@ contract ChainlinkV3RaceOracleTest is Test {
     }
 
     function _race(uint64 maxPriceAge) internal returns (AssetRace race) {
-        token = new MockERC20("Mock USDG", "mUSDG");
-        race = new AssetRace(address(token));
+        race = new AssetRace();
         AssetRace.CandidateInput[] memory candidates = new AssetRace.CandidateInput[](2);
         candidates[0] = AssetRace.CandidateInput({
             category: AssetRace.RaceCategory.STOCK,
@@ -76,16 +73,12 @@ contract ChainlinkV3RaceOracleTest is Test {
             }),
             candidates
         );
-        token.mint(BETTOR_A, 100);
-        token.mint(BETTOR_B, 100);
+        vm.deal(BETTOR_A, 100);
+        vm.deal(BETTOR_B, 100);
         vm.prank(BETTOR_A);
-        token.approve(address(race), type(uint256).max);
+        race.bet{value: 1}(0, 0, 1);
         vm.prank(BETTOR_B);
-        token.approve(address(race), type(uint256).max);
-        vm.prank(BETTOR_A);
-        race.bet(0, 0, 1);
-        vm.prank(BETTOR_B);
-        race.bet(0, 1, 1);
+        race.bet{value: 1}(0, 1, 1);
     }
 
     function test_AdapterReadsConfiguredFeed() public view {
@@ -247,9 +240,9 @@ contract ChainlinkV3RaceOracleTest is Test {
             ids
         );
         vm.prank(BETTOR_A);
-        race.bet(1, 0, 1);
+        race.bet{value: 1}(1, 0, 1);
         vm.prank(BETTOR_B);
-        race.bet(1, 1, 1);
+        race.bet{value: 1}(1, 1, 1);
         vm.warp(block.timestamp + 10);
         vm.expectRevert(AssetRace.InvalidOracleDecimals.selector);
         race.startRace(1);

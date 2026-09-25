@@ -5,6 +5,7 @@ import { createServer } from 'node:http'
 import { fileURLToPath } from 'node:url'
 import { createPublicClient, defineChain, http } from 'viem'
 import {
+  EthUsdQuoteCache,
   StockPoolLiveCollector,
   poolLiveConfigsFromRegistry,
 } from './asset-race-live-prices.mjs'
@@ -103,6 +104,7 @@ async function main() {
   const port = Number(process.env.ASSET_RACE_LIVE_PORT || 8787)
   const pollIntervalMs = Number(process.env.ASSET_RACE_LIVE_POLL_INTERVAL_MS || profile.livePollIntervalMs || 2_000)
   const staleAfterMs = Number(process.env.ASSET_RACE_LIVE_STALE_MS || profile.liveStaleAfterMs || 5_000)
+  const ethUsdStaleAfterMs = Number(process.env.ETH_USD_STALE_MS || 45_000)
   const rpcUrl = resolveLiveRpcUrl()
 
   if (!Number.isSafeInteger(port) || port < 1 || port > 65_535) throw new Error('InvalidLiveServerPort')
@@ -119,7 +121,8 @@ async function main() {
   await verifyLiveChain(client, chain.id)
   const engine = new PoolPriceEngine({ client, configs })
   await engine.verify()
-  const collector = new StockPoolLiveCollector({ engine, staleAfterMs })
+  const ethUsdQuoteCache = new EthUsdQuoteCache({ staleAfterMs: ethUsdStaleAfterMs })
+  const collector = new StockPoolLiveCollector({ engine, ethUsdQuoteCache, staleAfterMs })
   const { server, endClients } = createAssetRaceLiveServer(collector, { pollIntervalMs })
 
   server.listen(port, host, () => {

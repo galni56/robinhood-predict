@@ -1,11 +1,12 @@
 import { Link } from 'react-router-dom'
-import { formatUnits } from 'viem'
+import { formatEther, formatUnits } from 'viem'
 import { useReadContract, useReadContracts } from 'wagmi'
 import { CancelledBadge, SideBadge } from '@/components/Pills'
 import {
   MarketSideOnchain,
   MarketStatusOnchain,
   PREDICTION_MARKET_ADDRESS,
+  PREDICTION_MARKET_CONFIGURED,
   predictionMarketAbi,
 } from '@/chain/contracts'
 import { tickerForPredictionAssetId } from '@/chain/predictionMarketAssets'
@@ -13,14 +14,13 @@ import { useTokenLogos } from '@/chain/robinhoodApi'
 import { TokenLogo } from '@/components/TokenLogo'
 import { formatUsd, timeAgo } from '@/lib/format'
 
-const BET_TOKEN_DECIMALS = 6 // USDG's real decimals
-
 export function OnchainArchivePage() {
   const logos = useTokenLogos()
   const marketCount = useReadContract({
     address: PREDICTION_MARKET_ADDRESS,
     abi: predictionMarketAbi,
     functionName: 'marketCount',
+    query: { enabled: PREDICTION_MARKET_CONFIGURED },
   })
   const count = marketCount.data != null ? Number(marketCount.data) : 0
   const ids = Array.from({ length: count }, (_, i) => BigInt(i))
@@ -73,7 +73,7 @@ export function OnchainArchivePage() {
                 {yesPct.toFixed(1)}% / {(100 - yesPct).toFixed(1)}%
               </span>
               <span className="text-white/40 text-xs w-24 text-right">
-                pool {formatUsd(Number(formatUnits(totalPool, BET_TOKEN_DECIMALS)), 0)}
+                pool {formatEther(totalPool)} ETH
               </span>
               <span className="text-white/30 text-xs w-20 text-right">{timeAgo(Number(m.deadline) * 1000)}</span>
             </Link>

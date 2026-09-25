@@ -45,8 +45,8 @@ async function deploy(art, args) {
   assert.equal(receipt.status, 'success')
   return receipt.contractAddress
 }
-async function send(address, abi, functionName, args, account = owner) {
-  const hash = await wallet.writeContract({ account, address, abi, functionName, args })
+async function send(address, abi, functionName, args, account = owner, value) {
+  const hash = await wallet.writeContract({ account, address, abi, functionName, args, ...(value == null ? {} : { value }) })
   const receipt = await client.waitForTransactionReceipt({ hash })
   assert.equal(receipt.status, 'success')
   return receipt
@@ -79,9 +79,10 @@ const bettors = [alice, bob, charlie, ...accounts.slice(5)].slice(0, ids.length)
 assert.equal(bettors.length, ids.length, 'One unlocked local bettor per contender required')
 const finalPrices = ids.map((_, index) => voidRace ? 100n : index === 1 ? 105n : 102n + BigInt(index % 3))
 const movedIndex = ids.length - 1
-const betToken = await deploy(tokenArtifact, ['Local USDG', 'USDG', 6])
 const quoteDecimals = meme ? catalog.marketQuoteUniverses.MEME.decimals : 6
-const quote = meme ? await deploy(tokenArtifact, ['Local WETH', 'WETH', quoteDecimals]) : betToken
+const quote = meme
+  ? await deploy(tokenArtifact, ['Local WETH', 'WETH', quoteDecimals])
+  : await deploy(tokenArtifact, ['Local USDG', 'USDG', quoteDecimals])
 const factory = await deploy(factoryArtifact, [])
 await client.request({ method: 'anvil_setCode', params: [UNISWAP_V3_FACTORY, await client.getBytecode({ address: factory })] })
 const configs = []
@@ -150,7 +151,7 @@ async function setPrice(config, price) {
     : send(config.poolIdentifier, poolArtifact.abi, 'setSqrtPrice', [sqrtFor(config, price)])
 }
 const oracle = await deploy(oracleArtifact, [signer])
-const race = await deploy(raceArtifact, [betToken])
+const race = await deploy(raceArtifact, [])
 const collector = new PoolEndpointCollector({ account: { signTypedData: (request) => wallet.signTypedData({ ...request, account: signer }) }, chainId: 31337, engine, verifyingContract: oracle })
 const candidates = configs.map((config) => ({ category: categoryId, assetId: stringToHex(config.assetId, { size: 32 }), oracle, oracleId: config.oracleId, expectedDecimals: 18, maxPriceAge: 60n, maxEndpointLag: 0n }))
 for (const candidate of candidates) await send(race, raceArtifact.abi, 'setApprovedAsset', [candidate, true])
@@ -161,12 +162,11 @@ const t0 = now + 60n, t1 = t0 + 30n
 await client.request({ method: 'evm_setNextBlockTimestamp', params: [Number(now + 1n)] })
 await send(race, raceArtifact.abi, 'createRace', [{ category: categoryId, bettingStartTime: now + 2n, bettingEndTime: t0, raceDuration: 30n,
   startGrace: 120n, resolutionGrace: 180n, maxOracleTimestampSkew: 0n, feeBp: 200, minActiveContenders: 2,
-  minStake: 1_000_000n, maxStakePerWallet: 50_000_000n }, candidates])
+  minStake: 1_000_000_000_000_000n, maxStakePerWallet: 50_000_000_000_000_000n }, candidates])
 await mineAt(now + 2n)
+const BET_WEI = 10_000_000_000_000_000n
 for (const [index, account] of bettors.entries()) {
-  await send(betToken, tokenArtifact.abi, 'mint', [account, 100_000_000n])
-  await send(betToken, tokenArtifact.abi, 'approve', [race, 100_000_000n], account)
-  await send(race, raceArtifact.abi, 'bet', [0n, index, 10_000_000n], account)
+  await send(race, raceArtifact.abi, 'bet', [0n, index, BET_WEI], account, BET_WEI)
 }
 await mineAt(t0 - 1n)
 const p0Block = await client.getBlock({ blockTag: 'latest' })
@@ -208,23 +208,22 @@ for (const asset of await getAssets()) {
   assert.equal(asset.oracleId, configs.find((config) => stringToHex(config.assetId, { size: 32 }) === asset.assetId).oracleId)
 }
 await mineAt(t1 + 60n * 86_400n)
-const balance = (account = bob) => client.readContract({ address: betToken, abi: tokenArtifact.abi, functionName: 'balanceOf', args: [account] })
-const before = await balance()
-const expectedPayout = BigInt(ids.length) * 10_000_000n - BigInt(ids.length - 1) * 10_000_000n * 200n / 10_000n
+const expectedPayout = BigInt(ids.length) * BET_WEI - BigInt(ids.length - 1) * BET_WEI * 200n / 10_000n
 if (voidRace) {
   for (const bettor of bettors) {
-    const beforeRefund = await balance(bettor)
+    const beforeRefund = await client.getBalance({ address: race })
     await send(race, raceArtifact.abi, 'refund', [0n], bettor)
-    assert.equal(await balance(bettor) - beforeRefund, 10_000_000n)
+    assert.equal(beforeRefund - await client.getBalance({ address: race }), BET_WEI)
   }
 } else {
+  const beforeClaim = await client.getBalance({ address: race })
   await send(race, raceArtifact.abi, 'claim', [0n], bob)
-  assert.equal(await balance() - before, expectedPayout)
+  assert.equal(beforeClaim - await client.getBalance({ address: race }), expectedPayout)
 }
 assert.equal(nativeErc20Calls, 0)
-console.log(JSON.stringify({ passed: true, category, assets: ids, quote: meme ? 'ETH_QUOTE' : 'USDG', betToken: 'USDG', liveAndFinalSource: 'same local protocol-shape fixtures/shared PoolPriceEngine',
+console.log(JSON.stringify({ passed: true, category, assets: ids, quote: meme ? 'ETH_QUOTE' : 'USDG', betCurrency: 'NATIVE_ETH', liveAndFinalSource: 'same local protocol-shape fixtures/shared PoolPriceEngine',
   sources: configs.map(({ assetId, protocol, poolIdentifier, poolKey, quoteKind, baseDecimals, quoteDecimals, baseIsToken0 }) => ({ assetId, protocol, poolIdentifier, poolKey, quoteKind, baseDecimals, quoteDecimals, baseIsToken0 })), nativeErc20Calls,
   p0Block: p0Block.number.toString(), p0Hash: p0Block.hash, p1Block: p1Block.number.toString(), p1Hash: p1Block.hash,
   boundaryMovementIgnored: true, captureDelaySeconds: 60, resolveDelaySeconds: 86400, claimDelayDays: 60,
   terminalState: voidRace ? 'VOID' : 'RESOLVED', winner: voidRace ? null : ids[1],
-  payoutUsd: voidRace ? null : formatUnits(expectedPayout, 6), refundedContenders: voidRace ? ids.length : 0 }))
+  payoutEth: voidRace ? null : formatUnits(expectedPayout, 18), refundedContenders: voidRace ? ids.length : 0 }))

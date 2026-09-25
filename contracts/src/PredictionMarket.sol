@@ -1,9 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IAssetRaceOracle} from "./interfaces/IAssetRaceOracle.sol";
@@ -12,14 +9,12 @@ import {IAssetRaceOracle} from "./interfaces/IAssetRaceOracle.sol";
 /// @notice Parimutuel YES/NO prediction market: "Is <StockToken> at or above
 /// <target> USDG at <deadline>?", settled from the same deterministic
 /// StockToken/USDG pool endpoint used by Asset Race.
-/// Bets are placed in a single ERC-20 bet token (e.g. a USD stablecoin).
+/// Stakes, payouts, refunds and protocol fees are all denominated in native ETH.
 ///
 /// @dev STATUS: this deadline-settlement revision is tested but not deployed.
 /// A legacy revision is live on mainnet. Neither revision has had an independent
 /// security review; see contracts/CLAUDE.md before any production rollout.
 contract PredictionMarket is ReentrancyGuard, Ownable {
-    using SafeERC20 for IERC20;
-
     enum Side {
         YES,
         NO
@@ -70,21 +65,6 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
     /// cancel rather than settle from an old pool state.
     uint256 public constant MAX_PRICE_STALENESS = 60 seconds;
 
-    /// @dev Cap on owner-supplied house seed liquidity per market, in whole
-    /// bet-token units (scaled to `betToken.decimals()` at use). Keeps the
-    /// platform's own risk per market bounded regardless of `feeBp`.
-    uint256 public constant MAX_SEED_LIQUIDITY_USD = 50;
-
-    /// @dev Anti-whale: caps any single wallet's stake on one side of one
-    /// market (a wallet may still bet up to this on YES *and* up to this on
-    /// NO — one bet per side, see `stakes` check in `bet`). Without this, one
-    /// large late bet could swing the pool ratio (and the odds shown on the
-    /// frontend, which read straight off poolYes/poolNo) far more than the
-    /// early-bet weight decay alone discourages. A whale wanting more
-    /// exposure has to spread it across multiple wallets, which naturally
-    /// spreads it across time too instead of landing as one instant shock.
-    uint256 public constant MAX_STAKE_PER_SIDE_USD = 50;
-
     /// @dev Anti-griefing: `createMarket` is permissionless, so without a
     /// floor a creator could open a market seconds before its own deadline,
     /// bet immediately, and leave no real window for a counterparty to react.
@@ -115,18 +95,19 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
     uint256 public constant MAX_WEIGHT_BP = 20_000; // 2x for a bet placed the instant betting opens
     uint256 public constant MIN_WEIGHT_BP = 5_000; // 0.5x for a bet placed right at the betting cutoff
 
-    /// @dev Assumed to be a standard ERC20: no fee-on-transfer, no rebasing.
-    /// The contract's internal accounting (`stakes`, `poolYes`/`poolNo`)
-    /// trusts that `safeTransferFrom(user, address(this), amount)` credits
-    /// the contract with exactly `amount`. A fee-on-transfer or rebasing
-    /// token would silently under-fund the contract relative to what it
-    /// believes it owes bettors — vet this before ever changing it at deploy
-    /// time, this is not something the contract can detect on its own.
-    IERC20 public immutable betToken;
-
     /// @notice Shared verifier for signed historical StockToken/USDG pool
     /// endpoint observations. It is deployed separately and also used by races.
     IAssetRaceOracle public immutable endpointOracle;
+
+    /// @notice Native-ETH guardrails configured at deployment, both in wei.
+    /// They are approximate dollar exposure limits only: ETH/USD is deliberately
+    /// not an onchain dependency and the UI enforces the exact $1-$50 product range.
+    uint256 public immutable maxSeedLiquidityWei;
+
+    /// @dev A wallet may stake up to this amount on YES and independently on NO.
+    /// This bounds one late bet's influence without pretending ETH has a fixed
+    /// dollar price; the deployer chooses the wei value before deployment.
+    uint256 public immutable maxStakePerSideWei;
 
     /// @notice Current protocol fee in basis points, applied to the losing
     /// pool's share of a winner's payout (never to principal). Snapshotted
@@ -164,13 +145,25 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
     event FeeBpUpdated(uint256 feeBp);
     event FeesWithdrawn(address indexed to, uint256 amount);
 
-    constructor(address _betToken, address _endpointOracle, uint256 _feeBp) Ownable(msg.sender) {
-        require(_betToken != address(0), "bet token = zero addr");
+    constructor(address _endpointOracle, uint256 _feeBp, uint256 _maxSeedLiquidityWei, uint256 _maxStakePerSideWei)
+        Ownable(msg.sender)
+    {
         require(_endpointOracle != address(0), "oracle = zero addr");
         require(_feeBp <= MAX_FEE_BP, "fee exceeds max");
-        betToken = IERC20(_betToken);
+        require(_maxSeedLiquidityWei > 0, "seed cap = 0");
+        require(_maxStakePerSideWei > 0, "stake cap = 0");
         endpointOracle = IAssetRaceOracle(_endpointOracle);
         feeBp = _feeBp;
+        maxSeedLiquidityWei = _maxSeedLiquidityWei;
+        maxStakePerSideWei = _maxStakePerSideWei;
+    }
+
+    receive() external payable {
+        revert("direct ETH disabled");
+    }
+
+    fallback() external payable {
+        revert("direct ETH disabled");
     }
 
     /// @notice Bind a public asset id to one reviewed StockToken/USDG pool.
@@ -193,11 +186,11 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
     }
 
     /// @notice Withdraw accumulated protocol fees to `to`.
-    function withdrawFees(address to) external onlyOwner {
+    function withdrawFees(address to) external onlyOwner nonReentrant {
         require(to != address(0), "to = zero addr");
         uint256 amount = accumulatedFees;
         accumulatedFees = 0;
-        betToken.safeTransfer(to, amount);
+        _sendEth(to, amount);
         emit FeesWithdrawn(to, amount);
     }
 
@@ -209,7 +202,7 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
     /// `initialYesAmount`/`initialNoAmount` let the owner seed both sides of a
     /// fresh market with house liquidity (e.g. to open at 50/50 odds instead of
     /// waiting for organic bets on both sides) — only the owner may pass non-zero
-    /// values here, and their combined size is capped at `MAX_SEED_LIQUIDITY_USD`.
+    /// values here, and their combined size is capped at `maxSeedLiquidityWei`.
     /// Regular permissionless callers pass `(0, 0)`. Either way, a market that
     /// never gets a bet on *both* sides by its deadline is cancelled instead of
     /// resolved — see `resolve`.
@@ -219,19 +212,18 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
         uint256 deadline,
         uint256 initialYesAmount,
         uint256 initialNoAmount
-    ) external nonReentrant returns (uint256 id) {
+    ) external payable nonReentrant returns (uint256 id) {
         AssetConfig memory asset = approvedAssets[assetId];
         require(asset.allowed, "asset not allowed");
         require(deadline > block.timestamp, "deadline in the past");
         require(deadline - block.timestamp >= MIN_MARKET_DURATION, "market duration too short");
         require(targetPrice > 0, "target must be > 0");
 
-        if (initialYesAmount > 0 || initialNoAmount > 0) {
+        uint256 seedAmount = initialYesAmount + initialNoAmount;
+        require(msg.value == seedAmount, "incorrect ETH amount");
+        if (seedAmount > 0) {
             require(msg.sender == owner(), "seed liquidity is owner-only");
-            uint8 betDecimals = IERC20Metadata(address(betToken)).decimals();
-            require(
-                initialYesAmount + initialNoAmount <= MAX_SEED_LIQUIDITY_USD * 10 ** betDecimals, "seed exceeds max"
-            );
+            require(seedAmount <= maxSeedLiquidityWei, "seed exceeds max");
         }
 
         id = marketCount++;
@@ -249,7 +241,6 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
         // Seed liquidity lands at creation time (elapsed = 0), so it always
         // gets MAX_WEIGHT_BP — consistent with "earliest possible bet".
         if (initialYesAmount > 0) {
-            betToken.safeTransferFrom(msg.sender, address(this), initialYesAmount);
             stakes[id][msg.sender][Side.YES] += initialYesAmount;
             uint256 weighted = (initialYesAmount * MAX_WEIGHT_BP) / BP_DENOMINATOR;
             weightedStakes[id][msg.sender][Side.YES] += weighted;
@@ -258,7 +249,6 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
             emit BetPlaced(id, msg.sender, Side.YES, initialYesAmount, MAX_WEIGHT_BP);
         }
         if (initialNoAmount > 0) {
-            betToken.safeTransferFrom(msg.sender, address(this), initialNoAmount);
             stakes[id][msg.sender][Side.NO] += initialNoAmount;
             uint256 weighted = (initialNoAmount * MAX_WEIGHT_BP) / BP_DENOMINATOR;
             weightedStakes[id][msg.sender][Side.NO] += weighted;
@@ -294,8 +284,8 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
         return MAX_WEIGHT_BP - decay;
     }
 
-    /// @notice Bet `amount` of `betToken` on `side` for market `id`. Requires prior
-    /// `betToken.approve(address(this), amount)`. One bet per side per market —
+    /// @notice Bet `amount` wei of native ETH on `side` for market `id`.
+    /// `msg.value` must equal `amount`. One bet per side per market —
     /// once you've staked on a side, a second call on that same side reverts
     /// (you can still bet the *other* side once, if you haven't already).
     ///
@@ -303,18 +293,16 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
     /// `BETTING_WINDOW_BP`. The earlier you bet within that window, the bigger
     /// a share of the losing pool your stake is weighted for if you win (your
     /// principal is unaffected either way) — see `currentWeightBp`.
-    function bet(uint256 id, Side side, uint256 amount) external nonReentrant {
+    function bet(uint256 id, Side side, uint256 amount) external payable nonReentrant {
         Market storage m = markets[id];
         require(m.status == Status.Open, "market not open");
         require(amount > 0, "amount = 0");
+        require(msg.value == amount, "incorrect ETH amount");
         require(stakes[id][msg.sender][side] == 0, "already bet this side");
-
-        uint8 betDecimals = IERC20Metadata(address(betToken)).decimals();
-        require(amount <= MAX_STAKE_PER_SIDE_USD * 10 ** betDecimals, "exceeds max stake per side");
+        require(amount <= maxStakePerSideWei, "exceeds max stake per side");
 
         uint256 weightBp = currentWeightBp(id); // reverts "betting closed" past the window
 
-        betToken.safeTransferFrom(msg.sender, address(this), amount);
         stakes[id][msg.sender][side] += amount;
         uint256 weighted = (amount * weightBp) / BP_DENOMINATOR;
         weightedStakes[id][msg.sender][side] += weighted;
@@ -377,7 +365,7 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
     ///
     ///   payout = yourStake + yourWeightedStake * losingPool * (10000 - feeBp) / (weightedWinningPool * 10000)
     ///
-    /// `losingPool` is the *raw* dollar amount forfeited by the losing side —
+    /// `losingPool` is the *raw* wei amount forfeited by the losing side —
     /// weight never applies to it, losers just lose their stake. `weightedWinningPool`
     /// is guaranteed non-zero here: `resolve` only reaches `Resolved` (as opposed to
     /// `Cancelled`) when both `poolYes` and `poolNo` are non-zero, and every non-zero
@@ -405,7 +393,7 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
         uint256 payout = userStake + winnings;
 
         accumulatedFees += fee;
-        betToken.safeTransfer(msg.sender, payout);
+        _sendEth(msg.sender, payout);
 
         emit Claimed(id, msg.sender, payout);
     }
@@ -430,12 +418,17 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
         require(amount > 0, "nothing to refund");
 
         stakes[id][msg.sender][side] = 0;
-        betToken.safeTransfer(msg.sender, amount);
+        _sendEth(msg.sender, amount);
 
         emit Refunded(id, msg.sender, side, amount);
     }
 
     function getMarket(uint256 id) external view returns (Market memory) {
         return markets[id];
+    }
+
+    function _sendEth(address to, uint256 amount) private {
+        (bool success,) = payable(to).call{value: amount}("");
+        require(success, "ETH transfer failed");
     }
 }

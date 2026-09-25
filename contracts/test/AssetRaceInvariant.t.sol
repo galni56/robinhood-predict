@@ -4,13 +4,11 @@ pragma solidity ^0.8.24;
 import {Test} from "forge-std/Test.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {AssetRace} from "../src/AssetRace.sol";
-import {MockERC20} from "../src/mocks/MockERC20.sol";
 import {MockRaceOracle} from "../src/mocks/MockRaceOracle.sol";
 
 contract AssetRaceHandler is Test {
     uint256 internal constant UNIT = 1e6;
 
-    MockERC20 public token;
     MockRaceOracle public oracle;
     AssetRace public race;
     uint256 public raceId;
@@ -22,9 +20,8 @@ contract AssetRaceHandler is Test {
 
     constructor() {
         vm.warp(2_000_000);
-        token = new MockERC20("Invariant USDG", "iUSDG");
         oracle = new MockRaceOracle();
-        race = new AssetRace(address(token));
+        race = new AssetRace();
 
         AssetRace.CandidateInput[] memory candidates = new AssetRace.CandidateInput[](3);
         for (uint8 i = 0; i < 3; ++i) {
@@ -58,9 +55,7 @@ contract AssetRaceHandler is Test {
         raceId = race.createRace(config, candidates);
 
         for (uint256 i = 0; i < actors.length; ++i) {
-            token.mint(actors[i], 10_000 * UNIT);
-            vm.prank(actors[i]);
-            token.approve(address(race), type(uint256).max);
+            vm.deal(actors[i], 10_000 * UNIT);
         }
     }
 
@@ -82,7 +77,7 @@ contract AssetRaceHandler is Test {
         uint256 amount = bound(uint256(amountSeed), minimum, remaining);
 
         vm.prank(actor);
-        try race.bet(raceId, assetIndex, amount) {} catch {}
+        try race.bet{value: amount}(raceId, assetIndex, amount) {} catch {}
         _recordTransition(oldStatus);
     }
 
@@ -183,8 +178,7 @@ contract AssetRaceInvariantTest is Test {
 
     function invariant_ContractBalanceCoversFeesAndUserLiabilities() public view {
         AssetRace race = handler.race();
-        MockERC20 token = handler.token();
-        assertGe(token.balanceOf(address(race)), race.totalUserLiability() + race.accumulatedFees());
+        assertGe(address(race).balance, race.totalUserLiability() + race.accumulatedFees());
     }
 
     function invariant_SingleRaceLiabilityMatchesGlobalLiability() public view {

@@ -1,3 +1,5 @@
+import { parseEthUsdQuote, type EthUsdQuote } from './ethUsd.ts'
+
 export const LIVE_DISPLAY_RETURN_SCALE = 10n ** 18n
 
 export interface AssetRaceLivePrice {
@@ -27,6 +29,7 @@ export interface AssetRaceLiveSnapshot {
   heartbeatAt: number
   staleAfterMs: number
   upstreamRequestCount: number
+  ethUsd?: EthUsdQuote
   assets: Record<string, AssetRaceLivePrice>
   errors: Record<string, string>
 }
@@ -69,7 +72,8 @@ export function parseAssetRaceLiveSnapshot(value: unknown): AssetRaceLiveSnapsho
     assets[assetId] = entry as AssetRaceLivePrice
   }
 
-  return { ...candidate, assets } as AssetRaceLiveSnapshot
+  const ethUsd = parseEthUsdQuote(candidate.ethUsd)
+  return { ...candidate, assets, ethUsd } as AssetRaceLiveSnapshot
 }
 
 export function calculateLiveDisplayReturnWad(

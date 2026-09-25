@@ -25,10 +25,10 @@ plus what's actually still open.
 4. **Testnet deploy, then mainnet deploy** (2026-09-07) — real Chainlink
    price feeds and real USDG confirmed working; the project moved fully to
    mainnet and hasn't touched testnet since.
-5. **Frontend wired to the real chain** — wallet connect (external,
-   `wagmi` `injected()` + EIP-6963, no embedded/custodial wallet), browse
-   with no wallet needed, create market, bet (approve + bet), claim,
-   refund, resolve — all verified with real wallets and real transactions.
+5. **Original USDG frontend wired to the real chain** — wallet connect,
+   browse, create market, approve + bet, claim, refund and resolve were verified
+   with real wallets and transactions. This is historical behavior; the local
+   native-ETH successor removes approval.
 6. **Anti-griefing guardrails made genuinely live** (2026-09-10 redeploy) —
    min market duration, a duration-scaled target-price deviation band
    (replacing the flat cap from #1), max stake per wallet per side.
@@ -41,41 +41,41 @@ plus what's actually still open.
    without a backend.
 9. **Rebrand to "Prophet"** (2026-09-11) — user-facing name changed from
    PredictX to match the actual domain; repo/package names unchanged.
-10. **Deadline-bound PredictionMarket settlement prepared** (2026-09-23) —
-    the replacement uses the same signed StockToken/USDG pool block-pair proof
-    as Asset Race. It stores the immutable last-block-before-deadline observation
-    and rejects later-price selection. A dedicated keeper builds the proof.
-    This revision is tested but not yet deployed;
+10. **Deadline-bound USDG PredictionMarket deployed** (2026-09-23) — the
+    contract at `0x1a62098AcEd3F7F8C41fff1bc1395A541678b0F1` uses the same signed
+    StockToken/USDG pool block-pair proof as Asset Race. Its live keeper has
+    submitted real resolutions. The subsequent native-ETH revision remains local;
     see `docs/PREDICTION_MARKET_DEADLINE_SETTLEMENT.md`.
+11. **Native-ETH wager migration implemented locally** (2026-09-25) —
+    Prediction Markets, Asset Races and Price Arena now accept exact payable
+    native ETH and return ETH for payouts/refunds/fees. The UI uses one cached
+    ETH/USD quote for fixed-point $1–$50 conversion and sends one transaction
+    without approval. StockToken/USDG and MemeToken/ETH settlement prices are
+    unchanged. Legacy USDG claim/refund access is retained. Deployment and
+    production switching are not part of this milestone.
 
-## Asset Race staged rollout (2026-09-22)
+## Existing USDG generation and native successor (updated 2026-09-25)
 
-The deterministic Asset Race contracts are deployed and configured on Robinhood
-Chain mainnet, but the feature is not yet publicly launched. The deployed
+The deterministic USDG Asset Race contracts are deployed and configured on Robinhood
+Chain mainnet, and the operator reports its keeper/LIVE services active. The deployed
 `SignedPoolRaceOracle` is `0x5b0f7e62E0A5fF5C5C02Ad219Afcd086F2618Db7`
 and `AssetRace` is `0x63E582bb395527CED97F2F94662eA93A7EDf65Ff`.
 All 10 approved Stocks and 13 approved Memes are registered; deployment state,
 tests and operational evidence are recorded in
 [`docs/ASSET_RACE_PREDEPLOY_CHECKLIST.md`](./docs/ASSET_RACE_PREDEPLOY_CHECKLIST.md).
 
-Remaining launch gates are the VPS keeper and LIVE services, endpoint/health
-monitoring, controlled tiny-value mainnet Stock and Meme lifecycle rehearsals,
-and review/merge of the feature branch. GitHub Pages is bound to the real
-contracts but keeps provisional LIVE pool movement disabled until a CORS-safe
-public SSE endpoint exists; onchain race state and final results do not depend on
-that display service.
+These addresses are legacy recovery targets, not valid bindings for the payable
+native frontend. GitHub Pages deliberately leaves all native successor addresses
+unset. Native rollout still requires deployment approval, selected wei caps,
+controlled tiny-value lifecycle rehearsals and an explicit frontend/service switch.
 
 ## Open / explicitly deferred
 
-- **ETH as a second bet currency.** Not started. `PredictionMarket`
-  already supports any ERC20 as `betToken` — the clean path is a second,
-  parallel deployment with WETH as the bet token rather than a
-  same-contract multi-currency rewrite, at the cost of ETH and USDG
-  markets being separate liquidity pools. A same-contract rewrite would
-  also break `MAX_STAKE_PER_SIDE_USD`-style guardrails, which currently
-  assume the bet token is ~$1 (true for USDG, false for ETH) — a
-  per-market bet token would need its own price feed just to size that
-  cap correctly.
+- **Native ETH production rollout.** Code and local validation replace USDG
+  wagering rather than adding WETH or a second liquidity currency. Onchain
+  caps are explicit wei guardrails with approximate dollar meaning. New
+  deployments, tiny-value rehearsals, keeper/service changes and the frontend
+  address switch still require explicit production approval.
 - **WalletConnect**, for mobile Safari / non-extension wallets. Needs a
   free Project ID from cloud.walletconnect.com that only the project
   owner can obtain — blocked on that, not on anything technical.

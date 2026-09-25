@@ -163,7 +163,7 @@ export function poolConfigsFromRegistry(registry, { includeDisabled = false, cat
         throw new Error(`WrongPoolBaseToken:${asset.assetId}`)
       }
       const quote = asset.category === 'STOCK'
-        ? registry.networks['robinhood-mainnet'].settlementToken
+        ? registry.networks['robinhood-mainnet'].stockQuoteToken
         : registry.marketQuoteUniverses?.MEME
       const native = nativeQuote(config)
       if (!quote || (!native && normalized(config.quoteToken) !== normalized(quote.address)) || config.quoteDecimals !== quote.decimals

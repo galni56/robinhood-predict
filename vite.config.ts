@@ -4,6 +4,24 @@ import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 import { isAddress, zeroAddress } from 'viem'
 
+const LEGACY_USDG_BINDINGS: Record<string, string[]> = {
+  VITE_MARKET_ADDRESS: [
+    '0x1a62098aced3f7f8c41fff1bc1395a541678b0f1',
+    '0xd95ed19edbcd330498cade7ba8569ac940a4182f',
+  ],
+  VITE_ASSET_RACE_ADDRESS: ['0x63e582bb395527ced97f2f94662ea93a7edf65ff'],
+  VITE_PRICE_ARENA_ADDRESS: ['0xbaca2605914d8f7f0df5663aa01f79fb8a6da8ae'],
+}
+
+export function validateNativeEthProductionBindings(env: Record<string, unknown>) {
+  for (const [name, legacyAddresses] of Object.entries(LEGACY_USDG_BINDINGS)) {
+    const value = env[name]
+    if (typeof value === 'string' && legacyAddresses.includes(value.trim().toLowerCase())) {
+      throw new Error(`${name} points to a legacy USDG contract, not a native-ETH deployment`)
+    }
+  }
+}
+
 export function validateAssetRaceProductionBuild(env: Record<string, unknown>) {
   const network = typeof env.VITE_ASSET_RACE_NETWORK === 'string' ? env.VITE_ASSET_RACE_NETWORK.trim() : ''
   const liveEnabled = typeof env.VITE_ASSET_RACE_LIVE_ENABLED === 'string'
@@ -72,7 +90,10 @@ export default defineConfig({
   plugins: [react(), tailwindcss(), {
     name: 'asset-race-production-config',
     apply: 'build',
-    configResolved(config) { validateAssetRaceProductionBuild(config.env) },
+    configResolved(config) {
+      validateNativeEthProductionBindings(config.env)
+      validateAssetRaceProductionBuild(config.env)
+    },
   }],
   resolve: {
     alias: {

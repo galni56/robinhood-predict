@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
@@ -12,11 +10,8 @@ import {IAssetRaceOracle} from "./interfaces/IAssetRaceOracle.sol";
 /// @notice Standalone pari-mutuel races in which the active asset with the
 /// highest percentage return between atomic P0 and P1 snapshots wins.
 /// @dev This contract deliberately shares no state or economics with
-/// PredictionMarket. It assumes `betToken` is a standard, non-rebasing ERC20
-/// whose transfers credit exactly the requested amount.
+/// PredictionMarket. Stakes, payouts, refunds and fees are native ETH in wei.
 contract AssetRace is Ownable, ReentrancyGuard {
-    using SafeERC20 for IERC20;
-
     uint256 public constant BP_DENOMINATOR = 10_000;
     uint256 public constant RETURN_SCALE = 1e18;
     uint256 public constant MAX_FEE_BP = BP_DENOMINATOR;
@@ -172,6 +167,8 @@ contract AssetRace is Ownable, ReentrancyGuard {
     error DurationNotApproved();
     error FeeExceedsMaximum();
     error InsufficientFeeBalance();
+    error IncorrectEthAmount();
+    error EthTransferFailed();
     error InvalidAddress();
     error InvalidCandidate();
     error InvalidCandidateCount();
@@ -206,8 +203,6 @@ contract AssetRace is Ownable, ReentrancyGuard {
     error MixedEndpointProofTypes();
     error EndpointSourceMismatch();
     error WrongAsset();
-
-    IERC20 public immutable betToken;
 
     bool public newActivityPaused;
     bool public communityPolicyConfigured;
@@ -284,9 +279,14 @@ contract AssetRace is Ownable, ReentrancyGuard {
     event RaceRefunded(uint256 indexed raceId, address indexed user, uint256 amount);
     event FeesWithdrawn(address indexed to, uint256 amount);
 
-    constructor(address _betToken) Ownable(msg.sender) {
-        if (_betToken == address(0)) revert InvalidAddress();
-        betToken = IERC20(_betToken);
+    constructor() Ownable(msg.sender) {}
+
+    receive() external payable {
+        revert IncorrectEthAmount();
+    }
+
+    fallback() external payable {
+        revert IncorrectEthAmount();
     }
 
     /// @notice Pauses only creation and new bets. Starting, resolving,
@@ -480,7 +480,7 @@ contract AssetRace is Ownable, ReentrancyGuard {
 
     /// @notice Selects one asset, or tops up the caller's existing selection.
     /// The first confirmed asset can never be changed for this race.
-    function bet(uint256 raceId, uint8 assetIndex, uint256 amount) external nonReentrant {
+    function bet(uint256 raceId, uint8 assetIndex, uint256 amount) external payable nonReentrant {
         if (newActivityPaused) revert ActivityPaused();
         Race storage race = _getRace(raceId);
         if (race.status != RaceStatus.BETTING) revert InvalidRaceStatus();
@@ -489,6 +489,7 @@ contract AssetRace is Ownable, ReentrancyGuard {
         }
         if (assetIndex >= race.candidateCount) revert InvalidCandidate();
         if (amount == 0) revert AmountZero();
+        if (msg.value != amount) revert IncorrectEthAmount();
 
         Position storage position = positions[raceId][msg.sender];
         if (!position.exists) {
@@ -501,10 +502,6 @@ contract AssetRace is Ownable, ReentrancyGuard {
 
         uint256 newStake = position.stake + amount;
         if (newStake > race.maxStakePerWallet) revert StakeExceedsMaximum();
-
-        uint256 balanceBefore = betToken.balanceOf(address(this));
-        betToken.safeTransferFrom(msg.sender, address(this), amount);
-        if (betToken.balanceOf(address(this)) - balanceBefore != amount) revert InvalidConfiguration();
 
         position.stake = newStake;
         raceAssets[raceId][assetIndex].pool += amount;
@@ -803,7 +800,7 @@ contract AssetRace is Ownable, ReentrancyGuard {
         position.settled = true;
         race.remainingLiability -= payout;
         totalUserLiability -= payout;
-        betToken.safeTransfer(msg.sender, payout);
+        _sendEth(msg.sender, payout);
 
         emit RaceClaimed(raceId, msg.sender, payout);
     }
@@ -820,7 +817,7 @@ contract AssetRace is Ownable, ReentrancyGuard {
         position.settled = true;
         race.remainingLiability -= amount;
         totalUserLiability -= amount;
-        betToken.safeTransfer(msg.sender, amount);
+        _sendEth(msg.sender, amount);
 
         emit RaceRefunded(raceId, msg.sender, amount);
     }
@@ -832,8 +829,13 @@ contract AssetRace is Ownable, ReentrancyGuard {
         if (amount > accumulatedFees) revert InsufficientFeeBalance();
 
         accumulatedFees -= amount;
-        betToken.safeTransfer(to, amount);
+        _sendEth(to, amount);
         emit FeesWithdrawn(to, amount);
+    }
+
+    function _sendEth(address to, uint256 amount) private {
+        (bool success,) = payable(to).call{value: amount}("");
+        if (!success) revert EthTransferFailed();
     }
 
     function calculateReturn(uint256 startPrice, uint256 endPrice) public pure returns (int256) {

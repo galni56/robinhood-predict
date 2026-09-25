@@ -3,14 +3,13 @@ pragma solidity ^0.8.24;
 
 import {Script, console} from "forge-std/Script.sol";
 import {AssetRace} from "../src/AssetRace.sol";
-import {MockERC20} from "../src/mocks/MockERC20.sol";
 import {MockRaceOracle} from "../src/mocks/MockRaceOracle.sol";
 
 /// @dev Local Anvil tooling only. Every entry point rejects non-31337 chains.
 abstract contract LocalAssetRaceBase is Script {
     uint256 internal constant LOCAL_CHAIN_ID = 31_337;
     uint8 internal constant PRICE_DECIMALS = 8;
-    uint256 internal constant TOKEN_UNIT = 1 ether;
+    uint256 internal constant STAKE_UNIT = 1 ether;
     uint256 internal constant PRICE_UNIT = 1e8;
 
     modifier localOnly() {
@@ -87,8 +86,8 @@ abstract contract LocalAssetRaceBase is Script {
             maxOracleTimestampSkew: 5,
             feeBp: 200,
             minActiveContenders: 2,
-            minStake: TOKEN_UNIT,
-            maxStakePerWallet: 50 * TOKEN_UNIT
+            minStake: STAKE_UNIT,
+            maxStakePerWallet: 50 * STAKE_UNIT
         });
         return race.createPlatformRace("PROPHET TECH RACE", config, _platformAssetIds());
     }
@@ -105,8 +104,8 @@ abstract contract LocalAssetRaceBase is Script {
             maxOracleTimestampSkew: 5,
             feeBp: 200,
             minActiveContenders: 2,
-            minStake: TOKEN_UNIT,
-            maxStakePerWallet: 50 * TOKEN_UNIT
+            minStake: STAKE_UNIT,
+            maxStakePerWallet: 50 * STAKE_UNIT
         });
         return race.createPlatformRace("LOCAL MEME MAYHEM", config, _memePlatformAssetIds());
     }
@@ -184,15 +183,10 @@ abstract contract LocalAssetRaceBase is Script {
 }
 
 contract DeployLocalAssetRace is LocalAssetRaceBase {
-    function run() external localOnly returns (MockERC20 token, MockRaceOracle oracle, AssetRace race) {
-        address walletA = vm.envAddress("LOCAL_WALLET_A");
-        address walletB = vm.envAddress("LOCAL_WALLET_B");
-        address walletC = vm.envAddress("LOCAL_WALLET_C");
-
+    function run() external localOnly returns (MockRaceOracle oracle, AssetRace race) {
         vm.startBroadcast();
-        token = new MockERC20("Local Fake USDG", "fUSDG");
         oracle = new MockRaceOracle();
-        race = new AssetRace(address(token));
+        race = new AssetRace();
         AssetRace.CandidateInput[] memory registry = _registryCandidates(oracle);
         for (uint256 i = 0; i < registry.length; ++i) {
             race.setApprovedAsset(registry[i], true);
@@ -206,30 +200,23 @@ contract DeployLocalAssetRace is LocalAssetRaceBase {
                 maxOracleTimestampSkew: 5,
                 feeBp: 200,
                 minActiveContenders: 2,
-                minStake: TOKEN_UNIT,
-                maxStakePerWallet: 50 * TOKEN_UNIT
+                minStake: STAKE_UNIT,
+                maxStakePerWallet: 50 * STAKE_UNIT
             })
         );
         race.setRaceDurationPreset(60, true);
         race.setRaceDurationPreset(300, true);
-        token.mint(walletA, 1_000 * TOKEN_UNIT);
-        token.mint(walletB, 1_000 * TOKEN_UNIT);
-        token.mint(walletC, 1_000 * TOKEN_UNIT);
         _setPrices(oracle, "start");
         vm.stopBroadcast();
 
-        console.log("LOCAL_TOKEN_ADDRESS", address(token));
         console.log("LOCAL_ORACLE_ADDRESS", address(oracle));
         console.log("LOCAL_ASSET_RACE_ADDRESS", address(race));
-        console.log("LOCAL_WALLET_A", walletA);
-        console.log("LOCAL_WALLET_B", walletB);
-        console.log("LOCAL_WALLET_C", walletC);
     }
 }
 
 contract CreateLocalAssetRace is LocalAssetRaceBase {
     function run() external localOnly returns (uint256 raceId) {
-        AssetRace race = AssetRace(vm.envAddress("LOCAL_ASSET_RACE_ADDRESS"));
+        AssetRace race = AssetRace(payable(vm.envAddress("LOCAL_ASSET_RACE_ADDRESS")));
         string memory categoryName = vm.envOr("LOCAL_RACE_CATEGORY", string("stock"));
         bool isMeme = keccak256(bytes(categoryName)) == keccak256("meme");
         vm.startBroadcast();
@@ -242,7 +229,7 @@ contract CreateLocalAssetRace is LocalAssetRaceBase {
 
 contract CreateLocalCommunityRace is LocalAssetRaceBase {
     function run() external localOnly returns (uint256 raceId) {
-        AssetRace race = AssetRace(vm.envAddress("LOCAL_ASSET_RACE_ADDRESS"));
+        AssetRace race = AssetRace(payable(vm.envAddress("LOCAL_ASSET_RACE_ADDRESS")));
         string memory title = vm.envString("LOCAL_RACE_TITLE");
         string memory categoryName = vm.envOr("LOCAL_RACE_CATEGORY", string("stock"));
         bool isMeme = keccak256(bytes(categoryName)) == keccak256("meme");
@@ -273,7 +260,7 @@ contract CreateLocalCommunityRace is LocalAssetRaceBase {
 
 contract AddLocalRaceAsset is LocalAssetRaceBase {
     function run() external localOnly {
-        AssetRace race = AssetRace(vm.envAddress("LOCAL_ASSET_RACE_ADDRESS"));
+        AssetRace race = AssetRace(payable(vm.envAddress("LOCAL_ASSET_RACE_ADDRESS")));
         uint256 raceId = vm.envUint("LOCAL_RACE_ID");
         string memory symbol = vm.envString("LOCAL_ASSET_SYMBOL");
 
@@ -301,43 +288,41 @@ contract SetLocalAssetRacePrices is LocalAssetRaceBase {
 
 contract FundLocalAssetRaceWallet is LocalAssetRaceBase {
     function run() external localOnly {
-        MockERC20 token = MockERC20(vm.envAddress("LOCAL_TOKEN_ADDRESS"));
         address recipient = vm.envAddress("LOCAL_RECIPIENT");
-        uint256 amount = vm.envUint("LOCAL_AMOUNT_TOKENS") * TOKEN_UNIT;
+        uint256 amount = vm.envUint("LOCAL_AMOUNT_WEI");
 
         vm.startBroadcast();
-        token.mint(recipient, amount);
+        (bool success,) = payable(recipient).call{value: amount}("");
+        require(success, "native ETH funding failed");
         vm.stopBroadcast();
 
         console.log("LOCAL_FUNDED_WALLET", recipient);
-        console.log("LOCAL_FUNDED_WHOLE_TOKENS", amount / TOKEN_UNIT);
+        console.log("LOCAL_FUNDED_WEI", amount);
     }
 }
 
 contract BetLocalAssetRace is LocalAssetRaceBase {
     function run() external localOnly {
-        AssetRace race = AssetRace(vm.envAddress("LOCAL_ASSET_RACE_ADDRESS"));
+        AssetRace race = AssetRace(payable(vm.envAddress("LOCAL_ASSET_RACE_ADDRESS")));
         uint256 raceId = vm.envUint("LOCAL_RACE_ID");
         string memory symbol = vm.envString("LOCAL_ASSET_SYMBOL");
         uint8 assetIndex = _assetIndex(race, raceId, symbol);
-        uint256 amount = vm.envUint("LOCAL_AMOUNT_TOKENS") * TOKEN_UNIT;
-        MockERC20 token = MockERC20(address(race.betToken()));
+        uint256 amount = vm.envUint("LOCAL_AMOUNT_WEI");
 
         vm.startBroadcast();
-        token.approve(address(race), amount);
-        race.bet(raceId, assetIndex, amount);
+        race.bet{value: amount}(raceId, assetIndex, amount);
         vm.stopBroadcast();
 
         console.log("LOCAL_BET_RACE_ID", raceId);
         console.log("LOCAL_BET_ASSET_INDEX", assetIndex);
         console.log("LOCAL_BET_ASSET_SYMBOL", symbol);
-        console.log("LOCAL_BET_WHOLE_TOKENS", amount / TOKEN_UNIT);
+        console.log("LOCAL_BET_WEI", amount);
     }
 }
 
 contract ManageLocalAssetRace is LocalAssetRaceBase {
     function run() external localOnly {
-        AssetRace race = AssetRace(vm.envAddress("LOCAL_ASSET_RACE_ADDRESS"));
+        AssetRace race = AssetRace(payable(vm.envAddress("LOCAL_ASSET_RACE_ADDRESS")));
         uint256 raceId = vm.envUint("LOCAL_RACE_ID");
         string memory action = vm.envString("LOCAL_RACE_ACTION");
         bytes32 actionHash = keccak256(bytes(action));
@@ -372,7 +357,7 @@ contract ManageLocalAssetRace is LocalAssetRaceBase {
 
 contract InspectLocalAssetRace is LocalAssetRaceBase {
     function run() external view localOnly {
-        AssetRace race = AssetRace(vm.envAddress("LOCAL_ASSET_RACE_ADDRESS"));
+        AssetRace race = AssetRace(payable(vm.envAddress("LOCAL_ASSET_RACE_ADDRESS")));
         uint256 raceId = vm.envUint("LOCAL_RACE_ID");
         AssetRace.Race memory data = race.getRace(raceId);
         AssetRace.RaceAsset[] memory assets = race.getRaceAssets(raceId);

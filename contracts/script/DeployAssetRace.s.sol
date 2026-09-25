@@ -15,17 +15,15 @@ contract DeployAssetRace is Script {
         uint256 deployerKey = vm.envUint("ASSET_RACE_DEPLOYER_PRIVATE_KEY");
         address deployer = vm.addr(deployerKey);
         address priceSigner = vm.envAddress("ASSET_RACE_PRICE_SIGNER_ADDRESS");
-        address betToken = vm.envAddress("ASSET_RACE_BET_TOKEN_ADDRESS");
         AssetRaceOperatorSafety.validateDeployment(deployer, priceSigner);
 
         vm.startBroadcast(deployerKey);
         oracle = new SignedPoolRaceOracle(priceSigner);
-        race = new AssetRace(betToken);
+        race = new AssetRace();
         vm.stopBroadcast();
 
         console.log("SIGNED_POOL_ORACLE_ADDRESS", address(oracle));
         console.log("ASSET_RACE_ADDRESS", address(race));
         console.log("ASSET_RACE_PRICE_SIGNER_ADDRESS", priceSigner);
-        console.log("ASSET_RACE_BET_TOKEN_ADDRESS", betToken);
     }
 }

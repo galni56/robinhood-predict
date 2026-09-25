@@ -1,14 +1,19 @@
 import { getAddress, isAddress, stringToHex, type Address, type Hex } from 'viem'
 import { assetRaceCatalog, type AssetRaceCategoryName } from '@/chain/assetRaceRegistry'
 import { assetRaceNetworkKey } from '@/chain/config'
+import { LEGACY_PRICE_ARENA_ADDRESS } from '@/chain/contracts'
 
 const rawAddress = import.meta.env.VITE_PRICE_ARENA_ADDRESS?.trim()
-export const PRICE_ARENA_ADDRESS: Address | undefined = rawAddress && isAddress(rawAddress)
-  ? getAddress(rawAddress)
+const normalizedAddress = rawAddress && isAddress(rawAddress) ? getAddress(rawAddress) : undefined
+const usesLegacyUsdG = normalizedAddress?.toLowerCase() === LEGACY_PRICE_ARENA_ADDRESS.toLowerCase()
+export const PRICE_ARENA_ADDRESS: Address | undefined = normalizedAddress && !usesLegacyUsdG
+  ? normalizedAddress
   : undefined
-export const PRICE_ARENA_CONFIG_ERROR = rawAddress && !PRICE_ARENA_ADDRESS
-  ? 'VITE_PRICE_ARENA_ADDRESS is invalid.'
-  : null
+export const PRICE_ARENA_CONFIG_ERROR = usesLegacyUsdG
+  ? 'VITE_PRICE_ARENA_ADDRESS points to the legacy USDG contract.'
+  : rawAddress && !PRICE_ARENA_ADDRESS
+    ? 'VITE_PRICE_ARENA_ADDRESS is invalid.'
+    : null
 
 export const PRICE_ARENA_CATEGORY = { STOCK: 0, MEME: 1 } as const
 export const PRICE_ARENA_STATUS = { OPEN: 0, RESOLVED: 1, CANCELLED: 2 } as const
@@ -17,7 +22,7 @@ export const PRICE_ARENA_DURATIONS = [60n, 300n, 900n, 3600n] as const
 export const PRICE_ARENA_LOBBY_SECONDS = 600n
 export const PRICE_ARENA_MIN_STAKE = 1
 export const PRICE_ARENA_MAX_STAKE = 50
-export const PRICE_ARENA_TOKEN_DECIMALS = 6
+export const PRICE_ARENA_TOKEN_DECIMALS = 18
 export const MAX_ARENAS_TO_LIST = 100
 
 export type PriceArenaMode = 'stocks' | 'memes'
@@ -115,7 +120,8 @@ export interface PriceArenaViewModel extends PriceArenaData {
 
 export const priceArenaAbi = [
   { type: 'function', name: 'arenaCount', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
-  { type: 'function', name: 'betToken', stateMutability: 'view', inputs: [], outputs: [{ type: 'address' }] },
+  { type: 'function', name: 'minStakeWei', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'maxStakeWei', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
   {
     type: 'function', name: 'getArena', stateMutability: 'view', inputs: [{ name: 'arenaId', type: 'uint256' }],
     outputs: [{
@@ -162,11 +168,11 @@ export const priceArenaAbi = [
     outputs: [{ name: 'arenaId', type: 'uint256' }],
   },
   {
-    type: 'function', name: 'enter', stateMutability: 'nonpayable',
+    type: 'function', name: 'enter', stateMutability: 'payable',
     inputs: [{ name: 'arenaId', type: 'uint256' }, { name: 'prediction', type: 'uint256' }, { name: 'amount', type: 'uint256' }], outputs: [],
   },
   {
-    type: 'function', name: 'updateEntry', stateMutability: 'nonpayable',
+    type: 'function', name: 'updateEntry', stateMutability: 'payable',
     inputs: [{ name: 'arenaId', type: 'uint256' }, { name: 'newPrediction', type: 'uint256' }, { name: 'additionalAmount', type: 'uint256' }], outputs: [],
   },
   { type: 'function', name: 'claim', stateMutability: 'nonpayable', inputs: [{ name: 'arenaId', type: 'uint256' }], outputs: [] },

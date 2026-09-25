@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { formatUnits, parseAbiItem } from 'viem'
+import { formatEther, formatUnits, parseAbiItem } from 'viem'
 import { usePublicClient } from 'wagmi'
 import { AddressLabel } from '@/components/AddressLabel'
 import { BoltIcon, TrophyIcon } from '@/components/icons'
 import { SideBadge } from '@/components/Pills'
 import { robinhoodMainnet } from '@/chain/config'
-import { DEPLOY_BLOCK, MarketSideOnchain, PREDICTION_MARKET_ADDRESS } from '@/chain/contracts'
+import { DEPLOY_BLOCK, MarketSideOnchain, PREDICTION_MARKET_ADDRESS, PREDICTION_MARKET_CONFIGURED } from '@/chain/contracts'
 import {
   DEMO_MARKET_IDS,
   DEMO_USERS,
@@ -26,8 +26,6 @@ const BET_PLACED_EVENT = parseAbiItem(
   'event BetPlaced(uint256 indexed id, address indexed user, uint8 side, uint256 amount, uint256 weightBp)',
 )
 const CLAIMED_EVENT = parseAbiItem('event Claimed(uint256 indexed id, address indexed user, uint256 payout)')
-
-const BET_TOKEN_DECIMALS = 6 // USDG's real decimals (old testnet mock token was 18)
 
 interface UserStats {
   address: `0x${string}`
@@ -65,7 +63,7 @@ export function OnchainLeaderboardPage() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!client) return
+    if (!client || (!PREDICTION_MARKET_CONFIGURED && !isDemoMode())) return
     let cancelled = false
 
     async function run() {
@@ -318,7 +316,7 @@ export function OnchainLeaderboardPage() {
           {(
             [
               ['Players', stats == null ? '…' : String(stats.length)],
-              ['Staked', stats == null ? '…' : formatUsd(Number(formatUnits(totalStaked, BET_TOKEN_DECIMALS)), 0)],
+              ['Staked', stats == null ? '…' : isDemoMode() ? formatUsd(Number(formatUnits(totalStaked, 6)), 0) : `${formatEther(totalStaked)} ETH`],
               ['Bets', stats == null ? '…' : String(totalBets)],
             ] as const
           ).map(([label, value]) => (
@@ -368,7 +366,7 @@ export function OnchainLeaderboardPage() {
                       className={`ml-auto font-mono text-xs shrink-0 ${leader ? 'font-bold text-sm text-[#B3A7FA]' : net >= 0n ? 'text-[#B3A7FA]' : 'text-rose-400'}`}
                     >
                       {net >= 0n ? '+' : ''}
-                      {formatUsd(Number(formatUnits(net, BET_TOKEN_DECIMALS)))}
+                      {isDemoMode() ? formatUsd(Number(formatUnits(net, 6))) : `${formatEther(net)} ETH`}
                     </span>
                   </div>
                 )
@@ -396,7 +394,7 @@ export function OnchainLeaderboardPage() {
                     <Link to={`/onchain/${log.id}`} className="font-mono text-xs text-white/50 hover:text-white shrink-0">
                       #{log.id.toString()}
                     </Link>
-                    <span className="font-mono text-xs truncate">{formatUnits(log.amount, BET_TOKEN_DECIMALS)} USDG</span>
+                    <span className="font-mono text-xs truncate">{isDemoMode() ? `${formatUnits(log.amount, 6)} USDG` : `${formatEther(log.amount)} ETH`}</span>
                     <a
                       href={`${robinhoodMainnet.blockExplorers.default.url}/tx/${log.txHash}`}
                       target="_blank"

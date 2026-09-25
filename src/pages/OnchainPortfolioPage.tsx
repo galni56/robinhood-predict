@@ -1,25 +1,21 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { formatUnits, parseAbiItem } from 'viem'
-import { useAccount, usePublicClient, useReadContract, useReadContracts } from 'wagmi'
+import { formatEther, parseAbiItem } from 'viem'
+import { useAccount, useBalance, usePublicClient, useReadContract, useReadContracts } from 'wagmi'
 import { truncateAddress } from '@/components/AddressLabel'
 import { SideBadge, StatusBadge } from '@/components/Pills'
 import { SetNicknameModal } from '@/components/SetNicknameModal'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
 import {
-  BET_TOKEN_ADDRESS,
   DEPLOY_BLOCK,
   MarketSideOnchain,
   MarketStatusOnchain,
   PREDICTION_MARKET_ADDRESS,
-  erc20Abi,
+  PREDICTION_MARKET_CONFIGURED,
   predictionMarketAbi,
 } from '@/chain/contracts'
 import { useNickname } from '@/chain/nicknames'
-import { formatUsd } from '@/lib/format'
 import type { MarketSide } from '@/types'
-
-const BET_TOKEN_DECIMALS = 6 // USDG's real decimals (old testnet mock token was 18)
 
 const CLAIMED_EVENT = parseAbiItem('event Claimed(uint256 indexed id, address indexed user, uint256 payout)')
 
@@ -50,6 +46,7 @@ export function OnchainPortfolioPage() {
     address: PREDICTION_MARKET_ADDRESS,
     abi: predictionMarketAbi,
     functionName: 'marketCount',
+    query: { enabled: PREDICTION_MARKET_CONFIGURED },
   })
   const count = marketCount.data != null ? Number(marketCount.data) : 0
   const ids = Array.from({ length: count }, (_, i) => BigInt(i))
@@ -71,13 +68,7 @@ export function OnchainPortfolioPage() {
     query: { enabled: count > 0 && !!address },
   })
 
-  const balance = useReadContract({
-    address: BET_TOKEN_ADDRESS,
-    abi: erc20Abi,
-    functionName: 'balanceOf',
-    args: address ? [address] : undefined,
-    query: { enabled: !!address },
-  })
+  const balance = useBalance({ address, query: { enabled: !!address } })
 
   // Total actually paid out to this wallet across every market it's ever
   // claimed from - read from the contract's own Claimed events (filtered
@@ -86,7 +77,7 @@ export function OnchainPortfolioPage() {
   const client = usePublicClient()
   const [totalClaimed, setTotalClaimed] = useState<bigint | null>(null)
   useEffect(() => {
-    if (!client || !address) return
+    if (!client || !address || !PREDICTION_MARKET_CONFIGURED) return
     let cancelled = false
     client
       .getLogs({
@@ -184,15 +175,15 @@ export function OnchainPortfolioPage() {
       {nicknameModalOpen && <SetNicknameModal onClose={() => setNicknameModalOpen(false)} />}
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <StatCard label="Balance" value={balance.data != null ? `$${formatUnits(balance.data, BET_TOKEN_DECIMALS)}` : '…'} />
+        <StatCard label="Native balance" value={balance.data != null ? `${formatEther(balance.data.value)} ETH` : '…'} />
         <StatCard label="Wallet" value={address ? (nickname.data || truncateAddress(address)) : '-'} />
         <StatCard label="Win rate" value={winRate != null ? `${winRate.toFixed(0)}%` : '-'} />
         <StatCard label="Current streak" value={streakWon == null ? '-' : `${currentStreak}${streakWon ? 'W' : 'L'}`} />
-        <StatCard label="Total wagered" value={`$${formatUnits(totalWagered, BET_TOKEN_DECIMALS)}`} />
-        <StatCard label="Total won" value={totalClaimed != null ? `$${formatUnits(totalClaimed, BET_TOKEN_DECIMALS)}` : '…'} />
+        <StatCard label="Total wagered" value={`${formatEther(totalWagered)} ETH`} />
+        <StatCard label="Total won" value={totalClaimed != null ? `${formatEther(totalClaimed)} ETH` : '…'} />
         <StatCard
           label="Net P&L"
-          value={netPnl != null ? `${netPnl >= 0n ? '+' : ''}${formatUsd(Number(formatUnits(netPnl, BET_TOKEN_DECIMALS)))}` : '…'}
+          value={netPnl != null ? `${netPnl >= 0n ? '+' : ''}${formatEther(netPnl)} ETH` : '…'}
           valueClassName={netPnl == null ? '' : netPnl >= 0n ? 'text-[#B3A7FA]' : 'text-rose-400'}
         />
         <StatCard label="Total bets" value={String(positions.length)} />
@@ -225,13 +216,13 @@ function PositionList({ positions }: { positions: Position[] }) {
           {p.yesStake > 0n && (
             <span className="flex items-center gap-1.5">
               <SideBadge side="YES" />
-              <span className="font-mono text-xs">{formatUnits(p.yesStake, BET_TOKEN_DECIMALS)}</span>
+              <span className="font-mono text-xs">{formatEther(p.yesStake)} ETH</span>
             </span>
           )}
           {p.noStake > 0n && (
             <span className="flex items-center gap-1.5">
               <SideBadge side="NO" />
-              <span className="font-mono text-xs">{formatUnits(p.noStake, BET_TOKEN_DECIMALS)}</span>
+              <span className="font-mono text-xs">{formatEther(p.noStake)} ETH</span>
             </span>
           )}
           <span className="ml-auto text-xs">

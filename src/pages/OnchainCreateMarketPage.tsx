@@ -8,6 +8,7 @@ import { WalletOptionsList } from '@/components/WalletOptionsList'
 import { TokenLogo } from '@/components/TokenLogo'
 import {
   PREDICTION_MARKET_ADDRESS,
+  PREDICTION_MARKET_CONFIGURED,
   predictionMarketAbi,
   recommendedMinDeviationUsd,
   recommendedTargetRange,
@@ -77,6 +78,10 @@ export function OnchainCreateMarketPage() {
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
     setError(null)
+    if (!PREDICTION_MARKET_CONFIGURED) {
+      setError('The new native ETH PredictionMarket is not configured yet')
+      return
+    }
 
     const targetNum = Number(target)
     if (!(targetNum > 0)) {
@@ -132,15 +137,15 @@ export function OnchainCreateMarketPage() {
 
   return (
     <div className="max-w-[1100px] mx-auto px-4 py-8">
-      <div className="grid lg:grid-cols-[400px_1fr] gap-10 items-start">
-        <div className="lg:sticky lg:top-24">
+      <div className="grid min-w-0 lg:grid-cols-[400px_1fr] gap-10 items-start">
+        <div className="min-w-0 lg:sticky lg:top-24">
           <p className="text-sm font-bold text-[#B3A7FA] mb-1">Make a market</p>
           <h1 className="font-display text-3xl sm:text-4xl font-bold tracking-tight mb-2">Ask the next big question</h1>
           <p className="text-white/50 text-sm mb-6">
             A real transaction on mainnet. Target price must sit a reasonable distance from the current price - the
             further out the deadline, the wider that band. YES/NO pools start at $0 - if only one side has bets by the
-            deadline, the market cancels and money is refunded in full. Betting currency is USDG only for now - ETH
-            support is planned for a future update. Want another token supported? Let us know what you'd like next.
+            deadline, the market cancels and native ETH is refunded in full. Wagers use native ETH in one wallet
+            transaction; no token approval or swap is involved.
           </p>
 
           {/* Live preview: the question this form is about to put on the board */}
@@ -151,9 +156,9 @@ export function OnchainCreateMarketPage() {
               className="w-14 shrink-0"
               style={{ animation: 'mascot-float 5s ease-in-out infinite' }}
             />
-            <div>
+            <div className="min-w-0">
               <p className="text-[11px] font-bold text-[#241a33]/50 mb-0.5">Your question</p>
-              <p className="font-display text-2xl font-bold leading-snug">
+              <p className="break-words font-display text-xl font-bold leading-snug sm:text-2xl">
                 Will {selectedTicker} be at or above {targetNumPreview > 0 ? formatUsd(targetNumPreview) : '…'} at the{' '}
                 {DURATION_PRESETS[durationIdx].label} deadline?
               </p>
@@ -161,16 +166,16 @@ export function OnchainCreateMarketPage() {
           </div>
         </div>
 
-      <form onSubmit={onSubmit} className="bg-[#241b2f] border border-white/5 rounded-3xl p-6 sm:p-8 space-y-6">
+      <form onSubmit={onSubmit} className="min-w-0 bg-[#241b2f] border border-white/5 rounded-3xl p-6 sm:p-8 space-y-6">
         <div>
           <label className="block text-sm font-bold text-white/60 mb-2">Tokenized stock</label>
-          <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
             {PREDICTION_MARKET_ASSETS.map((asset) => (
               <button
                 type="button"
                 key={asset.ticker}
                 onClick={() => setAssetId(asset.assetId)}
-                className={`flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-bold transition-colors ${
+                className={`min-w-0 flex items-center justify-center gap-2 rounded-xl px-2 py-2 text-sm font-bold transition-colors ${
                   assetId === asset.assetId
                     ? 'bg-[#8B7CF7] text-[#f7f1e3]'
                     : 'bg-white/5 text-white/60 hover:bg-white/10 hover:text-white'
@@ -253,7 +258,7 @@ export function OnchainCreateMarketPage() {
         ) : (
           <button
             type="submit"
-            disabled={pending}
+            disabled={pending || !PREDICTION_MARKET_CONFIGURED}
             className="w-full inline-flex items-center justify-center gap-2.5 rounded-full bg-gradient-to-r from-[#8B7CF7] to-[#6A5AE0] hover:brightness-110 text-white font-bold py-3 text-sm transition-all disabled:opacity-50 shadow-[0_14px_36px_-12px_rgba(106,90,224,0.8)]"
           >
             {pending ? 'Confirm in wallet…' : 'Create market'}

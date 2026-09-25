@@ -1,10 +1,16 @@
 # Price Arena
 
-Status: implemented and locally tested; not deployed. No independent security audit.
+Status: the USDG generation is deployed at
+`0xBAca2605914d8f7f0DF5663AA01f79FB8a6DA8ae`. Operator-reported VPS state on
+2026-09-25 has `prophet-price-arena-keeper.service` active with live writes
+enabled; it submitted resolution calls for arenas #0–#3 on 2026-09-24. The
+current branch implements a native-ETH replacement, which is not deployed. No
+independent security audit.
 
 Price Arena is a fixed-time closest-price contest for the same reviewed
 Robinhood Chain pools used by Asset Race. It has separate Stock and Meme
-categories and settles in USDG.
+categories and settles wagers in native ETH. Stock prices are still quoted in
+USDG; Meme prices are quoted in ETH.
 
 ## Lifecycle
 
@@ -13,8 +19,10 @@ categories and settles in USDG.
 2. The contract opens a fixed 10-minute lobby. `startsAt` and `deadline` are
    calculated in the mined creation transaction, so wallet confirmation delay
    cannot move the game boundaries.
-3. During the lobby, 2–20 wallets can enter with 1–50 USDG. A player may change
-   their prediction and increase their stake, but cannot reduce or withdraw it.
+3. During the lobby, 2–20 wallets can enter with native ETH. The interface
+   converts a $1–$50 input to exact wei; the deployment-configured wei min/max
+   are approximate dollar guardrails. A player may change their prediction and
+   increase their stake, but cannot reduce or withdraw it.
 4. The normal contract getter and UI hide predictions during the lobby. This
    is display privacy only: calldata and EVM storage are public. It is not a
    substitute for commit/reveal and must not be marketed as cryptographic
@@ -50,6 +58,7 @@ categories and settles in USDG.
 
 - Stock arenas predict the StockToken/USDG pool price, quoted in USDG.
 - Meme arenas predict the MemeToken/ETH pool price, quoted in ETH.
+- Stakes, payouts, refunds and fees use native ETH in both categories.
 - Both use the existing `SignedPoolRaceOracle` and reviewed 23-asset registry.
 - Live prices are display-only. Settlement uses the signed historical endpoint.
 

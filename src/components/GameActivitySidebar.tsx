@@ -1,10 +1,9 @@
-import { formatUnits } from 'viem'
+import { formatEther } from 'viem'
 import { robinhoodMainnet } from '@/chain/config'
 import { type GameActivityKind, useGameActivity } from '@/chain/gameActivity'
 import { AddressLabel } from '@/components/AddressLabel'
 import { BoltIcon, TrophyIcon } from '@/components/icons'
 import { TokenLogo } from '@/components/TokenLogo'
-import { formatUsd } from '@/lib/format'
 import { shortHash } from '@/lib/hash'
 
 export function GameActivitySidebar({
@@ -32,7 +31,7 @@ export function GameActivitySidebar({
                 return <a key={stats.address} href={`${robinhoodMainnet.blockExplorers.default.url}/address/${stats.address}`} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition-colors hover:bg-white/5">
                   <span className="w-4 text-center font-mono text-xs text-white/30">{index + 1}</span>
                   <AddressLabel address={stats.address} link={false} className="flex-1 truncate font-mono text-xs" />
-                  <span className={`font-mono text-xs ${net >= 0n ? 'text-[#B3A7FA]' : 'text-rose-400'}`}>{net >= 0n ? '+' : ''}{formatUsd(Number(formatUnits(net, 6)), 0)}</span>
+                  <span className={`font-mono text-xs ${net >= 0n ? 'text-[#B3A7FA]' : 'text-rose-400'}`}>{net >= 0n ? '+' : ''}{formatEther(net)} ETH</span>
                 </a>
               })}
         </div>
@@ -52,7 +51,7 @@ export function GameActivitySidebar({
                     <TokenLogo ticker={symbol} className="h-6 w-6 rounded-md" />
                     <div className="min-w-0"><div className="truncate font-bold text-white/75">{symbol ?? `${kind} #${bet.gameId}`}</div><AddressLabel address={bet.user} className="block truncate font-mono text-white/40 hover:text-white" /></div>
                   </div>
-                  <div className="shrink-0 text-right"><div className="font-mono text-white/70">{formatUnits(bet.amount, 6)} USDG</div><a href={`${robinhoodMainnet.blockExplorers.default.url}/tx/${bet.txHash}`} target="_blank" rel="noreferrer" className="font-mono text-white/35 hover:text-white">{shortHash(bet.txHash)}</a></div>
+                  <div className="shrink-0 text-right"><div className="font-mono text-white/70">{formatEther(bet.amount)} ETH</div><a href={`${robinhoodMainnet.blockExplorers.default.url}/tx/${bet.txHash}`} target="_blank" rel="noreferrer" className="font-mono text-white/35 hover:text-white">{shortHash(bet.txHash)}</a></div>
                 </div>
               })}
         </div>

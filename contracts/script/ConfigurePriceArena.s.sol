@@ -12,7 +12,7 @@ import {PriceArena} from "../src/PriceArena.sol";
 contract ConfigurePriceArena is Script {
     function run() external {
         uint256 ownerKey = vm.envUint("PRIVATE_KEY");
-        PriceArena arena = PriceArena(vm.envAddress("PRICE_ARENA_ADDRESS"));
+        PriceArena arena = PriceArena(payable(vm.envAddress("PRICE_ARENA_ADDRESS")));
         address oracle = vm.envAddress("SIGNED_POOL_ORACLE_ADDRESS");
         string[] memory stockSymbols = vm.envString("STOCK_SYMBOLS", ",");
         bytes32[] memory stockOracleIds = vm.envBytes32("STOCK_ORACLE_IDS", ",");

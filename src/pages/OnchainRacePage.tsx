@@ -1,24 +1,25 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { parseUnits, zeroAddress, type Hex } from 'viem'
+import { formatEther, zeroAddress, type Hex } from 'viem'
 import { waitForTransactionReceipt } from 'wagmi/actions'
-import { useAccount, useChainId, useReadContract, useSwitchChain, useWriteContract } from 'wagmi'
+import { useAccount, useBalance, useChainId, useReadContract, useSwitchChain, useWriteContract } from 'wagmi'
 import { assetRaceChain, isLocalAssetRace, wagmiConfig } from '@/chain/config'
-import { erc20Abi } from '@/chain/contracts'
 import {
   ASSET_RACE_ADDRESS,
   ASSET_RACE_CONFIG_ERROR,
   ASSET_RACE_STATUS,
   ASSET_RACE_ORIGIN,
   ASSET_RACE_TOKEN_LABEL,
-  USDG_DECIMALS,
+  ETH_DECIMALS,
   assetRaceAbi,
   assetRaceCategoryLabel,
   assetRaceStatusLabel,
   raceModeForCategory,
 } from '@/chain/assetRaces'
+import { freezeUsdStakeQuote } from '@/chain/ethUsd'
 import { useAssetRace } from '@/chain/useAssetRace'
 import { useAssetRaceClock } from '@/chain/useAssetRaceClock'
+import { useAssetRaceLiveDisplay } from '@/chain/useAssetRaceLiveDisplay'
 import { AssetRaceBettingView } from '@/components/AssetRaceBettingView'
 import { AssetRaceLiveView } from '@/components/AssetRaceLiveView'
 import { AssetRaceLobbyView } from '@/components/AssetRaceLobbyView'
@@ -53,41 +54,17 @@ export function OnchainRacePage() {
   const amount = amountState.owner === betFormOwner ? amountState.value : ''
   const setAmount = (value: string) => setAmountState({ owner: betFormOwner, value })
   const [tx, setTx] = useState<TxState>(null)
+  const [frozenBetWei, setFrozenBetWei] = useState<bigint | null>(null)
   const [error, setError] = useState<string | null>(null)
   const raceNowMs = useAssetRaceClock()
+  const live = useAssetRaceLiveDisplay({ enabled: true })
 
   const readRaceAddress = ASSET_RACE_ADDRESS ?? zeroAddress
-  const betTokenQuery = useReadContract({
-    address: readRaceAddress,
+  const tokenDecimals = ETH_DECIMALS
+  const balance = useBalance({
+    address,
     chainId: assetRaceChain.id,
-    abi: assetRaceAbi,
-    functionName: 'betToken',
-    query: { enabled: !!ASSET_RACE_ADDRESS },
-  })
-  const betTokenAddress = betTokenQuery.data ?? zeroAddress
-  const tokenDecimalsQuery = useReadContract({
-    address: betTokenAddress,
-    chainId: assetRaceChain.id,
-    abi: erc20Abi,
-    functionName: 'decimals',
-    query: { enabled: !!betTokenQuery.data },
-  })
-  const tokenDecimals = Number(tokenDecimalsQuery.data ?? USDG_DECIMALS)
-  const allowance = useReadContract({
-    address: betTokenAddress,
-    chainId: assetRaceChain.id,
-    abi: erc20Abi,
-    functionName: 'allowance',
-    args: address && ASSET_RACE_ADDRESS ? [address, ASSET_RACE_ADDRESS] : undefined,
-    query: { enabled: !!address && !!ASSET_RACE_ADDRESS && !!betTokenQuery.data },
-  })
-  const balance = useReadContract({
-    address: betTokenAddress,
-    chainId: assetRaceChain.id,
-    abi: erc20Abi,
-    functionName: 'balanceOf',
-    args: address ? [address] : undefined,
-    query: { enabled: !!address && !!ASSET_RACE_ADDRESS && !!betTokenQuery.data },
+    query: { enabled: !!address && !!ASSET_RACE_ADDRESS },
   })
   const lobbyAddition = useReadContract({
     address: readRaceAddress,
@@ -99,30 +76,27 @@ export function OnchainRacePage() {
   })
 
   const onRightChain = chainId === assetRaceChain.id
+  let quotedBetWei = 0n
+  try {
+    quotedBetWei = live.ethUsd ? freezeUsdStakeQuote(amount, live.ethUsd).wei : 0n
+  } catch {
+    quotedBetWei = 0n
+  }
+  const displayedBetWei = frozenBetWei ?? quotedBetWei
 
   async function refetchAll() {
-    await Promise.all([refetch(), allowance.refetch(), balance.refetch(), betTokenQuery.refetch(), tokenDecimalsQuery.refetch(), lobbyAddition.refetch()])
+    await Promise.all([refetch(), balance.refetch(), lobbyAddition.refetch()])
   }
 
   async function handleBet() {
     setError(null)
     try {
       if (!ASSET_RACE_ADDRESS || raceId == null || !race) return
-      const amountRaw = parseUnits(amount || '0', tokenDecimals)
-      if (amountRaw <= 0n) throw new Error('Amount must be greater than zero')
+      if (!live.ethUsd) throw new Error('ETH/USD quote is unavailable or stale')
+      const frozen = freezeUsdStakeQuote(amount, live.ethUsd)
+      const amountRaw = frozen.wei
+      setFrozenBetWei(amountRaw)
       const assetIndex = position?.exists ? position.assetIndex : selectedAssetIndex
-
-      if ((allowance.data ?? 0n) < amountRaw) {
-        setTx({ label: 'Confirm approval in wallet…' })
-        const approvalHash = await writeContractAsync({
-          address: betTokenAddress,
-          abi: erc20Abi,
-          functionName: 'approve',
-          args: [ASSET_RACE_ADDRESS, amountRaw],
-        })
-        setTx({ label: 'Waiting for approval…' })
-        await waitForTransactionReceipt(wagmiConfig, { hash: approvalHash })
-      }
 
       setTx({ label: 'Confirm race bet in wallet…' })
       const betHash = await writeContractAsync({
@@ -130,14 +104,17 @@ export function OnchainRacePage() {
         abi: assetRaceAbi,
         functionName: 'bet',
         args: [raceId, assetIndex, amountRaw],
+        value: amountRaw,
       })
       setTx({ label: 'Waiting for bet confirmation…' })
       await waitForTransactionReceipt(wagmiConfig, { hash: betHash })
       setTx(null)
+      setFrozenBetWei(null)
       setAmount('')
       await refetchAll()
     } catch (cause) {
       setTx(null)
+      setFrozenBetWei(null)
       setError(cause instanceof Error && cause.message === 'Amount must be greater than zero' ? cause.message : shortTxError(cause))
     }
   }
@@ -207,8 +184,8 @@ export function OnchainRacePage() {
       ) : (
         <div className="mb-5 rounded-2xl border border-[#8B7CF7]/25 bg-[#8B7CF7]/10 px-4 py-3 text-sm font-medium text-[#B3A7FA]">
           {isLocalAssetRace
-            ? 'Local test network - contract state and transactions come from this Mac’s Anvil chain using fake USDG.'
-            : 'Real AssetRace contract mode on Robinhood Chain. Wallet actions use real gas and USDG.'}
+            ? 'Local test network - contract state and transactions come from this Mac’s Anvil chain using local ETH.'
+            : 'Real AssetRace contract mode on Robinhood Chain. Wallet actions use native ETH and need no token approval.'}
         </div>
       )}
 
@@ -223,18 +200,18 @@ export function OnchainRacePage() {
       ) : (
         <div className={race.category === 1 ? 'asset-race-meme' : ''}>
           <div className="mb-6 mt-4 flex flex-wrap items-end justify-between gap-3">
-            <div className="flex items-start gap-3">
+            <div className="flex min-w-0 items-start gap-3">
               <div className="flex shrink-0 -space-x-2 pt-1">
                 {race.assets.slice(0, 4).map((asset) => <TokenLogo key={asset.assetIndex} ticker={asset.symbol} className="h-10 w-10 rounded-xl border-2 border-[#17111f]" />)}
               </div>
-              <div>
+              <div className="min-w-0">
               <p className={`flex flex-wrap items-center gap-2 text-sm font-bold ${race.category === 1 ? 'text-[#F2A65A]' : 'text-[#B3A7FA]'}`}>
                 {assetRaceCategoryLabel(race.category)} race #{race.id.toString()}
                 <span className={`rounded-full px-2.5 py-0.5 text-xs ${race.origin === ASSET_RACE_ORIGIN.PLATFORM ? 'bg-[#8B7CF7]/15 text-[#B3A7FA]' : 'bg-white/5 text-white/50'}`}>
                   {race.origin === ASSET_RACE_ORIGIN.PLATFORM ? 'Featured' : 'Community'}
                 </span>
               </p>
-              <h1 className="mt-1 font-display text-3xl font-bold tracking-tight sm:text-4xl">{race.title || race.assets.map((asset) => asset.symbol).join(' vs ')}</h1>
+              <h1 className="mt-1 break-words font-display text-2xl font-bold tracking-tight sm:text-4xl">{race.title || race.assets.map((asset) => asset.symbol).join(' vs ')}</h1>
               {race.origin === ASSET_RACE_ORIGIN.PLATFORM ? (
                 <p className="mt-1 text-xs font-medium text-white/40">Created by Prophet</p>
               ) : (
@@ -270,7 +247,7 @@ export function OnchainRacePage() {
               setSelectedAssetIndex={setSelectedAssetIndex}
               amount={amount}
               setAmount={setAmount}
-              balance={balance.data}
+              balance={balance.data?.value}
               isConnected={isConnected}
               onRightChain={onRightChain}
               isSwitching={isSwitching}
@@ -281,6 +258,9 @@ export function OnchainRacePage() {
               nowMs={raceNowMs}
               tokenDecimals={tokenDecimals}
               tokenLabel={ASSET_RACE_TOKEN_LABEL}
+              amountRaw={displayedBetWei}
+              exactEth={displayedBetWei > 0n ? formatEther(displayedBetWei) : null}
+              quoteReady={!!live.ethUsd && !live.ethUsd.stale}
             />
           ) : race.status === ASSET_RACE_STATUS.RUNNING ? (
             <AssetRaceLiveView race={race} position={position} nowMs={raceNowMs} tokenDecimals={tokenDecimals} tokenLabel={ASSET_RACE_TOKEN_LABEL} />

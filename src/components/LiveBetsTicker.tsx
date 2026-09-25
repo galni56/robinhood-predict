@@ -1,11 +1,10 @@
-import { formatUnits } from 'viem'
+import { formatEther, formatUnits } from 'viem'
 import { truncateAddress } from '@/components/AddressLabel'
 import { useBetLogs } from '@/chain/betLogs'
 import { MarketSideOnchain } from '@/chain/contracts'
+import { isDemoMode } from '@/chain/demo'
 import { TokenLogo } from '@/components/TokenLogo'
 import { assetIconUrl } from '@/lib/assetIcons'
-
-const BET_TOKEN_DECIMALS = 6 // USDG's real decimals
 
 /** A live-feeling scrolling strip of real bets across every market, same
  * marquee technique as TickerTape (the price strip) -- inspired by seeing a
@@ -25,7 +24,7 @@ export function LiveBetsTicker({ tickerByMarketId }: { tickerByMarketId: Map<str
     .map((log) => ({
       key: log.txHash,
       side: log.side === MarketSideOnchain.YES ? 'YES' : 'NO',
-      amount: formatUnits(log.amount, BET_TOKEN_DECIMALS),
+      amount: isDemoMode() ? `${formatUnits(log.amount, 6)} USDG` : `${formatEther(log.amount)} ETH`,
       user: truncateAddress(log.user),
       ticker: tickerByMarketId.get(log.id.toString()) ?? `market #${log.id}`,
     }))
@@ -41,7 +40,7 @@ export function LiveBetsTicker({ tickerByMarketId }: { tickerByMarketId: Map<str
             <span className={item.side === 'YES' ? 'font-bold text-[#B3A7FA]' : 'font-bold text-[#F2A65A]'}>{item.side}</span>
             <span className="text-white/50 font-mono">{item.user}</span>
             <span className="text-white/30">bet</span>
-            <span className="font-mono text-white/70">{item.amount} USDG</span>
+            <span className="font-mono text-white/70">{item.amount}</span>
             <span className="text-white/30">on</span>
             {assetIconUrl(item.ticker) && <TokenLogo ticker={item.ticker} className="h-5 w-5 rounded-md" />}
             <span className="font-bold text-white/70">{item.ticker}</span>

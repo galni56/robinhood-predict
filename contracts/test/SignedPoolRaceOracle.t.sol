@@ -4,7 +4,6 @@ pragma solidity ^0.8.24;
 import {Test} from "forge-std/Test.sol";
 import {AssetRace} from "../src/AssetRace.sol";
 import {IAssetRaceOracle} from "../src/interfaces/IAssetRaceOracle.sol";
-import {MockERC20} from "../src/mocks/MockERC20.sol";
 import {SignedPoolRaceOracle} from "../src/oracles/SignedPoolRaceOracle.sol";
 
 contract SignedPoolRaceOracleTest is Test {
@@ -183,9 +182,9 @@ contract SignedPoolRaceOracleTest is Test {
     }
 
     function test_RaceRequiresCommonP0AndP1Block() public {
-        (AssetRace race, MockERC20 token) = _createRace(2);
-        _bet(race, token, ALICE, 0, 10);
-        _bet(race, token, BOB, 1, 10);
+        AssetRace race = _createRace(2);
+        _bet(race, ALICE, 0, 10);
+        _bet(race, BOB, 1, 10);
         uint256 t0 = race.getRace(0).bettingEndTime;
         vm.warp(t0);
         bytes[] memory proofs = new bytes[](2);
@@ -205,10 +204,10 @@ contract SignedPoolRaceOracleTest is Test {
     }
 
     function test_DelayedResolveAndClaimKeepSignedPoolP1() public {
-        (AssetRace race, MockERC20 token) = _createRace(3);
-        _bet(race, token, ALICE, 0, 10);
-        _bet(race, token, BOB, 1, 10);
-        _bet(race, token, CHARLIE, 2, 10);
+        AssetRace race = _createRace(3);
+        _bet(race, ALICE, 0, 10);
+        _bet(race, BOB, 1, 10);
+        _bet(race, CHARLIE, 2, 10);
         uint256 t0 = race.getRace(0).bettingEndTime;
         vm.warp(t0 + 1);
         bytes[] memory proofs = new bytes[](3);
@@ -230,17 +229,17 @@ contract SignedPoolRaceOracleTest is Test {
         assertEq(race.getRaceAsset(0, 1).endPrice, 95e18);
 
         vm.warp(block.timestamp + 30 days);
-        uint256 beforeBalance = token.balanceOf(BOB);
+        uint256 beforeBalance = BOB.balance;
         vm.prank(BOB);
         race.claim(0);
-        assertEq(token.balanceOf(BOB) - beforeBalance, 30);
+        assertEq(BOB.balance - beforeBalance, 30);
     }
 
     function test_MemeCommonEndpointsDelayedCaptureResolveAndClaim() public {
-        (AssetRace race, MockERC20 token) = _createRaceForCategory(3, AssetRace.RaceCategory.MEME);
-        _bet(race, token, ALICE, 0, 10);
-        _bet(race, token, BOB, 1, 10);
-        _bet(race, token, CHARLIE, 2, 10);
+        AssetRace race = _createRaceForCategory(3, AssetRace.RaceCategory.MEME);
+        _bet(race, ALICE, 0, 10);
+        _bet(race, BOB, 1, 10);
+        _bet(race, CHARLIE, 2, 10);
         uint256 t0 = race.getRace(0).bettingEndTime;
         vm.warp(t0 + 30);
         bytes[] memory proofs = _memeProofs(t0, 100e18, 100e18, 100e18, false);
@@ -276,11 +275,11 @@ contract SignedPoolRaceOracleTest is Test {
         vm.warp(t1 + 60 days);
         vm.prank(BOB);
         race.claim(0);
-        assertEq(token.balanceOf(BOB), 30);
+        assertEq(BOB.balance, 30);
     }
 
     function test_MemeFinalTieVoidsAndLateRefundWorks() public {
-        (AssetRace race, MockERC20 token) = _startedMemeRace();
+        AssetRace race = _startedMemeRace();
         uint256 t1 = race.getRace(0).raceEndTime;
         vm.warp(t1 + 45);
         race.captureEndSnapshots(0, _memeProofs(t1, 105e18, 105e18, 104e18, true));
@@ -290,11 +289,11 @@ contract SignedPoolRaceOracleTest is Test {
         vm.warp(t1 + 60 days);
         vm.prank(ALICE);
         race.refund(0);
-        assertEq(token.balanceOf(ALICE), 10);
+        assertEq(ALICE.balance, 10);
     }
 
     function test_MemeAllNegativeChoosesLeastNegativeUnchanged() public {
-        (AssetRace race,) = _startedMemeRace();
+        AssetRace race = _startedMemeRace();
         uint256 t1 = race.getRace(0).raceEndTime;
         vm.warp(t1);
         race.captureEndSnapshots(0, _memeProofs(t1, 90e18, 95e18, 80e18, true));
@@ -303,9 +302,9 @@ contract SignedPoolRaceOracleTest is Test {
     }
 
     function test_MemeMissingP0CancelsAndLateRefundWorks() public {
-        (AssetRace race, MockERC20 token) = _createRaceForCategory(3, AssetRace.RaceCategory.MEME);
-        _bet(race, token, ALICE, 0, 10);
-        _bet(race, token, BOB, 1, 10);
+        AssetRace race = _createRaceForCategory(3, AssetRace.RaceCategory.MEME);
+        _bet(race, ALICE, 0, 10);
+        _bet(race, BOB, 1, 10);
         uint256 t0 = race.getRace(0).bettingEndTime;
         vm.warp(t0);
         bytes[] memory proofs = new bytes[](3);
@@ -317,11 +316,11 @@ contract SignedPoolRaceOracleTest is Test {
         vm.warp(t0 + 60 days);
         vm.prank(ALICE);
         race.refund(0);
-        assertEq(token.balanceOf(ALICE), 10);
+        assertEq(ALICE.balance, 10);
     }
 
     function test_MemeMissingP1VoidsAndLateRefundWorks() public {
-        (AssetRace race, MockERC20 token) = _startedMemeRace();
+        AssetRace race = _startedMemeRace();
         uint256 t1 = race.getRace(0).raceEndTime;
         vm.warp(t1);
         bytes[] memory proofs = new bytes[](3);
@@ -333,11 +332,11 @@ contract SignedPoolRaceOracleTest is Test {
         vm.warp(t1 + 60 days);
         vm.prank(BOB);
         race.refund(0);
-        assertEq(token.balanceOf(BOB), 10);
+        assertEq(BOB.balance, 10);
     }
 
     function test_MemeCannotIncludeStockCandidate() public {
-        (AssetRace race,) = _createRaceForCategory(2, AssetRace.RaceCategory.MEME);
+        AssetRace race = _createRaceForCategory(2, AssetRace.RaceCategory.MEME);
         AssetRace.CandidateInput[] memory candidates = new AssetRace.CandidateInput[](2);
         candidates[0] =
             AssetRace.CandidateInput(AssetRace.RaceCategory.MEME, bytes32("AI"), address(adapter), ORACLE_A, 18, 60, 0);
@@ -378,26 +377,22 @@ contract SignedPoolRaceOracleTest is Test {
         proofs[2] = _proofPair(ORACLE_C, target, c, blockNumber, previous, selected);
     }
 
-    function _startedMemeRace() internal returns (AssetRace race, MockERC20 token) {
-        (race, token) = _createRaceForCategory(3, AssetRace.RaceCategory.MEME);
-        _bet(race, token, ALICE, 0, 10);
-        _bet(race, token, BOB, 1, 10);
-        _bet(race, token, CHARLIE, 2, 10);
+    function _startedMemeRace() internal returns (AssetRace race) {
+        race = _createRaceForCategory(3, AssetRace.RaceCategory.MEME);
+        _bet(race, ALICE, 0, 10);
+        _bet(race, BOB, 1, 10);
+        _bet(race, CHARLIE, 2, 10);
         uint256 t0 = race.getRace(0).bettingEndTime;
         vm.warp(t0);
         race.startRaceWithProofs(0, _memeProofs(t0, 100e18, 100e18, 100e18, false));
     }
 
-    function _createRace(uint8 count) internal returns (AssetRace race, MockERC20 token) {
+    function _createRace(uint8 count) internal returns (AssetRace race) {
         return _createRaceForCategory(count, AssetRace.RaceCategory.STOCK);
     }
 
-    function _createRaceForCategory(uint8 count, AssetRace.RaceCategory category)
-        internal
-        returns (AssetRace race, MockERC20 token)
-    {
-        token = new MockERC20("Mock USDG", "mUSDG");
-        race = new AssetRace(address(token));
+    function _createRaceForCategory(uint8 count, AssetRace.RaceCategory category) internal returns (AssetRace race) {
+        race = new AssetRace();
         AssetRace.CandidateInput[] memory candidates = new AssetRace.CandidateInput[](count);
         bytes32[3] memory assetIds = [bytes32("NVDA"), bytes32("TSLA"), bytes32("MU")];
         if (category == AssetRace.RaceCategory.MEME) assetIds = [bytes32("AI"), bytes32("CASHCAT"), bytes32("CHUMP")];
@@ -432,11 +427,9 @@ contract SignedPoolRaceOracleTest is Test {
         );
     }
 
-    function _bet(AssetRace race, MockERC20 token, address bettor, uint8 assetIndex, uint256 amount) internal {
-        token.mint(bettor, amount);
-        vm.startPrank(bettor);
-        token.approve(address(race), type(uint256).max);
-        race.bet(0, assetIndex, amount);
-        vm.stopPrank();
+    function _bet(AssetRace race, address bettor, uint8 assetIndex, uint256 amount) internal {
+        vm.deal(bettor, amount);
+        vm.prank(bettor);
+        race.bet{value: amount}(0, assetIndex, amount);
     }
 }

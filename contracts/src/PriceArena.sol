@@ -1,9 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
@@ -11,15 +8,13 @@ import {IAssetRaceOracle} from "./interfaces/IAssetRaceOracle.sol";
 
 /// @title PriceArena
 /// @notice A fixed-time contest in which players predict the final price of one
-/// approved StockToken/USDG or MemeToken/USDG pool. The closest half of the
+/// approved StockToken/USDG or MemeToken/ETH pool. The closest half of the
 /// field shares the losing half's stakes, weighted by stake and accuracy.
 ///
 /// Predictions are hidden by the normal read API during the lobby, but they are
 /// NOT cryptographically secret: calldata and contract storage are public. A
 /// future commit/reveal revision is required for adversarial privacy.
 contract PriceArena is Ownable, ReentrancyGuard {
-    using SafeERC20 for IERC20;
-
     enum Category {
         STOCK,
         MEME
@@ -98,14 +93,15 @@ contract PriceArena is Ownable, ReentrancyGuard {
     uint256 public constant LOBBY_DURATION = 10 minutes;
     uint256 public constant MIN_PARTICIPANTS = 2;
     uint256 public constant MAX_PARTICIPANTS = 20;
-    uint256 public constant MIN_STAKE = 1e6;
-    uint256 public constant MAX_STAKE = 50e6;
     uint256 public constant MAX_PRICE_STALENESS = 60 seconds;
     uint256 public constant MAX_TITLE_BYTES = 64;
     uint256 public constant MIN_ACCURACY_MULTIPLIER_BP = 10_000;
     uint256 public constant MAX_ACCURACY_MULTIPLIER_BP = 30_000;
 
-    IERC20 public immutable betToken;
+    /// @notice Native-ETH guardrails configured at deployment, both in wei.
+    /// The UI separately enforces the exact $1-$50 product range using ETH/USD.
+    uint256 public immutable minStakeWei;
+    uint256 public immutable maxStakeWei;
     bool public newActivityPaused;
     uint256 public arenaCount;
     uint256 public accumulatedFees;
@@ -143,11 +139,7 @@ contract PriceArena is Ownable, ReentrancyGuard {
         bool predictionChanged
     );
     event ArenaResolved(
-        uint256 indexed arenaId,
-        uint256 finalPrice,
-        uint256 winnerCount,
-        uint256 protocolFee,
-        bytes32 observationId
+        uint256 indexed arenaId, uint256 finalPrice, uint256 winnerCount, uint256 protocolFee, bytes32 observationId
     );
     event ArenaCancelled(uint256 indexed arenaId, string reason);
     event Claimed(uint256 indexed arenaId, address indexed player, uint256 payout);
@@ -155,10 +147,19 @@ contract PriceArena is Ownable, ReentrancyGuard {
     event NewActivityPaused(bool paused);
     event FeesWithdrawn(address indexed to, uint256 amount);
 
-    constructor(address _betToken) Ownable(msg.sender) {
-        require(_betToken != address(0), "bet token = zero addr");
-        require(IERC20Metadata(_betToken).decimals() == 6, "bet token must use 6 decimals");
-        betToken = IERC20(_betToken);
+    constructor(uint256 _minStakeWei, uint256 _maxStakeWei) Ownable(msg.sender) {
+        require(_minStakeWei > 0, "min stake = 0");
+        require(_maxStakeWei >= _minStakeWei, "invalid stake limits");
+        minStakeWei = _minStakeWei;
+        maxStakeWei = _maxStakeWei;
+    }
+
+    receive() external payable {
+        revert("direct ETH disabled");
+    }
+
+    fallback() external payable {
+        revert("direct ETH disabled");
     }
 
     function setAsset(
@@ -173,13 +174,8 @@ contract PriceArena is Ownable, ReentrancyGuard {
         require(oracle != address(0), "oracle = zero addr");
         require(oracleId != bytes32(0), "oracle = zero id");
         require(decimals > 0, "decimals = 0");
-        approvedAssets[assetId] = AssetConfig({
-            oracle: oracle,
-            oracleId: oracleId,
-            decimals: decimals,
-            category: category,
-            enabled: enabled
-        });
+        approvedAssets[assetId] =
+            AssetConfig({oracle: oracle, oracleId: oracleId, decimals: decimals, category: category, enabled: enabled});
         emit AssetConfigured(assetId, oracle, oracleId, decimals, category, enabled);
     }
 
@@ -230,16 +226,16 @@ contract PriceArena is Ownable, ReentrancyGuard {
         emit ArenaCreated(arenaId, msg.sender, assetId, category, startsAt, deadline, duration, title);
     }
 
-    function enter(uint256 arenaId, uint256 prediction, uint256 amount) external nonReentrant {
+    function enter(uint256 arenaId, uint256 prediction, uint256 amount) external payable nonReentrant {
         require(!newActivityPaused, "new activity paused");
         Arena storage arena = _openLobby(arenaId);
         Entry storage entry = entries[arenaId][msg.sender];
         require(!entry.exists, "already entered");
         require(arena.participantCount < MAX_PARTICIPANTS, "arena is full");
         require(prediction > 0, "prediction = 0");
-        require(amount >= MIN_STAKE && amount <= MAX_STAKE, "invalid initial stake");
+        require(amount >= minStakeWei && amount <= maxStakeWei, "invalid initial stake");
+        require(msg.value == amount, "incorrect ETH amount");
 
-        betToken.safeTransferFrom(msg.sender, address(this), amount);
         entry.prediction = prediction;
         entry.stake = amount;
         entry.predictionUpdatedAt = block.timestamp;
@@ -255,7 +251,11 @@ contract PriceArena is Ownable, ReentrancyGuard {
     /// @notice Changes the predicted price, adds stake, or does both while the
     /// lobby is open. Stake can only increase. A prediction change resets the
     /// player's tie priority; a pure top-up keeps the original priority.
-    function updateEntry(uint256 arenaId, uint256 newPrediction, uint256 additionalAmount) external nonReentrant {
+    function updateEntry(uint256 arenaId, uint256 newPrediction, uint256 additionalAmount)
+        external
+        payable
+        nonReentrant
+    {
         require(!newActivityPaused, "new activity paused");
         Arena storage arena = _openLobby(arenaId);
         Entry storage entry = entries[arenaId][msg.sender];
@@ -264,10 +264,10 @@ contract PriceArena is Ownable, ReentrancyGuard {
         // reloaded client top up without learning it through the public getter.
         bool predictionChanged = newPrediction > 0 && newPrediction != entry.prediction;
         require(predictionChanged || additionalAmount > 0, "nothing changed");
-        require(entry.stake + additionalAmount <= MAX_STAKE, "stake exceeds max");
+        require(entry.stake + additionalAmount <= maxStakeWei, "stake exceeds max");
+        require(msg.value == additionalAmount, "incorrect ETH amount");
 
         if (additionalAmount > 0) {
-            betToken.safeTransferFrom(msg.sender, address(this), additionalAmount);
             entry.stake += additionalAmount;
             arena.totalPool += additionalAmount;
             totalUserLiability += additionalAmount;
@@ -277,9 +277,7 @@ contract PriceArena is Ownable, ReentrancyGuard {
             entry.predictionUpdatedAt = block.timestamp;
         }
 
-        emit EntryChanged(
-            arenaId, msg.sender, entry.stake, entry.predictionUpdatedAt, predictionChanged
-        );
+        emit EntryChanged(arenaId, msg.sender, entry.stake, entry.predictionUpdatedAt, predictionChanged);
     }
 
     function cancelIfInsufficient(uint256 arenaId) external {
@@ -302,9 +300,8 @@ contract PriceArena is Ownable, ReentrancyGuard {
             return;
         }
 
-        IAssetRaceOracle.Observation memory observation = IAssetRaceOracle(arena.oracle).endpointObservation(
-            arena.oracleId, arena.deadline, MAX_PRICE_STALENESS, endpointProof
-        );
+        IAssetRaceOracle.Observation memory observation = IAssetRaceOracle(arena.oracle)
+            .endpointObservation(arena.oracleId, arena.deadline, MAX_PRICE_STALENESS, endpointProof);
         require(observation.price > 0, "invalid final price");
         require(observation.decimals == arena.priceDecimals, "price decimals changed");
         require(observation.updatedAt > 0 && observation.updatedAt < arena.deadline, "invalid endpoint timestamp");
@@ -334,9 +331,7 @@ contract PriceArena is Ownable, ReentrancyGuard {
             uint256 multiplier = MIN_ACCURACY_MULTIPLIER_BP;
             if (cutoffError > 0) {
                 multiplier += Math.mulDiv(
-                    MAX_ACCURACY_MULTIPLIER_BP - MIN_ACCURACY_MULTIPLIER_BP,
-                    cutoffError - error,
-                    cutoffError
+                    MAX_ACCURACY_MULTIPLIER_BP - MIN_ACCURACY_MULTIPLIER_BP, cutoffError - error, cutoffError
                 );
             }
             uint256 score = entry.stake * multiplier;
@@ -384,7 +379,7 @@ contract PriceArena is Ownable, ReentrancyGuard {
         entry.settled = true;
         arena.remainingLiability -= payout;
         totalUserLiability -= payout;
-        betToken.safeTransfer(msg.sender, payout);
+        _sendEth(msg.sender, payout);
         emit Claimed(arenaId, msg.sender, payout);
     }
 
@@ -398,7 +393,7 @@ contract PriceArena is Ownable, ReentrancyGuard {
         entry.settled = true;
         arena.remainingLiability -= amount;
         totalUserLiability -= amount;
-        betToken.safeTransfer(msg.sender, amount);
+        _sendEth(msg.sender, amount);
         emit Refunded(arenaId, msg.sender, amount);
     }
 
@@ -412,8 +407,13 @@ contract PriceArena is Ownable, ReentrancyGuard {
         require(to != address(0), "to = zero addr");
         uint256 amount = accumulatedFees;
         accumulatedFees = 0;
-        betToken.safeTransfer(to, amount);
+        _sendEth(to, amount);
         emit FeesWithdrawn(to, amount);
+    }
+
+    function _sendEth(address to, uint256 amount) private {
+        (bool success,) = payable(to).call{value: amount}("");
+        require(success, "ETH transfer failed");
     }
 
     function phase(uint256 arenaId) public view returns (Phase) {

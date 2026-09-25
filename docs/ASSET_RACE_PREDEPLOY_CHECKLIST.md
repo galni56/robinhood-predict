@@ -1,5 +1,9 @@
 # Asset Race deployment readiness and launch record — 2026-09-22
 
+> Historical USDG-generation record. The deployed address in this document is
+> not ABI/payment-compatible with the native-ETH successor. Never bind the new
+> payable frontend to it; use `/onchain/legacy` for old claims/refunds.
+
 The operator deployed and configured Asset Race on Robinhood Chain mainnet after
 separate dry runs and explicit transaction authorization. Private material stayed
 in operator-owned external environment files and was never read or recorded by
@@ -104,11 +108,10 @@ yet; no race has been created.
 | LIVE hosting/proxy | Same-origin /api/asset-race/live; VITE_ASSET_RACE_LIVE_URL if overriding; Pages disables LIVE until a CORS-safe endpoint exists |
 
 Owner/deployer, keeper and price-signer public addresses are confirmed above and
-pairwise distinct. Contract addresses are confirmed above. GitHub Pages now has
-explicit public mainnet build bindings, with optional LIVE disabled because Pages
-has no same-origin backend. The VPS frontend, keeper and LIVE service bindings
-are not deployed. Secret-bearing runtime values remain absent from the repository
-and agent process.
+pairwise distinct. Contract addresses are confirmed above. The historical GitHub
+Pages build once had explicit USDG mainnet bindings; the native-ETH branch removes
+them until new contracts are deployed. Secret-bearing runtime values remain
+absent from the repository and agent process.
 
 The operator reports that keeper and price-signer private keys are stored in the
 external mode-`0600` secret file. Their contents were not read by the agent and
@@ -220,12 +223,9 @@ do not verify intended public provider/deployed-address wiring.
 
 ## Verdict / next exact step
 
-Contracts, roles, all23 asset registrations, policy, archive samples, local
-tests, production-shaped build and a zero-write keeper startup are verified.
-GitHub Pages has explicit deployed-address bindings but is not published until
-this branch is reviewed and merged; optional LIVE is intentionally disabled
-there. Remaining launch gates are the separately managed VPS frontend/keeper/LIVE
-services, monitoring, and explicitly authorized tiny mainnet lifecycle rehearsals
-before public races. Sampled reads do not replace production monitoring or a
-provider SLA. Never request private-key contents or infer deployment/broadcast
-authorization.
+Contracts, roles, all23 asset registrations, policy, archive samples, local tests,
+production-shaped build and a zero-write keeper startup were verified for the
+USDG generation. GitHub Pages now stays unbound until native successors exist. A
+native rollout requires separate deployment/service approval, monitoring and
+explicitly authorized tiny mainnet lifecycle rehearsals. Never request private-key
+contents or infer deployment/broadcast authorization.

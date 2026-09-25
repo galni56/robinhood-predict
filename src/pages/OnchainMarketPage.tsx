@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
-import { formatUnits, parseAbiItem, parseUnits } from 'viem'
-import { useAccount, useChainId, usePublicClient, useReadContract, useSwitchChain, useWriteContract } from 'wagmi'
+import { formatEther, formatUnits, parseAbiItem } from 'viem'
+import { useAccount, useBalance, useChainId, usePublicClient, useReadContract, useSwitchChain, useWriteContract } from 'wagmi'
 import { waitForTransactionReceipt } from 'wagmi/actions'
 import { robinhoodMainnet, wagmiConfig } from '@/chain/config'
 import { DEMO_USERS, demoBetLogs, demoPools, isDemoMode } from '@/chain/demo'
@@ -14,21 +14,19 @@ import { ShareInviteButton } from '@/components/ShareInviteButton'
 import { TokenLogo } from '@/components/TokenLogo'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
 import {
-  BET_TOKEN_ADDRESS,
   BP_DENOMINATOR,
   DEPLOY_BLOCK,
   MarketSideOnchain,
   MarketStatusOnchain,
   PREDICTION_MARKET_ADDRESS,
+  PREDICTION_MARKET_CONFIGURED,
   bettingWindowEndSeconds,
   currentWeightBp,
-  erc20Abi,
   predictionMarketAbi,
 } from '@/chain/contracts'
+import { freezeUsdStakeQuote } from '@/chain/ethUsd'
 import { formatCountdown, formatUsd, shortTxError } from '@/lib/format'
 import { shortHash } from '@/lib/hash'
-
-const BET_TOKEN_DECIMALS = 6 // USDG's real decimals (old testnet mock token was 18)
 
 const MARKET_CREATED_EVENT = parseAbiItem(
   'event MarketCreated(uint256 indexed id, bytes32 indexed assetId, bytes32 indexed oracleId, int256 targetPrice, uint256 deadline)',
@@ -63,6 +61,7 @@ export function OnchainMarketPage() {
   const [side, setSide] = useState<'YES' | 'NO'>(searchParams.get('side') === 'NO' ? 'NO' : 'YES')
   const [amount, setAmount] = useState('10')
   const [tx, setTx] = useState<TxState>(null)
+  const [frozenBetWei, setFrozenBetWei] = useState<bigint | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   // Who bet what on THIS market, scanned from the contract's own BetPlaced
@@ -71,7 +70,7 @@ export function OnchainMarketPage() {
   const publicClient = usePublicClient()
   const [marketBets, setMarketBets] = useState<MarketBet[] | null>(null)
   async function refetchMarketBets() {
-    if (!publicClient) return
+    if (!publicClient || !PREDICTION_MARKET_CONFIGURED) return
     try {
       const logs = await publicClient.getLogs({
         address: PREDICTION_MARKET_ADDRESS,
@@ -118,7 +117,7 @@ export function OnchainMarketPage() {
     }
     const tick = () => {
       if (stop) return
-      const amount = BigInt((2 + Math.floor(Math.random() * 46)) * 1e6)
+      const amount = BigInt(2 + Math.floor(Math.random() * 46)) * 10n ** 15n
       const side = Math.random() < 0.5 ? MarketSideOnchain.YES : MarketSideOnchain.NO
       setDemoExtraBets((prev) =>
         [
@@ -148,7 +147,7 @@ export function OnchainMarketPage() {
   // but only once per market (not polled).
   const [creator, setCreator] = useState<`0x${string}` | null | undefined>(undefined)
   useEffect(() => {
-    if (!publicClient) return
+    if (!publicClient || !PREDICTION_MARKET_CONFIGURED) return
     let cancelled = false
     publicClient
       .getLogs({
@@ -179,6 +178,7 @@ export function OnchainMarketPage() {
     abi: predictionMarketAbi,
     functionName: 'getMarket',
     args: [MARKET_ID],
+    query: { enabled: PREDICTION_MARKET_CONFIGURED },
   })
 
   const ticker = tickerForPredictionAssetId(market.data?.assetId)
@@ -187,20 +187,10 @@ export function OnchainMarketPage() {
   const effectiveDecimals = market.data?.priceDecimals
   const effectivePriceAnswer = livePrice && !livePrice.stale ? BigInt(livePrice.priceRaw) : undefined
 
-  const betTokenBalance = useReadContract({
-    address: BET_TOKEN_ADDRESS,
-    abi: erc20Abi,
-    functionName: 'balanceOf',
-    args: address ? [address] : undefined,
-    query: { enabled: !!address },
-  })
-
-  const allowance = useReadContract({
-    address: BET_TOKEN_ADDRESS,
-    abi: erc20Abi,
-    functionName: 'allowance',
-    args: address ? [address, PREDICTION_MARKET_ADDRESS] : undefined,
-    query: { enabled: !!address },
+  const nativeBalance = useBalance({
+    address,
+    chainId: robinhoodMainnet.id,
+    query: { enabled: !!address && PREDICTION_MARKET_CONFIGURED },
   })
 
   const myStakeYes = useReadContract({
@@ -208,14 +198,14 @@ export function OnchainMarketPage() {
     abi: predictionMarketAbi,
     functionName: 'stakes',
     args: address ? [MARKET_ID, address, MarketSideOnchain.YES] : undefined,
-    query: { enabled: !!address },
+    query: { enabled: !!address && PREDICTION_MARKET_CONFIGURED },
   })
   const myStakeNo = useReadContract({
     address: PREDICTION_MARKET_ADDRESS,
     abi: predictionMarketAbi,
     functionName: 'stakes',
     args: address ? [MARKET_ID, address, MarketSideOnchain.NO] : undefined,
-    query: { enabled: !!address },
+    query: { enabled: !!address && PREDICTION_MARKET_CONFIGURED },
   })
 
   const hasClaimed = useReadContract({
@@ -223,7 +213,7 @@ export function OnchainMarketPage() {
     abi: predictionMarketAbi,
     functionName: 'claimed',
     args: address ? [MARKET_ID, address] : undefined,
-    query: { enabled: !!address },
+    query: { enabled: !!address && PREDICTION_MARKET_CONFIGURED },
   })
 
   const settlement = useReadContract({
@@ -231,7 +221,7 @@ export function OnchainMarketPage() {
     abi: predictionMarketAbi,
     functionName: 'settlements',
     args: [MARKET_ID],
-    query: { enabled: market.data?.status === MarketStatusOnchain.Resolved },
+    query: { enabled: PREDICTION_MARKET_CONFIGURED && market.data?.status === MarketStatusOnchain.Resolved },
   })
 
   const targetPriceUsd = useMemo(() => {
@@ -266,8 +256,7 @@ export function OnchainMarketPage() {
   async function refetchAll() {
     await Promise.all([
       market.refetch(),
-      betTokenBalance.refetch(),
-      allowance.refetch(),
+      nativeBalance.refetch(),
       myStakeYes.refetch(),
       myStakeNo.refetch(),
       hasClaimed.refetch(),
@@ -287,23 +276,10 @@ export function OnchainMarketPage() {
         setError(`You already bet ${side === 'YES' ? 'YES' : 'NO'} on this market`)
         return
       }
-      const amountWei = parseUnits(amount || '0', BET_TOKEN_DECIMALS)
-      if (amountWei <= 0n) {
-        setError('Amount must be greater than zero')
-        return
-      }
-
-      if ((allowance.data ?? 0n) < amountWei) {
-        setTx({ label: 'Confirm approve in your wallet…' })
-        const approveHash = await writeContractAsync({
-          address: BET_TOKEN_ADDRESS,
-          abi: erc20Abi,
-          functionName: 'approve',
-          args: [PREDICTION_MARKET_ADDRESS, amountWei],
-        })
-        setTx({ label: 'Waiting for approve confirmation…' })
-        await waitForTransactionReceipt(wagmiConfig, { hash: approveHash })
-      }
+      if (!PREDICTION_MARKET_CONFIGURED) throw new Error('Native ETH market is not configured')
+      if (!live.ethUsd) throw new Error('ETH/USD quote is unavailable or stale')
+      const amountWei = freezeUsdStakeQuote(amount, live.ethUsd).wei
+      setFrozenBetWei(amountWei)
 
       setTx({ label: 'Confirm bet in your wallet…' })
       const betHash = await writeContractAsync({
@@ -311,14 +287,17 @@ export function OnchainMarketPage() {
         abi: predictionMarketAbi,
         functionName: 'bet',
         args: [MARKET_ID, MarketSideOnchain[side], amountWei],
+        value: amountWei,
       })
       setTx({ label: 'Waiting for bet confirmation…' })
       await waitForTransactionReceipt(wagmiConfig, { hash: betHash })
 
       setTx(null)
+      setFrozenBetWei(null)
       await refetchAll()
     } catch (e) {
       setTx(null)
+      setFrozenBetWei(null)
       setError(shortTxError(e))
     }
   }
@@ -400,12 +379,25 @@ export function OnchainMarketPage() {
   const winningSide = market.data?.outcome === MarketSideOnchain.YES ? 'YES' : 'NO'
   const winningStake = market.data?.outcome === MarketSideOnchain.YES ? myStakeYes.data : myStakeNo.data
   const positionReady = myStakeYes.data !== undefined && myStakeNo.data !== undefined && hasClaimed.data !== undefined
+  let quotedBetWei = 0n
+  try {
+    quotedBetWei = live.ethUsd ? freezeUsdStakeQuote(amount, live.ethUsd).wei : 0n
+  } catch {
+    quotedBetWei = 0n
+  }
+  const displayedBetWei = frozenBetWei ?? quotedBetWei
 
   return (
     <div className="max-w-[1200px] mx-auto px-4 py-8">
       <Link to="/onchain" className="text-sm font-bold text-white/40 hover:text-white/70">
         ← All on-chain markets
       </Link>
+
+      {!PREDICTION_MARKET_CONFIGURED && (
+        <div className="mt-5 rounded-2xl border border-amber-400/25 bg-amber-400/10 p-4 text-sm text-amber-100">
+          The new native ETH PredictionMarket is not configured yet. Legacy USDG claims and refunds remain available on the legacy page.
+        </div>
+      )}
 
       {/* A skeleton that mirrors the loaded layout's shape, rather than a
           bare "…" title or "Loading market…" line, so navigating to a market
@@ -526,7 +518,7 @@ export function OnchainMarketPage() {
           <div className="flex justify-between text-xs font-bold">
             <span className="text-[#B3A7FA]">YES {yesPct.toFixed(1)}%</span>
             <span className="text-white/40">
-              {formatUnits(pools.poolYes, BET_TOKEN_DECIMALS)} vs {formatUnits(pools.poolNo, BET_TOKEN_DECIMALS)} USDG
+              {formatEther(pools.poolYes)} vs {formatEther(pools.poolNo)} ETH
             </span>
             <span className="text-[#F2A65A]">NO {(100 - yesPct).toFixed(1)}%</span>
           </div>
@@ -553,7 +545,7 @@ export function OnchainMarketPage() {
               >
                 <SideBadge side={b.side === MarketSideOnchain.YES ? 'YES' : 'NO'} />
                 <AddressLabel address={b.user} className="font-mono text-white/70 hover:text-white" />
-                <span className="font-mono text-white/50">{formatUnits(b.amount, BET_TOKEN_DECIMALS)} USDG</span>
+                <span className="font-mono text-white/50">{formatEther(b.amount)} ETH</span>
                 <a
                   href={`${robinhoodMainnet.blockExplorers.default.url}/tx/${b.txHash}`}
                   target="_blank"
@@ -607,7 +599,7 @@ export function OnchainMarketPage() {
               </div>
               <input
                 disabled
-                placeholder="Amount in USDG"
+                placeholder="Stake in USD · $1–$50"
                 className="w-full rounded-xl bg-white/5 border border-white/10 px-3.5 py-2.5 text-sm placeholder:text-white/25 cursor-not-allowed"
               />
               <button
@@ -665,7 +657,7 @@ export function OnchainMarketPage() {
                   ) : (
                     <div className="rounded-3xl border border-white/5 bg-[#241b2f] p-4 space-y-3">
                       <div className="flex items-center justify-between text-xs text-white/50 font-medium">
-                        <span>Your balance: {betTokenBalance.data != null ? formatUnits(betTokenBalance.data, BET_TOKEN_DECIMALS) : '…'} USDG</span>
+                        <span>Your balance: {nativeBalance.data ? formatEther(nativeBalance.data.value) : '…'} ETH</span>
                         {liveWeightBp != null && (
                           <span className="font-bold text-[#B3A7FA]">
                             Early-bet bonus: {(Number(liveWeightBp) / Number(BP_DENOMINATOR)).toFixed(2)}x
@@ -706,23 +698,27 @@ export function OnchainMarketPage() {
                                 type="number"
                                 value={amount}
                                 onChange={(e) => setAmount(e.target.value)}
+                                min="1"
+                                max="50"
+                                step="0.01"
                                 className="w-full rounded-xl bg-white/5 border border-white/10 px-3.5 py-2.5 text-sm font-medium outline-none focus:border-[#8B7CF7]/50 transition-colors"
-                                placeholder="Amount in USDG"
+                                placeholder="Stake in USD · $1–$50"
                               />
                               <p className="text-[11px] text-white/30">
-                                USDG only for now - ETH support is planned for a future update. Want another token
-                                supported? Let us know what you'd like next.
+                                {displayedBetWei > 0n
+                                  ? `Wallet will send exactly ${formatEther(displayedBetWei)} ETH in one transaction.`
+                                  : 'Waiting for a fresh shared ETH/USD quote.'}
                               </p>
                               <button
                                 onClick={handleBet}
-                                disabled={!!tx}
+                                disabled={!!tx || !PREDICTION_MARKET_CONFIGURED || displayedBetWei <= 0n}
                                 className={`w-full rounded-xl font-bold py-2.5 text-sm disabled:opacity-50 transition-all ${
                                   side === 'YES'
                                     ? 'bg-gradient-to-r from-[#8B7CF7] to-[#6A5AE0] hover:brightness-110 text-white'
                                     : 'bg-gradient-to-r from-[#F2A65A] to-[#ED8F3A] hover:brightness-110 text-[#3b2416]'
                                 }`}
                               >
-                                {tx ? tx.label : 'Place bet (approve + bet)'}
+                                {tx ? tx.label : 'Place bet with ETH'}
                               </button>
                             </>
                           )}

@@ -47,8 +47,8 @@ export function WhitepaperPage() {
             Prophet: three onchain prediction games for tokenized assets
           </h1>
           <p className="mt-3 text-sm text-white/40">
-            Version 2.0 · Robinhood Chain mainnet. This document describes the product as it works today: real
-            wallets, real USDG and real-money outcomes. Prophet has not received an external security audit and this
+            Version 2.0 · Robinhood Chain mainnet. This document describes the native-ETH product implemented for
+            the next deployments; old USDG contracts remain available for legacy claims and refunds. Prophet has not received an external security audit and this
             document is not legal, financial or investment advice. See the{' '}
             <Link to="/terms" className="text-[#8B7CF7] hover:underline">
               Terms of Service
@@ -85,13 +85,13 @@ export function WhitepaperPage() {
         <Section id="shared" title="2. Shared foundations">
           <ul className="list-disc space-y-1 pl-5">
             <li><strong>Network:</strong> all real games run on Robinhood Chain mainnet.</li>
-            <li><strong>Bet token:</strong> stakes and payouts use USDG. Wallets also need ETH for network gas.</li>
+            <li><strong>Wager currency:</strong> stakes, pools, payouts and refunds use native ETH. The interface converts a $1–$50 input to an exact wei value; there is no ERC-20 approval, WETH wrapping or swap.</li>
             <li>
               <strong>Reviewed assets:</strong> Markets use 10 approved tokenized stocks. Races and Arena support
               those 10 Stocks plus 13 Memes; Stocks and Memes remain separate categories.
             </li>
             <li>
-              <strong>Non-custodial:</strong> Prophet never receives a wallet&apos;s private key. Approvals, entries,
+              <strong>Non-custodial:</strong> Prophet never receives a wallet&apos;s private key. Entries,
               claims and refunds are signed by the player in MetaMask.
             </li>
             <li>
@@ -120,7 +120,7 @@ export function WhitepaperPage() {
               the onchain minimum.
             </li>
             <li>
-              Players stake USDG on YES or NO. A wallet may place one bet per side, up to 50 USDG on each side. It is
+              Players enter $1–$50 and stake the displayed native ETH equivalent on YES or NO. A wallet may place one bet per side. It is
               possible to hold both a YES and a NO position, but neither position can be increased after its first bet.
             </li>
             <li>
@@ -136,7 +136,7 @@ export function WhitepaperPage() {
           <p>
             Creation is permissionless, but asset approval is not: a market can only use a pool identity reviewed and
             registered by the protocol. The target ranges shown during creation are interface guidance, not an onchain
-            target-distance rule. The owner may seed a new market with up to 50 USDG total across both sides.
+            target-distance rule. The owner may seed a new market up to the deployment-configured native ETH cap.
           </p>
         </Section>
 
@@ -178,8 +178,8 @@ export function WhitepaperPage() {
               category, up to six candidates total. Fewer than two candidates at lobby close cancels the empty race.
             </li>
             <li>
-              Betting then opens for 5 minutes. A wallet selects one asset with an initial stake of at least 1 USDG
-              and may top up the same selection to a cumulative maximum of 50 USDG. The selected asset cannot be
+              Betting then opens for 5 minutes. A wallet enters $1–$50, sees the exact native ETH equivalent,
+              and may top up the same selection to the contract&apos;s cumulative wei cap. The selected asset cannot be
               changed for that race.
             </li>
             <li>
@@ -229,8 +229,9 @@ export function WhitepaperPage() {
               only after that lobby ends.
             </li>
             <li>
-              Between 2 and 20 wallets may enter. The initial stake must be 1–50 USDG. During the lobby a player may
-              change the predicted price and add more USDG up to 50 total, but cannot reduce the stake or withdraw.
+              Between 2 and 20 wallets may enter. The interface accepts a $1–$50 initial stake and sends the exact
+              displayed native ETH equivalent. During the lobby a player may change the predicted price and add more
+              native ETH up to the contract&apos;s cumulative wei cap, but cannot reduce the stake or withdraw.
             </li>
             <li>
               The regular interface and contract getter hide predicted prices during the lobby while showing stakes.
@@ -248,7 +249,7 @@ export function WhitepaperPage() {
           </ol>
           <p>
             Stock Arenas predict a StockToken/USDG price in USDG. Meme Arenas predict a MemeToken/ETH price in ETH.
-            USDG remains the stake and payout token in both categories.
+            Those are price quote units only; native ETH is the stake and payout currency in both categories.
           </p>
         </Section>
 
@@ -284,6 +285,12 @@ export function WhitepaperPage() {
             Prices visible in the interface come from the reviewed Robinhood Chain liquidity pools. A shared live
             service polls those pools every two seconds and distributes one synchronized snapshot to the ticker,
             cards and game screens. These values are for display and do not themselves settle a game.
+          </p>
+          <p>
+            The same service caches one public ETH/USD quote for every stake form, refreshing it no faster than every
+            15 seconds. Dollar input is converted to wei with fixed-point integer arithmetic and the displayed value
+            is frozen when the wallet request is built. Missing or stale quotes block betting. Onchain min/max values
+            are deployment-configured wei guardrails, so their dollar value is approximate as ETH/USD moves.
           </p>
           <p>
             Markets, Races and Arena use the shared <code className="text-[#8B7CF7]">SignedPoolRaceOracle</code> for
