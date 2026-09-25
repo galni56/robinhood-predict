@@ -13,7 +13,10 @@ claim/refund access throughout the rollout.
 - A combined Foundry rehearsal deploys all three native products against one
   signed oracle and completes both resolve/claim and cancel/refund lifecycles.
 - Full validation currently passes: 180 Forge tests, 128,000 invariant calls and
-  93 Node tests, plus registry/build/lint/diff gates.
+  95 Node tests, plus registry/build/lint/diff gates.
+- The public deployment manifest is generated directly from the validated
+  registry and rejects malformed addresses, pool ids, mixed validation profiles,
+  duplicate bindings and unexpected production asset counts.
 - Production guardrail values are not approved yet. The ±25% policy is a
   recommendation for review, not a deployment input.
 - No chain-4663 simulation, broadcast, VPS change or `main` merge has occurred.
@@ -43,6 +46,8 @@ claim/refund access throughout the rollout.
    `node scripts/native-eth-deployment-caps.mjs --eth-usd <price> --buffer-bps <bp>`.
    The UI still enforces exact $1–$50 stakes from the live cached quote; the
    onchain values are only approximate safety guardrails.
+   Then generate and review the complete public configuration from the same registry with
+   `node scripts/native-eth-deployment-manifest.mjs --eth-usd <price> --buffer-bps <bp> --oracle-address <address> --price-signer-address <address>`.
 3. **Local lifecycle rehearsal.** Deploy all three replacements against one
    local signed-pool oracle and exercise PredictionMarket, AssetRace and
    PriceArena from entry through resolve/cancel and claim/refund. Confirm one

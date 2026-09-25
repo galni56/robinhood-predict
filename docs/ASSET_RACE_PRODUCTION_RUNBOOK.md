@@ -49,13 +49,13 @@ cancels or unavailable P1 voids; they do not change the endpoint or limit claims
 
 ## Deployment configuration
 
-Set these only in the operator's secret-aware process environment:
+Generate and review all public values from the registry/manifest. Only the
+deployer key belongs exclusively in the operator's secret-aware environment:
 
 - `ASSET_RACE_DEPLOYER_PRIVATE_KEY`
 - `ASSET_RACE_PRICE_SIGNER_ADDRESS` (public address only)
-- `ASSET_RACE_BET_TOKEN_ADDRESS`
 - `ASSET_RACE_ADDRESS` after deployment
-- `ASSET_RACE_SIGNED_POOL_ORACLE_ADDRESS` after deployment
+- `ASSET_RACE_SIGNED_POOL_ORACLE_ADDRESS` (the existing verified oracle)
 - `ASSET_RACE_MAX_PRICE_AGE`
 - `ASSET_RACE_MAX_ENDPOINT_LAG`
 - `ASSET_RACE_MAX_ORACLE_TIMESTAMP_SKEW`
@@ -65,8 +65,8 @@ Set these only in the operator's secret-aware process environment:
 - `ASSET_RACE_RESOLUTION_GRACE`
 - `ASSET_RACE_FEE_BP`
 - `ASSET_RACE_MIN_ACTIVE_CONTENDERS`
-- `ASSET_RACE_MIN_STAKE`
-- `ASSET_RACE_MAX_STAKE_PER_WALLET`
+- `ASSET_RACE_MIN_STAKE_WEI`
+- `ASSET_RACE_MAX_STAKE_PER_WALLET_WEI`
 - optional `ASSET_RACE_DURATION_PRESET_1` through `_3`
 
 After a testnet rehearsal, the operator runs the following commands manually;
