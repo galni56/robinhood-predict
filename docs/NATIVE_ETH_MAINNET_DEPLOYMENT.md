@@ -1,9 +1,8 @@
 # Native ETH mainnet deployment record
 
 Status: **the corrected PredictionMarket, AssetRace and PriceArena are deployed
-and configured. PredictionMarket canary creation passed and its deadline phase
-is pending; AssetRace/PriceArena canaries and public frontend/service binding
-remain pending.**
+and configured. The complete PredictionMarket canary passed; AssetRace/
+PriceArena canaries and public frontend/service binding remain pending.**
 
 Deployment date: 2026-09-25. Original release source: `455744a`; corrected
 PredictionMarket source: `c53ba0a`. Chain ID: `4663`.
@@ -51,7 +50,7 @@ All 84 receipts returned success. The redundant configuration rewrote the same
 bindings on the unused superseded contract and affected no player state. Paid
 values are the actual receipt totals, not pre-broadcast estimates.
 
-## PredictionMarket canary — in progress
+## PredictionMarket canary — passed
 
 The guarded creation phase produced two TSLA markets with deadline `1790352582`
 and `0.0001 ETH` per position. All six receipts succeeded in blocks
@@ -73,8 +72,27 @@ and `0.0001 ETH` per position. All six receipts succeeded in blocks
 Independent public-RPC reads confirmed `marketCount=2`; participant counts are
 `2` for #0 and `1` for #1; every expected stake is exactly `0.0001 ETH`; both
 pools on both markets are `0.0001 ETH`; both statuses are Open; and the contract
-balance is exactly `0.0004 ETH`. Keeper settlement, winner claim and both
-cancellation refunds have not run yet.
+balance was exactly `0.0004 ETH` before settlement.
+
+The corrected one-off keeper then resolved #0 and cancelled #1:
+
+- resolve #0: `0x638d12a308959daa5d167adb5a17d4e298b08bb4988a0835774197c4e556fdbd`,
+  block `72360337`;
+- cancel #1: `0x76a316b64324371bcd3d32d4068674d087a462ac88deaf0111dcedc60349127b`,
+  block `72360343`.
+
+The signed #0 observation was `372.694770746426440647` at timestamp
+`1790352581`, strictly before deadline `1790352582`, so YES won. The guarded
+finalizer paid/refunded in three successful transactions:
+
+- YES winner claim: `0x33a8ec8ed401966da285171e78fa3422fd096d69209a20c3187816cbe06669b7`;
+- #1 YES refund: `0x447b8ad8f34416c725f7ed5479f747ccd2f92bb80cf663e7d246470cded38802`;
+- #1 NO refund: `0x2fddbe5f3bc4b1b2ac6c0e28914992f3766ae772baaf9679c7a07ff8946a9f1c`.
+
+The winner received `0.000198 ETH`, cancellation refunds totaled `0.0002 ETH`,
+and both public accounting reads and the contract balance ended at exactly the
+`0.000002 ETH` protocol fee. Across creation, keeper and finalization, the
+canary used 1,399,816 gas and paid `0.000050218229344 ETH` in transaction fees.
 
 ## Verified postconditions
 

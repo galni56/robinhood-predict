@@ -1,10 +1,9 @@
 # Native ETH production rollout
 
 Status: the corrected PredictionMarket, AssetRace and PriceArena are deployed/
-configured. PredictionMarket canary markets are live and awaiting deadline
-settlement; the other lifecycle canaries and public frontend/service binding
-remain pending. The first native PredictionMarket deployment is superseded and
-unused.
+configured. The complete PredictionMarket lifecycle canary passed; AssetRace
+and PriceArena canaries plus public frontend/service binding remain pending. The
+first native PredictionMarket deployment is superseded and unused.
 Earlier USDG deployments contain only owner test activity; the owner waived
 recovery and the release does not expose or automate those contracts. See
 `NATIVE_ETH_MAINNET_DEPLOYMENT.md` for the complete transaction record.

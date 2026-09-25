@@ -1,9 +1,9 @@
 # Prediction Market deadline settlement
 
 Status: the corrected native-ETH PredictionMarket is deployed/configured at
-`0x4bfd0efc15C3198fe3AFf4741FF121AB2F38060e`; its two canary markets are open
-and awaiting deadline settlement/claim/refund. Persistent keeper/frontend
-binding is pending. The pre-canary native deployment
+`0x4bfd0efc15C3198fe3AFf4741FF121AB2F38060e`; its two-market tiny-value canary
+passed resolve/claim and cancel/two-refund with exact accounting. Persistent
+keeper/frontend binding is pending. The pre-canary native deployment
 `0xe6C4aAf95f43E35Ef309eEa61bAfb345226333EB` is superseded because it lacks
 the two-distinct-address eligibility rule. The earlier USDG contracts
 `0x1a62098AcEd3F7F8C41fff1bc1395A541678b0F1` and
@@ -132,7 +132,10 @@ Creation completed in six successful transactions at blocks
 `72338166–72338192`. Independent reads confirmed market #0 has two participants,
 market #1 has one participant, all four positions are exactly `0.0001 ETH`, and
 the contract holds exactly `0.0004 ETH`. Both markets share deadline
-`1790352582`; the keeper/finalization phase remains pending.
+`1790352582`. The corrected keeper resolved #0 from the signed timestamp
+`1790352581` and cancelled #1. Finalization paid `0.000198 ETH` to the YES winner,
+refunded `0.0002 ETH`, accrued `0.000002 ETH`, and left exactly that fee in the
+contract. All eleven canary receipts and final public accounting reads passed.
 
 ## Rollout gate
 
