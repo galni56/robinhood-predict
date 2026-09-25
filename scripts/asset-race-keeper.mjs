@@ -174,7 +174,14 @@ Explicit configuration:
   ASSET_RACE_SIGNED_POOL_ORACLE_ADDRESS=<deployed-adapter>
   ASSET_RACE_POOL_PRICE_SIGNER_PRIVATE_KEY=<separate-price-signer-key>
   ASSET_RACE_ALLOW_LIVE=true                       required for non-Anvil writes
-  POLL_INTERVAL_MS=1000                            default with pool endpoints
+  POLL_INTERVAL_MS=1000                            floor between polls, and the
+                                                    retry spacing right after a
+                                                    race becomes due or a
+                                                    transition attempt fails
+  IDLE_POLL_INTERVAL_MS=20000                      cap while no tracked race is
+                                                    due soon -- still bounded
+                                                    well inside every configured
+                                                    start/resolution grace
   RACE_SCAN_FROM=0                                 default
   DRY_RUN=true                                     simulate and report; never send
   RUN_ONCE=true                                    poll once and exit
@@ -298,6 +305,7 @@ function resolveConfig() {
     endpointCacheFile,
     localFallback: !explicitRpcUrl,
     pollIntervalMs: readNonNegativeInteger('POLL_INTERVAL_MS', collectorEnabled ? 1_000 : 15_000, 500),
+    idlePollIntervalMs: readNonNegativeInteger('IDLE_POLL_INTERVAL_MS', 20_000, 1_000),
     privateKey,
     priceSignerPrivateKey,
     poolRpcUrl,
@@ -394,6 +402,20 @@ class ActiveRaceTracker {
     })
     this.observe(raceId, race)
     return race
+  }
+
+  /** Unix seconds (bigint) at which the soonest-tracked race next needs a
+   * transition check, or undefined if nothing is currently tracked. Drives
+   * the adaptive poll sleep below -- a failed transition leaves the race's
+   * dueAt unchanged (observe() only updates it from freshly-read state), so
+   * it stays due and gets retried on the very next short cycle rather than
+   * waiting out the idle cap. */
+  earliestDueAt() {
+    let earliest
+    for (const { dueAt } of this.races.values()) {
+      if (earliest === undefined || dueAt < earliest) earliest = dueAt
+    }
+    return earliest
   }
 }
 
@@ -646,11 +668,26 @@ async function main() {
       console.error(`[keeper] poll failed (${safeErrorName(error)}); continuing`)
     }
     if (config.runOnce || stopping) break
-    await new Promise((resolve) => setTimeout(resolve, config.pollIntervalMs))
+    const sleepMs = nextSleepMs(tracker, config.pollIntervalMs, config.idlePollIntervalMs)
+    await new Promise((resolve) => setTimeout(resolve, sleepMs))
   } while (!stopping)
 }
 
-export { ActiveRaceTracker, keeperAbi, transitionFor, endpointProofsForRace, firstEnvironmentValue, resolveEndpointCacheFile, startCallForRace, verifyOperationalRoles, verifySignedPoolOracle }
+/** How long to sleep before the next poll: exactly until the soonest-tracked
+ * race is due (floored at pollIntervalMs so a just-became-due or
+ * just-failed race retries quickly, not immediately-spinning), capped at
+ * idlePollIntervalMs so a quiet contract with nothing tracked -- or a
+ * brand-new race not discovered yet -- still gets noticed promptly. Every
+ * grace window in this contract is measured in minutes, so an idle cap of a
+ * few tens of seconds costs no real responsiveness. */
+function nextSleepMs(tracker, pollIntervalMs, idlePollIntervalMs, now = Date.now()) {
+  const earliestDueAt = tracker.earliestDueAt()
+  if (earliestDueAt === undefined) return idlePollIntervalMs
+  const msUntilDue = Number(earliestDueAt) * 1000 - now
+  return Math.min(idlePollIntervalMs, Math.max(pollIntervalMs, msUntilDue))
+}
+
+export { ActiveRaceTracker, keeperAbi, transitionFor, endpointProofsForRace, firstEnvironmentValue, resolveEndpointCacheFile, startCallForRace, verifyOperationalRoles, verifySignedPoolOracle, nextSleepMs }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main().catch((error) => {
   if (error instanceof KeeperConfigError) console.error(`[keeper] configuration error: ${error.message}`)
