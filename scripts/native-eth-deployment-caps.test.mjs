@@ -1,49 +1,36 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
+  PRODUCT_MAX_STAKE_WEI,
+  PRODUCT_MIN_STAKE_WEI,
   nativeEthDeploymentCaps,
-  parseFixedDecimal,
-  usdCentsToWeiAtPrice,
 } from './native-eth-deployment-caps.mjs'
 
-test('deployment caps use exact bigint math across the buffered ETH/USD corridor', () => {
-  const caps = nativeEthDeploymentCaps({ ethUsd: '4000', bufferBps: '2500' })
+test('deployment uses approved broad fixed ETH safety fuses', () => {
+  const caps = nativeEthDeploymentCaps()
   assert.deepEqual(caps, {
-    referencePriceRaw: '400000000000',
-    lowerPriceRaw: '300000000000',
-    upperPriceRaw: '500000000000',
-    priceDecimals: 8,
-    bufferBps: '2500',
+    policy: 'FIXED_NATIVE_ETH_SAFETY_FUSE',
+    uiStakeUsdCents: { min: '100', max: '5000' },
+    illustrativeFullUiEthUsdRange: { min: '500.00', max: '10000.00' },
     predictionMarket: {
-      maxSeedLiquidityWei: '16666666666666666',
-      maxStakePerSideWei: '16666666666666666',
+      maxSeedLiquidityWei: '100000000000000000',
+      maxStakePerSideWei: '100000000000000000',
     },
     assetRace: {
-      minStakeWei: '200000000000000',
-      maxStakePerWalletWei: '16666666666666666',
+      minStakeWei: '100000000000000',
+      maxStakePerWalletWei: '100000000000000000',
     },
     priceArena: {
-      minStakeWei: '200000000000000',
-      maxStakeWei: '16666666666666666',
+      minStakeWei: '100000000000000',
+      maxStakeWei: '100000000000000000',
     },
   })
-
-  const minAtUpper = usdCentsToWeiAtPrice(100n, BigInt(caps.upperPriceRaw))
-  const maxAtLower = usdCentsToWeiAtPrice(5_000n, BigInt(caps.lowerPriceRaw))
-  assert.equal(minAtUpper.toString(), caps.assetRace.minStakeWei)
-  assert.equal(maxAtLower.toString(), caps.assetRace.maxStakePerWalletWei)
+  assert.equal(PRODUCT_MIN_STAKE_WEI, 10n ** 14n)
+  assert.equal(PRODUCT_MAX_STAKE_WEI, 10n ** 17n)
+  assert.equal(PRODUCT_MAX_STAKE_WEI / PRODUCT_MIN_STAKE_WEI, 1_000n)
 })
 
-test('fractional reference prices stay fixed at eight decimals without floating point', () => {
-  assert.equal(parseFixedDecimal('2345.67890123'), 234_567_890_123n)
-  assert.throws(() => parseFixedDecimal('2345.678901234'), /InvalidFixedDecimal/)
-  assert.throws(() => parseFixedDecimal('2e3'), /InvalidFixedDecimal/)
-  assert.throws(() => parseFixedDecimal('0'), /NonPositiveFixedDecimal/)
-})
-
-test('deployment caps reject malformed or unsafe buffers', () => {
-  for (const bufferBps of ['-1', '1.5', '10000', '12000', '']) {
-    assert.throws(() => nativeEthDeploymentCaps({ ethUsd: '4000', bufferBps }), /InvalidBufferBps/)
-  }
-  assert.throws(() => nativeEthDeploymentCaps({ ethUsd: '0.00000001', bufferBps: '9999' }), /BufferedPriceRoundsToZero/)
+test('deployment safety fuses are independent of a mutable ETH/USD quote', () => {
+  assert.deepEqual(nativeEthDeploymentCaps(), nativeEthDeploymentCaps())
+  assert.equal(nativeEthDeploymentCaps.length, 0)
 })

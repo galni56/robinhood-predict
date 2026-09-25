@@ -1,5 +1,7 @@
 import { assetRaceChain } from '@/chain/config'
+import type { StakeInputUnit } from '@/chain/ethUsd'
 import { ClockIcon } from '@/components/icons'
+import { StakeAmountInput } from '@/components/StakeAmountInput'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
 import { TokenLogo } from '@/components/TokenLogo'
 import { formatCountdown } from '@/lib/format'
@@ -19,6 +21,8 @@ export function AssetRaceBettingView({
   setSelectedAssetIndex,
   amount,
   setAmount,
+  inputUnit,
+  setInputUnit,
   balance,
   isConnected,
   onRightChain,
@@ -32,6 +36,7 @@ export function AssetRaceBettingView({
   tokenLabel,
   amountRaw,
   exactEth,
+  equivalentUsd,
   quoteReady,
 }: {
   race: AssetRaceViewModel
@@ -40,6 +45,8 @@ export function AssetRaceBettingView({
   setSelectedAssetIndex: (value: number) => void
   amount: string
   setAmount: (value: string) => void
+  inputUnit: StakeInputUnit
+  setInputUnit: (value: StakeInputUnit) => void
   balance?: bigint
   isConnected: boolean
   onRightChain: boolean
@@ -53,6 +60,7 @@ export function AssetRaceBettingView({
   tokenLabel: string
   amountRaw: bigint
   exactEth: string | null
+  equivalentUsd: string | null
   quoteReady: boolean
 }) {
   const meme = race.category === ASSET_RACE_CATEGORY.MEME
@@ -148,20 +156,23 @@ export function AssetRaceBettingView({
           )}
 
           <div>
-            <label className="mb-1.5 block text-sm font-bold text-white/60">
-              {position?.exists ? 'Additional stake' : 'Stake'} in USD
-            </label>
-            <input
-              type="number"
-              min="1"
-              max="50"
-              step="0.01"
+            <StakeAmountInput
+              id="race-stake"
+              label={position?.exists ? 'Additional stake' : 'Stake'}
               value={amount}
-              onChange={(event) => setAmount(event.target.value)}
-              className="w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 font-mono outline-none transition-colors focus:border-[#8B7CF7]/50"
+              inputUnit={inputUnit}
+              onChange={setAmount}
+              onInputUnitChange={setInputUnit}
+              disabled={!!txLabel}
             />
             <p className="mt-2 text-xs font-medium text-white/45">
-              {exactEth ? `Wallet will send exactly ${exactEth} ETH` : quoteReady ? 'Enter $1–$50.' : 'ETH/USD quote unavailable or stale.'}
+              {exactEth
+                ? inputUnit === 'ETH'
+                  ? `Wallet will send exactly ${exactEth} ETH · about ${equivalentUsd} at the displayed quote.`
+                  : `Wallet will send exactly ${exactEth} ETH`
+                : quoteReady
+                  ? `Enter a stake worth $1–$50 in ${inputUnit}.`
+                  : 'ETH/USD quote unavailable or stale.'}
             </p>
             <div className="mt-1.5 flex flex-wrap justify-between gap-2 text-[11px] font-medium text-white/30">
               <span>

@@ -16,7 +16,15 @@ import {
   assetRaceStatusLabel,
   raceModeForCategory,
 } from '@/chain/assetRaces'
-import { freezeUsdStakeQuote } from '@/chain/ethUsd'
+import {
+  formatUsdCents,
+  freezeNativeStakeQuote,
+  nativeStakeGuardrailMessage,
+  nativeStakeGuardrailViolation,
+  nativeStakeQuoteErrorMessage,
+  type FrozenNativeStakeQuote,
+  type StakeInputUnit,
+} from '@/chain/ethUsd'
 import { useAssetRace } from '@/chain/useAssetRace'
 import { useAssetRaceClock } from '@/chain/useAssetRaceClock'
 import { useAssetRaceLiveDisplay } from '@/chain/useAssetRaceLiveDisplay'
@@ -53,8 +61,9 @@ export function OnchainRacePage() {
   const [amountState, setAmountState] = useState({ owner: betFormOwner, value: '' })
   const amount = amountState.owner === betFormOwner ? amountState.value : ''
   const setAmount = (value: string) => setAmountState({ owner: betFormOwner, value })
+  const [stakeInputUnit, setStakeInputUnit] = useState<StakeInputUnit>('USD')
   const [tx, setTx] = useState<TxState>(null)
-  const [frozenBetWei, setFrozenBetWei] = useState<bigint | null>(null)
+  const [frozenBetQuote, setFrozenBetQuote] = useState<FrozenNativeStakeQuote | null>(null)
   const [error, setError] = useState<string | null>(null)
   const raceNowMs = useAssetRaceClock()
   const live = useAssetRaceLiveDisplay({ enabled: true })
@@ -76,13 +85,14 @@ export function OnchainRacePage() {
   })
 
   const onRightChain = chainId === assetRaceChain.id
-  let quotedBetWei = 0n
+  let quotedBet: FrozenNativeStakeQuote | undefined
   try {
-    quotedBetWei = live.ethUsd ? freezeUsdStakeQuote(amount, live.ethUsd).wei : 0n
+    quotedBet = live.ethUsd ? freezeNativeStakeQuote(amount, stakeInputUnit, live.ethUsd) : undefined
   } catch {
-    quotedBetWei = 0n
+    quotedBet = undefined
   }
-  const displayedBetWei = frozenBetWei ?? quotedBetWei
+  const displayedBetQuote = frozenBetQuote ?? quotedBet
+  const displayedBetWei = displayedBetQuote?.wei ?? 0n
 
   async function refetchAll() {
     await Promise.all([refetch(), balance.refetch(), lobbyAddition.refetch()])
@@ -92,10 +102,20 @@ export function OnchainRacePage() {
     setError(null)
     try {
       if (!ASSET_RACE_ADDRESS || raceId == null || !race) return
-      if (!live.ethUsd) throw new Error('ETH/USD quote is unavailable or stale')
-      const frozen = freezeUsdStakeQuote(amount, live.ethUsd)
+      if (!live.ethUsd) throw new Error('EthUsdQuoteStale')
+      const frozen = freezeNativeStakeQuote(amount, stakeInputUnit, live.ethUsd)
       const amountRaw = frozen.wei
-      setFrozenBetWei(amountRaw)
+      const guardrailViolation = nativeStakeGuardrailViolation(amountRaw, {
+        minInitialWei: race.minStake,
+        maxCumulativeWei: race.maxStakePerWallet,
+        existingStakeWei: position?.stake ?? 0n,
+        initialStake: !position?.exists,
+      })
+      if (guardrailViolation) {
+        setError(nativeStakeGuardrailMessage(guardrailViolation))
+        return
+      }
+      setFrozenBetQuote(frozen)
       const assetIndex = position?.exists ? position.assetIndex : selectedAssetIndex
 
       setTx({ label: 'Confirm race bet in wallet…' })
@@ -109,13 +129,13 @@ export function OnchainRacePage() {
       setTx({ label: 'Waiting for bet confirmation…' })
       await waitForTransactionReceipt(wagmiConfig, { hash: betHash })
       setTx(null)
-      setFrozenBetWei(null)
+      setFrozenBetQuote(null)
       setAmount('')
       await refetchAll()
     } catch (cause) {
       setTx(null)
-      setFrozenBetWei(null)
-      setError(cause instanceof Error && cause.message === 'Amount must be greater than zero' ? cause.message : shortTxError(cause))
+      setFrozenBetQuote(null)
+      setError(nativeStakeQuoteErrorMessage(cause) ?? shortTxError(cause))
     }
   }
 
@@ -247,6 +267,14 @@ export function OnchainRacePage() {
               setSelectedAssetIndex={setSelectedAssetIndex}
               amount={amount}
               setAmount={setAmount}
+              inputUnit={stakeInputUnit}
+              setInputUnit={(unit) => {
+                if (unit === stakeInputUnit) return
+                setStakeInputUnit(unit)
+                setAmount('')
+                setFrozenBetQuote(null)
+                setError(null)
+              }}
               balance={balance.data?.value}
               isConnected={isConnected}
               onRightChain={onRightChain}
@@ -260,6 +288,7 @@ export function OnchainRacePage() {
               tokenLabel={ASSET_RACE_TOKEN_LABEL}
               amountRaw={displayedBetWei}
               exactEth={displayedBetWei > 0n ? formatEther(displayedBetWei) : null}
+              equivalentUsd={displayedBetQuote ? formatUsdCents(displayedBetQuote.usdCents) : null}
               quoteReady={!!live.ethUsd && !live.ethUsd.stale}
             />
           ) : race.status === ASSET_RACE_STATUS.RUNNING ? (

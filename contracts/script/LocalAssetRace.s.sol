@@ -9,7 +9,8 @@ import {MockRaceOracle} from "../src/mocks/MockRaceOracle.sol";
 abstract contract LocalAssetRaceBase is Script {
     uint256 internal constant LOCAL_CHAIN_ID = 31_337;
     uint8 internal constant PRICE_DECIMALS = 8;
-    uint256 internal constant STAKE_UNIT = 1 ether;
+    uint256 internal constant MIN_STAKE_WEI = 0.0001 ether;
+    uint256 internal constant MAX_STAKE_PER_WALLET_WEI = 0.1 ether;
     uint256 internal constant PRICE_UNIT = 1e8;
 
     modifier localOnly() {
@@ -86,8 +87,8 @@ abstract contract LocalAssetRaceBase is Script {
             maxOracleTimestampSkew: 5,
             feeBp: 200,
             minActiveContenders: 2,
-            minStake: STAKE_UNIT,
-            maxStakePerWallet: 50 * STAKE_UNIT
+            minStake: MIN_STAKE_WEI,
+            maxStakePerWallet: MAX_STAKE_PER_WALLET_WEI
         });
         return race.createPlatformRace("PROPHET TECH RACE", config, _platformAssetIds());
     }
@@ -104,8 +105,8 @@ abstract contract LocalAssetRaceBase is Script {
             maxOracleTimestampSkew: 5,
             feeBp: 200,
             minActiveContenders: 2,
-            minStake: STAKE_UNIT,
-            maxStakePerWallet: 50 * STAKE_UNIT
+            minStake: MIN_STAKE_WEI,
+            maxStakePerWallet: MAX_STAKE_PER_WALLET_WEI
         });
         return race.createPlatformRace("LOCAL MEME MAYHEM", config, _memePlatformAssetIds());
     }
@@ -200,8 +201,8 @@ contract DeployLocalAssetRace is LocalAssetRaceBase {
                 maxOracleTimestampSkew: 5,
                 feeBp: 200,
                 minActiveContenders: 2,
-                minStake: STAKE_UNIT,
-                maxStakePerWallet: 50 * STAKE_UNIT
+                minStake: MIN_STAKE_WEI,
+                maxStakePerWallet: MAX_STAKE_PER_WALLET_WEI
             })
         );
         race.setRaceDurationPreset(60, true);

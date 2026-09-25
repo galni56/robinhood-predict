@@ -177,7 +177,8 @@ Solidity, so the key never appears on the CLI or in anything Claude reads.
 0. User: generate a fresh burner wallet (`cast wallet new`), fund it with
    real ETH for gas, fill `contracts/.env` themselves.
 1. User: set `SIGNED_POOL_ORACLE_ADDRESS`, `MAX_SEED_LIQUIDITY_WEI` and
-   `MAX_STAKE_PER_SIDE_WEI`. The wei values are approximate dollar guardrails.
+   `MAX_STAKE_PER_SIDE_WEI` from the reviewed manifest. The wei values are broad
+   fixed ETH safety fuses, not dollar enforcement.
 2. Deploy `PredictionMarket`:
    ```bash
    forge script script/Deploy.s.sol --rpc-url robinhood_mainnet --broadcast

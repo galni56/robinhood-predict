@@ -30,9 +30,9 @@ usage() {
     '  ./local-demo.sh add-b <symbol> [race-id]' \
     '  ./local-demo.sh add-c <symbol> [race-id]' \
     '  ./local-demo.sh open-betting [race-id]' \
-    '  ./local-demo.sh bet-a <symbol> [whole-ETH-amount] [race-id]' \
-    '  ./local-demo.sh bet-b <symbol> [whole-ETH-amount] [race-id]' \
-    '  ./local-demo.sh bet-c <symbol> [whole-ETH-amount] [race-id]' \
+    '  ./local-demo.sh bet-a <symbol> [ETH-amount] [race-id]' \
+    '  ./local-demo.sh bet-b <symbol> [ETH-amount] [race-id]' \
+    '  ./local-demo.sh bet-c <symbol> [ETH-amount] [race-id]' \
     '  ./local-demo.sh advance <seconds>' \
     '  ./local-demo.sh start [race-id]' \
     '  ./local-demo.sh prices <start|winner|negative|tie>' \
@@ -179,7 +179,7 @@ case "$command_name" in
   bet-a|bet-b|bet-c)
     require_config
     asset="${2:?Usage: ./local-demo.sh $command_name <asset> [amount] [race-id]}"
-    amount="${3:-10}"
+    amount="${3:-0.004}"
     race_id="${4:-$LOCAL_RACE_ID}"
     asset="$(printf '%s' "$asset" | tr '[:lower:]' '[:upper:]')"
     case "$command_name" in

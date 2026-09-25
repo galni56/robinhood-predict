@@ -6,6 +6,13 @@ import { PRICE_ARENA_ADDRESS, priceArenaAbi, priceArenaAsset, type PriceArenaDat
 export function usePriceArena(arenaId: bigint | null, wallet?: Address) {
   const address = PRICE_ARENA_ADDRESS ?? zeroAddress
   const enabled = !!PRICE_ARENA_ADDRESS && arenaId != null
+  const limitsQuery = useReadContracts({
+    contracts: [
+      { address, chainId: assetRaceChain.id, abi: priceArenaAbi, functionName: 'minStakeWei' },
+      { address, chainId: assetRaceChain.id, abi: priceArenaAbi, functionName: 'maxStakeWei' },
+    ],
+    query: { enabled: !!PRICE_ARENA_ADDRESS },
+  })
   const arenaQuery = useReadContract({
     address, chainId: assetRaceChain.id, abi: priceArenaAbi, functionName: 'getArena',
     args: arenaId == null ? undefined : [arenaId], query: { enabled, refetchInterval: 3_000 },
@@ -34,13 +41,17 @@ export function usePriceArena(arenaId: bigint | null, wallet?: Address) {
     const result = entryQueries.data?.[index]
     return result?.status === 'success' ? [{ player, entry: result.result as unknown as PriceArenaEntry }] : []
   })
+  const minStakeResult = limitsQuery.data?.[0]
+  const maxStakeResult = limitsQuery.data?.[1]
 
   return {
     arena,
     entries,
     walletEntry: walletQuery.data as unknown as PriceArenaEntry | undefined,
-    isLoading: enabled && (arenaQuery.isLoading || phaseQuery.isLoading || participantsQuery.isLoading || entryQueries.isLoading),
-    error: arenaQuery.error ?? phaseQuery.error ?? participantsQuery.error ?? entryQueries.error ?? walletQuery.error,
-    refetch: async () => Promise.all([arenaQuery.refetch(), phaseQuery.refetch(), participantsQuery.refetch(), entryQueries.refetch(), walletQuery.refetch()]),
+    minStakeWei: minStakeResult?.status === 'success' ? minStakeResult.result : undefined,
+    maxStakeWei: maxStakeResult?.status === 'success' ? maxStakeResult.result : undefined,
+    isLoading: enabled && (limitsQuery.isLoading || arenaQuery.isLoading || phaseQuery.isLoading || participantsQuery.isLoading || entryQueries.isLoading),
+    error: limitsQuery.error ?? arenaQuery.error ?? phaseQuery.error ?? participantsQuery.error ?? entryQueries.error ?? walletQuery.error,
+    refetch: async () => Promise.all([limitsQuery.refetch(), arenaQuery.refetch(), phaseQuery.refetch(), participantsQuery.refetch(), entryQueries.refetch(), walletQuery.refetch()]),
   }
 }

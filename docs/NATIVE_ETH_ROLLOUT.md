@@ -12,15 +12,15 @@ claim/refund access throughout the rollout.
   `SignedPoolRaceOracle`; it cannot silently create a second oracle.
 - A combined Foundry rehearsal deploys all three native products against one
   signed oracle and completes both resolve/claim and cancel/refund lifecycles.
-- Full validation currently passes: 181 Forge tests, 128,000 invariant calls and
-  96 Node tests, plus registry/build/lint/diff gates.
+- Full validation before the dual-input follow-up passed: 181 Forge tests,
+  128,000 invariant calls and 96 Node tests, plus registry/build/lint/diff gates.
 - The public deployment manifest is generated directly from the validated
   registry and rejects malformed addresses, pool ids, mixed validation profiles,
   duplicate bindings and unexpected production asset counts.
-- Production guardrail values are not approved yet. The ±25% policy is a
-  recommendation for review, not a deployment input.
-- A provisional no-broadcast fork simulation passed at chain-4663 block
-  `71839974`; its owner and wei values remain unapproved inputs. See
+- Broad fixed safety limits are approved: `0.0001 ETH` minimum where required
+  and `0.1 ETH` maximum. Live `$1–$50` enforcement remains in the frontend.
+- A no-broadcast fork simulation with those limits passed at chain-4663 block
+  `71859076`; its owner remains a provisional input. See
   `NATIVE_ETH_SIMULATION_REPORT.md`.
 - No broadcast, VPS change or `main` merge has occurred.
 
@@ -44,13 +44,12 @@ claim/refund access throughout the rollout.
 1. **Release candidate.** Keep `dima/gonochki` synchronized with `main`; pass
    focused and full Forge, invariants, Node, registry, build, lint, diff and
    desktop/mobile visual gates. Reuse the deployed `SignedPoolRaceOracle`.
-2. **Wei guardrails.** Select a public ETH/USD reference price and an explicitly
-   approved volatility corridor. Generate constructor/config values with
-   `node scripts/native-eth-deployment-caps.mjs --eth-usd <price> --buffer-bps <bp>`.
-   The UI still enforces exact $1–$50 stakes from the live cached quote; the
-   onchain values are only approximate safety guardrails.
-   Then generate and review the complete public configuration from the same registry with
-   `node scripts/native-eth-deployment-manifest.mjs --eth-usd <price> --buffer-bps <bp> --oracle-address <address> --price-signer-address <address>`.
+2. **Wei safety fuses.** Generate the approved fixed values with
+   `node scripts/native-eth-deployment-caps.mjs`. The UI enforces the live
+   equivalent of $1–$50 in either USD-input or ETH-input mode; the contract
+   limits only reject dust and catastrophically large values. Generate and
+   review the complete public configuration from the same registry with
+   `node scripts/native-eth-deployment-manifest.mjs --oracle-address <address> --price-signer-address <address>`.
 3. **Local lifecycle rehearsal.** Deploy all three replacements against one
    local signed-pool oracle and exercise PredictionMarket, AssetRace and
    PriceArena from entry through resolve/cancel and claim/refund. Confirm one
@@ -76,24 +75,28 @@ claim/refund access throughout the rollout.
    domain and GitHub Pages, and monitor the first real transactions. Roll back
    frontend/service bindings on anomalies; never hide legacy recovery.
 
-## Guardrail policy
+## Guardrail policy (fixed ETH safety fuse)
 
-The recommended starting corridor is ±25% around the ETH/USD reference price.
-For that corridor the calculator sets:
+The live ETH/USD rate is not fixed: the shared server cache continues to refresh
+it and the UI recalculates the reciprocal USD/ETH value for every wallet request.
+Users may enter either currency, but the wallet always sends the exact selected
+native ETH amount. The contract cannot read the server quote, so its immutable
+wei limits are deliberately broad safety fuses rather than dollar enforcement:
 
-- the onchain minimum to the wei required for $1 at the upper price bound;
-- every $50 maximum to the wei required for $50 at the lower price bound;
-- the PredictionMarket total owner seed cap to the same buffered maximum.
+- Race/Arena minimum initial stake: `0.0001 ETH` (`100000000000000 wei`);
+- every wager maximum: `0.1 ETH` (`100000000000000000 wei`);
+- PredictionMarket total owner seed cap: `0.1 ETH`.
 
-This keeps every UI-valid $1–$50 amount admissible while ETH/USD remains inside
-the approved corridor. It deliberately does not turn ETH/USD into an onchain
-oracle dependency. The exact corridor and generated wei values are a production
-risk decision and must be approved immediately before deployment.
+The full `$1–$50` UI range fits inside those fuses while ETH/USD is approximately
+`$500–$10,000`; this is an operational illustration, not an onchain price rule.
+Before opening the wallet, all three wager flows compare the exact wei amount
+with the deployed contract's limits and stop locally with a clear error if it is
+outside them. This deliberately does not add an onchain ETH/USD dependency.
 
 ## Stop conditions
 
 Stop before broadcast or frontend switching if any address matches a legacy
 USDG deployment, the existing signed oracle/signer identity differs, a registry
-binding is incomplete, the reference quote is stale/outside its approved
-corridor, any full validation gate fails, or legacy claim/refund access cannot be
+binding is incomplete, the shared ETH/USD quote is stale, any full validation
+gate fails, or legacy claim/refund access cannot be
 demonstrated.

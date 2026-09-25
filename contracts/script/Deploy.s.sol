@@ -11,8 +11,8 @@ import {PredictionMarket} from "../src/PredictionMarket.sol";
 /// secret ever lives in this file or in git:
 ///   PRIVATE_KEY        - deployer/owner wallet key, read only by Foundry
 ///   SIGNED_POOL_ORACLE_ADDRESS - deployed SignedPoolRaceOracle shared with AssetRace
-///   MAX_SEED_LIQUIDITY_WEI - approximate-dollar native ETH seed cap, in wei
-///   MAX_STAKE_PER_SIDE_WEI - approximate-dollar per-wallet/side cap, in wei
+///   MAX_SEED_LIQUIDITY_WEI - broad native ETH seed safety cap, in wei
+///   MAX_STAKE_PER_SIDE_WEI - broad per-wallet/side ETH safety cap, in wei
 ///   FEE_BP             - optional, protocol fee in basis points for markets
 ///                        created from now on (200 = 2%, capped at MAX_FEE_BP =
 ///                        1000 = 10% on-chain). Defaults to 200 if unset.

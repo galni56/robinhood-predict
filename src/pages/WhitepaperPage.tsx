@@ -85,7 +85,7 @@ export function WhitepaperPage() {
         <Section id="shared" title="2. Shared foundations">
           <ul className="list-disc space-y-1 pl-5">
             <li><strong>Network:</strong> all real games run on Robinhood Chain mainnet.</li>
-            <li><strong>Wager currency:</strong> stakes, pools, payouts and refunds use native ETH. The interface converts a $1–$50 input to an exact wei value; there is no ERC-20 approval, WETH wrapping or swap.</li>
+            <li><strong>Wager currency:</strong> stakes, pools, payouts and refunds use native ETH. The interface accepts USD or ETH input for the live $1–$50 range and freezes the exact wei value; there is no ERC-20 approval, WETH wrapping or swap.</li>
             <li>
               <strong>Reviewed assets:</strong> Markets use 10 approved tokenized stocks. Races and Arena support
               those 10 Stocks plus 13 Memes; Stocks and Memes remain separate categories.
@@ -120,7 +120,7 @@ export function WhitepaperPage() {
               the onchain minimum.
             </li>
             <li>
-              Players enter $1–$50 and stake the displayed native ETH equivalent on YES or NO. A wallet may place one bet per side. It is
+              Players enter the live equivalent of $1–$50 in USD or ETH and stake the displayed native ETH amount on YES or NO. A wallet may place one bet per side. It is
               possible to hold both a YES and a NO position, but neither position can be increased after its first bet.
             </li>
             <li>
@@ -178,7 +178,7 @@ export function WhitepaperPage() {
               category, up to six candidates total. Fewer than two candidates at lobby close cancels the empty race.
             </li>
             <li>
-              Betting then opens for 5 minutes. A wallet enters $1–$50, sees the exact native ETH equivalent,
+              Betting then opens for 5 minutes. A wallet enters USD or ETH worth $1–$50, sees both equivalents,
               and may top up the same selection to the contract&apos;s cumulative wei cap. The selected asset cannot be
               changed for that race.
             </li>
@@ -229,8 +229,8 @@ export function WhitepaperPage() {
               only after that lobby ends.
             </li>
             <li>
-              Between 2 and 20 wallets may enter. The interface accepts a $1–$50 initial stake and sends the exact
-              displayed native ETH equivalent. During the lobby a player may change the predicted price and add more
+              Between 2 and 20 wallets may enter. The interface accepts a USD or ETH initial stake worth $1–$50 and sends the exact
+              displayed native ETH amount. During the lobby a player may change the predicted price and add more
               native ETH up to the contract&apos;s cumulative wei cap, but cannot reduce the stake or withdraw.
             </li>
             <li>
@@ -288,9 +288,9 @@ export function WhitepaperPage() {
           </p>
           <p>
             The same service caches one public ETH/USD quote for every stake form, refreshing it no faster than every
-            15 seconds. Dollar input is converted to wei with fixed-point integer arithmetic and the displayed value
-            is frozen when the wallet request is built. Missing or stale quotes block betting. Onchain min/max values
-            are deployment-configured wei guardrails, so their dollar value is approximate as ETH/USD moves.
+            15 seconds. Players may enter USD or ETH; reciprocal conversion and range checks use fixed-point integer
+            arithmetic, and the exact wei value and quote are frozen when the wallet request is built. Missing or stale
+            quotes block betting. Onchain min/max values are broad fixed ETH safety fuses, not dollar enforcement.
           </p>
           <p>
             Markets, Races and Arena use the shared <code className="text-[#8B7CF7]">SignedPoolRaceOracle</code> for

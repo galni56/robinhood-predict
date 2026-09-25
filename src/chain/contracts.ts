@@ -89,6 +89,13 @@ export const DEPLOY_BLOCK = BigInt(import.meta.env.VITE_DEPLOY_BLOCK ?? 0)
 export const predictionMarketAbi = [
   {
     type: 'function',
+    name: 'maxStakePerSideWei',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ type: 'uint256' }],
+  },
+  {
+    type: 'function',
     name: 'marketCount',
     stateMutability: 'view',
     inputs: [],

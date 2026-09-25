@@ -7,11 +7,10 @@ const SIGNER = '0x79F4991Ccc64Cbb8143fB61e4cBD49b8b64d3635'
 
 test('deployment manifest derives every product binding from one registry', () => {
   const manifest = nativeEthDeploymentManifest({
-    ethUsd: '4000',
-    bufferBps: '2500',
     oracleAddress: ORACLE,
     priceSignerAddress: SIGNER,
   })
+  assert.equal(manifest.schemaVersion, 2)
   assert.equal(manifest.chain.chainId, 4663)
   assert.equal(manifest.chain.nativeCurrency, 'ETH')
   assert.equal(manifest.chain.stockPriceQuote, 'USDG')
@@ -38,7 +37,7 @@ test('deployment manifest derives every product binding from one registry', () =
 })
 
 test('deployment manifest rejects missing, zero, malformed and overlapping public roles', () => {
-  const valid = { ethUsd: '4000', oracleAddress: ORACLE, priceSignerAddress: SIGNER }
+  const valid = { oracleAddress: ORACLE, priceSignerAddress: SIGNER }
   for (const oracleAddress of [undefined, '', 'invalid', '0x0000000000000000000000000000000000000000']) {
     assert.throws(() => nativeEthDeploymentManifest({ ...valid, oracleAddress }), /InvalidOracleAddress/)
   }

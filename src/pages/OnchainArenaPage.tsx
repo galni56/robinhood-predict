@@ -4,7 +4,15 @@ import { formatEther, formatUnits, parseUnits, type Address } from 'viem'
 import { waitForTransactionReceipt } from 'wagmi/actions'
 import { useAccount, useBalance, useChainId, useSwitchChain, useWriteContract } from 'wagmi'
 import { assetRaceChain, wagmiConfig } from '@/chain/config'
-import { freezeUsdStakeQuote } from '@/chain/ethUsd'
+import {
+  formatUsdCents,
+  freezeNativeStakeQuote,
+  nativeStakeGuardrailMessage,
+  nativeStakeGuardrailViolation,
+  nativeStakeQuoteErrorMessage,
+  type FrozenNativeStakeQuote,
+  type StakeInputUnit,
+} from '@/chain/ethUsd'
 import { useAssetRaceClock } from '@/chain/useAssetRaceClock'
 import { useAssetRaceLiveDisplay } from '@/chain/useAssetRaceLiveDisplay'
 import { usePriceArena } from '@/chain/usePriceArena'
@@ -19,6 +27,7 @@ import {
 } from '@/chain/priceArena'
 import { AddressLabel } from '@/components/AddressLabel'
 import { ShareInviteButton } from '@/components/ShareInviteButton'
+import { StakeAmountInput } from '@/components/StakeAmountInput'
 import { TokenLogo } from '@/components/TokenLogo'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
 import { formatCountdown, shortTxError } from '@/lib/format'
@@ -73,13 +82,23 @@ function ArenaBoard({ rows, referencePrice, decimals, quote, resolved, winnerCou
 export function OnchainArenaPage() {
   const arenaId = parseId(useParams().arenaId)
   const { address, isConnected } = useAccount()
-  const { arena, entries, walletEntry, isLoading, error: readError, refetch } = usePriceArena(arenaId, address)
+  const {
+    arena,
+    entries,
+    walletEntry,
+    minStakeWei,
+    maxStakeWei,
+    isLoading,
+    error: readError,
+    refetch,
+  } = usePriceArena(arenaId, address)
   const chainId = useChainId()
   const { switchChain, isPending: isSwitching } = useSwitchChain()
   const { writeContractAsync } = useWriteContract()
   const [prediction, setPrediction] = useState('')
   const [amount, setAmount] = useState('')
-  const [frozenEntryWei, setFrozenEntryWei] = useState<bigint | null>(null)
+  const [stakeInputUnit, setStakeInputUnit] = useState<StakeInputUnit>('USD')
+  const [frozenEntryQuote, setFrozenEntryQuote] = useState<FrozenNativeStakeQuote | null>(null)
   const [txLabel, setTxLabel] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const nowMs = useAssetRaceClock()
@@ -89,39 +108,76 @@ export function OnchainArenaPage() {
   const quote = arena?.asset?.quoteSymbol ?? 'USDG'
   const referencePrice = arena?.phase === PRICE_ARENA_PHASE.RESOLVED ? arena.finalPrice : livePrice
   const balanceQuery = useBalance({ address, chainId: assetRaceChain.id, query: { enabled: !!address && !!PRICE_ARENA_ADDRESS } })
-  let quotedEntryWei = 0n
+  let quotedEntry: FrozenNativeStakeQuote | undefined
   try {
-    quotedEntryWei = amount.trim() && live.ethUsd ? freezeUsdStakeQuote(amount, live.ethUsd).wei : 0n
+    quotedEntry = amount.trim() && live.ethUsd
+      ? freezeNativeStakeQuote(amount, stakeInputUnit, live.ethUsd)
+      : undefined
   } catch {
-    quotedEntryWei = 0n
+    quotedEntry = undefined
   }
-  const displayedEntryWei = frozenEntryWei ?? quotedEntryWei
+  const displayedEntryQuote = frozenEntryQuote ?? quotedEntry
+  const displayedEntryWei = displayedEntryQuote?.wei ?? 0n
+  const stakeGuardrailsRequired = !walletEntry?.exists || displayedEntryWei > 0n
+  const stakeGuardrailsUnavailable = stakeGuardrailsRequired && (minStakeWei == null || maxStakeWei == null)
+  const stakeGuardrailViolation = minStakeWei == null || maxStakeWei == null
+    ? undefined
+    : nativeStakeGuardrailViolation(displayedEntryWei, {
+        minInitialWei: minStakeWei,
+        maxCumulativeWei: maxStakeWei,
+        existingStakeWei: walletEntry?.stake ?? 0n,
+        initialStake: !walletEntry?.exists,
+      })
 
   const target = arena?.phase === PRICE_ARENA_PHASE.LOBBY ? arena.startsAt : arena?.phase === PRICE_ARENA_PHASE.RUNNING ? arena.deadline : 0n
-  const clock = target && Number(target) * 1_000 > nowMs ? formatCountdown(Number(target) * 1_000 - nowMs) : arena ? arenaPhaseLabel(arena.phase) : '…'
+  const clock = target && nowMs > 0 && Number(target) * 1_000 > nowMs
+    ? formatCountdown(Number(target) * 1_000 - nowMs)
+    : arena
+      ? arenaPhaseLabel(arena.phase)
+      : '…'
 
   async function submitEntry() {
     if (!PRICE_ARENA_ADDRESS || arenaId == null || !arena) return
     setError(null)
     try {
-      if (amount.trim() && !live.ethUsd) throw new Error('ETH/USD quote is unavailable or stale')
-      const additional = amount.trim() && live.ethUsd ? freezeUsdStakeQuote(amount, live.ethUsd).wei : 0n
-      setFrozenEntryWei(additional)
+      if (amount.trim() && !live.ethUsd) throw new Error('EthUsdQuoteStale')
+      const frozenQuote = amount.trim() && live.ethUsd
+        ? freezeNativeStakeQuote(amount, stakeInputUnit, live.ethUsd)
+        : null
+      const additional = frozenQuote?.wei ?? 0n
+      setFrozenEntryQuote(frozenQuote)
       const predicted = prediction.trim() ? parseUnits(prediction.replace(',', '.'), arena.priceDecimals) : 0n
       if (!walletEntry?.exists && (predicted <= 0n || additional <= 0n)) throw new Error('Enter a price and a stake from $1 to $50')
       if (walletEntry?.exists && predicted === 0n && additional === 0n) throw new Error('Enter a new price or a top-up amount')
+      const guardrailsRequired = !walletEntry?.exists || additional > 0n
+      if (guardrailsRequired && (minStakeWei == null || maxStakeWei == null)) {
+        setError('The contract stake limits are unavailable. No transaction was sent.')
+        setFrozenEntryQuote(null)
+        return
+      }
+      const guardrailViolation = nativeStakeGuardrailViolation(additional, {
+        minInitialWei: minStakeWei,
+        maxCumulativeWei: maxStakeWei,
+        existingStakeWei: walletEntry?.stake ?? 0n,
+        initialStake: !walletEntry?.exists,
+      })
+      if (guardrailViolation) {
+        setError(nativeStakeGuardrailMessage(guardrailViolation))
+        setFrozenEntryQuote(null)
+        return
+      }
       setTxLabel(walletEntry?.exists ? 'Confirm arena update…' : 'Confirm arena entry…')
       const hash = walletEntry?.exists
         ? await writeContractAsync({ address: PRICE_ARENA_ADDRESS, chainId: assetRaceChain.id, abi: priceArenaAbi, functionName: 'updateEntry', args: [arenaId, predicted, additional], value: additional })
         : await writeContractAsync({ address: PRICE_ARENA_ADDRESS, chainId: assetRaceChain.id, abi: priceArenaAbi, functionName: 'enter', args: [arenaId, predicted, additional], value: additional })
       setTxLabel('Waiting for confirmation…')
       await waitForTransactionReceipt(wagmiConfig, { hash, chainId: assetRaceChain.id })
-      setPrediction(''); setAmount(''); setTxLabel(null); setFrozenEntryWei(null)
+      setPrediction(''); setAmount(''); setTxLabel(null); setFrozenEntryQuote(null)
       await Promise.all([refetch(), balanceQuery.refetch()])
     } catch (cause) {
       setTxLabel(null)
-      setFrozenEntryWei(null)
-      setError(cause instanceof Error && !cause.message.includes('\n') ? cause.message : shortTxError(cause))
+      setFrozenEntryQuote(null)
+      setError(nativeStakeQuoteErrorMessage(cause) ?? (cause instanceof Error && !cause.message.includes('\n') ? cause.message : shortTxError(cause)))
     }
   }
 
@@ -154,7 +210,61 @@ export function OnchainArenaPage() {
 
         {arena.phase === PRICE_ARENA_PHASE.LOBBY ? <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_0.8fr]">
           <section><h2 className="font-display text-xl font-bold">Lobby stakes</h2><p className="mt-1 text-sm text-white/40">Prices stay hidden until the game starts. Blockchain data itself remains public.</p><div className="mt-4 space-y-2">{entries.map(({ player, entry }) => <div key={player} className="flex items-center justify-between rounded-xl border border-white/5 bg-[#241b2f] px-4 py-3"><AddressLabel address={player} className="font-bold text-white/70" /><span className="font-mono">{formatEther(entry.stake)} ETH · prediction hidden</span></div>)}{entries.length === 0 && <p className="py-8 text-sm text-white/35">Be the first player.</p>}</div></section>
-          <section className="rounded-3xl border border-[#8B7CF7]/20 bg-[#241b2f] p-5"><h2 className="font-display text-xl font-bold">{walletEntry?.exists ? 'Update your entry' : 'Make your prediction'}</h2>{walletEntry?.exists && <p className="mt-2 text-sm text-white/50">Your current stake is {formatEther(walletEntry.stake)} ETH. Leave price empty to keep it. Money cannot be withdrawn before settlement.</p>}<label className="mt-5 block"><span className="mb-1.5 block text-sm text-white/50">{walletEntry?.exists ? 'New price · optional' : `Predicted final price · ${quote}`}</span><input value={prediction} onChange={(event) => setPrediction(event.target.value)} inputMode="decimal" placeholder={walletEntry?.exists ? 'Keep current prediction' : '0.00'} className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 font-mono outline-none focus:border-[#8B7CF7]" /></label><label className="mt-4 block"><span className="mb-1.5 block text-sm text-white/50">{walletEntry?.exists ? 'Add stake in USD · optional' : 'Stake in USD · $1–$50'}</span><input value={amount} onChange={(event) => { setAmount(event.target.value); setFrozenEntryWei(null) }} inputMode="decimal" placeholder={walletEntry?.exists ? '0' : '1'} className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 font-mono outline-none focus:border-[#8B7CF7]" /></label><p className="mt-2 text-xs text-white/45">Exact wallet value: {displayedEntryWei > 0n ? `${formatEther(displayedEntryWei)} ETH` : live.ethUsd ? 'Enter $1–$50' : 'ETH/USD quote unavailable'}</p>{balanceQuery.data != null && <p className="mt-1 text-xs text-white/30">Native balance: {formatEther(balanceQuery.data.value)} ETH</p>}{error && <p className="mt-3 text-sm text-rose-400">{error}</p>}{!isConnected ? <div className="mt-5"><WalletOptionsList /></div> : chainId !== assetRaceChain.id ? <button onClick={() => switchChain({ chainId: assetRaceChain.id })} disabled={isSwitching} className="mt-5 w-full rounded-xl bg-[#F2A65A] py-3 font-bold text-[#3b2416]">Switch network</button> : <button onClick={submitEntry} disabled={!!txLabel || (!walletEntry?.exists && displayedEntryWei <= 0n)} className="mt-5 w-full rounded-xl bg-gradient-to-r from-[#8B7CF7] to-[#6A5AE0] py-3 font-bold disabled:opacity-40">{txLabel ?? (walletEntry?.exists ? 'Update entry' : 'Enter arena with ETH')}</button>}</section>
+          <section className="rounded-3xl border border-[#8B7CF7]/20 bg-[#241b2f] p-5">
+            <h2 className="font-display text-xl font-bold">{walletEntry?.exists ? 'Update your entry' : 'Make your prediction'}</h2>
+            {walletEntry?.exists && <p className="mt-2 text-sm text-white/50">Your current stake is {formatEther(walletEntry.stake)} ETH. Leave price empty to keep it. Money cannot be withdrawn before settlement.</p>}
+            <label className="mt-5 block">
+              <span className="mb-1.5 block text-sm text-white/50">{walletEntry?.exists ? 'New price · optional' : `Predicted final price · ${quote}`}</span>
+              <input value={prediction} onChange={(event) => setPrediction(event.target.value)} inputMode="decimal" placeholder={walletEntry?.exists ? 'Keep current prediction' : '0.00'} className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 font-mono outline-none focus:border-[#8B7CF7]" />
+            </label>
+            <div className="mt-4">
+              <StakeAmountInput
+                id="arena-stake"
+                label={walletEntry?.exists ? 'Additional stake (optional)' : 'Stake'}
+                value={amount}
+                inputUnit={stakeInputUnit}
+                onChange={(value) => { setAmount(value); setFrozenEntryQuote(null) }}
+                onInputUnitChange={(unit) => {
+                  if (unit === stakeInputUnit) return
+                  setStakeInputUnit(unit)
+                  setAmount('')
+                  setFrozenEntryQuote(null)
+                  setError(null)
+                }}
+                disabled={!!txLabel}
+              />
+            </div>
+            <p className="mt-2 text-xs text-white/45">
+              {stakeGuardrailViolation
+                ? nativeStakeGuardrailMessage(stakeGuardrailViolation)
+                : stakeGuardrailsUnavailable
+                  ? 'The contract stake limits are unavailable. No transaction can be sent.'
+                  : displayedEntryQuote
+                    ? stakeInputUnit === 'ETH'
+                      ? `Wallet will send exactly ${formatEther(displayedEntryQuote.wei)} ETH · about ${formatUsdCents(displayedEntryQuote.usdCents)} at the displayed quote.`
+                      : `Wallet will send exactly ${formatEther(displayedEntryQuote.wei)} ETH.`
+                    : live.ethUsd
+                      ? `Enter a stake worth $1–$50 in ${stakeInputUnit}.`
+                      : 'ETH/USD quote unavailable'}
+            </p>
+            {balanceQuery.data != null && <p className="mt-1 text-xs text-white/30">Native balance: {formatEther(balanceQuery.data.value)} ETH</p>}
+            {error && <p className="mt-3 text-sm text-rose-400">{error}</p>}
+            {!isConnected
+              ? <div className="mt-5"><WalletOptionsList /></div>
+              : chainId !== assetRaceChain.id
+                ? <button onClick={() => switchChain({ chainId: assetRaceChain.id })} disabled={isSwitching} className="mt-5 w-full rounded-xl bg-[#F2A65A] py-3 font-bold text-[#3b2416]">Switch network</button>
+                : <button
+                    onClick={submitEntry}
+                    disabled={
+                      !!txLabel || (!walletEntry?.exists && displayedEntryWei <= 0n)
+                        || stakeGuardrailsUnavailable
+                        || !!stakeGuardrailViolation
+                    }
+                    className="mt-5 w-full rounded-xl bg-gradient-to-r from-[#8B7CF7] to-[#6A5AE0] py-3 font-bold disabled:opacity-40"
+                  >
+                    {txLabel ?? (walletEntry?.exists ? 'Update entry' : 'Enter arena with ETH')}
+                  </button>}
+          </section>
         </div> : arena.phase === PRICE_ARENA_PHASE.CANCELLED ? <div className="mt-6 rounded-3xl border border-amber-400/20 bg-amber-400/10 p-6"><h2 className="font-display text-2xl font-bold">Arena cancelled</h2><p className="mt-2 text-sm text-white/55">The round did not have enough players or could not obtain a valid deadline price. Every player gets a full refund.</p>{walletEntry?.exists && !walletEntry.settled && <button onClick={() => settle('refund')} disabled={!!txLabel} className="mt-5 rounded-xl bg-[#F2A65A] px-6 py-3 font-bold text-[#3b2416]">{txLabel ?? `Refund ${formatEther(walletEntry.stake)} ETH`}</button>}{error && <p className="mt-3 text-sm text-rose-400">{error}</p>}</div> : <section className="mt-7"><div className="mb-4 flex items-end justify-between"><div><h2 className="font-display text-2xl font-bold">{arena.phase === PRICE_ARENA_PHASE.RUNNING ? 'Live leaderboard' : 'Final standings'}</h2><p className="mt-1 text-sm text-white/40">{arena.phase === PRICE_ARENA_PHASE.RUNNING ? 'Positions update with the display price; onchain settlement uses the last block before the deadline.' : `Closest ${arena.winnerCount} player${arena.winnerCount === 1 ? '' : 's'} won.`}</p></div>{arena.phase === PRICE_ARENA_PHASE.RUNNING && live.disconnected && <span className="text-xs font-bold text-amber-300">Live feed reconnecting…</span>}</div><ArenaBoard rows={entries} referencePrice={referencePrice} decimals={arena.priceDecimals} quote={quote} resolved={arena.phase === PRICE_ARENA_PHASE.RESOLVED} winnerCount={arena.winnerCount} />{arena.phase === PRICE_ARENA_PHASE.RESOLVED && walletEntry?.payout && walletEntry.payout > 0n && !walletEntry.settled ? <button onClick={() => settle('claim')} disabled={!!txLabel} className="mt-6 w-full rounded-xl bg-gradient-to-r from-[#8B7CF7] to-[#6A5AE0] py-3 font-bold">{txLabel ?? `Claim ${formatEther(walletEntry.payout)} ETH`}</button> : arena.phase === PRICE_ARENA_PHASE.RESOLVED && walletEntry?.settled ? <div className="mt-6 rounded-xl bg-white/5 py-3 text-center font-bold text-white/40">Already claimed</div> : null}{error && <p className="mt-3 text-sm text-rose-400">{error}</p>}</section>}
       </>}
     </div>

@@ -11,6 +11,7 @@ import { AddressLabel } from '@/components/AddressLabel'
 import { ClockIcon } from '@/components/icons'
 import { SideBadge } from '@/components/Pills'
 import { ShareInviteButton } from '@/components/ShareInviteButton'
+import { StakeAmountInput } from '@/components/StakeAmountInput'
 import { TokenLogo } from '@/components/TokenLogo'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
 import {
@@ -24,7 +25,15 @@ import {
   currentWeightBp,
   predictionMarketAbi,
 } from '@/chain/contracts'
-import { freezeUsdStakeQuote } from '@/chain/ethUsd'
+import {
+  formatUsdCents,
+  freezeNativeStakeQuote,
+  nativeStakeGuardrailMessage,
+  nativeStakeGuardrailViolation,
+  nativeStakeQuoteErrorMessage,
+  type FrozenNativeStakeQuote,
+  type StakeInputUnit,
+} from '@/chain/ethUsd'
 import { formatCountdown, formatUsd, shortTxError } from '@/lib/format'
 import { shortHash } from '@/lib/hash'
 
@@ -60,8 +69,9 @@ export function OnchainMarketPage() {
   const [searchParams] = useSearchParams()
   const [side, setSide] = useState<'YES' | 'NO'>(searchParams.get('side') === 'NO' ? 'NO' : 'YES')
   const [amount, setAmount] = useState('10')
+  const [stakeInputUnit, setStakeInputUnit] = useState<StakeInputUnit>('USD')
   const [tx, setTx] = useState<TxState>(null)
-  const [frozenBetWei, setFrozenBetWei] = useState<bigint | null>(null)
+  const [frozenBetQuote, setFrozenBetQuote] = useState<FrozenNativeStakeQuote | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   // Who bet what on THIS market, scanned from the contract's own BetPlaced
@@ -193,6 +203,13 @@ export function OnchainMarketPage() {
     query: { enabled: !!address && PREDICTION_MARKET_CONFIGURED },
   })
 
+  const maxStakePerSide = useReadContract({
+    address: PREDICTION_MARKET_ADDRESS,
+    abi: predictionMarketAbi,
+    functionName: 'maxStakePerSideWei',
+    query: { enabled: PREDICTION_MARKET_CONFIGURED },
+  })
+
   const myStakeYes = useReadContract({
     address: PREDICTION_MARKET_ADDRESS,
     abi: predictionMarketAbi,
@@ -257,6 +274,7 @@ export function OnchainMarketPage() {
     await Promise.all([
       market.refetch(),
       nativeBalance.refetch(),
+      maxStakePerSide.refetch(),
       myStakeYes.refetch(),
       myStakeNo.refetch(),
       hasClaimed.refetch(),
@@ -277,9 +295,21 @@ export function OnchainMarketPage() {
         return
       }
       if (!PREDICTION_MARKET_CONFIGURED) throw new Error('Native ETH market is not configured')
-      if (!live.ethUsd) throw new Error('ETH/USD quote is unavailable or stale')
-      const amountWei = freezeUsdStakeQuote(amount, live.ethUsd).wei
-      setFrozenBetWei(amountWei)
+      if (!live.ethUsd) throw new Error('EthUsdQuoteStale')
+      const frozenQuote = freezeNativeStakeQuote(amount, stakeInputUnit, live.ethUsd)
+      const amountWei = frozenQuote.wei
+      if (maxStakePerSide.data == null) {
+        setError('The contract stake limit is unavailable. No transaction was sent.')
+        return
+      }
+      const guardrailViolation = nativeStakeGuardrailViolation(amountWei, {
+        maxCumulativeWei: maxStakePerSide.data,
+      })
+      if (guardrailViolation) {
+        setError(nativeStakeGuardrailMessage(guardrailViolation))
+        return
+      }
+      setFrozenBetQuote(frozenQuote)
 
       setTx({ label: 'Confirm bet in your wallet…' })
       const betHash = await writeContractAsync({
@@ -293,12 +323,12 @@ export function OnchainMarketPage() {
       await waitForTransactionReceipt(wagmiConfig, { hash: betHash })
 
       setTx(null)
-      setFrozenBetWei(null)
+      setFrozenBetQuote(null)
       await refetchAll()
     } catch (e) {
       setTx(null)
-      setFrozenBetWei(null)
-      setError(shortTxError(e))
+      setFrozenBetQuote(null)
+      setError(nativeStakeQuoteErrorMessage(e) ?? shortTxError(e))
     }
   }
 
@@ -379,13 +409,17 @@ export function OnchainMarketPage() {
   const winningSide = market.data?.outcome === MarketSideOnchain.YES ? 'YES' : 'NO'
   const winningStake = market.data?.outcome === MarketSideOnchain.YES ? myStakeYes.data : myStakeNo.data
   const positionReady = myStakeYes.data !== undefined && myStakeNo.data !== undefined && hasClaimed.data !== undefined
-  let quotedBetWei = 0n
+  let quotedBet: FrozenNativeStakeQuote | undefined
   try {
-    quotedBetWei = live.ethUsd ? freezeUsdStakeQuote(amount, live.ethUsd).wei : 0n
+    quotedBet = live.ethUsd ? freezeNativeStakeQuote(amount, stakeInputUnit, live.ethUsd) : undefined
   } catch {
-    quotedBetWei = 0n
+    quotedBet = undefined
   }
-  const displayedBetWei = frozenBetWei ?? quotedBetWei
+  const displayedBetQuote = frozenBetQuote ?? quotedBet
+  const displayedBetWei = displayedBetQuote?.wei ?? 0n
+  const betGuardrailViolation = maxStakePerSide.data == null
+    ? undefined
+    : nativeStakeGuardrailViolation(displayedBetWei, { maxCumulativeWei: maxStakePerSide.data })
 
   return (
     <div className="max-w-[1200px] mx-auto px-4 py-8">
@@ -597,10 +631,12 @@ export function OnchainMarketPage() {
                   NO ↘
                 </button>
               </div>
-              <input
+              <StakeAmountInput
+                id="market-stake-preview"
+                label="Stake"
+                value=""
+                inputUnit="USD"
                 disabled
-                placeholder="Stake in USD · $1–$50"
-                className="w-full rounded-xl bg-white/5 border border-white/10 px-3.5 py-2.5 text-sm placeholder:text-white/25 cursor-not-allowed"
               />
               <button
                 disabled
@@ -694,24 +730,40 @@ export function OnchainMarketPage() {
                             </p>
                           ) : (
                             <>
-                              <input
-                                type="number"
+                              <StakeAmountInput
+                                id="market-stake"
+                                label="Stake"
                                 value={amount}
-                                onChange={(e) => setAmount(e.target.value)}
-                                min="1"
-                                max="50"
-                                step="0.01"
-                                className="w-full rounded-xl bg-white/5 border border-white/10 px-3.5 py-2.5 text-sm font-medium outline-none focus:border-[#8B7CF7]/50 transition-colors"
-                                placeholder="Stake in USD · $1–$50"
+                                inputUnit={stakeInputUnit}
+                                onChange={(value) => { setAmount(value); setFrozenBetQuote(null) }}
+                                onInputUnitChange={(unit) => {
+                                  if (unit === stakeInputUnit) return
+                                  setStakeInputUnit(unit)
+                                  setAmount('')
+                                  setFrozenBetQuote(null)
+                                  setError(null)
+                                }}
+                                disabled={!!tx}
                               />
                               <p className="text-[11px] text-white/30">
-                                {displayedBetWei > 0n
-                                  ? `Wallet will send exactly ${formatEther(displayedBetWei)} ETH in one transaction.`
-                                  : 'Waiting for a fresh shared ETH/USD quote.'}
+                                {betGuardrailViolation
+                                  ? nativeStakeGuardrailMessage(betGuardrailViolation)
+                                  : maxStakePerSide.data == null
+                                    ? 'The contract stake limit is unavailable. No transaction can be sent.'
+                                    : displayedBetQuote
+                                      ? stakeInputUnit === 'ETH'
+                                        ? `Wallet will send exactly ${formatEther(displayedBetQuote.wei)} ETH · about ${formatUsdCents(displayedBetQuote.usdCents)} at the displayed quote.`
+                                        : `Wallet will send exactly ${formatEther(displayedBetQuote.wei)} ETH in one transaction.`
+                                      : live.ethUsd
+                                        ? `Enter a stake worth $1–$50 in ${stakeInputUnit}.`
+                                        : 'Waiting for a fresh shared ETH/USD quote.'}
                               </p>
                               <button
                                 onClick={handleBet}
-                                disabled={!!tx || !PREDICTION_MARKET_CONFIGURED || displayedBetWei <= 0n}
+                                disabled={
+                                  !!tx || !PREDICTION_MARKET_CONFIGURED || displayedBetWei <= 0n
+                                    || maxStakePerSide.data == null || !!betGuardrailViolation
+                                }
                                 className={`w-full rounded-xl font-bold py-2.5 text-sm disabled:opacity-50 transition-all ${
                                   side === 'YES'
                                     ? 'bg-gradient-to-r from-[#8B7CF7] to-[#6A5AE0] hover:brightness-110 text-white'

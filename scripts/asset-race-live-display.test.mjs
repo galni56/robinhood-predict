@@ -7,9 +7,15 @@ import {
   parseAssetRaceLiveSnapshot,
 } from '../src/chain/assetRaceLiveDisplay.ts'
 import {
+  formatUsdCents,
+  freezeNativeStakeQuote,
   freezeUsdStakeQuote,
+  nativeStakeGuardrailViolation,
+  nativeStakeQuoteErrorMessage,
+  parseEthWei,
   parseUsdCents,
   usdCentsToWei,
+  weiToUsdCents,
 } from '../src/chain/ethUsd.ts'
 
 test('Meme WETH heartbeat uses official P0 across refresh/late viewers, not a USD/display anchor', () => {
@@ -65,4 +71,34 @@ test('wallet quote freezes exact wei and rejects stale or out-of-range input', (
   assert.equal(frozen.ethUsdPriceRaw, 250_000_000_000n)
   assert.throws(() => freezeUsdStakeQuote('50.01', quote, 20_000), /UsdStakeOutOfRange/)
   assert.throws(() => freezeUsdStakeQuote('1', quote, 60_001), /EthUsdQuoteStale/)
+})
+
+test('direct ETH input preserves exact wei and enforces the same live $1–$50 range', () => {
+  const quote = {
+    provider: 'COINBASE_EXCHANGE', pair: 'ETH-USD', priceUsd: '2500.00',
+    priceRaw: '250000000000', decimals: 8, receivedAt: 10_000,
+    staleAfterMs: 45_000, stale: false,
+  }
+  assert.equal(parseEthWei('0.004000000000000001'), 4_000_000_000_000_001n)
+  assert.equal(parseEthWei('.004'), 4_000_000_000_000_000n)
+  assert.equal(weiToUsdCents(4_000_000_000_000_000n, 250_000_000_000n, 8), 1_000n)
+  const frozen = freezeNativeStakeQuote('0.004000000000000001', 'ETH', quote, 20_000)
+  assert.equal(frozen.inputUnit, 'ETH')
+  assert.equal(frozen.wei, 4_000_000_000_000_001n)
+  assert.equal(frozen.usdCents, 1_000n)
+  assert.equal(formatUsdCents(frozen.usdCents), '$10.00')
+  assert.throws(() => parseEthWei('0.0000000000000000001'), /InvalidEthAmount/)
+  assert.throws(() => freezeNativeStakeQuote('0.00039', 'ETH', quote, 20_000), /UsdStakeOutOfRange/)
+  assert.throws(() => freezeNativeStakeQuote('0.02001', 'ETH', quote, 20_000), /UsdStakeOutOfRange/)
+  assert.throws(() => freezeNativeStakeQuote('0.004', 'ETH', quote, 60_001), /EthUsdQuoteStale/)
+  assert.match(nativeStakeQuoteErrorMessage(new Error('InvalidEthAmount')), /18 decimal places/)
+  assert.match(nativeStakeQuoteErrorMessage(new Error('UsdStakeOutOfRange')), /between \$1 and \$50/)
+})
+
+test('wallet quote is checked against immutable onchain wei guardrails before signing', () => {
+  assert.equal(nativeStakeGuardrailViolation(99n, { minInitialWei: 100n, maxCumulativeWei: 500n }), 'BELOW_ONCHAIN_MINIMUM')
+  assert.equal(nativeStakeGuardrailViolation(401n, { maxCumulativeWei: 500n, existingStakeWei: 100n }), 'ABOVE_ONCHAIN_MAXIMUM')
+  assert.equal(nativeStakeGuardrailViolation(400n, { minInitialWei: 100n, maxCumulativeWei: 500n, existingStakeWei: 100n }), undefined)
+  assert.equal(nativeStakeGuardrailViolation(1n, { minInitialWei: 100n, maxCumulativeWei: 500n, existingStakeWei: 100n, initialStake: false }), undefined)
+  assert.equal(nativeStakeGuardrailViolation(0n, { minInitialWei: 100n, maxCumulativeWei: 500n }), undefined)
 })

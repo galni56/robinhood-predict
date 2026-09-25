@@ -48,8 +48,8 @@ plus what's actually still open.
     see `docs/PREDICTION_MARKET_DEADLINE_SETTLEMENT.md`.
 11. **Native-ETH wager migration implemented locally** (2026-09-25) —
     Prediction Markets, Asset Races and Price Arena now accept exact payable
-    native ETH and return ETH for payouts/refunds/fees. The UI uses one cached
-    ETH/USD quote for fixed-point $1–$50 conversion and sends one transaction
+    native ETH and return ETH for payouts/refunds/fees. The UI accepts USD or
+    ETH input for the live $1–$50 range using one cached ETH/USD quote and sends one transaction
     without approval. StockToken/USDG and MemeToken/ETH settlement prices are
     unchanged. Legacy USDG claim/refund access is retained. Deployment and
     production switching are not part of this milestone.
@@ -66,14 +66,15 @@ tests and operational evidence are recorded in
 
 These addresses are legacy recovery targets, not valid bindings for the payable
 native frontend. GitHub Pages deliberately leaves all native successor addresses
-unset. Native rollout still requires deployment approval, selected wei caps,
+unset. Native rollout still requires deployment approval, the final public owner,
 controlled tiny-value lifecycle rehearsals and an explicit frontend/service switch.
 
 ## Open / explicitly deferred
 
 - **Native ETH production rollout.** Code and local validation replace USDG
   wagering rather than adding WETH or a second liquidity currency. Onchain
-  caps are explicit wei guardrails with approximate dollar meaning. New
+  caps are broad fixed ETH safety fuses (`0.0001–0.1 ETH`); live dollar-range
+  enforcement stays in the frontend. New
   deployments, tiny-value rehearsals, keeper/service changes and the frontend
   address switch still require explicit production approval.
 - **WalletConnect**, for mobile Safari / non-extension wallets. Needs a

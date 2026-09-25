@@ -26,9 +26,9 @@ contract SimulateNativeEthDeploymentTest is Test {
         assertEq(address(market.endpointOracle()), address(oracle));
         assertEq(race.getApprovedAssetIds().length, 23);
         assertEq(race.getApprovedRaceDurations().length, 3);
-        assertEq(market.maxSeedLiquidityWei(), 0.025 ether);
-        assertEq(arena.minStakeWei(), 0.0003 ether);
-        assertEq(arena.maxStakeWei(), 0.025 ether);
+        assertEq(market.maxSeedLiquidityWei(), 0.1 ether);
+        assertEq(arena.minStakeWei(), 0.0001 ether);
+        assertEq(arena.maxStakeWei(), 0.1 ether);
     }
 
     function _setEnvironment(SignedPoolRaceOracle oracle) private {
@@ -36,10 +36,10 @@ contract SimulateNativeEthDeploymentTest is Test {
         vm.setEnv("SIGNED_POOL_ORACLE_ADDRESS", vm.toString(address(oracle)));
         vm.setEnv("PRICE_SIGNER_ADDRESS", vm.toString(PRICE_SIGNER));
         vm.setEnv("FEE_BP", "200");
-        vm.setEnv("MAX_SEED_LIQUIDITY_WEI", vm.toString(uint256(0.025 ether)));
-        vm.setEnv("MAX_STAKE_PER_SIDE_WEI", vm.toString(uint256(0.025 ether)));
-        vm.setEnv("PRICE_ARENA_MIN_STAKE_WEI", vm.toString(uint256(0.0003 ether)));
-        vm.setEnv("PRICE_ARENA_MAX_STAKE_WEI", vm.toString(uint256(0.025 ether)));
+        vm.setEnv("MAX_SEED_LIQUIDITY_WEI", vm.toString(uint256(0.1 ether)));
+        vm.setEnv("MAX_STAKE_PER_SIDE_WEI", vm.toString(uint256(0.1 ether)));
+        vm.setEnv("PRICE_ARENA_MIN_STAKE_WEI", vm.toString(uint256(0.0001 ether)));
+        vm.setEnv("PRICE_ARENA_MAX_STAKE_WEI", vm.toString(uint256(0.1 ether)));
         vm.setEnv("ASSET_RACE_LOBBY_DURATION", "300");
         vm.setEnv("ASSET_RACE_BETTING_DURATION", "300");
         vm.setEnv("ASSET_RACE_START_GRACE", "180");
@@ -47,8 +47,8 @@ contract SimulateNativeEthDeploymentTest is Test {
         vm.setEnv("ASSET_RACE_MAX_ORACLE_TIMESTAMP_SKEW", "0");
         vm.setEnv("ASSET_RACE_FEE_BP", "200");
         vm.setEnv("ASSET_RACE_MIN_ACTIVE_CONTENDERS", "2");
-        vm.setEnv("ASSET_RACE_MIN_STAKE_WEI", vm.toString(uint256(0.0003 ether)));
-        vm.setEnv("ASSET_RACE_MAX_STAKE_PER_WALLET_WEI", vm.toString(uint256(0.025 ether)));
+        vm.setEnv("ASSET_RACE_MIN_STAKE_WEI", vm.toString(uint256(0.0001 ether)));
+        vm.setEnv("ASSET_RACE_MAX_STAKE_PER_WALLET_WEI", vm.toString(uint256(0.1 ether)));
         vm.setEnv("ASSET_RACE_MAX_PRICE_AGE", "60");
         vm.setEnv("ASSET_RACE_MAX_ENDPOINT_LAG", "0");
         vm.setEnv("ASSET_RACE_DURATION_PRESETS", "60,300,900");

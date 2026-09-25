@@ -20,8 +20,8 @@ USDG; Meme prices are quoted in ETH.
    calculated in the mined creation transaction, so wallet confirmation delay
    cannot move the game boundaries.
 3. During the lobby, 2–20 wallets can enter with native ETH. The interface
-   converts a $1–$50 input to exact wei; the deployment-configured wei min/max
-   are approximate dollar guardrails. A player may change their prediction and
+   accepts USD or ETH input for the live $1–$50 range and sends exact wei; the deployment-configured wei min/max
+   are broad native-ETH safety fuses. A player may change their prediction and
    increase their stake, but cannot reduce or withdraw it.
 4. The normal contract getter and UI hide predictions during the lobby. This
    is display privacy only: calldata and EVM storage are public. It is not a

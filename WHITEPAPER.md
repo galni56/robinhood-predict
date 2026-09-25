@@ -17,7 +17,7 @@ Each mode has its own Solidity contract, lifecycle and accounting. Funds and gam
 ## 2. Shared Foundations
 
 - **Network:** all real games run on Robinhood Chain mainnet.
-- **Wager currency:** stakes, pools, payouts, refunds and protocol fees use native ETH. The interface accepts a $1–$50 input and shows the exact wei/ETH value before the wallet sends one payable transaction. There is no ERC-20 approval, WETH wrapping or ETH-to-USDG swap.
+- **Wager currency:** stakes, pools, payouts, refunds and protocol fees use native ETH. The interface accepts either USD or ETH input for the live $1–$50 range, shows the reciprocal equivalent and freezes the exact wei/ETH value before the wallet sends one payable transaction. There is no ERC-20 approval, WETH wrapping or ETH-to-USDG swap.
 - **Reviewed assets:** Markets use 10 approved tokenized stocks. Races and Arena support those 10 Stocks plus 13 Memes; Stocks and Memes remain separate categories.
 - **Non-custodial:** Prophet never receives a wallet's private key. Entries, claims and refunds are signed by the player in MetaMask.
 - **Parimutuel economics:** players compete against one another rather than a bookmaker. The available payout comes from stakes already locked in that game.
@@ -156,7 +156,7 @@ The 2% fee applies only to the losing pool; integer rounding dust also remains p
 
 Prices visible in the interface come from reviewed Robinhood Chain liquidity pools. A shared live service polls those pools every two seconds and distributes one synchronized snapshot to the ticker, cards and game screens. These values are for display and do not themselves settle a game.
 
-The same service caches one public ETH/USD quote for all stake forms, refreshing it no faster than every 15 seconds. Dollar input is converted to wei with fixed-point integer arithmetic. The displayed value is frozen when a wallet request is built, and a missing or stale quote blocks the transaction. Onchain min/max values are deployment-configured wei guardrails and are therefore only approximate dollar limits as ETH/USD moves.
+The same service caches one public ETH/USD quote for all stake forms, refreshing it no faster than every 15 seconds. Players may enter USD or ETH; reciprocal conversion and range checks use fixed-point integer arithmetic. The exact wei value and quote are frozen when a wallet request is built, and a missing or stale quote blocks the transaction. Onchain min/max values are broad fixed ETH safety fuses (`0.0001–0.1 ETH`), not dollar enforcement.
 
 Markets, Races and Arena use the shared `SignedPoolRaceOracle` for settlement. A keeper watches scheduled boundaries and submits signed proofs containing two adjacent Robinhood blocks. The oracle verifies signatures, parent linkage and timestamps, then selects the last block strictly before the required boundary. The resulting price, timestamp and observation identifier are stored onchain.
 

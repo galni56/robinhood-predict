@@ -50,7 +50,7 @@ function approvedAssets() {
   return assets
 }
 
-export function nativeEthDeploymentManifest({ ethUsd, bufferBps = '2500', oracleAddress, priceSignerAddress }) {
+export function nativeEthDeploymentManifest({ oracleAddress, priceSignerAddress }) {
   const oracle = checkedAddress(oracleAddress, 'OracleAddress')
   const priceSigner = checkedAddress(priceSignerAddress, 'PriceSignerAddress')
   if (oracle.toLowerCase() === priceSigner.toLowerCase()) throw new Error('OracleAndSignerMustDiffer')
@@ -66,7 +66,7 @@ export function nativeEthDeploymentManifest({ ethUsd, bufferBps = '2500', oracle
   }
   const [maxPriceAgeSeconds] = maxPriceAges
   const [maxEndpointLagSeconds] = maxEndpointLags
-  const caps = nativeEthDeploymentCaps({ ethUsd, bufferBps })
+  const caps = nativeEthDeploymentCaps()
 
   const network = registry.networks?.[MAINNET]
   if (
@@ -76,7 +76,7 @@ export function nativeEthDeploymentManifest({ ethUsd, bufferBps = '2500', oracle
   ) throw new Error('InvalidProductionNetwork')
 
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     chain: {
       key: MAINNET,
       chainId: registry.networks[MAINNET].chainId,
@@ -133,11 +133,12 @@ export function nativeEthDeploymentManifest({ ethUsd, bufferBps = '2500', oracle
 
 function cliArgs(argv) {
   const result = {}
+  const allowed = new Set(['oracle-address', 'price-signer-address'])
   for (let i = 0; i < argv.length; i += 2) {
     const name = argv[i]
     const value = argv[i + 1]
-    if (!name?.startsWith('--') || value == null) {
-      throw new Error('Usage: --eth-usd <price> --oracle-address <address> --price-signer-address <address> [--buffer-bps <bp>]')
+    if (!name?.startsWith('--') || value == null || !allowed.has(name.slice(2))) {
+      throw new Error('Usage: --oracle-address <address> --price-signer-address <address>')
     }
     result[name.slice(2)] = value
   }
@@ -148,8 +149,6 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   try {
     const args = cliArgs(process.argv.slice(2))
     console.log(JSON.stringify(nativeEthDeploymentManifest({
-      ethUsd: args['eth-usd'],
-      bufferBps: args['buffer-bps'] ?? '2500',
       oracleAddress: args['oracle-address'],
       priceSignerAddress: args['price-signer-address'],
     }), null, 2))
