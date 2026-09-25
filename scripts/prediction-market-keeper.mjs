@@ -18,6 +18,7 @@ import { privateKeyToAccount } from 'viem/accounts'
 import { JsonEndpointProofCache, PoolEndpointCollector } from './asset-race-pool-endpoints.mjs'
 import { PoolPriceEngine, poolChainContracts, poolConfigsFromRegistry } from './asset-race-pool-price-engine.mjs'
 import { withRpcRateLimit } from './asset-race-rpc-budget.mjs'
+import { nextSleepMs } from './keeper-poll-schedule.mjs'
 
 const OPEN = 0
 const SIGNED_POOL_BLOCK_PAIR = 2
@@ -120,6 +121,7 @@ export function readKeeperConfig() {
     dryRun,
     expectedChainId: uintEnv('PREDICTION_MARKET_CHAIN_ID', 4663, 1),
     pollIntervalMs: uintEnv('PREDICTION_MARKET_POLL_INTERVAL_MS', 5_000, 500),
+    idlePollIntervalMs: uintEnv('PREDICTION_MARKET_IDLE_POLL_INTERVAL_MS', 20_000, 1_000),
     archiveMinIntervalMs: uintEnv('PREDICTION_MARKET_ARCHIVE_MIN_INTERVAL_MS', 150, 50),
     realtimeEndpointWindowSeconds: uintEnv('PREDICTION_MARKET_REALTIME_ENDPOINT_WINDOW_SECONDS', 30),
     endpointCacheFile: process.env.PREDICTION_MARKET_ENDPOINT_CACHE_FILE?.trim()
@@ -217,6 +219,17 @@ export class ActiveMarketTracker {
 
   complete(marketId) {
     this.markets.delete(marketId)
+  }
+
+  /** Unix seconds (bigint) of the soonest-tracked market's deadline, or
+   * undefined if nothing is currently tracked. Drives the adaptive poll
+   * sleep -- see keeper-poll-schedule.mjs. */
+  earliestDueAt() {
+    let earliest
+    for (const { deadline } of this.markets.values()) {
+      if (earliest === undefined || deadline < earliest) earliest = deadline
+    }
+    return earliest
   }
 }
 
@@ -344,7 +357,8 @@ async function main() {
   do {
     try { await poll() } catch (error) { console.error(`[keeper] poll failed (${safeErrorName(error)}); continuing`) }
     if (config.runOnce || stopping) break
-    await new Promise((resolve) => setTimeout(resolve, config.pollIntervalMs))
+    const sleepMs = nextSleepMs(tracker.earliestDueAt(), config.pollIntervalMs, config.idlePollIntervalMs)
+    await new Promise((resolve) => setTimeout(resolve, sleepMs))
   } while (!stopping)
 }
 

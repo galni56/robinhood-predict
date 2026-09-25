@@ -25,3 +25,18 @@ test('tracker keeps only open arenas and orders due ids', () => {
   tracker.complete(1n)
   assert.deepEqual(tracker.dueArenaIds(30n), [3n])
 })
+
+test('tracker reports the soonest deadline across tracked arenas, or undefined when idle', () => {
+  const tracker = new ActiveArenaTracker()
+  assert.equal(tracker.earliestDueAt(), undefined)
+
+  tracker.observe(0n, { status: 0, deadline: 300n })
+  tracker.observe(1n, { status: 0, deadline: 150n })
+  assert.equal(tracker.earliestDueAt(), 150n)
+
+  tracker.complete(1n)
+  assert.equal(tracker.earliestDueAt(), 300n)
+
+  tracker.observe(0n, { status: 1 }) // resolved -> terminal -> no longer tracked
+  assert.equal(tracker.earliestDueAt(), undefined)
+})

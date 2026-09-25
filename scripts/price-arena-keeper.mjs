@@ -18,6 +18,7 @@ import { privateKeyToAccount } from 'viem/accounts'
 import { JsonEndpointProofCache, PoolEndpointCollector } from './asset-race-pool-endpoints.mjs'
 import { PoolPriceEngine, poolChainContracts, poolConfigsFromRegistry } from './asset-race-pool-price-engine.mjs'
 import { withRpcRateLimit } from './asset-race-rpc-budget.mjs'
+import { nextSleepMs } from './keeper-poll-schedule.mjs'
 
 const OPEN = 0
 const SIGNED_POOL_BLOCK_PAIR = 2
@@ -119,6 +120,7 @@ export function readKeeperConfig() {
     allowLive: boolEnv('PRICE_ARENA_ALLOW_LIVE', false),
     dryRun,
     pollIntervalMs: uintEnv('PRICE_ARENA_POLL_INTERVAL_MS', 5_000, 500),
+    idlePollIntervalMs: uintEnv('PRICE_ARENA_IDLE_POLL_INTERVAL_MS', 20_000, 1_000),
     archiveMinIntervalMs: uintEnv('PRICE_ARENA_ARCHIVE_MIN_INTERVAL_MS', 150, 50),
     realtimeEndpointWindowSeconds: uintEnv('PRICE_ARENA_REALTIME_ENDPOINT_WINDOW_SECONDS', 30),
     endpointCacheFile: process.env.PRICE_ARENA_ENDPOINT_CACHE_FILE?.trim()
@@ -192,6 +194,17 @@ export class ActiveArenaTracker {
   }
 
   complete(arenaId) { this.arenas.delete(arenaId) }
+
+  /** Unix seconds (bigint) of the soonest-tracked arena's deadline, or
+   * undefined if nothing is currently tracked. Drives the adaptive poll
+   * sleep -- see keeper-poll-schedule.mjs. */
+  earliestDueAt() {
+    let earliest
+    for (const { deadline } of this.arenas.values()) {
+      if (earliest === undefined || deadline < earliest) earliest = deadline
+    }
+    return earliest
+  }
 }
 
 export async function endpointProofForArena(collector, arena) {
@@ -293,7 +306,8 @@ async function main() {
   do {
     try { await poll() } catch (error) { console.error(`[keeper] poll failed (${safeErrorName(error)}); continuing`) }
     if (config.runOnce || stopping) break
-    await new Promise((resolve) => setTimeout(resolve, config.pollIntervalMs))
+    const sleepMs = nextSleepMs(tracker.earliestDueAt(), config.pollIntervalMs, config.idlePollIntervalMs)
+    await new Promise((resolve) => setTimeout(resolve, sleepMs))
   } while (!stopping)
 }
 

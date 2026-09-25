@@ -119,3 +119,18 @@ test('keeper scans existing markets once, then reads only new and due open marke
   tracker.complete(1n)
   assert.deepEqual(tracker.dueMarketIds(1_000n), [2n, 3n])
 })
+
+test('tracker reports the soonest deadline across tracked markets, or undefined when idle', () => {
+  const tracker = new ActiveMarketTracker()
+  assert.equal(tracker.earliestDueAt(), undefined)
+
+  tracker.observe(0n, market({ deadline: 300n }))
+  tracker.observe(1n, market({ deadline: 150n }))
+  assert.equal(tracker.earliestDueAt(), 150n)
+
+  tracker.complete(1n)
+  assert.equal(tracker.earliestDueAt(), 300n)
+
+  tracker.observe(0n, market({ status: 1 })) // resolved -> terminal -> no longer tracked
+  assert.equal(tracker.earliestDueAt(), undefined)
+})

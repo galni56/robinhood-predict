@@ -22,6 +22,7 @@ import {
 } from './asset-race-pool-price-engine.mjs'
 import { withRpcRateLimit } from './asset-race-rpc-budget.mjs'
 import { chainlinkRoundProof } from './chainlink-endpoint-proof.mjs'
+import { nextSleepMs } from './keeper-poll-schedule.mjs'
 
 const STATUS = {
   BETTING: 0,
@@ -668,26 +669,12 @@ async function main() {
       console.error(`[keeper] poll failed (${safeErrorName(error)}); continuing`)
     }
     if (config.runOnce || stopping) break
-    const sleepMs = nextSleepMs(tracker, config.pollIntervalMs, config.idlePollIntervalMs)
+    const sleepMs = nextSleepMs(tracker.earliestDueAt(), config.pollIntervalMs, config.idlePollIntervalMs)
     await new Promise((resolve) => setTimeout(resolve, sleepMs))
   } while (!stopping)
 }
 
-/** How long to sleep before the next poll: exactly until the soonest-tracked
- * race is due (floored at pollIntervalMs so a just-became-due or
- * just-failed race retries quickly, not immediately-spinning), capped at
- * idlePollIntervalMs so a quiet contract with nothing tracked -- or a
- * brand-new race not discovered yet -- still gets noticed promptly. Every
- * grace window in this contract is measured in minutes, so an idle cap of a
- * few tens of seconds costs no real responsiveness. */
-function nextSleepMs(tracker, pollIntervalMs, idlePollIntervalMs, now = Date.now()) {
-  const earliestDueAt = tracker.earliestDueAt()
-  if (earliestDueAt === undefined) return idlePollIntervalMs
-  const msUntilDue = Number(earliestDueAt) * 1000 - now
-  return Math.min(idlePollIntervalMs, Math.max(pollIntervalMs, msUntilDue))
-}
-
-export { ActiveRaceTracker, keeperAbi, transitionFor, endpointProofsForRace, firstEnvironmentValue, resolveEndpointCacheFile, startCallForRace, verifyOperationalRoles, verifySignedPoolOracle, nextSleepMs }
+export { ActiveRaceTracker, keeperAbi, transitionFor, endpointProofsForRace, firstEnvironmentValue, resolveEndpointCacheFile, startCallForRace, verifyOperationalRoles, verifySignedPoolOracle }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main().catch((error) => {
   if (error instanceof KeeperConfigError) console.error(`[keeper] configuration error: ${error.message}`)

@@ -3,7 +3,7 @@ import test from 'node:test'
 import { pad } from 'viem'
 import { readFileSync } from 'node:fs'
 import { poolConfigsFromRegistry } from './asset-race-pool-price-engine.mjs'
-import { ActiveRaceTracker, endpointProofsForRace, firstEnvironmentValue, nextSleepMs, resolveEndpointCacheFile, startCallForRace, transitionFor, verifyOperationalRoles, verifySignedPoolOracle } from './asset-race-keeper.mjs'
+import { ActiveRaceTracker, endpointProofsForRace, firstEnvironmentValue, resolveEndpointCacheFile, startCallForRace, transitionFor, verifyOperationalRoles, verifySignedPoolOracle } from './asset-race-keeper.mjs'
 
 const oracle = '0x1111111111111111111111111111111111111111'
 const assets = [1, 2].map((id) => ({ oracle, oracleId: pad(`0x0${id}`, { size: 32 }), pool: 10n, active: true, maxEndpointLag: 0n }))
@@ -163,23 +163,3 @@ test('tracker reports the soonest due time across tracked races, or undefined wh
   assert.equal(tracker.earliestDueAt(), undefined)
 })
 
-test('adaptive sleep never exceeds the idle cap and never waits past a due race by more than the poll floor', () => {
-  const tracker = new ActiveRaceTracker()
-  const pollIntervalMs = 4_000
-  const idlePollIntervalMs = 20_000
-
-  // Nothing tracked at all -- back off to the idle cap.
-  assert.equal(nextSleepMs(tracker, pollIntervalMs, idlePollIntervalMs, 0), idlePollIntervalMs)
-
-  // Due five minutes out -- still capped at the idle interval, not the full 5 minutes.
-  tracker.observe(0n, { status: 0, bettingEndTime: 300n })
-  assert.equal(nextSleepMs(tracker, pollIntervalMs, idlePollIntervalMs, 0), idlePollIntervalMs)
-
-  // Due in 10 real seconds -- between the floor and the cap, so sleep exactly that long.
-  assert.equal(nextSleepMs(tracker, pollIntervalMs, idlePollIntervalMs, 290_000), 10_000)
-
-  // Already due (e.g. a retry right after a failed transition) -- floored at pollIntervalMs,
-  // never a zero/negative sleep that would spin the loop.
-  assert.equal(nextSleepMs(tracker, pollIntervalMs, idlePollIntervalMs, 300_000), pollIntervalMs)
-  assert.equal(nextSleepMs(tracker, pollIntervalMs, idlePollIntervalMs, 999_000), pollIntervalMs)
-})
