@@ -7,6 +7,20 @@ frontend binding are pending. The earlier USDG generation at
 and is unsupported/denylisted. See `NATIVE_ETH_MAINNET_DEPLOYMENT.md`. No
 independent security audit.
 
+## Native ETH canary preparation
+
+`contracts/script/PriceArenaCanary.s.sol` is hard-bound to the native successor
+and checks chain, owner, signer, pause state, stake/lobby/fee policy and exact
+TSLA binding. `CreatePriceArenaCanaries` prepares two one-minute arenas with
+ten-minute lobbies: arena #0 uses two wallets, exercises payable `enter` and
+`updateEntry`, and must resolve; arena #1 has one wallet and must cancel.
+`FinalizePriceArenaCanaries` then asserts the winner payout, protocol fee and
+cancelled-player refund before sending claim/refund transactions.
+
+The public preflight currently reads `arenaCount=0`, contract balance `0` and
+`newActivityPaused=false`. Do not broadcast until the PredictionMarket and
+AssetRace lifecycle canaries have passed in order.
+
 Price Arena is a fixed-time closest-price contest for the same reviewed
 Robinhood Chain pools used by Asset Race. It has separate Stock and Meme
 categories and settles wagers in native ETH. Stock prices are still quoted in
