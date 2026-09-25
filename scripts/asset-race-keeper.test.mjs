@@ -3,11 +3,34 @@ import test from 'node:test'
 import { pad } from 'viem'
 import { readFileSync } from 'node:fs'
 import { poolConfigsFromRegistry } from './asset-race-pool-price-engine.mjs'
-import { ActiveRaceTracker, endpointProofsForRace, resolveEndpointCacheFile, startCallForRace, transitionFor, verifyOperationalRoles, verifySignedPoolOracle } from './asset-race-keeper.mjs'
+import { ActiveRaceTracker, endpointProofsForRace, firstEnvironmentValue, resolveEndpointCacheFile, startCallForRace, transitionFor, verifyOperationalRoles, verifySignedPoolOracle } from './asset-race-keeper.mjs'
 
 const oracle = '0x1111111111111111111111111111111111111111'
 const assets = [1, 2].map((id) => ({ oracle, oracleId: pad(`0x0${id}`, { size: 32 }), pool: 10n, active: true, maxEndpointLag: 0n }))
 const client = { readContract: async ({ functionName }) => functionName === 'getRaceAssets' ? assets : 2 }
+
+test('keeper reuses shared Prediction Market role keys when Asset Race aliases are absent', () => {
+  const previousPrimary = process.env.ASSET_RACE_KEEPER_PRIVATE_KEY
+  const previousFallback = process.env.PREDICTION_MARKET_KEEPER_PRIVATE_KEY
+  try {
+    delete process.env.ASSET_RACE_KEEPER_PRIVATE_KEY
+    process.env.PREDICTION_MARKET_KEEPER_PRIVATE_KEY = ' fallback-key '
+    assert.equal(
+      firstEnvironmentValue('ASSET_RACE_KEEPER_PRIVATE_KEY', 'PREDICTION_MARKET_KEEPER_PRIVATE_KEY'),
+      'fallback-key',
+    )
+    process.env.ASSET_RACE_KEEPER_PRIVATE_KEY = ' primary-key '
+    assert.equal(
+      firstEnvironmentValue('ASSET_RACE_KEEPER_PRIVATE_KEY', 'PREDICTION_MARKET_KEEPER_PRIVATE_KEY'),
+      'primary-key',
+    )
+  } finally {
+    if (previousPrimary === undefined) delete process.env.ASSET_RACE_KEEPER_PRIVATE_KEY
+    else process.env.ASSET_RACE_KEEPER_PRIVATE_KEY = previousPrimary
+    if (previousFallback === undefined) delete process.env.PREDICTION_MARKET_KEEPER_PRIVATE_KEY
+    else process.env.PREDICTION_MARKET_KEEPER_PRIVATE_KEY = previousFallback
+  }
+})
 
 test('keeper endpoint cache defaults outside the repository and rejects tracked paths', () => {
   const options = { home: '/home/keeper', repositoryRoot: '/srv/prophet' }

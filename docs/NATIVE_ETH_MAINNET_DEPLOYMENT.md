@@ -1,8 +1,8 @@
 # Native ETH mainnet deployment record
 
 Status: **the corrected PredictionMarket, AssetRace and PriceArena are deployed
-and configured. The complete PredictionMarket canary passed; AssetRace/
-PriceArena canaries and public frontend/service binding remain pending.**
+and configured. The complete PredictionMarket and AssetRace canaries passed;
+PriceArena canary and public frontend/service binding remain pending.**
 
 Deployment date: 2026-09-25. Original release source: `455744a`; corrected
 PredictionMarket source: `c53ba0a`. Chain ID: `4663`.
@@ -93,6 +93,49 @@ The winner received `0.000198 ETH`, cancellation refunds totaled `0.0002 ETH`,
 and both public accounting reads and the contract balance ended at exactly the
 `0.000002 ETH` protocol fee. Across creation, keeper and finalization, the
 canary used 1,399,816 gas and paid `0.000050218229344 ETH` in transaction fees.
+
+## AssetRace canary — passed
+
+The first guarded pair created race #0 with two active contenders and race #1
+with one active contender. All five create/fund transactions succeeded. The
+operator did not start them within their three-minute P0 grace window, so the
+permissionless keeper correctly cancelled both with `START_WINDOW_EXPIRED`:
+
+- race #0/#1 creation:
+  `0x757baaeb52f812ae2606c307772b8619df10eeacc9706bb31ad37583df4e5f82`,
+  `0x172b532b4eaf84f6f14c4e2171243f30a61634d7b578b2936733a41ef00e71f0`;
+- three initial bets:
+  `0x4609e5703c2242124314e66529389ff28530302458a3bcb3a9073caf174d0acf`,
+  `0x11487650f81087782c8ff02fe75d15902e95abf325b911a4428aa11f8ea5cd7b`,
+  `0xe049f4a649f6e01c4740538dfaa60480d51830cb71f60343ce8d525c5e6aac9a`;
+- objective cancellations:
+  `0x7043b250212c41c21b6b18282b5173e974c97f6e8d1a997ba00fe48e343147e2`,
+  `0xec6f487f11dc03ad8587e767d81564c841eb44991331bb1643c1ff92ec897d3a`;
+- exact `0.0003 ETH` recovery:
+  `0x3e74c28000c8bb16cd2883e1701e9ab142767c841cb937281db4b4beffe51a28`,
+  `0xab79d13b8d4bafda783361062eb80e3f4e289d193cd8e8ad0dc33bfe64553fd2`,
+  `0x7b68b8eea990b398f5ff7e34092aa625f67f5c5ce5e67c0ef30c4a431073750c`.
+
+Public reads then confirmed both liabilities and the contract balance were zero.
+This was a successful timeout/refund-path exercise, not a contract failure.
+
+Replacement settlement race #2 was created and funded by two distinct wallets
+on NVDA and TSLA:
+
+- creation: `0x057a4df9480c4e01faf9c72860db4d828caa41d9cce0c114728241066c0ab08e`;
+- bets: `0x0420a82ff49c0cadcce63bba9c39281ea9f9ae42d7e6d25f4396f23beca54e59`
+  and `0x6c1670a6c8238e93fd5e30976df8e12e8e63e2f23282cbb1fef057cd1e67f311`;
+- P0/start: `0x2e2332ca125bffcc3dd91bc2133ad699933ba5a9fdec8dcc51ec7c21b0c7b75d`;
+- P1 capture: `0xf7c66196481b58b56c8f94594c5e1cc96a078412a2167073aed3e2a552fe92dd`;
+- resolve: `0x7a58b1c2a9fcee8da5cab500796fc36a080bd9f47152ccc42bff81c5395d302b`;
+- winner claim: `0xc1a33b807bff3bef20b770cdc8abd6b9966842d4d0ee080d25b4bb85d116e213`.
+
+Both assets used the same exact endpoint sources at T0 `1790355141` and T1
+`1790355201`. TSLA won with return `0`; NVDA returned
+`-0.000002080527459508`. The second wallet received `0.000198 ETH`; the final
+race liability and global user liability are zero, while accumulated fees and
+contract balance both equal `0.000002 ETH`. All 17 AssetRace canary receipts
+succeeded, using 3,111,423 gas and paying `0.000111718644322 ETH`.
 
 ## Verified postconditions
 

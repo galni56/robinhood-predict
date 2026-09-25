@@ -190,6 +190,14 @@ function readBoolean(name, fallback = false) {
   throw new KeeperConfigError(`${name} must be true or false`)
 }
 
+function firstEnvironmentValue(...names) {
+  for (const name of names) {
+    const value = process.env[name]?.trim()
+    if (value) return value
+  }
+  return undefined
+}
+
 function readNonNegativeInteger(name, fallback, minimum = 0) {
   const raw = process.env[name]?.trim()
   if (!raw) return fallback
@@ -244,7 +252,10 @@ function resolveConfig() {
     throw new KeeperConfigError('Set valid Asset Race RPC/address variables or create contracts/.asset-race.local')
   }
 
-  const privateKey = process.env.ASSET_RACE_KEEPER_PRIVATE_KEY?.trim()
+  const privateKey = firstEnvironmentValue(
+    'ASSET_RACE_KEEPER_PRIVATE_KEY',
+    'PREDICTION_MARKET_KEEPER_PRIVATE_KEY',
+  )
   const unlockedAddress = process.env.ASSET_RACE_KEEPER_ADDRESS?.trim() || (!privateKey && localConfig.LOCAL_WALLET_C)
   if (privateKey && unlockedAddress) {
     throw new KeeperConfigError('Configure one keeper signer method, not both')
@@ -260,7 +271,10 @@ function resolveConfig() {
   }
 
   const signedOracleValue = process.env.ASSET_RACE_SIGNED_POOL_ORACLE_ADDRESS?.trim()
-  const priceSignerPrivateKey = process.env.ASSET_RACE_POOL_PRICE_SIGNER_PRIVATE_KEY?.trim()
+  const priceSignerPrivateKey = firstEnvironmentValue(
+    'ASSET_RACE_POOL_PRICE_SIGNER_PRIVATE_KEY',
+    'PREDICTION_MARKET_POOL_PRICE_SIGNER_PRIVATE_KEY',
+  )
   if (Boolean(signedOracleValue) !== Boolean(priceSignerPrivateKey)) {
     throw new KeeperConfigError('Signed pool endpoints require both oracle address and pool price signer key')
   }
@@ -636,7 +650,7 @@ async function main() {
   } while (!stopping)
 }
 
-export { ActiveRaceTracker, keeperAbi, transitionFor, endpointProofsForRace, resolveEndpointCacheFile, startCallForRace, verifyOperationalRoles, verifySignedPoolOracle }
+export { ActiveRaceTracker, keeperAbi, transitionFor, endpointProofsForRace, firstEnvironmentValue, resolveEndpointCacheFile, startCallForRace, verifyOperationalRoles, verifySignedPoolOracle }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main().catch((error) => {
   if (error instanceof KeeperConfigError) console.error(`[keeper] configuration error: ${error.message}`)

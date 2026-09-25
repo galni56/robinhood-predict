@@ -81,9 +81,9 @@ service switch pass. See
   wagering rather than adding WETH or a second liquidity currency. Onchain
   caps are broad fixed ETH safety fuses (`0.0001–0.1 ETH`); live dollar-range
   enforcement stays in the frontend. New
-  deployments/configuration are complete; tiny-value rehearsals, keeper/service
-  changes and the frontend address switch still require explicit production
-  approval. Follow the
+  deployments/configuration are complete; PredictionMarket and AssetRace
+  tiny-value rehearsals passed, while PriceArena, keeper/service changes and the
+  frontend address switch still require explicit production approval. Follow the
   canonical [`native ETH operator packet`](./docs/NATIVE_ETH_DEPLOYMENT_OPERATOR_PACKET.md)
   in strict PredictionMarket → AssetRace → PriceArena order.
 - **WalletConnect**, for mobile Safari / non-extension wallets. Needs a

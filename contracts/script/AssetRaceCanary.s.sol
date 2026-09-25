@@ -16,6 +16,9 @@ abstract contract AssetRaceCanaryBase is Script {
     uint64 internal constant START_GRACE = 3 minutes;
     uint64 internal constant RESOLUTION_GRACE = 5 minutes;
     uint16 internal constant FEE_BP = 200;
+    uint256 internal constant SETTLEMENT_RACE_ID = 0;
+    uint256 internal constant CANCELLATION_RACE_ID = 1;
+    uint256 internal constant RETRY_RACE_ID = 2;
 
     address internal constant RACE_ADDRESS = 0x02F030Bd9D9DC86d713CDF0772ae4d1E3b81f235;
     address internal constant EXPECTED_OWNER = 0x6d68157bEDa778346Dd27f8Ef4F917f69aD2Dc41;
@@ -95,6 +98,17 @@ abstract contract AssetRaceCanaryBase is Script {
             minStake: CANARY_STAKE,
             maxStakePerWallet: 0.1 ether
         });
+    }
+
+    function _retryConfig(uint64 bettingStart, uint64 bettingEnd)
+        internal
+        pure
+        returns (AssetRace.RaceConfigInput memory)
+    {
+        AssetRace.RaceConfigInput memory config = _config(bettingStart, bettingEnd);
+        config.startGrace = 10 minutes;
+        config.resolutionGrace = 10 minutes;
+        return config;
     }
 }
 
@@ -207,5 +221,154 @@ contract FinalizeAssetRaceCanaries is AssetRaceCanaryBase {
         console.log("Winner", winner);
         console.log("Payout (wei)", payout);
         console.log("Refunded (wei)", refund);
+    }
+}
+
+/// @notice Recovers every position after both original canaries missed their
+/// start window and were objectively cancelled by the permissionless keeper.
+contract RecoverExpiredAssetRaceCanaries is AssetRaceCanaryBase {
+    function run() external {
+        AssetRace race = _race();
+        _validateDeployment(race);
+        require(race.raceCount() == RETRY_RACE_ID, "unexpected race count");
+        require(race.getRace(SETTLEMENT_RACE_ID).status == AssetRace.RaceStatus.CANCELLED, "race #0 not cancelled");
+        require(race.getRace(CANCELLATION_RACE_ID).status == AssetRace.RaceStatus.CANCELLED, "race #1 not cancelled");
+
+        uint256 ownerKey = _ownerKey();
+        uint256 playerKey = _playerKey();
+        address player = vm.addr(playerKey);
+        AssetRace.Position memory ownerSettlement = race.getPosition(SETTLEMENT_RACE_ID, EXPECTED_OWNER);
+        AssetRace.Position memory playerSettlement = race.getPosition(SETTLEMENT_RACE_ID, player);
+        AssetRace.Position memory ownerCancellation = race.getPosition(CANCELLATION_RACE_ID, EXPECTED_OWNER);
+        require(
+            ownerSettlement.stake == CANARY_STAKE && ownerSettlement.exists && !ownerSettlement.settled,
+            "owner race #0 position mismatch"
+        );
+        require(
+            playerSettlement.stake == CANARY_STAKE && playerSettlement.exists && !playerSettlement.settled,
+            "player race #0 position mismatch"
+        );
+        require(
+            ownerCancellation.stake == CANARY_STAKE && ownerCancellation.exists && !ownerCancellation.settled,
+            "owner race #1 position mismatch"
+        );
+
+        uint256 beforeRefunds = RACE_ADDRESS.balance;
+        vm.startBroadcast(ownerKey);
+        uint256 ownerSettlementRefund = race.refund(SETTLEMENT_RACE_ID);
+        uint256 ownerCancellationRefund = race.refund(CANCELLATION_RACE_ID);
+        vm.stopBroadcast();
+        vm.startBroadcast(playerKey);
+        uint256 playerSettlementRefund = race.refund(SETTLEMENT_RACE_ID);
+        vm.stopBroadcast();
+
+        require(ownerSettlementRefund == CANARY_STAKE, "wrong owner race #0 refund");
+        require(ownerCancellationRefund == CANARY_STAKE, "wrong owner race #1 refund");
+        require(playerSettlementRefund == CANARY_STAKE, "wrong player race #0 refund");
+        require(RACE_ADDRESS.balance + CANARY_STAKE * 3 == beforeRefunds, "wrong recovery ETH delta");
+        require(race.getRace(SETTLEMENT_RACE_ID).remainingLiability == 0, "race #0 liability remains");
+        require(race.getRace(CANCELLATION_RACE_ID).remainingLiability == 0, "race #1 liability remains");
+
+        console.log("Expired AssetRace canaries recovered");
+        console.log("Refunded (wei)", CANARY_STAKE * 3);
+    }
+}
+
+/// @notice Creates one replacement settlement canary after the original pair
+/// has been cancelled and fully refunded. The wider grace windows reduce
+/// operator timing pressure without changing production race mechanics.
+contract CreateAssetRaceRetryCanary is AssetRaceCanaryBase {
+    function run() external returns (uint256 raceId) {
+        AssetRace race = _race();
+        _validateDeployment(race);
+        require(race.raceCount() == RETRY_RACE_ID, "unexpected race count");
+        require(race.getRace(SETTLEMENT_RACE_ID).status == AssetRace.RaceStatus.CANCELLED, "race #0 not cancelled");
+        require(race.getRace(CANCELLATION_RACE_ID).status == AssetRace.RaceStatus.CANCELLED, "race #1 not cancelled");
+        require(race.getRace(SETTLEMENT_RACE_ID).remainingLiability == 0, "race #0 liability remains");
+        require(race.getRace(CANCELLATION_RACE_ID).remainingLiability == 0, "race #1 liability remains");
+
+        uint256 ownerKey = _ownerKey();
+        uint256 start = block.timestamp + BETTING_START_DELAY;
+        uint256 end = start + BETTING_DURATION;
+        require(end <= type(uint64).max, "timestamp overflow");
+        AssetRace.RaceConfigInput memory config = _retryConfig(uint64(start), uint64(end));
+        bytes32[] memory ids = _assetIds();
+
+        vm.startBroadcast(ownerKey);
+        raceId = race.createPlatformRace("PROPHET ETH CANARY RETRY", config, ids);
+        vm.stopBroadcast();
+
+        require(raceId == RETRY_RACE_ID, "unexpected retry race id");
+        require(race.raceCount() == RETRY_RACE_ID + 1, "unexpected race count");
+        console.log("AssetRace retry canary address", RACE_ADDRESS);
+        console.log("Settlement race id", raceId);
+        console.log("Betting starts", start);
+        console.log("Betting ends", end);
+        console.log("Start grace ends", end + config.startGrace);
+    }
+}
+
+/// @notice Funds the replacement settlement race with two different wallets
+/// choosing two different assets.
+contract FundAssetRaceRetryCanary is AssetRaceCanaryBase {
+    function run() external {
+        AssetRace race = _race();
+        _validateDeployment(race);
+        require(race.raceCount() == RETRY_RACE_ID + 1, "retry race missing");
+        AssetRace.Race memory retryRace = race.getRace(RETRY_RACE_ID);
+        require(retryRace.status == AssetRace.RaceStatus.BETTING, "retry race not betting");
+        require(block.timestamp >= retryRace.bettingStartTime, "betting not started");
+        require(block.timestamp < retryRace.bettingEndTime, "betting ended");
+
+        uint256 ownerKey = _ownerKey();
+        uint256 playerKey = _playerKey();
+        address player = vm.addr(playerKey);
+        require(!race.getPosition(RETRY_RACE_ID, EXPECTED_OWNER).exists, "owner already funded");
+        require(!race.getPosition(RETRY_RACE_ID, player).exists, "player already funded");
+        require(EXPECTED_OWNER.balance >= CANARY_STAKE, "owner lacks canary stake");
+        require(player.balance >= CANARY_STAKE, "player lacks canary stake");
+
+        vm.startBroadcast(ownerKey);
+        race.bet{value: CANARY_STAKE}(RETRY_RACE_ID, 0, CANARY_STAKE);
+        vm.stopBroadcast();
+        vm.startBroadcast(playerKey);
+        race.bet{value: CANARY_STAKE}(RETRY_RACE_ID, 1, CANARY_STAKE);
+        vm.stopBroadcast();
+
+        require(race.getRace(RETRY_RACE_ID).totalPool == CANARY_STAKE * 2, "retry pool mismatch");
+        console.log("AssetRace retry canary funded");
+        console.log("Race id", RETRY_RACE_ID);
+        console.log("Stake per position (wei)", CANARY_STAKE);
+        console.log("Second player", player);
+    }
+}
+
+/// @notice Claims the unique winner after the keeper resolves retry race #2.
+contract FinalizeAssetRaceRetryCanary is AssetRaceCanaryBase {
+    function run() external {
+        AssetRace race = _race();
+        _validateDeployment(race);
+        require(race.raceCount() == RETRY_RACE_ID + 1, "retry race missing");
+        AssetRace.Race memory resolved = race.getRace(RETRY_RACE_ID);
+        require(resolved.status == AssetRace.RaceStatus.RESOLVED, "retry race not resolved");
+        require(resolved.winningAssetIndex < 2, "unexpected winner");
+        require(resolved.protocolFee == (CANARY_STAKE * FEE_BP) / race.BP_DENOMINATOR(), "fee mismatch");
+
+        uint256 ownerKey = _ownerKey();
+        uint256 playerKey = _playerKey();
+        address winner = resolved.winningAssetIndex == 0 ? EXPECTED_OWNER : vm.addr(playerKey);
+        uint256 winnerKey = resolved.winningAssetIndex == 0 ? ownerKey : playerKey;
+        uint256 expectedPayout = CANARY_STAKE + resolved.distributableLosingPool;
+
+        uint256 beforeClaim = RACE_ADDRESS.balance;
+        vm.startBroadcast(winnerKey);
+        uint256 payout = race.claim(RETRY_RACE_ID);
+        vm.stopBroadcast();
+        require(payout == expectedPayout, "payout mismatch");
+        require(RACE_ADDRESS.balance + expectedPayout == beforeClaim, "wrong claim ETH delta");
+
+        console.log("AssetRace retry canary finalized");
+        console.log("Winner", winner);
+        console.log("Payout (wei)", payout);
     }
 }

@@ -13,25 +13,37 @@
 Historical staged checks and operator inputs are in
 `ASSET_RACE_PREDEPLOY_CHECKLIST.md`. The USDG contracts were deployed/configured
 and independently read-checked. The native-ETH successor is deployed and
-configured at `0x02F030Bd9D9DC86d713CDF0772ae4d1E3b81f235`; canary and public
-binding are pending. See `NATIVE_ETH_MAINNET_DEPLOYMENT.md`.
+configured at `0x02F030Bd9D9DC86d713CDF0772ae4d1E3b81f235`; its lifecycle canary
+has passed and only public binding remains pending. See
+`NATIVE_ETH_MAINNET_DEPLOYMENT.md`.
 
-### Native ETH canary preparation
+### Native ETH canary result
 
 `contracts/script/AssetRaceCanary.s.sol` is hard-bound to the native successor
 and rechecks chain, owner, signer, pause state and exact NVDA/TSLA registry
-bindings. Its three separately simulated/broadcast phases are:
+bindings. The original pair exercised objective timeout cancellation and exact
+refund after the operator missed its P0 grace. Guarded recovery returned all
+`0.0003 ETH`. Replacement race #2 then completed P0 start, P1 capture, resolve
+and winner claim. Final user liability is zero and the contract retains only its
+exact `0.000002 ETH` fee.
+
+The available guarded phases are:
 
 1. `CreateAssetRaceCanaries`: create settlement race #0 and insufficient-active-
    contender cancellation race #1 with a delayed five-minute betting window;
 2. `FundAssetRaceCanaries`: put two distinct wallets on different assets in #0
    and only the owner on one asset in #1, using `0.0001 ETH` per position;
-3. after keeper start/capture/resolve, `FinalizeAssetRaceCanaries`: claim the
-   unique winner of #0 and refund #1, asserting exact ETH deltas and fee.
+3. `RecoverExpiredAssetRaceCanaries`: refund every original position if both
+   start windows objectively expire;
+4. `CreateAssetRaceRetryCanary` and `FundAssetRaceRetryCanary`: create/fund
+   replacement settlement race #2 with wider operational grace;
+5. after continuous keeper start/capture/resolve,
+   `FinalizeAssetRaceRetryCanary`: claim the unique winner with exact ETH and
+   fee assertions.
 
-The public preflight currently reads `raceCount=0`, contract balance `0` and
-`newActivityPaused=false`. Do not broadcast any phase until the preceding
-PredictionMarket lifecycle canary is fully complete and independently verified.
+The completed public readback is `raceCount=3`, `totalUserLiability=0`,
+`accumulatedFees=0.000002 ETH`, contract balance `0.000002 ETH`, and
+`newActivityPaused=false`.
 
 Current Robinhood Chain mainnet deployment (chain4663):
 
