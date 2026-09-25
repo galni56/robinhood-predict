@@ -78,7 +78,9 @@ and an explicit frontend/service switch.
   caps are broad fixed ETH safety fuses (`0.0001–0.1 ETH`); live dollar-range
   enforcement stays in the frontend. New
   deployments, tiny-value rehearsals, keeper/service changes and the frontend
-  address switch still require explicit production approval.
+  address switch still require explicit production approval. Follow the
+  canonical [`native ETH operator packet`](./docs/NATIVE_ETH_DEPLOYMENT_OPERATOR_PACKET.md)
+  in strict PredictionMarket → AssetRace → PriceArena order.
 - **WalletConnect**, for mobile Safari / non-extension wallets. Needs a
   free Project ID from cloud.walletconnect.com that only the project
   owner can obtain — blocked on that, not on anything technical.

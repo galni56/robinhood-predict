@@ -1,14 +1,18 @@
 # Asset Race production runbook
 
+> For the native-ETH replacement deployment, the canonical instructions are
+> `NATIVE_ETH_DEPLOYMENT_OPERATOR_PACKET.md`. The historical material below is
+> retained for architecture and incident context; do not use its older
+> deployment checklist to launch the replacement.
+
 > The concrete contract address below belongs to the USDG generation. It is
 > unsupported historical test state and remains only in the native-binding
 > denylist. The native-ETH frontend must remain unbound until a separately
 > approved successor deployment.
 
-Current staged checks, operator inputs and readiness verdict:
-`ASSET_RACE_PREDEPLOY_CHECKLIST.md`. Local E2E and sampled Alchemy archive reads
-through one hour are green. Contracts are deployed/configured and independently
-read-checked; production service/frontend wiring is not live yet.
+Historical staged checks and operator inputs are in
+`ASSET_RACE_PREDEPLOY_CHECKLIST.md`. The USDG contracts were deployed/configured
+and independently read-checked; the native-ETH successor is not deployed.
 
 Current Robinhood Chain mainnet deployment (chain4663):
 

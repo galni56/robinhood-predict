@@ -22,6 +22,9 @@ waived recovery and the release does not expose or automate those contracts.
 - A no-broadcast fork simulation with those limits and the approved existing
   project owner passed at chain-4663 block `72035407`. See
   `NATIVE_ETH_SIMULATION_REPORT.md`.
+- The exact human-run deployment sequence, public inputs, read-only
+  postconditions and hard stop before canary/service switching are in
+  `NATIVE_ETH_DEPLOYMENT_OPERATOR_PACKET.md`.
 - No broadcast, VPS change or `main` merge has occurred.
 
 ## Non-negotiable boundaries
@@ -68,7 +71,8 @@ waived recovery and the release does not expose or automate those contracts.
 5. **Mainnet deployment.** With separate explicit approval, deploy and configure
    PredictionMarket, AssetRace, then PriceArena. After every transaction verify
    code, owner, caps, existing oracle/signer identity and complete asset bindings.
-   Do not switch the public frontend yet.
+   Follow `NATIVE_ETH_DEPLOYMENT_OPERATOR_PACKET.md`; do not switch the public
+   frontend yet.
 6. **Tiny-value canary.** With separate transaction approval, run complete real
    lifecycles for all three products, including keeper settlement and both
    claim/refund paths where applicable. Stop on any accounting/event mismatch.

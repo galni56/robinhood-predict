@@ -180,7 +180,9 @@ gaps as of this writing:
 - **Native ETH rollout** — implementation is local and deliberately replaces
   wager currency only; it does not change StockToken/USDG settlement prices.
   Deployment, tiny-value lifecycle rehearsals, keeper/service switching and
-  production frontend configuration remain separate approval gates.
+  production frontend configuration remain separate approval gates. The
+  canonical human-run sequence is
+  [`docs/NATIVE_ETH_DEPLOYMENT_OPERATOR_PACKET.md`](./docs/NATIVE_ETH_DEPLOYMENT_OPERATOR_PACKET.md).
 - **WalletConnect** for mobile Safari / non-extension wallets — needs a
   free Project ID from cloud.walletconnect.com that only the project
   owner can obtain, not started.
