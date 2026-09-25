@@ -4,6 +4,20 @@ Status: implementation is on `dima/gonochki`; no native replacement contract is
 deployed. The existing USDG contracts and keepers remain live and must retain
 claim/refund access throughout the rollout.
 
+## Current progress — 2026-09-25
+
+- Current `origin/main` changes are merged into the feature branch, including
+  Multicall3 batching and last-known Race/Arena cards on transient read errors.
+- The AssetRace deployment script reuses and validates the existing
+  `SignedPoolRaceOracle`; it cannot silently create a second oracle.
+- A combined Foundry rehearsal deploys all three native products against one
+  signed oracle and completes both resolve/claim and cancel/refund lifecycles.
+- Full validation currently passes: 180 Forge tests, 128,000 invariant calls and
+  93 Node tests, plus registry/build/lint/diff gates.
+- Production guardrail values are not approved yet. The ±25% policy is a
+  recommendation for review, not a deployment input.
+- No chain-4663 simulation, broadcast, VPS change or `main` merge has occurred.
+
 ## Non-negotiable boundaries
 
 - Wagers, payouts, refunds and fees use native ETH directly. No WETH and no swap.
