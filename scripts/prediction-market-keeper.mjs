@@ -25,6 +25,10 @@ const SIGNED_POOL_BLOCK_PAIR = 2
 export const predictionMarketKeeperAbi = [
   { type: 'function', name: 'marketCount', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
   {
+    type: 'function', name: 'participantCount', stateMutability: 'view',
+    inputs: [{ name: 'id', type: 'uint256' }], outputs: [{ type: 'uint256' }],
+  },
+  {
     type: 'function', name: 'getMarket', stateMutability: 'view', inputs: [{ name: 'id', type: 'uint256' }],
     outputs: [{
       type: 'tuple',
@@ -156,9 +160,12 @@ export async function verifyConfiguredAssets(publicClient, marketAddress, config
 
 export function transitionForMarket(market, now) {
   if (Number(market.status) !== OPEN || now < market.deadline) return undefined
+  const hasEnoughParticipants = market.participantCount >= 2n
   return {
-    needsEndpointProof: market.poolYes > 0n && market.poolNo > 0n,
-    outcome: market.poolYes === 0n || market.poolNo === 0n ? 'CANCELLED' : 'DEADLINE_SETTLEMENT',
+    needsEndpointProof: market.poolYes > 0n && market.poolNo > 0n && hasEnoughParticipants,
+    outcome: market.poolYes === 0n || market.poolNo === 0n || !hasEnoughParticipants
+      ? 'CANCELLED'
+      : 'DEADLINE_SETTLEMENT',
   }
 }
 
@@ -214,7 +221,7 @@ export class ActiveMarketTracker {
 }
 
 export async function endpointProofForMarket(collector, market) {
-  if (market.poolYes === 0n || market.poolNo === 0n) return '0x'
+  if (market.poolYes === 0n || market.poolNo === 0n || market.participantCount < 2n) return '0x'
   const collected = await collector.proofsFor([market.oracleId], market.deadline)
   const proof = collected.proofs.get(market.oracleId.toLowerCase())
   if (!proof) throw new Error('MissingPoolEndpointProof')
@@ -305,9 +312,16 @@ async function main() {
     for (const marketId of tracker.dueMarketIds(block.timestamp)) {
       try {
         const market = await tracker.refresh(publicClient, config.address, marketId)
-        const transition = transitionForMarket(market, block.timestamp)
+        const participantCount = await publicClient.readContract({
+          address: config.address,
+          abi: predictionMarketKeeperAbi,
+          functionName: 'participantCount',
+          args: [marketId],
+        })
+        const marketState = { ...market, participantCount }
+        const transition = transitionForMarket(marketState, block.timestamp)
         if (!transition) continue
-        const endpointProof = await endpointProofForMarket(collector, market)
+        const endpointProof = await endpointProofForMarket(collector, marketState)
         const simulation = await publicClient.simulateContract({
           account: account || zeroAddress,
           address: config.address,

@@ -1,7 +1,9 @@
 # Native ETH mainnet deployment record
 
-Status: **all three contracts are deployed and configured on Robinhood Chain;
-tiny-value lifecycle canaries and public frontend/service binding are pending**.
+Status: **AssetRace and PriceArena remain release candidates. The first native
+PredictionMarket deployment is configured but superseded before canary because
+it does not enforce the subsequently confirmed two-distinct-address P2P rule.
+Its replacement is pending; no public frontend/service binding occurred.**
 
 Deployment date: 2026-09-25. Release source commit: `455744a`. Chain ID: `4663`.
 No VPS, keeper, frontend, nginx, GitHub Pages or `main` change was made as part
@@ -23,6 +25,10 @@ The shared oracle was reused, not redeployed. Its bytecode and
 `TRUSTED_SIGNER()` were read-verified before deployment. Private keys and the
 credential-bearing RPC URL were never recorded in repository files or agent
 output.
+
+`0xe6C4…33EB` is a historical pre-canary deployment, not an approved frontend or
+keeper target. It received no game transactions. The corrective replacement
+must require both funded sides and at least two distinct participant addresses.
 
 ## Receipt and cost summary
 

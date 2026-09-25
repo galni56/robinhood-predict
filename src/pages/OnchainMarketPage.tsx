@@ -210,6 +210,14 @@ export function OnchainMarketPage() {
     query: { enabled: PREDICTION_MARKET_CONFIGURED },
   })
 
+  const participantCount = useReadContract({
+    address: PREDICTION_MARKET_ADDRESS,
+    abi: predictionMarketAbi,
+    functionName: 'participantCount',
+    args: [MARKET_ID],
+    query: { enabled: PREDICTION_MARKET_CONFIGURED },
+  })
+
   const myStakeYes = useReadContract({
     address: PREDICTION_MARKET_ADDRESS,
     abi: predictionMarketAbi,
@@ -275,6 +283,7 @@ export function OnchainMarketPage() {
       market.refetch(),
       nativeBalance.refetch(),
       maxStakePerSide.refetch(),
+      participantCount.refetch(),
       myStakeYes.refetch(),
       myStakeNo.refetch(),
       hasClaimed.refetch(),
@@ -339,7 +348,11 @@ export function OnchainMarketPage() {
         setError('Market data is not ready yet')
         return
       }
-      if (market.data.poolYes > 0n && market.data.poolNo > 0n) {
+      if (participantCount.data == null) {
+        setError('Participant count is unavailable. No transaction was sent.')
+        return
+      }
+      if (market.data.poolYes > 0n && market.data.poolNo > 0n && participantCount.data >= 2n) {
         setError('The keeper is collecting the signed StockToken/USDG deadline price. No wallet action is needed.')
         return
       }
@@ -675,9 +688,9 @@ export function OnchainMarketPage() {
               {status === MarketStatusOnchain.Open && (
                 <>
                   {deadlineMs <= Date.now() && (
-                    market.data.poolYes === 0n || market.data.poolNo === 0n ? (
+                    market.data.poolYes === 0n || market.data.poolNo === 0n || (participantCount.data ?? 2n) < 2n ? (
                       <button onClick={handleResolve} className="w-full rounded-xl bg-white/10 hover:bg-white/20 py-2.5 text-sm font-bold transition-colors">
-                        Cancel one-sided market and enable refunds
+                        Cancel ineligible market and enable refunds
                       </button>
                     ) : (
                       <p className="rounded-xl bg-white/5 px-3 py-2.5 text-sm text-white/50">

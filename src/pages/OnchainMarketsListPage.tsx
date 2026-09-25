@@ -271,7 +271,7 @@ export function OnchainMarketsListPage() {
                   <p className="flex items-center gap-2 text-xs font-medium text-white/45 mb-4">
                     <span className="w-1.5 h-1.5 rounded-full bg-[#F2A65A] shrink-0" />
                     {m.status !== MarketStatusOnchain.Open
-                      ? 'Pool never got both sides in.'
+                      ? 'Market cancelled; funded positions are refundable.'
                       : totalPool === 0n
                         ? 'New market - be the first to call it.'
                         : 'One side is in - take the other, or it refunds in full.'}

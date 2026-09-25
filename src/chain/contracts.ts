@@ -102,6 +102,13 @@ export const predictionMarketAbi = [
   },
   {
     type: 'function',
+    name: 'participantCount',
+    stateMutability: 'view',
+    inputs: [{ name: 'id', type: 'uint256' }],
+    outputs: [{ type: 'uint256' }],
+  },
+  {
+    type: 'function',
     name: 'getMarket',
     stateMutability: 'view',
     inputs: [{ name: 'id', type: 'uint256' }],

@@ -13,8 +13,9 @@ plus what's actually still open.
    gated by an owner-maintained price-feed allowlist instead of a flat
    dollar cap on target price (the original cap was removed entirely
    2026-09-10 — it didn't scale per ticker).
-2. **Parimutuel liquidity mechanics** — one-sided-market cancellation
-   (full refund, no fee, if a market never gets bets on both sides),
+2. **Parimutuel liquidity mechanics** — ineligible-market cancellation
+   (full refund, no fee, unless both sides and two distinct participant
+   addresses are present),
    owner house seed liquidity (capped), protocol fee taken only from the
    losing pool's contribution to a winner's payout.
 3. **Time-weighted early-bet mechanic** — betting closes at 2/3 of a

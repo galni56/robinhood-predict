@@ -128,6 +128,11 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
     mapping(uint256 => mapping(address => mapping(Side => uint256))) public weightedStakes;
     mapping(uint256 => mapping(address => bool)) public claimed;
     mapping(uint256 => Settlement) public settlements;
+    // A single address may still take both sides, but it only counts once.
+    // Resolution requires two distinct participant addresses as well as two
+    // funded sides; this is an address-level P2P guard, not Sybil resistance.
+    mapping(uint256 => uint256) public participantCount;
+    mapping(uint256 => mapping(address => bool)) public hasParticipated;
 
     /// @dev Market creation is permissionless, but every asset must be bound by
     /// the owner to a reviewed pool oracle id and price scale first.
@@ -204,8 +209,8 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
     /// waiting for organic bets on both sides) — only the owner may pass non-zero
     /// values here, and their combined size is capped at `maxSeedLiquidityWei`.
     /// Regular permissionless callers pass `(0, 0)`. Either way, a market that
-    /// never gets a bet on *both* sides by its deadline is cancelled instead of
-    /// resolved — see `resolve`.
+    /// lacks a funded side or a second distinct participant address at its
+    /// deadline is cancelled instead of resolved — see `resolve`.
     function createMarket(
         bytes32 assetId,
         int256 targetPrice,
@@ -240,6 +245,7 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
 
         // Seed liquidity lands at creation time (elapsed = 0), so it always
         // gets MAX_WEIGHT_BP — consistent with "earliest possible bet".
+        if (seedAmount > 0) _recordParticipant(id, msg.sender);
         if (initialYesAmount > 0) {
             stakes[id][msg.sender][Side.YES] += initialYesAmount;
             uint256 weighted = (initialYesAmount * MAX_WEIGHT_BP) / BP_DENOMINATOR;
@@ -302,6 +308,7 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
         require(amount <= maxStakePerSideWei, "exceeds max stake per side");
 
         uint256 weightBp = currentWeightBp(id); // reverts "betting closed" past the window
+        _recordParticipant(id, msg.sender);
 
         stakes[id][msg.sender][side] += amount;
         uint256 weighted = (amount * weightBp) / BP_DENOMINATOR;
@@ -322,9 +329,9 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
     /// before the scheduled deadline. Its adjacent child proves the boundary.
     /// Callable by anyone (keeper-friendly); execution time cannot change the outcome.
     ///
-    /// If either side never got a bet, the market is cancelled instead of resolved —
-    /// there's no genuine two-sided prediction to settle, and (for the case where
-    /// the empty side would've "won") no losing pool to pay a winner from anyway.
+    /// If either side never got a bet or fewer than two distinct addresses
+    /// participated, the market is cancelled instead of resolved. One address
+    /// may hold both sides but cannot make its own market eligible for settlement.
     /// Cancelling lets whoever did bet reclaim their own stake in full via `refund`.
     function resolve(uint256 id, bytes calldata endpointProof) external nonReentrant {
         Market storage m = markets[id];
@@ -334,6 +341,11 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
         if (m.poolYes == 0 || m.poolNo == 0) {
             m.status = Status.Cancelled;
             emit MarketVoided(id, "one-sided market: no counter-bets");
+            return;
+        }
+        if (participantCount[id] < 2) {
+            m.status = Status.Cancelled;
+            emit MarketVoided(id, "fewer than two participants");
             return;
         }
 
@@ -425,6 +437,12 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
 
     function getMarket(uint256 id) external view returns (Market memory) {
         return markets[id];
+    }
+
+    function _recordParticipant(uint256 id, address participant) private {
+        if (hasParticipated[id][participant]) return;
+        hasParticipated[id][participant] = true;
+        participantCount[id] += 1;
     }
 
     function _sendEth(address to, uint256 amount) private {

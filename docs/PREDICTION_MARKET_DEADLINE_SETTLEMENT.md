@@ -1,8 +1,10 @@
 # Prediction Market deadline settlement
 
-Status: native-ETH PredictionMarket is deployed and configured at
-`0xe6C4aAf95f43E35Ef309eEa61bAfb345226333EB`; tiny-value canary and keeper/
-frontend binding are pending. The earlier USDG contracts
+Status: the first native-ETH PredictionMarket deployment at
+`0xe6C4aAf95f43E35Ef309eEa61bAfb345226333EB` was superseded before canary
+because it did not enforce the subsequently confirmed two-distinct-address
+eligibility rule. A corrected replacement must be deployed/configured before
+tiny-value canary or keeper/frontend binding. The earlier USDG contracts
 `0x1a62098AcEd3F7F8C41fff1bc1395A541678b0F1` and
 `0xd95ed19edBCd330498CADe7BA8569ac940A4182f` contain owner test activity only
 and are unsupported/denylisted. See `NATIVE_ETH_MAINNET_DEPLOYMENT.md`.
@@ -34,9 +36,12 @@ block strictly before that deadline:
 The market stores the accepted price, block timestamp, and block hash in
 `settlements(marketId)`. Calling `resolve()` minutes or days later cannot select
 a different price. A valid proof showing an endpoint older than 60 seconds
-cancels the market and enables full refunds; a one-sided market cancels without
-requiring an oracle proof. If no proof can be built at all, resolution remains
-pending until the proof source recovers or the owner explicitly voids the market.
+cancels the market and enables full refunds. A market also cancels unless it has
+both a non-empty YES and NO pool and at least two distinct participant addresses;
+one address funding both sides counts once. Either eligibility failure cancels
+without requiring an oracle proof. If no proof can be built at all, resolution
+remains pending until the proof source recovers or the owner explicitly voids
+the market.
 
 ## Asset configuration
 

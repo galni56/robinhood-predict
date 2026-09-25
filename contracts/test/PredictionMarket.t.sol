@@ -168,6 +168,8 @@ contract PredictionMarketTest is Test {
         assertEq(m.poolNo, 25e18);
         assertEq(market.stakes(id, owner, PredictionMarket.Side.YES), 25e18);
         assertEq(market.stakes(id, owner, PredictionMarket.Side.NO), 25e18);
+        assertEq(market.participantCount(id), 1);
+        assertTrue(market.hasParticipated(id, owner));
         assertEq(address(market).balance, 50e18);
     }
 
@@ -220,6 +222,11 @@ contract PredictionMarketTest is Test {
 
         assertEq(market.stakes(id, alice, PredictionMarket.Side.YES), 50e18);
         assertEq(market.stakes(id, alice, PredictionMarket.Side.NO), 30e18);
+        assertEq(market.participantCount(id), 1);
+
+        vm.prank(bob);
+        market.bet{value: 1e18}(id, PredictionMarket.Side.YES, 1e18);
+        assertEq(market.participantCount(id), 2);
     }
 
     function test_Bet_RevertsOnSecondBetSameSide() public {
@@ -566,6 +573,50 @@ contract PredictionMarketTest is Test {
         vm.prank(alice);
         market.refund(id, PredictionMarket.Side.NO);
         assertEq(alice.balance - balBefore, 50e18); // 100% back, no fee on a cancelled market
+    }
+
+    function test_Resolve_CancelsWhenOneAddressFundsBothSides_AllowsBothRefunds() public {
+        uint256 id = _createMarket(block.timestamp + 1 days);
+
+        vm.startPrank(alice);
+        market.bet{value: 20e18}(id, PredictionMarket.Side.YES, 20e18);
+        market.bet{value: 30e18}(id, PredictionMarket.Side.NO, 30e18);
+        vm.stopPrank();
+        assertEq(market.participantCount(id), 1);
+
+        vm.warp(block.timestamp + 1 days + 1);
+        // Cancellation must happen before any oracle read.
+        market.resolve(id, "");
+
+        PredictionMarket.Market memory m = market.getMarket(id);
+        assertEq(uint8(m.status), uint8(PredictionMarket.Status.Cancelled));
+        uint256 balBefore = alice.balance;
+        vm.startPrank(alice);
+        market.refund(id, PredictionMarket.Side.YES);
+        market.refund(id, PredictionMarket.Side.NO);
+        vm.stopPrank();
+        assertEq(alice.balance - balBefore, 50e18);
+    }
+
+    function test_Resolve_HouseSeedNeedsSecondParticipant() public {
+        uint256 id = market.createMarket{value: 20e18}(ASSET_ID, TARGET_PRICE, block.timestamp + 1 days, 10e18, 10e18);
+        assertEq(market.participantCount(id), 1);
+
+        vm.warp(block.timestamp + 1 days + 1);
+        market.resolve(id, "");
+        assertEq(uint8(market.getMarket(id).status), uint8(PredictionMarket.Status.Cancelled));
+    }
+
+    function test_Resolve_HouseSeedAndDistinctBettorCanSettle() public {
+        uint256 deadline = block.timestamp + 1 days;
+        uint256 id = market.createMarket{value: 20e18}(ASSET_ID, TARGET_PRICE, deadline, 10e18, 10e18);
+        vm.prank(alice);
+        market.bet{value: 1e18}(id, PredictionMarket.Side.YES, 1e18);
+        assertEq(market.participantCount(id), 2);
+
+        vm.warp(deadline + 1);
+        _resolve(id);
+        assertEq(uint8(market.getMarket(id).status), uint8(PredictionMarket.Status.Resolved));
     }
 
     function test_Refund_FailedReceiverRollsBackStake() public {

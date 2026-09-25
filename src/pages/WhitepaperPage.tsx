@@ -125,6 +125,10 @@ export function WhitepaperPage() {
               possible to hold both a YES and a NO position, but neither position can be increased after its first bet.
             </li>
             <li>
+              Settlement requires non-empty YES and NO pools and at least two distinct wallet addresses. One wallet
+              funding both sides still counts as one participant, so the market cancels with full refunds.
+            </li>
+            <li>
               Betting closes after the first two-thirds of the market&apos;s lifetime. The final third accepts no new
               bets and exists only for the price outcome to develop.
             </li>

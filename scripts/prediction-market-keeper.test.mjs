@@ -31,6 +31,7 @@ function market(overrides = {}) {
     deadline: 1_000n,
     poolYes: 1n,
     poolNo: 1n,
+    participantCount: 2n,
     status: 0,
     ...overrides,
   }
@@ -52,6 +53,15 @@ test('one-sided markets cancel without an oracle proof', async () => {
     outcome: 'CANCELLED',
   })
   assert.equal(await endpointProofForMarket({}, oneSided), '0x')
+})
+
+test('one participant funding both sides cancels without an oracle proof', async () => {
+  const oneParticipant = market({ participantCount: 1n })
+  assert.deepEqual(transitionForMarket(oneParticipant, 1_001n), {
+    needsEndpointProof: false,
+    outcome: 'CANCELLED',
+  })
+  assert.equal(await endpointProofForMarket({}, oneParticipant), '0x')
 })
 
 test('two-sided markets collect a signed pool proof for the exact deadline and oracle id', async () => {

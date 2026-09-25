@@ -1,7 +1,10 @@
 # Native ETH production rollout
 
-Status: all three native replacements are deployed and configured on Robinhood
-Chain, but tiny-value canaries and public frontend/service binding are pending.
+Status: AssetRace and PriceArena are deployed/configured. The first native
+PredictionMarket deployment was superseded before canary after the product rule
+was clarified to require two distinct participant addresses; its corrected
+replacement must be deployed/configured before tiny-value canaries. Public
+frontend/service binding remains pending.
 Earlier USDG deployments contain only owner test activity; the owner waived
 recovery and the release does not expose or automate those contracts. See
 `NATIVE_ETH_MAINNET_DEPLOYMENT.md` for the complete 63-transaction record.

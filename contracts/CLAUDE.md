@@ -38,10 +38,10 @@ reviewed pool configurations in `../config/asset-race-assets.json`.
 are mappings on the new address and nothing carries over automatically.
 
 **Liquidity mechanics added 2026-09-05:**
-- **One-sided cancellation:** `resolve()` cancels the market (full refunds
-  via `refund()`, no fee) if either `poolYes` or `poolNo` is still zero at
-  the deadline — a market only ever settles as a genuine two-sided
-  prediction.
+- **P2P eligibility cancellation:** `resolve()` cancels the market (full refunds
+  via `refund()`, no fee) if either `poolYes` or `poolNo` is still zero or fewer
+  than two distinct addresses participated. One address may hold both sides but
+  counts only once, so it cannot make its own market settle.
 - **House seed liquidity:** `createMarket`'s new `initialYesAmount`/
   `initialNoAmount` params let the owner seed both sides atomically at
   creation (e.g. to open at 50/50 odds) — owner-only when non-zero, capped
