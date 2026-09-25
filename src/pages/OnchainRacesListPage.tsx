@@ -249,7 +249,7 @@ export function OnchainRacesListPage() {
         <main className="min-w-0 flex-1">
       {isLoading ? (
         <p className="py-16 text-center text-sm text-white/40">Loading races…</p>
-      ) : error ? (
+      ) : error && featured.length === 0 && community.length === 0 ? (
         <div className="rounded-2xl border border-rose-500/25 bg-rose-500/10 p-5 text-sm text-rose-300">Could not read the AssetRace contract.</div>
       ) : featured.length === 0 && community.length === 0 ? (
         <p className="py-16 text-center text-sm text-white/35">No {mode === 'memes' ? 'meme' : 'stock'} races match this filter.</p>
