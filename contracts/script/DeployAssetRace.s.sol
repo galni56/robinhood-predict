@@ -14,7 +14,7 @@ import {NativeEthDeploymentSafety} from "./helpers/NativeEthDeploymentSafety.sol
 
 contract DeployAssetRace is Script {
     function run() external returns (SignedPoolRaceOracle oracle, AssetRace race) {
-        uint256 deployerKey = vm.envUint("ASSET_RACE_DEPLOYER_PRIVATE_KEY");
+        uint256 deployerKey = vm.envUint("PRIVATE_KEY");
         address deployer = vm.addr(deployerKey);
         address expectedOwner = vm.envAddress("EXPECTED_OWNER_ADDRESS");
         address priceSigner = vm.envAddress("ASSET_RACE_PRICE_SIGNER_ADDRESS");

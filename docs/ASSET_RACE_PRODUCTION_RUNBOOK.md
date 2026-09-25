@@ -57,7 +57,8 @@ cancels or unavailable P1 voids; they do not change the endpoint or limit claims
 Generate and review all public values from the registry/manifest. Only the
 deployer key belongs exclusively in the operator's secret-aware environment:
 
-- `ASSET_RACE_DEPLOYER_PRIVATE_KEY`
+- `PRIVATE_KEY` (the shared approved owner/deployer key name used by all three
+  native products)
 - `EXPECTED_OWNER_ADDRESS` (reviewed public address; must match the deployer)
 - `ASSET_RACE_PRICE_SIGNER_ADDRESS` (public address only)
 - `ASSET_RACE_ADDRESS` after deployment

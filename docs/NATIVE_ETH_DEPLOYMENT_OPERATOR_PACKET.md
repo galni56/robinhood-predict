@@ -144,10 +144,11 @@ export PRICE_ARENA_MIN_STAKE_WEI=100000000000000
 export PRICE_ARENA_MAX_STAKE_WEI=100000000000000000
 ```
 
-`PRIVATE_KEY` and `ASSET_RACE_DEPLOYER_PRIVATE_KEY` are intentionally absent
-from this document. The operator loads the same approved owner/deployer key for
-the relevant scripts from protected storage. The scripts derive its public
-address and fail before broadcast unless it matches `EXPECTED_OWNER_ADDRESS`.
+`PRIVATE_KEY` is intentionally absent from this document. All three products use
+that one owner/deployer key name; there is no second AssetRace deployer secret.
+The operator loads the approved owner/deployer key from protected storage. The
+scripts derive its public address and fail before broadcast unless it matches
+`EXPECTED_OWNER_ADDRESS`.
 
 Run Forge commands from `contracts/`. Every script is first simulated without
 `--broadcast`. A successful simulation does not authorize its broadcast.

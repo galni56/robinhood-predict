@@ -101,7 +101,7 @@ yet; no race has been created.
 | Keeper public address | Confirmed: `0xaF95287026339B51b1Ff45DC385b4D56F507634a`; distinct from owner |
 | Dedicated price signer public address | Confirmed: `0x79F4991Ccc64Cbb8143fB61e4cBD49b8b64d3635`; distinct from owner/keeper |
 | Private price signer material | ASSET_RACE_POOL_PRICE_SIGNER_PRIVATE_KEY, server-managed environment only |
-| Deployer/owner private material | ASSET_RACE_DEPLOYER_PRIVATE_KEY, operator-only deployment process |
+| Deployer/owner private material | `PRIVATE_KEY`, operator-only deployment process; shared variable name across all three native deployment scripts |
 | Separate keeper gas signer | ASSET_RACE_KEEPER_PRIVATE_KEY, server-managed; no unlocked public RPC account |
 | Settlement token | ASSET_RACE_BET_TOKEN_ADDRESS = canonical USDG in central mainnet registry |
 | Policy/presets | Existing approved economics and runbook timing/preset inputs; age60/lag0/skew0 |

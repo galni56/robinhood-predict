@@ -10,6 +10,8 @@ const configured = { VITE_ASSET_RACE_NETWORK: 'robinhood-mainnet',
 const registry = JSON.parse(readFileSync(new URL('../config/asset-race-assets.json', import.meta.url), 'utf8'))
 const pagesWorkflow = readFileSync(new URL('../.github/workflows/deploy.yml', import.meta.url), 'utf8')
 const deployAssetRaceScript = readFileSync(new URL('../contracts/script/DeployAssetRace.s.sol', import.meta.url), 'utf8')
+const configureAssetRaceScript = readFileSync(new URL('../contracts/script/ConfigureAssetRace.s.sol', import.meta.url), 'utf8')
+const rotateAssetRaceOracleScript = readFileSync(new URL('../contracts/script/RotateAssetRaceOracle.s.sol', import.meta.url), 'utf8')
 const nativeSimulationScript = readFileSync(
   new URL('../contracts/script/SimulateNativeEthDeployment.s.sol', import.meta.url),
   'utf8',
@@ -110,6 +112,10 @@ test('supported frontend exposes no legacy USDG transaction surface', () => {
 })
 
 test('native AssetRace deployment reuses the existing signed-pool oracle', () => {
+  for (const script of [deployAssetRaceScript, configureAssetRaceScript, rotateAssetRaceOracleScript]) {
+    assert.match(script, /envUint\("PRIVATE_KEY"\)/)
+    assert.doesNotMatch(script, /ASSET_RACE_DEPLOYER_PRIVATE_KEY/)
+  }
   assert.match(deployAssetRaceScript, /envAddress\("ASSET_RACE_SIGNED_POOL_ORACLE_ADDRESS"\)/)
   assert.match(deployAssetRaceScript, /envAddress\("EXPECTED_OWNER_ADDRESS"\)/)
   assert.match(deployAssetRaceScript, /validateSigningOwner\(deployer, expectedOwner\)/)

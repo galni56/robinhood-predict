@@ -15,7 +15,7 @@ contract ConfigureAssetRace is Script {
     uint64 private constant STOCK_MAX_ENDPOINT_LAG = 0;
 
     function run() external {
-        uint256 deployerKey = vm.envUint("ASSET_RACE_DEPLOYER_PRIVATE_KEY");
+        uint256 deployerKey = vm.envUint("PRIVATE_KEY");
         address expectedOwner = vm.envAddress("EXPECTED_OWNER_ADDRESS");
         AssetRace race = AssetRace(payable(vm.envAddress("ASSET_RACE_ADDRESS")));
         SignedPoolRaceOracle oracle = SignedPoolRaceOracle(vm.envAddress("ASSET_RACE_SIGNED_POOL_ORACLE_ADDRESS"));
