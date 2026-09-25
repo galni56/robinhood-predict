@@ -65,11 +65,14 @@ All 10 approved Stocks and 13 approved Memes are registered; deployment state,
 tests and operational evidence are recorded in
 [`docs/ASSET_RACE_PREDEPLOY_CHECKLIST.md`](./docs/ASSET_RACE_PREDEPLOY_CHECKLIST.md).
 
-These addresses are unsupported historical test deployments and remain only in a
-denylist; they are not valid bindings for the payable native frontend. GitHub
-Pages deliberately leaves all native successor addresses unset. Native rollout
-still requires deployment approval, controlled tiny-value lifecycle rehearsals
-and an explicit frontend/service switch.
+These USDG addresses are unsupported historical test deployments and remain only
+in a denylist. Native successors are now deployed/configured at PredictionMarket
+`0xe6C4aAf95f43E35Ef309eEa61bAfb345226333EB`, AssetRace
+`0x02F030Bd9D9DC86d713CDF0772ae4d1E3b81f235` and PriceArena
+`0x383840a8Ca00dcB4b6cAc17e746c793426fE2f05`. GitHub Pages deliberately leaves
+them unset until controlled tiny-value rehearsals and an explicit frontend/
+service switch pass. See
+[`docs/NATIVE_ETH_MAINNET_DEPLOYMENT.md`](./docs/NATIVE_ETH_MAINNET_DEPLOYMENT.md).
 
 ## Open / explicitly deferred
 
@@ -77,8 +80,9 @@ and an explicit frontend/service switch.
   wagering rather than adding WETH or a second liquidity currency. Onchain
   caps are broad fixed ETH safety fuses (`0.0001–0.1 ETH`); live dollar-range
   enforcement stays in the frontend. New
-  deployments, tiny-value rehearsals, keeper/service changes and the frontend
-  address switch still require explicit production approval. Follow the
+  deployments/configuration are complete; tiny-value rehearsals, keeper/service
+  changes and the frontend address switch still require explicit production
+  approval. Follow the
   canonical [`native ETH operator packet`](./docs/NATIVE_ETH_DEPLOYMENT_OPERATOR_PACKET.md)
   in strict PredictionMarket → AssetRace → PriceArena order.
 - **WalletConnect**, for mobile Safari / non-extension wallets. Needs a

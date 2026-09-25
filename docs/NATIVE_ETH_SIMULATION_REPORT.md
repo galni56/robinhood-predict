@@ -74,8 +74,9 @@ safety fuses and do not make ETH/USD an onchain dependency.
 Gas figures are fork-simulation measurements, not fee quotes. Re-estimate each
 real transaction immediately before any separately approved broadcast.
 
-## Remaining gate
+## Subsequent execution
 
-Commit and review the exact release candidate containing this report. Deployment,
-configuration and tiny-value lifecycle transactions still require a separate
-explicit production approval; this simulation does not authorize them.
+Deployment and configuration later completed under separate explicit approval;
+see `NATIVE_ETH_MAINNET_DEPLOYMENT.md`. Tiny-value lifecycle transactions and
+public binding remain separate gates; this historical simulation did not
+authorize them.

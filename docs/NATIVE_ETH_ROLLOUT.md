@@ -1,8 +1,10 @@
 # Native ETH production rollout
 
-Status: implementation is on `dima/gonochki`; no native replacement contract is
-deployed. Earlier USDG deployments contain only owner test activity; the owner
-waived recovery and the release does not expose or automate those contracts.
+Status: all three native replacements are deployed and configured on Robinhood
+Chain, but tiny-value canaries and public frontend/service binding are pending.
+Earlier USDG deployments contain only owner test activity; the owner waived
+recovery and the release does not expose or automate those contracts. See
+`NATIVE_ETH_MAINNET_DEPLOYMENT.md` for the complete 63-transaction record.
 
 ## Current progress — 2026-09-25
 
@@ -13,7 +15,7 @@ waived recovery and the release does not expose or automate those contracts.
 - A combined Foundry rehearsal deploys all three native products against one
   signed oracle and completes both resolve/claim and cancel/refund lifecycles.
 - Full validation after release-role hardening passed: 185 Forge tests,
-  128,000 invariant calls and 97 Node tests, plus registry/build/lint/diff gates.
+  128,000 invariant calls and 98 Node tests, plus registry/build/lint/diff gates.
 - The public deployment manifest is generated directly from the validated
   registry and rejects malformed addresses, pool ids, mixed validation profiles,
   duplicate bindings and unexpected production asset counts.
@@ -25,7 +27,8 @@ waived recovery and the release does not expose or automate those contracts.
 - The exact human-run deployment sequence, public inputs, read-only
   postconditions and hard stop before canary/service switching are in
   `NATIVE_ETH_DEPLOYMENT_OPERATOR_PACKET.md`.
-- No broadcast, VPS change or `main` merge has occurred.
+- Deployment/configuration broadcasts completed and all public postconditions
+  passed. No canary, VPS/service/frontend change or `main` merge has occurred.
 
 ## Non-negotiable boundaries
 
@@ -68,11 +71,10 @@ waived recovery and the release does not expose or automate those contracts.
    oracle ids, gas estimates and expected postconditions. This is not authority
    to broadcast. Use `SimulateNativeEthDeployment.s.sol`; it contains no
    broadcast cheatcode and reads only public manifest values, never a private key.
-5. **Mainnet deployment.** With separate explicit approval, deploy and configure
-   PredictionMarket, AssetRace, then PriceArena. After every transaction verify
-   code, owner, caps, existing oracle/signer identity and complete asset bindings.
-   Follow `NATIVE_ETH_DEPLOYMENT_OPERATOR_PACKET.md`; do not switch the public
-   frontend yet.
+5. **Mainnet deployment — complete.** PredictionMarket, AssetRace and PriceArena
+   were deployed/configured in order; all 63 receipts and public postconditions
+   passed. See `NATIVE_ETH_MAINNET_DEPLOYMENT.md`. The public frontend remains
+   unbound.
 6. **Tiny-value canary.** With separate transaction approval, run complete real
    lifecycles for all three products, including keeper settlement and both
    claim/refund paths where applicable. Stop on any accounting/event mismatch.

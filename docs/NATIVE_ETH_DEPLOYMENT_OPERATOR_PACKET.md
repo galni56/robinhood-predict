@@ -3,6 +3,10 @@
 Status: **prepared procedure only; no broadcast, deployment, service change or
 `main` merge is authorized by this document**.
 
+Execution record: the separately authorized deploy/configure stages completed on
+2026-09-25. See `NATIVE_ETH_MAINNET_DEPLOYMENT.md`. This packet still does not
+authorize canary, service/frontend binding or `main` actions.
+
 This is the canonical operator procedure for the native-ETH replacements. Run it
 only from the exact reviewed release commit and only after the owner explicitly
 approves real Robinhood Chain mainnet transactions. The required order is:

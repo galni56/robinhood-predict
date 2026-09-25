@@ -1,13 +1,11 @@
 # Prediction Market deadline settlement
 
-Status: the USDG deadline-settlement generation is deployed on Robinhood Chain
-at `0x1a62098AcEd3F7F8C41fff1bc1395A541678b0F1`. Operator-reported VPS state on
-2026-09-25 has `prophet-prediction-market-keeper.service` active with live writes
-enabled, and the keeper has submitted real `resolve()` transactions. The older
-Chainlink contract at `0xd95ed19edBCd330498CADe7BA8569ac940A4182f` may still
-owe claims/refunds and must remain accessible. The current feature branch
-converts the next deployment's wager currency from USDG to native ETH; that
-native-ETH replacement is not deployed.
+Status: native-ETH PredictionMarket is deployed and configured at
+`0xe6C4aAf95f43E35Ef309eEa61bAfb345226333EB`; tiny-value canary and keeper/
+frontend binding are pending. The earlier USDG contracts
+`0x1a62098AcEd3F7F8C41fff1bc1395A541678b0F1` and
+`0xd95ed19edBCd330498CADe7BA8569ac940A4182f` contain owner test activity only
+and are unsupported/denylisted. See `NATIVE_ETH_MAINNET_DEPLOYMENT.md`.
 
 ## Price source and outcome rule
 

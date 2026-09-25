@@ -1,10 +1,10 @@
 # Price Arena
 
-Status: the USDG generation is deployed at
-`0xBAca2605914d8f7f0DF5663AA01f79FB8a6DA8ae`. Operator-reported VPS state on
-2026-09-25 has `prophet-price-arena-keeper.service` active with live writes
-enabled; it submitted resolution calls for arenas #0–#3 on 2026-09-24. The
-current branch implements a native-ETH replacement, which is not deployed. No
+Status: native-ETH PriceArena is deployed and configured at
+`0x383840a8Ca00dcB4b6cAc17e746c793426fE2f05`; tiny-value canary and keeper/
+frontend binding are pending. The earlier USDG generation at
+`0xBAca2605914d8f7f0DF5663AA01f79FB8a6DA8ae` contains owner test activity only
+and is unsupported/denylisted. See `NATIVE_ETH_MAINNET_DEPLOYMENT.md`. No
 independent security audit.
 
 Price Arena is a fixed-time closest-price contest for the same reviewed

@@ -12,7 +12,9 @@
 
 Historical staged checks and operator inputs are in
 `ASSET_RACE_PREDEPLOY_CHECKLIST.md`. The USDG contracts were deployed/configured
-and independently read-checked; the native-ETH successor is not deployed.
+and independently read-checked. The native-ETH successor is deployed and
+configured at `0x02F030Bd9D9DC86d713CDF0772ae4d1E3b81f235`; canary and public
+binding are pending. See `NATIVE_ETH_MAINNET_DEPLOYMENT.md`.
 
 Current Robinhood Chain mainnet deployment (chain4663):
 
