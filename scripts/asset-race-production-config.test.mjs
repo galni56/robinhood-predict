@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict'
 import { existsSync, readFileSync } from 'node:fs'
 import test from 'node:test'
-import { validateAssetRaceProductionBuild, validateNativeEthProductionBindings } from '../vite.config.ts'
+import {
+  APPROVED_NATIVE_ETH_BINDINGS,
+  validateAssetRaceProductionBuild,
+  validateNativeEthProductionBindings,
+} from '../vite.config.ts'
 import { archiveLookbacks, archiveRpcMinIntervalMs, archiveRpcUrl } from './asset-race-archive-options.mjs'
 
 const configured = { VITE_ASSET_RACE_NETWORK: 'robinhood-mainnet',
@@ -20,6 +24,8 @@ const appSource = readFileSync(new URL('../src/App.tsx', import.meta.url), 'utf8
 const navbarSource = readFileSync(new URL('../src/components/RealNavbar.tsx', import.meta.url), 'utf8')
 const footerSource = readFileSync(new URL('../src/components/Footer.tsx', import.meta.url), 'utf8')
 const contractsSource = readFileSync(new URL('../src/chain/contracts.ts', import.meta.url), 'utf8')
+const gameActivitySource = readFileSync(new URL('../src/chain/gameActivity.ts', import.meta.url), 'utf8')
+const sharePreviewSource = readFileSync(new URL('./share-preview-server.mjs', import.meta.url), 'utf8')
 
 test('production LIVE defaults to one shared two-second pool heartbeat', () => {
   assert.equal(registry.poolInfrastructure.livePollIntervalMs, 2_000)
@@ -74,10 +80,30 @@ test('implicit mainnet with a contract cannot omit its oracle; network typos and
     VITE_ASSET_RACE_SIGNED_POOL_ORACLE_ADDRESS: configured.VITE_ASSET_RACE_ADDRESS }), /different contract/)
 })
 
-test('GitHub Pages stays fail-closed until native-ETH contracts are deployed', () => {
-  assert.doesNotMatch(pagesWorkflow, /VITE_(?:MARKET|ASSET_RACE|PRICE_ARENA)_ADDRESS:/)
-  assert.doesNotMatch(pagesWorkflow, /0x63E582bb395527CED97F2F94662eA93A7EDf65Ff/i)
+test('GitHub Pages binds only the exact canary-approved native-ETH contracts', () => {
+  assert.match(pagesWorkflow, /VITE_NATIVE_ETH_RELEASE: ["']true["']/)
+  for (const [name, value] of Object.entries(APPROVED_NATIVE_ETH_BINDINGS)) {
+    assert.match(pagesWorkflow, new RegExp(`${name}: ["']${value}["']`, 'i'))
+  }
   assert.match(pagesWorkflow, /VITE_ASSET_RACE_LIVE_ENABLED: ["']false["']/)
+})
+
+test('release builds reject missing or altered native-ETH production bindings', () => {
+  validateNativeEthProductionBindings({ VITE_NATIVE_ETH_RELEASE: 'true', ...APPROVED_NATIVE_ETH_BINDINGS })
+  for (const name of Object.keys(APPROVED_NATIVE_ETH_BINDINGS)) {
+    assert.throws(
+      () => validateNativeEthProductionBindings({
+        VITE_NATIVE_ETH_RELEASE: 'true',
+        ...APPROVED_NATIVE_ETH_BINDINGS,
+        [name]: undefined,
+      }),
+      /does not match the approved native-ETH deployment/,
+    )
+  }
+  assert.throws(
+    () => validateNativeEthProductionBindings({ VITE_NATIVE_ETH_RELEASE: 'enabled' }),
+    /must be true or false/,
+  )
 })
 
 test('native-ETH builds reject every known USDG contract binding', () => {
@@ -109,6 +135,15 @@ test('supported frontend exposes no legacy USDG transaction surface', () => {
     '0x63E582bb395527CED97F2F94662eA93A7EDf65Ff',
     '0xBAca2605914d8f7f0DF5663AA01f79FB8a6DA8ae',
   ]) assert.match(contractsSource, new RegExp(address, 'i'))
+})
+
+test('share previews and activity scans use the native successor generation', () => {
+  for (const address of Object.values(APPROVED_NATIVE_ETH_BINDINGS).filter((value) => value.startsWith('0x'))) {
+    if (address === APPROVED_NATIVE_ETH_BINDINGS.VITE_ASSET_RACE_SIGNED_POOL_ORACLE_ADDRESS) continue
+    assert.match(sharePreviewSource, new RegExp(address, 'i'))
+  }
+  assert.match(gameActivitySource, /RACE_DEPLOY_BLOCK = 72_253_652n/)
+  assert.match(gameActivitySource, /ARENA_DEPLOY_BLOCK = 72_262_224n/)
 })
 
 test('native AssetRace deployment reuses the existing signed-pool oracle', () => {

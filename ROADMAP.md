@@ -70,9 +70,10 @@ These USDG addresses are unsupported historical test deployments and remain only
 in a denylist. Native successors are now deployed/configured at PredictionMarket
 `0x4bfd0efc15C3198fe3AFf4741FF121AB2F38060e`, AssetRace
 `0x02F030Bd9D9DC86d713CDF0772ae4d1E3b81f235` and PriceArena
-`0x383840a8Ca00dcB4b6cAc17e746c793426fE2f05`. GitHub Pages deliberately leaves
-them unset until controlled tiny-value rehearsals and an explicit frontend/
-service switch pass. See
+`0x383840a8Ca00dcB4b6cAc17e746c793426fE2f05`. All controlled tiny-value
+rehearsals passed. The feature branch now prepares exact release-locked GitHub
+Pages/VPS bindings, but the public switch still requires an explicit `main` and
+service-cutover approval. See
 [`docs/NATIVE_ETH_MAINNET_DEPLOYMENT.md`](./docs/NATIVE_ETH_MAINNET_DEPLOYMENT.md).
 
 ## Open / explicitly deferred

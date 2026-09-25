@@ -13,11 +13,33 @@ const LEGACY_USDG_BINDINGS: Record<string, string[]> = {
   VITE_PRICE_ARENA_ADDRESS: ['0xbaca2605914d8f7f0df5663aa01f79fb8a6da8ae'],
 }
 
+export const APPROVED_NATIVE_ETH_BINDINGS = {
+  VITE_MARKET_ADDRESS: '0x4bfd0efc15C3198fe3AFf4741FF121AB2F38060e',
+  VITE_DEPLOY_BLOCK: '72300695',
+  VITE_ASSET_RACE_ADDRESS: '0x02F030Bd9D9DC86d713CDF0772ae4d1E3b81f235',
+  VITE_ASSET_RACE_SIGNED_POOL_ORACLE_ADDRESS: '0x5b0f7e62E0A5fF5C5C02Ad219Afcd086F2618Db7',
+  VITE_PRICE_ARENA_ADDRESS: '0x383840a8Ca00dcB4b6cAc17e746c793426fE2f05',
+} as const
+
 export function validateNativeEthProductionBindings(env: Record<string, unknown>) {
   for (const [name, legacyAddresses] of Object.entries(LEGACY_USDG_BINDINGS)) {
     const value = env[name]
     if (typeof value === 'string' && legacyAddresses.includes(value.trim().toLowerCase())) {
       throw new Error(`${name} points to a legacy USDG contract, not a native-ETH deployment`)
+    }
+  }
+  const releaseEnabled = typeof env.VITE_NATIVE_ETH_RELEASE === 'string'
+    ? env.VITE_NATIVE_ETH_RELEASE.trim()
+    : ''
+  if (releaseEnabled && !['true', 'false'].includes(releaseEnabled)) {
+    throw new Error('VITE_NATIVE_ETH_RELEASE must be true or false')
+  }
+  if (releaseEnabled !== 'true') return
+
+  for (const [name, expected] of Object.entries(APPROVED_NATIVE_ETH_BINDINGS)) {
+    const actual = typeof env[name] === 'string' ? env[name].trim() : ''
+    if (actual.toLowerCase() !== expected.toLowerCase()) {
+      throw new Error(`${name} does not match the approved native-ETH deployment`)
     }
   }
 }

@@ -11,6 +11,11 @@ Chain, returns Open Graph/Twitter metadata to link crawlers, and redirects a
 browser to the existing HashRouter route. It is read-only: it has no wallet and
 cannot submit transactions.
 
+The checked-in defaults are the three canary-approved native ETH successors.
+Any VPS `SHARE_MARKET_ADDRESS`, `SHARE_RACE_ADDRESS` or `SHARE_ARENA_ADDRESS`
+override must be updated to the same addresses at cutover; an environment
+override takes precedence over the defaults.
+
 ## Images
 
 The three supplied game-specific cards live under `public/share-images/` and
@@ -44,12 +49,12 @@ Wants=network-online.target
 Type=simple
 User=prophet-keeper
 Group=prophet-keeper
-WorkingDirectory=/opt/robinhood-predict-asset-race
+WorkingDirectory=/opt/robinhood-predict
 EnvironmentFile=/etc/prophet/prediction-market-rpc.env
 Environment=SHARE_PREVIEW_HOST=127.0.0.1
 Environment=SHARE_PREVIEW_PORT=8790
 Environment=SHARE_CANONICAL_ORIGIN=https://prophetmarkets.fun
-ExecStart=/usr/bin/node /opt/robinhood-predict-asset-race/scripts/share-preview-server.mjs
+ExecStart=/usr/bin/node /opt/robinhood-predict/scripts/share-preview-server.mjs
 Restart=on-failure
 RestartSec=5
 

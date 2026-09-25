@@ -80,9 +80,13 @@ recovery and the release does not expose or automate those contracts. See
 6. **Tiny-value canary — complete.** PredictionMarket, AssetRace and PriceArena
    completed real keeper settlement plus claim/refund paths with exact final
    accounting. All public receipt/state checks passed.
-7. **Service and frontend canary.** Update public contract bindings and keeper/
-   share-preview addresses, preserve the single paid-Alchemy routing and shared
-   ETH/USD cache, then validate the production-shaped build on desktop/mobile.
+7. **Service and frontend canary — prepared locally.** Public frontend and
+   share-preview defaults are bound to the exact canary-approved addresses with
+   a release-build mismatch guard. Both VPS- and GitHub-Pages-shaped builds pass;
+   the shared SSE path returned a fresh cached ETH/USD quote and share previews
+   decoded all three canary products from mainnet. Rebind keeper/VPS environment
+   values, preserve the single paid-Alchemy routing and shared ETH/USD cache,
+   then repeat the final desktop/mobile smoke-check on the public domain.
    Rebind the existing keepers to native contracts; do not run parallel USDG
    services or expose a legacy recovery route.
 8. **Release to main.** After final review and explicit merge approval, merge the

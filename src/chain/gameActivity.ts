@@ -14,8 +14,8 @@ const ARENA_ENTRY_EVENT = parseAbiItem(
 )
 const ARENA_CLAIM_EVENT = parseAbiItem('event Claimed(uint256 indexed arenaId, address indexed player, uint256 payout)')
 
-const RACE_DEPLOY_BLOCK = 69_301_336n
-const ARENA_DEPLOY_BLOCK = 71_028_978n
+const RACE_DEPLOY_BLOCK = 72_253_652n
+const ARENA_DEPLOY_BLOCK = 72_262_224n
 
 export type GameActivityKind = 'race' | 'arena'
 

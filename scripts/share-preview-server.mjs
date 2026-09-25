@@ -5,9 +5,9 @@ import { pathToFileURL } from 'node:url'
 import { createPublicClient, defineChain, formatUnits, hexToString, http, isAddress } from 'viem'
 
 const DEFAULT_ORIGIN = 'https://prophetmarkets.fun'
-const DEFAULT_MARKET_ADDRESS = '0x1a62098AcEd3F7F8C41fff1bc1395A541678b0F1'
-const DEFAULT_RACE_ADDRESS = '0x63E582bb395527CED97F2F94662eA93A7EDf65Ff'
-const DEFAULT_ARENA_ADDRESS = '0xBAca2605914d8f7f0DF5663AA01f79FB8a6DA8ae'
+const DEFAULT_MARKET_ADDRESS = '0x4bfd0efc15C3198fe3AFf4741FF121AB2F38060e'
+const DEFAULT_RACE_ADDRESS = '0x02F030Bd9D9DC86d713CDF0772ae4d1E3b81f235'
+const DEFAULT_ARENA_ADDRESS = '0x383840a8Ca00dcB4b6cAc17e746c793426fE2f05'
 
 const marketAbi = [
   { type: 'function', name: 'marketCount', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },

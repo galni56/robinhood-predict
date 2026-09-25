@@ -3,14 +3,15 @@
 **Earlier USDG contracts contain owner mainnet tests and have no supported UI in
 the release. Their current VPS automation remains unchanged until the approved
 cutover. The corrected native deadline-settlement replacement is deployed and
-configured at `0x4bfd0efc15C3198fe3AFf4741FF121AB2F38060e`; canary and public binding
-are pending. There is no audit.** `forge build` and `forge test` are green:
+configured at `0x4bfd0efc15C3198fe3AFf4741FF121AB2F38060e`; all three native product
+canaries passed and only public binding remains pending. There is no audit.**
+`forge build` and `forge test` are green:
 
 - Deployed USDG deadline `PredictionMarket`:
   `0x1a62098AcEd3F7F8C41fff1bc1395A541678b0F1`; its live keeper has submitted
   real test resolutions. The older funded Chainlink contract is
   `0xd95ed19edBCd330498CADe7BA8569ac940A4182f`; both are unsupported historical
-  deployments and remain only in the native-binding denylist. The native-ETH replacement source has **43/43 focused tests
+  deployments and remain only in the native-binding denylist. The native-ETH replacement source has **46/46 focused tests
   passing** and settles from the same signed StockToken/USDG pool endpoint as
   Asset Race: the last Robinhood block strictly before the deadline. The
   price/timestamp/block hash are stored in `settlements(id)`; an endpoint over

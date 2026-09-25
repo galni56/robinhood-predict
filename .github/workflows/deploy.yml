@@ -18,10 +18,16 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      # Native-ETH successor addresses stay deliberately unset until those
-      # contracts are deployed and approved. This prevents the payable UI from
-      # ever binding to the existing USDG contracts during an automatic deploy.
-      # GitHub Pages also has no same-origin SSE backend.
+      # Exact mainnet successors after all three lifecycle canaries passed.
+      # Vite rejects any mismatch while VITE_NATIVE_ETH_RELEASE is true.
+      VITE_NATIVE_ETH_RELEASE: "true"
+      VITE_MARKET_ADDRESS: "0x4bfd0efc15C3198fe3AFf4741FF121AB2F38060e"
+      VITE_DEPLOY_BLOCK: "72300695"
+      VITE_ASSET_RACE_NETWORK: "robinhood-mainnet"
+      VITE_ASSET_RACE_ADDRESS: "0x02F030Bd9D9DC86d713CDF0772ae4d1E3b81f235"
+      VITE_ASSET_RACE_SIGNED_POOL_ORACLE_ADDRESS: "0x5b0f7e62E0A5fF5C5C02Ad219Afcd086F2618Db7"
+      VITE_PRICE_ARENA_ADDRESS: "0x383840a8Ca00dcB4b6cAc17e746c793426fE2f05"
+      # GitHub Pages has no same-origin SSE backend.
       VITE_ASSET_RACE_LIVE_ENABLED: "false"
     steps:
       - uses: actions/checkout@v4
