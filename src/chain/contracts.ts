@@ -1,29 +1,28 @@
 import { getAddress, isAddress, zeroAddress, type Address } from 'viem'
 
-export const USDG_DEADLINE_PREDICTION_MARKET_ADDRESS = '0x1a62098AcEd3F7F8C41fff1bc1395A541678b0F1' as Address
-export const LEGACY_CHAINLINK_PREDICTION_MARKET_ADDRESS = '0xd95ed19edBCd330498CADe7BA8569ac940A4182f' as Address
-export const LEGACY_ASSET_RACE_ADDRESS = '0x63E582bb395527CED97F2F94662eA93A7EDf65Ff' as Address
-export const LEGACY_PRICE_ARENA_ADDRESS = '0xBAca2605914d8f7f0DF5663AA01f79FB8a6DA8ae' as Address
-export const LEGACY_USDG_ADDRESS = '0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168' as Address
+export const DENIED_USDG_DEADLINE_MARKET_ADDRESS = '0x1a62098AcEd3F7F8C41fff1bc1395A541678b0F1' as Address
+export const DENIED_USDG_CHAINLINK_MARKET_ADDRESS = '0xd95ed19edBCd330498CADe7BA8569ac940A4182f' as Address
+export const DENIED_USDG_ASSET_RACE_ADDRESS = '0x63E582bb395527CED97F2F94662eA93A7EDf65Ff' as Address
+export const DENIED_USDG_PRICE_ARENA_ADDRESS = '0xBAca2605914d8f7f0DF5663AA01f79FB8a6DA8ae' as Address
 
 // Native-ETH deployments are always explicit. A missing address leaves the
-// new market UI read-only instead of silently routing writes to the legacy
-// USDG contract retained below for claims and refunds.
+// new market UI read-only. Known USDG contract addresses remain here only as a
+// fail-closed denylist; the product exposes no legacy transaction path.
 const configuredMarketAddress = import.meta.env.VITE_MARKET_ADDRESS?.trim()
 const normalizedMarketAddress = configuredMarketAddress && isAddress(configuredMarketAddress)
   ? getAddress(configuredMarketAddress)
   : undefined
-const marketUsesLegacyUsdG = normalizedMarketAddress != null && [
-  USDG_DEADLINE_PREDICTION_MARKET_ADDRESS,
-  LEGACY_CHAINLINK_PREDICTION_MARKET_ADDRESS,
+const marketUsesDeniedUsdG = normalizedMarketAddress != null && [
+  DENIED_USDG_DEADLINE_MARKET_ADDRESS,
+  DENIED_USDG_CHAINLINK_MARKET_ADDRESS,
 ].some((address) => address.toLowerCase() === normalizedMarketAddress.toLowerCase())
-export const PREDICTION_MARKET_ADDRESS = normalizedMarketAddress && !marketUsesLegacyUsdG
+export const PREDICTION_MARKET_ADDRESS = normalizedMarketAddress && !marketUsesDeniedUsdG
   ? normalizedMarketAddress
   : zeroAddress
 export const PREDICTION_MARKET_CONFIGURED = PREDICTION_MARKET_ADDRESS !== zeroAddress
 
-// Legacy Chainlink catalog retained for the existing token browser, legacy
-// market metadata, and Chainlink-backed Asset Race adapters. The replacement
+// Chainlink catalog retained for the existing token browser and Chainlink-backed
+// Asset Race adapters. The replacement
 // PredictionMarket does not use this list; its ten reviewed StockToken/USDG
 // pools come from predictionMarketAssets.ts and asset-race-assets.json.
 export const ALLOWLISTED_FEEDS = [
@@ -252,43 +251,6 @@ export const predictionMarketAbi = [
       { name: 'outcome', type: 'uint8', indexed: false },
       { name: 'settlePrice', type: 'int256', indexed: false },
     ],
-  },
-] as const
-
-export const erc20Abi = [
-  {
-    type: 'function',
-    name: 'balanceOf',
-    stateMutability: 'view',
-    inputs: [{ name: 'account', type: 'address' }],
-    outputs: [{ type: 'uint256' }],
-  },
-  {
-    type: 'function',
-    name: 'allowance',
-    stateMutability: 'view',
-    inputs: [
-      { name: 'owner', type: 'address' },
-      { name: 'spender', type: 'address' },
-    ],
-    outputs: [{ type: 'uint256' }],
-  },
-  {
-    type: 'function',
-    name: 'approve',
-    stateMutability: 'nonpayable',
-    inputs: [
-      { name: 'spender', type: 'address' },
-      { name: 'amount', type: 'uint256' },
-    ],
-    outputs: [{ type: 'bool' }],
-  },
-  {
-    type: 'function',
-    name: 'decimals',
-    stateMutability: 'view',
-    inputs: [],
-    outputs: [{ type: 'uint8' }],
   },
 ] as const
 

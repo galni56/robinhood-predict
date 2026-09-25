@@ -2,7 +2,8 @@
 
 > Historical USDG-generation record. The deployed address in this document is
 > not ABI/payment-compatible with the native-ETH successor. Never bind the new
-> payable frontend to it; use `/onchain/legacy` for old claims/refunds.
+> payable frontend to it. The owner waived recovery for these mainnet tests, so
+> the address remains only in the native-binding denylist.
 
 The operator deployed and configured Asset Race on Robinhood Chain mainnet after
 separate dry runs and explicit transaction authorization. Private material stayed

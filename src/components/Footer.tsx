@@ -5,7 +5,6 @@ const realModeLinks = [
   { to: '/onchain', label: 'Markets' },
   { to: '/onchain/portfolio', label: 'Portfolio' },
   { to: '/onchain/leaderboard', label: 'Leaderboard' },
-  { to: '/onchain/legacy', label: 'Legacy USDG claims' },
   { to: '/demo', label: 'Try the demo' },
 ]
 

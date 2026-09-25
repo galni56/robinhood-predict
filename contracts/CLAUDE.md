@@ -1,14 +1,16 @@
 ## Status right now (2026-09-25)
 
-**The legacy contract is live on Robinhood Chain mainnet with real money and
-no audit. The deadline-settlement replacement is implemented and tested but is
-not deployed.** `forge build` and `forge test` are green:
+**Earlier USDG contracts contain owner mainnet tests and have no supported UI in
+the release. Their current VPS automation remains unchanged until the approved
+cutover, when existing services are rebound to native addresses. The native
+deadline-settlement replacement is implemented and tested but is not deployed.
+There is no audit.** `forge build` and `forge test` are green:
 
 - Deployed USDG deadline `PredictionMarket`:
   `0x1a62098AcEd3F7F8C41fff1bc1395A541678b0F1`; its live keeper has submitted
-  real resolutions. The older funded Chainlink contract is
-  `0xd95ed19edBCd330498CADe7BA8569ac940A4182f` and remains a claim/refund
-  compatibility target. The native-ETH replacement source has **43/43 focused tests
+  real test resolutions. The older funded Chainlink contract is
+  `0xd95ed19edBCd330498CADe7BA8569ac940A4182f`; both are unsupported historical
+  deployments and remain only in the native-binding denylist. The native-ETH replacement source has **43/43 focused tests
   passing** and settles from the same signed StockToken/USDG pool endpoint as
   Asset Race: the last Robinhood block strictly before the deadline. The
   price/timestamp/block hash are stored in `settlements(id)`; an endpoint over
@@ -229,7 +231,7 @@ for the split. The real-mode pieces relevant to contracts work:
   mobile, non-extension wallets) needs a free Project ID from
   cloud.walletconnect.com that only the project owner can obtain — not
   wired up yet.
-- `src/chain/contracts.ts` — explicit new and legacy contract addresses,
+- `src/chain/contracts.ts` — explicit native address plus a known-USDG denylist,
   the replacement ABI, and client-side mirrors of betting constants and target
   guidance. `src/chain/predictionMarketAssets.ts` derives the ten pool-backed
   assets from `config/asset-race-assets.json`.

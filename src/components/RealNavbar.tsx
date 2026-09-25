@@ -11,7 +11,6 @@ const links = [
   { to: '/onchain/portfolio', label: 'Portfolio' },
   { to: '/onchain/leaderboard', label: 'Leaderboard' },
   { to: '/onchain/archive', label: 'Archive' },
-  { to: '/onchain/legacy', label: 'Legacy' },
 ]
 
 /** Full-size navbar for the real (mainnet) side of the site - the landing

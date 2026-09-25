@@ -1,8 +1,9 @@
 # Asset Race production runbook
 
 > The concrete contract address below belongs to the USDG generation. It is
-> retained for historical operations and legacy claims only. The native-ETH
-> frontend must remain unbound until a separately approved successor deployment.
+> unsupported historical test state and remains only in the native-binding
+> denylist. The native-ETH frontend must remain unbound until a separately
+> approved successor deployment.
 
 Current staged checks, operator inputs and readiness verdict:
 `ASSET_RACE_PREDEPLOY_CHECKLIST.md`. Local E2E and sampled Alchemy archive reads

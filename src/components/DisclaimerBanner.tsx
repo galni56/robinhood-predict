@@ -15,7 +15,7 @@ export function DisclaimerBanner() {
         {isLocalRaceRoute
           ? 'LOCAL TEST NETWORK · NO REAL FUNDS - Asset Race transactions use Anvil and test ETH only.'
           : isOnchain
-          ? 'Real mode: current mainnet positions use the legacy USDG contracts. Native-ETH successors in this build are not deployed yet; stock prices remain quoted in USDG. Real money - contracts have not had an external security audit.'
+          ? 'Real mode: wagers use native ETH once the reviewed contracts are configured; stock prices remain quoted in USDG. Real money - contracts have not had an external security audit.'
           : `Demo / prototype running on mock data. ${RHCHAIN_META.disclaimer}`}
       </span>
     </div>

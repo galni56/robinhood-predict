@@ -104,7 +104,7 @@ scheduled in memory rather than reread on every poll. The five-second default
 poll interval affects only how soon settlement is submitted after the deadline;
 the signed proof still fixes the price at the exact deadline block boundary.
 
-## Rollout and legacy migration gate
+## Rollout gate
 
 1. Simulate the native-ETH deployment with the existing SignedPoolRaceOracle
    and explicit wei caps. Do not configure a bet token, WETH wrapper or swap.
@@ -113,12 +113,12 @@ the signed proof still fixes the price at the exact deadline block boundary.
    `--deployment-oracle-ids`.
 3. Verify contract constants, asset bindings, trusted signer, and bytecode.
 4. Run keeper once with `DRY_RUN=true`, then test a small complete market.
-5. Preserve claim/refund access to both the deployed deadline USDG contract and
-   the older funded Chainlink contract before switching new activity to ETH.
+5. Keep both USDG contract addresses in the native-binding denylist. The owner
+   waived recovery for these owner-only mainnet tests; do not expose their ABI or
+   keepers in the supported release.
 6. Only after explicit approval deploy the native-ETH replacement and switch
    new frontend writes. Do not change keeper/VPS/nginx state as part of local work.
 
 A read-only check on 2026-09-23 found a funded market at the older Chainlink
-address. Its terminal status has not been established in this repository, so
-the frontend retains an explicit claim/refund path for it. A deployed contract
-cannot be rolled back.
+address. The owner confirmed it is their test activity and explicitly waived any
+unclaimed value. The contract remains immutable onchain but unsupported.

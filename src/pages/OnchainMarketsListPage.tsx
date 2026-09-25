@@ -154,7 +154,7 @@ export function OnchainMarketsListPage() {
 
       {!PREDICTION_MARKET_CONFIGURED && !isDemoMode() && (
         <div className="mb-6 rounded-2xl border border-amber-400/25 bg-amber-400/10 p-4 text-sm text-amber-100">
-          The new native ETH PredictionMarket is not configured in this build. Existing USDG claims and refunds remain available under <Link to="/onchain/legacy" className="font-bold underline">Legacy claims</Link>.
+          The native ETH PredictionMarket is not configured in this build, so real market transactions are unavailable.
         </div>
       )}
 

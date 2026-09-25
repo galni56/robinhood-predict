@@ -1,6 +1,6 @@
 import { getAddress, hexToString, isAddress, type Address, type Hex } from 'viem'
 import { assetRaceNetworkConfigError, isLocalAssetRace } from '@/chain/config'
-import { ALLOWLISTED_FEEDS, LEGACY_ASSET_RACE_ADDRESS } from '@/chain/contracts'
+import { ALLOWLISTED_FEEDS, DENIED_USDG_ASSET_RACE_ADDRESS } from '@/chain/contracts'
 
 export const ASSET_RACE_STATUS = {
   BETTING: 0,
@@ -22,14 +22,14 @@ export const ASSET_RACE_TOKEN_LABEL = isLocalAssetRace ? 'local ETH' : 'ETH'
 
 const configuredAddress = import.meta.env.VITE_ASSET_RACE_ADDRESS?.trim()
 const normalizedAddress = configuredAddress && isAddress(configuredAddress) ? getAddress(configuredAddress) : undefined
-const usesLegacyUsdG = normalizedAddress?.toLowerCase() === LEGACY_ASSET_RACE_ADDRESS.toLowerCase()
+const usesDeniedUsdG = normalizedAddress?.toLowerCase() === DENIED_USDG_ASSET_RACE_ADDRESS.toLowerCase()
 
 export const ASSET_RACE_ADDRESS: Address | undefined =
-  !assetRaceNetworkConfigError && normalizedAddress && !usesLegacyUsdG ? normalizedAddress : undefined
+  !assetRaceNetworkConfigError && normalizedAddress && !usesDeniedUsdG ? normalizedAddress : undefined
 
 export const ASSET_RACE_CONFIG_ERROR =
   assetRaceNetworkConfigError
-  ?? (usesLegacyUsdG ? 'VITE_ASSET_RACE_ADDRESS points to the legacy USDG contract.' : null)
+  ?? (usesDeniedUsdG ? 'VITE_ASSET_RACE_ADDRESS points to a denied USDG contract.' : null)
   ?? (configuredAddress && !ASSET_RACE_ADDRESS ? 'VITE_ASSET_RACE_ADDRESS is not a valid EVM address.' : null)
 
 export interface AssetRaceData {

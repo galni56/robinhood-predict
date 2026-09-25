@@ -1,8 +1,8 @@
 # Native ETH production rollout
 
 Status: implementation is on `dima/gonochki`; no native replacement contract is
-deployed. The existing USDG contracts and keepers remain live and must retain
-claim/refund access throughout the rollout.
+deployed. Earlier USDG deployments contain only owner test activity; the owner
+waived recovery and the release does not expose or automate those contracts.
 
 ## Current progress — 2026-09-25
 
@@ -32,8 +32,8 @@ claim/refund access throughout the rollout.
   not change.
 - New frontend bindings must never point at a USDG contract. Build-time and
   runtime denylisting enforce this for every known legacy address.
-- Never disable legacy keepers or `/onchain/legacy` until all old games are
-  terminal and their indefinite claim/refund paths remain available.
+- Known USDG contract addresses remain denylisted, but no legacy route, ABI or
+  keeper remains part of the supported product.
 - Production web deploys come only from `main` through `/opt/robinhood-predict`.
   Do not point nginx at an ad-hoc `dist-*` directory.
 - Private keys and credential-bearing RPC URLs stay outside the repository and
@@ -75,11 +75,12 @@ claim/refund access throughout the rollout.
 7. **Service and frontend canary.** Update public contract bindings and keeper/
    share-preview addresses, preserve the single paid-Alchemy routing and shared
    ETH/USD cache, then validate the production-shaped build on desktop/mobile.
-   Keep USDG recovery visible and services available.
+   Rebind the existing keepers to native contracts; do not run parallel USDG
+   services or expose a legacy recovery route.
 8. **Release to main.** After final review and explicit merge approval, merge the
    exact canary commit, deploy only from the canonical VPS checkout, verify the
    domain and GitHub Pages, and monitor the first real transactions. Roll back
-   frontend/service bindings on anomalies; never hide legacy recovery.
+   frontend/service bindings on anomalies.
 
 ## Guardrail policy (fixed ETH safety fuse)
 
@@ -104,5 +105,4 @@ outside them. This deliberately does not add an onchain ETH/USD dependency.
 Stop before broadcast or frontend switching if any address matches a legacy
 USDG deployment, the existing signed oracle/signer identity differs, a registry
 binding is incomplete, the shared ETH/USD quote is stale, any full validation
-gate fails, or legacy claim/refund access cannot be
-demonstrated.
+gate fails, or the native rollback path is not ready.

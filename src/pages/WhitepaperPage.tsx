@@ -48,7 +48,8 @@ export function WhitepaperPage() {
           </h1>
           <p className="mt-3 text-sm text-white/40">
             Version 2.0 · Robinhood Chain mainnet. This document describes the native-ETH product implemented for
-            the next deployments; old USDG contracts remain available for legacy claims and refunds. Prophet has not received an external security audit and this
+            the next deployments. Earlier USDG test deployments are unsupported historical contracts and are not
+            exposed by the product UI. Prophet has not received an external security audit and this
             document is not legal, financial or investment advice. See the{' '}
             <Link to="/terms" className="text-[#8B7CF7] hover:underline">
               Terms of Service

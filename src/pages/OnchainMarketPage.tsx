@@ -429,7 +429,7 @@ export function OnchainMarketPage() {
 
       {!PREDICTION_MARKET_CONFIGURED && (
         <div className="mt-5 rounded-2xl border border-amber-400/25 bg-amber-400/10 p-4 text-sm text-amber-100">
-          The new native ETH PredictionMarket is not configured yet. Legacy USDG claims and refunds remain available on the legacy page.
+          The native ETH PredictionMarket is not configured yet, so real market transactions are unavailable.
         </div>
       )}
 

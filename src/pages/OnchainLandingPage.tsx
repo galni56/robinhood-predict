@@ -77,7 +77,7 @@ const FEATURES = [
     tag: 'LIVE ON MAINNET',
     color: '#ED8F3A',
     title: 'Not a testnet. Not a simulation. Not a promise.',
-    body: 'The live USDG generation remains available for existing positions. This build prepares separately deployed native-ETH successors while preserving reviewed StockToken/USDG pools for stock prices. Permissionless market creation and deterministic deadline proofs keep the core rules transparent on-chain.',
+    body: 'The release candidate uses native ETH for every wager and payout while preserving reviewed StockToken/USDG pools only as stock price sources. Permissionless market creation and deterministic deadline proofs keep the core rules transparent on-chain.',
   },
 ] as const
 

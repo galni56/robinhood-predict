@@ -1,16 +1,16 @@
 import { getAddress, isAddress, stringToHex, type Address, type Hex } from 'viem'
 import { assetRaceCatalog, type AssetRaceCategoryName } from '@/chain/assetRaceRegistry'
 import { assetRaceNetworkKey } from '@/chain/config'
-import { LEGACY_PRICE_ARENA_ADDRESS } from '@/chain/contracts'
+import { DENIED_USDG_PRICE_ARENA_ADDRESS } from '@/chain/contracts'
 
 const rawAddress = import.meta.env.VITE_PRICE_ARENA_ADDRESS?.trim()
 const normalizedAddress = rawAddress && isAddress(rawAddress) ? getAddress(rawAddress) : undefined
-const usesLegacyUsdG = normalizedAddress?.toLowerCase() === LEGACY_PRICE_ARENA_ADDRESS.toLowerCase()
-export const PRICE_ARENA_ADDRESS: Address | undefined = normalizedAddress && !usesLegacyUsdG
+const usesDeniedUsdG = normalizedAddress?.toLowerCase() === DENIED_USDG_PRICE_ARENA_ADDRESS.toLowerCase()
+export const PRICE_ARENA_ADDRESS: Address | undefined = normalizedAddress && !usesDeniedUsdG
   ? normalizedAddress
   : undefined
-export const PRICE_ARENA_CONFIG_ERROR = usesLegacyUsdG
-  ? 'VITE_PRICE_ARENA_ADDRESS points to the legacy USDG contract.'
+export const PRICE_ARENA_CONFIG_ERROR = usesDeniedUsdG
+  ? 'VITE_PRICE_ARENA_ADDRESS points to a denied USDG contract.'
   : rawAddress && !PRICE_ARENA_ADDRESS
     ? 'VITE_PRICE_ARENA_ADDRESS is invalid.'
     : null

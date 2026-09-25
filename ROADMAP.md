@@ -51,8 +51,9 @@ plus what's actually still open.
     native ETH and return ETH for payouts/refunds/fees. The UI accepts USD or
     ETH input for the live $1–$50 range using one cached ETH/USD quote and sends one transaction
     without approval. StockToken/USDG and MemeToken/ETH settlement prices are
-    unchanged. Legacy USDG claim/refund access is retained. Deployment and
-    production switching are not part of this milestone.
+    unchanged. The owner waived recovery for earlier USDG mainnet tests, so the
+    release exposes no legacy UI or automation. Deployment and production
+    switching are not part of this milestone.
 
 ## Existing USDG generation and native successor (updated 2026-09-25)
 
@@ -64,10 +65,11 @@ All 10 approved Stocks and 13 approved Memes are registered; deployment state,
 tests and operational evidence are recorded in
 [`docs/ASSET_RACE_PREDEPLOY_CHECKLIST.md`](./docs/ASSET_RACE_PREDEPLOY_CHECKLIST.md).
 
-These addresses are legacy recovery targets, not valid bindings for the payable
-native frontend. GitHub Pages deliberately leaves all native successor addresses
-unset. Native rollout still requires deployment approval, the final public owner,
-controlled tiny-value lifecycle rehearsals and an explicit frontend/service switch.
+These addresses are unsupported historical test deployments and remain only in a
+denylist; they are not valid bindings for the payable native frontend. GitHub
+Pages deliberately leaves all native successor addresses unset. Native rollout
+still requires deployment approval, controlled tiny-value lifecycle rehearsals
+and an explicit frontend/service switch.
 
 ## Open / explicitly deferred
 

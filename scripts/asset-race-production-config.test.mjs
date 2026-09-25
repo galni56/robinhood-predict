@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import test from 'node:test'
 import { validateAssetRaceProductionBuild, validateNativeEthProductionBindings } from '../vite.config.ts'
 import { archiveLookbacks, archiveRpcMinIntervalMs, archiveRpcUrl } from './asset-race-archive-options.mjs'
@@ -14,6 +14,10 @@ const nativeSimulationScript = readFileSync(
   new URL('../contracts/script/SimulateNativeEthDeployment.s.sol', import.meta.url),
   'utf8',
 )
+const appSource = readFileSync(new URL('../src/App.tsx', import.meta.url), 'utf8')
+const navbarSource = readFileSync(new URL('../src/components/RealNavbar.tsx', import.meta.url), 'utf8')
+const footerSource = readFileSync(new URL('../src/components/Footer.tsx', import.meta.url), 'utf8')
+const contractsSource = readFileSync(new URL('../src/chain/contracts.ts', import.meta.url), 'utf8')
 
 test('production LIVE defaults to one shared two-second pool heartbeat', () => {
   assert.equal(registry.poolInfrastructure.livePollIntervalMs, 2_000)
@@ -88,6 +92,21 @@ test('native-ETH builds reject every known USDG contract binding', () => {
     VITE_ASSET_RACE_ADDRESS: '0x2222222222222222222222222222222222222222',
     VITE_PRICE_ARENA_ADDRESS: '0x3333333333333333333333333333333333333333',
   })
+})
+
+test('supported frontend exposes no legacy USDG transaction surface', () => {
+  assert.equal(existsSync(new URL('../src/pages/LegacyUsdRecoveryPage.tsx', import.meta.url)), false)
+  assert.doesNotMatch(appSource, /LegacyUsdRecoveryPage/)
+  assert.match(appSource, /path="legacy" element={<Navigate to="\/onchain" replace \/>}/)
+  assert.doesNotMatch(navbarSource, /onchain\/legacy|Legacy/)
+  assert.doesNotMatch(footerSource, /onchain\/legacy|Legacy USDG/)
+  assert.doesNotMatch(contractsSource, /export const erc20Abi|LEGACY_USDG_ADDRESS/)
+  for (const address of [
+    '0x1a62098AcEd3F7F8C41fff1bc1395A541678b0F1',
+    '0xd95ed19edBCd330498CADe7BA8569ac940A4182f',
+    '0x63E582bb395527CED97F2F94662eA93A7EDf65Ff',
+    '0xBAca2605914d8f7f0DF5663AA01f79FB8a6DA8ae',
+  ]) assert.match(contractsSource, new RegExp(address, 'i'))
 })
 
 test('native AssetRace deployment reuses the existing signed-pool oracle', () => {
