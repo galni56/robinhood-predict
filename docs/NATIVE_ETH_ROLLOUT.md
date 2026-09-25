@@ -12,14 +12,17 @@ claim/refund access throughout the rollout.
   `SignedPoolRaceOracle`; it cannot silently create a second oracle.
 - A combined Foundry rehearsal deploys all three native products against one
   signed oracle and completes both resolve/claim and cancel/refund lifecycles.
-- Full validation currently passes: 180 Forge tests, 128,000 invariant calls and
-  95 Node tests, plus registry/build/lint/diff gates.
+- Full validation currently passes: 181 Forge tests, 128,000 invariant calls and
+  96 Node tests, plus registry/build/lint/diff gates.
 - The public deployment manifest is generated directly from the validated
   registry and rejects malformed addresses, pool ids, mixed validation profiles,
   duplicate bindings and unexpected production asset counts.
 - Production guardrail values are not approved yet. The ±25% policy is a
   recommendation for review, not a deployment input.
-- No chain-4663 simulation, broadcast, VPS change or `main` merge has occurred.
+- A provisional no-broadcast fork simulation passed at chain-4663 block
+  `71839974`; its owner and wei values remain unapproved inputs. See
+  `NATIVE_ETH_SIMULATION_REPORT.md`.
+- No broadcast, VPS change or `main` merge has occurred.
 
 ## Non-negotiable boundaries
 
@@ -55,7 +58,8 @@ claim/refund access throughout the rollout.
 4. **No-broadcast chain-4663 simulation.** At an exact reviewed commit, simulate
    deploy/config calls and record bytecode, constructor args, public roles,
    oracle ids, gas estimates and expected postconditions. This is not authority
-   to broadcast.
+   to broadcast. Use `SimulateNativeEthDeployment.s.sol`; it contains no
+   broadcast cheatcode and reads only public manifest values, never a private key.
 5. **Mainnet deployment.** With separate explicit approval, deploy and configure
    PredictionMarket, AssetRace, then PriceArena. After every transaction verify
    code, owner, caps, existing oracle/signer identity and complete asset bindings.

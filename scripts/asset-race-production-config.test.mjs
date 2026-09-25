@@ -10,6 +10,10 @@ const configured = { VITE_ASSET_RACE_NETWORK: 'robinhood-mainnet',
 const registry = JSON.parse(readFileSync(new URL('../config/asset-race-assets.json', import.meta.url), 'utf8'))
 const pagesWorkflow = readFileSync(new URL('../.github/workflows/deploy.yml', import.meta.url), 'utf8')
 const deployAssetRaceScript = readFileSync(new URL('../contracts/script/DeployAssetRace.s.sol', import.meta.url), 'utf8')
+const nativeSimulationScript = readFileSync(
+  new URL('../contracts/script/SimulateNativeEthDeployment.s.sol', import.meta.url),
+  'utf8',
+)
 
 test('production LIVE defaults to one shared two-second pool heartbeat', () => {
   assert.equal(registry.poolInfrastructure.livePollIntervalMs, 2_000)
@@ -90,6 +94,13 @@ test('native AssetRace deployment reuses the existing signed-pool oracle', () =>
   assert.match(deployAssetRaceScript, /envAddress\("ASSET_RACE_SIGNED_POOL_ORACLE_ADDRESS"\)/)
   assert.match(deployAssetRaceScript, /TRUSTED_SIGNER\(\) == priceSigner/)
   assert.doesNotMatch(deployAssetRaceScript, /new SignedPoolRaceOracle/)
+})
+
+test('chain-4663 simulation cannot read a private key or broadcast', () => {
+  assert.doesNotMatch(nativeSimulationScript, /env(?:Uint|Bytes32)\([^\n]*PRIVATE_KEY/)
+  assert.doesNotMatch(nativeSimulationScript, /vm\.(?:startBroadcast|broadcast)\s*\(/)
+  assert.match(nativeSimulationScript, /block\.chainid == EXPECTED_CHAIN_ID/)
+  assert.match(nativeSimulationScript, /TRUSTED_SIGNER\(\) == inputs\.priceSigner/)
 })
 
 test('LIVE enablement rejects build-time typos', () => {
