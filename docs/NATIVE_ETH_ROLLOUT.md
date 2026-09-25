@@ -1,13 +1,11 @@
 # Native ETH production rollout
 
-Status: AssetRace and PriceArena are deployed/configured. The first native
-PredictionMarket deployment was superseded before canary after the product rule
-was clarified to require two distinct participant addresses; its corrected
-replacement must be deployed/configured before tiny-value canaries. Public
-frontend/service binding remains pending.
+Status: the corrected PredictionMarket, AssetRace and PriceArena are deployed/
+configured. Tiny-value canaries and public frontend/service binding remain
+pending. The first native PredictionMarket deployment is superseded and unused.
 Earlier USDG deployments contain only owner test activity; the owner waived
 recovery and the release does not expose or automate those contracts. See
-`NATIVE_ETH_MAINNET_DEPLOYMENT.md` for the complete 63-transaction record.
+`NATIVE_ETH_MAINNET_DEPLOYMENT.md` for the complete transaction record.
 
 ## Current progress — 2026-09-25
 
@@ -74,10 +72,9 @@ recovery and the release does not expose or automate those contracts. See
    oracle ids, gas estimates and expected postconditions. This is not authority
    to broadcast. Use `SimulateNativeEthDeployment.s.sol`; it contains no
    broadcast cheatcode and reads only public manifest values, never a private key.
-5. **Mainnet deployment — complete.** PredictionMarket, AssetRace and PriceArena
-   were deployed/configured in order; all 63 receipts and public postconditions
-   passed. See `NATIVE_ETH_MAINNET_DEPLOYMENT.md`. The public frontend remains
-   unbound.
+5. **Mainnet deployment — complete.** The corrected PredictionMarket, AssetRace
+   and PriceArena are deployed/configured and their public postconditions pass.
+   See `NATIVE_ETH_MAINNET_DEPLOYMENT.md`. The public frontend remains unbound.
 6. **Tiny-value canary.** With separate transaction approval, run complete real
    lifecycles for all three products, including keeper settlement and both
    claim/refund paths where applicable. Stop on any accounting/event mismatch.

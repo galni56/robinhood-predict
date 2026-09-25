@@ -1,11 +1,11 @@
 # Native ETH mainnet deployment record
 
-Status: **AssetRace and PriceArena remain release candidates. The first native
-PredictionMarket deployment is configured but superseded before canary because
-it does not enforce the subsequently confirmed two-distinct-address P2P rule.
-Its replacement is pending; no public frontend/service binding occurred.**
+Status: **the corrected PredictionMarket, AssetRace and PriceArena are deployed
+and configured. Tiny-value canaries and public frontend/service binding are
+pending.**
 
-Deployment date: 2026-09-25. Release source commit: `455744a`. Chain ID: `4663`.
+Deployment date: 2026-09-25. Original release source: `455744a`; corrected
+PredictionMarket source: `c53ba0a`. Chain ID: `4663`.
 No VPS, keeper, frontend, nginx, GitHub Pages or `main` change was made as part
 of this deployment.
 
@@ -13,7 +13,8 @@ of this deployment.
 
 | Component | Address |
 |---|---|
-| PredictionMarket | `0xe6C4aAf95f43E35Ef309eEa61bAfb345226333EB` |
+| PredictionMarket | `0x4bfd0efc15C3198fe3AFf4741FF121AB2F38060e` |
+| Superseded pre-canary PredictionMarket | `0xe6C4aAf95f43E35Ef309eEa61bAfb345226333EB` |
 | AssetRace | `0x02F030Bd9D9DC86d713CDF0772ae4d1E3b81f235` |
 | PriceArena | `0x383840a8Ca00dcB4b6cAc17e746c793426fE2f05` |
 | Shared SignedPoolRaceOracle | `0x5b0f7e62E0A5fF5C5C02Ad219Afcd086F2618Db7` |
@@ -27,31 +28,39 @@ credential-bearing RPC URL were never recorded in repository files or agent
 output.
 
 `0xe6C4…33EB` is a historical pre-canary deployment, not an approved frontend or
-keeper target. It received no game transactions. The corrective replacement
-must require both funded sides and at least two distinct participant addresses.
+keeper target. It received no game transactions. The corrected `0x4bfd…060e`
+requires both funded sides and at least two distinct participant addresses.
 
 ## Receipt and cost summary
 
 | Stage | Transactions | Blocks | Gas used | Paid |
 |---|---:|---:|---:|---:|
-| PredictionMarket deploy | 1 | `72244111` | 1,858,318 | `0.000066308502876 ETH` |
-| PredictionMarket assets | 10 | `72250400–72250447` | 711,136 | `0.0000256209678 ETH` |
+| Superseded PredictionMarket deploy | 1 | `72244111` | 1,858,318 | `0.000066308502876 ETH` |
+| Superseded PredictionMarket assets | 10 | `72250400–72250447` | 711,136 | `0.0000256209678 ETH` |
 | AssetRace deploy | 1 | `72253652` | 4,612,064 | `0.000165028874048 ETH` |
 | AssetRace assets/policy/presets | 27 | `72258649–72258780` | 3,299,544 | `0.000118255814054 ETH` |
 | PriceArena deploy | 1 | `72262224` | 2,582,593 | `0.000092823557606 ETH` |
 | PriceArena assets | 23 | `72264222–72264343` | 2,475,746 | `0.000090668997456 ETH` |
-| **Total** | **63** | — | **15,539,401** | **`0.00055870671384 ETH`** |
+| Corrected PredictionMarket deploy | 1 | `72300695` | 1,937,192 | `0.00007001011888 ETH` |
+| Redundant config sent to superseded address | 10 | `72303897–72303947` | 313,136 | `0.00001134217604 ETH` |
+| Corrected PredictionMarket assets | 10 | `72304855–72304903` | 711,356 | `0.000025507224504 ETH` |
+| **Total** | **84** | — | **18,501,085** | **`0.000665566233264 ETH`** |
 
-All 63 receipts returned success. Paid values are the actual receipt totals,
-not pre-broadcast estimates.
+All 84 receipts returned success. The redundant configuration rewrote the same
+bindings on the unused superseded contract and affected no player state. Paid
+values are the actual receipt totals, not pre-broadcast estimates.
 
 ## Verified postconditions
 
-- PredictionMarket runtime hash:
-  `0x89497de1953c2868c6f9a05bd08829dd18ca882b52db827469230dc24bc509c0`.
-  Owner, shared oracle, fee `200`, seed cap `0.1 ETH` and per-wallet/side cap
-  `0.1 ETH` match the manifest. All 10 Stock bindings have the exact registry
-  oracle ID, decimals `18` and `allowed=true`.
+- Corrected PredictionMarket runtime hash:
+  `0xf17f39d9b4e4411e04cbe0f567f78843257d3085808d8c174d60c8dcba74a971`.
+  The deployment input hash
+  `0x5fa2cc04442baa115e4d2f9d87af24e14aab6d963371b49a3dd90ed8a9b5ff39`
+  exactly matches local commit `c53ba0a` creation bytecode plus the reviewed
+  constructor args. Owner, shared oracle, fee `200`, seed cap `0.1 ETH` and
+  per-wallet/side cap `0.1 ETH` match; `participantCount(0)` and `marketCount()`
+  both returned zero before canary. All 10 corrected-contract Stock bindings
+  independently passed receipt and registry readback `10/10`.
 - AssetRace runtime hash:
   `0x0d6f480489f52a24e95fd2f20b2277e4070df2a8f7cd81caa4258f2b5c3ef65d`.
   All 23 bindings match exact category, oracle, oracle ID, decimals `18`, price
@@ -70,7 +79,21 @@ operator's secret endpoint. Registry totals were 10 Stocks and 13 Memes.
 
 ## Transaction hashes
 
-### PredictionMarket
+### Corrected PredictionMarket release candidate
+
+- Deploy: `0xb071cd13d11f1ac6796de02c5d18c30dfa35a2a108149b7afa83d67afd0114e2`
+- NVDA: `0xa015c429dd2a3dd88caf9ac174c04dcf10b8e0994ce33f9d61b1904bd3bb21b6`
+- TSLA: `0x4bf32e3a706b586d5d4f3df37b0f36981e0af350c69d4cbb93b984a07dab43d1`
+- AAPL: `0xafdfcf054e7ef73fdd4f20a70c2b8af35a8f7ed3fc9116b8d6f16f29c038b37b`
+- META: `0xde9e830c81b85fbb8c76fc4f96ad095201757b6936e50a0d83d3d9df3b05ce76`
+- MSTR: `0xe626d0c071f65f8112dd2d6a98257de60c9e872470ed4efb28139e4a87bf26ed`
+- AMZN: `0xab21bec0345ded98020182d2378abdb2c5508fe1d41bc3046d867e5a37af089b`
+- MSFT: `0x16b1384d14056b29ca83ba11c70e9b60d0f5bc08f641d12d501c513e97932f19`
+- GOOGL: `0x0ea5f277b17ec5e27b74581cb7c59590788b2ea6a89bbbdd363b6b1cd9b3bf04`
+- MU: `0xf62893d64d94f251c48441119dc2648ea0813a773fadd29039ef6c6d2cc8fccd`
+- NFLX: `0xebab106dafff9eb5c3a7f6757d791ee8edf61a5f77875e3f9b8726f673ba2879`
+
+### Superseded PredictionMarket
 
 - Deploy: `0xb344e66eaf5dbd5718671abaea210164608455a3b4bbfb8f3de9f3a23e987062`
 - NVDA: `0x780efd6aaa7428cccf5d8438b13af638874b00efa6ee3fd479f90381fa7d851f`
@@ -83,6 +106,18 @@ operator's secret endpoint. Registry totals were 10 Stocks and 13 Memes.
 - GOOGL: `0x1495a3c88aad88832b846a663d197c689e17af0b7cd040ce0220fb09d7b569cf`
 - MU: `0x2e27cb074e815154248f21b1a4dc097ffa746eabe9b872789da995ffdd805423`
 - NFLX: `0x224ed36aab42dbf29f2e1ca07d79c6bfd546970d8f7d99eab2020ddfbea5d77c`
+
+The ten redundant configuration transactions to the superseded address were:
+`0x2bdcd558727e2398e5c14cebcd28e6aa43f11de731cdc42a859bb6f3d282e75b`,
+`0x9c467d5421646c59eab2611d08599f69d687bf4c578c981cb489ffba967b9a90`,
+`0x11e464f13fe2b113f4b1e99b755cf27a52d65daaac7d8e88f5c2a9a29f8a7378`,
+`0x948beac9fc041dfb6b1def464b95b5b146905b5faf1c9f336b34b6db3b27b22d`,
+`0x2d3353079f5d2b0e66ab8230256d88d89f5fa3f93ecc4094dd968d48ad7139d1`,
+`0x43d4d3bf6ed3074400c98da3d0a1d48bd602c779af094a1d45deb72595e8f589`,
+`0x4f29bbacb7fecb7f8956bfc89147d9e37f422e2e4d4f273b503c53e79f4f474b`,
+`0x3d684e569d144558776e0da26160ae86ee810fe0285d38d7cda59ed7fe295d9d`,
+`0x73d79bdf4d3c131a7fff17a81912f58e454a805d058e6dc3ad272e280a229191`
+and `0x604c1d20b92550bcb886fc1087c39283f3a2e33a9aadb25bf9711f0100ec76ce`.
 
 ### AssetRace
 

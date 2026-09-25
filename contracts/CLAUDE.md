@@ -2,9 +2,9 @@
 
 **Earlier USDG contracts contain owner mainnet tests and have no supported UI in
 the release. Their current VPS automation remains unchanged until the approved
-cutover, when existing services are rebound to native addresses. The native
-deadline-settlement replacement is implemented and tested but is not deployed.
-There is no audit.** `forge build` and `forge test` are green:
+cutover. The corrected native deadline-settlement replacement is deployed and
+configured at `0x4bfd0efc15C3198fe3AFf4741FF121AB2F38060e`; canary and public binding
+are pending. There is no audit.** `forge build` and `forge test` are green:
 
 - Deployed USDG deadline `PredictionMarket`:
   `0x1a62098AcEd3F7F8C41fff1bc1395A541678b0F1`; its live keeper has submitted
@@ -167,8 +167,8 @@ feature.
 
 ### Deploying the replacement to mainnet
 
-The replacement is designed for Robinhood Chain mainnet (chain id 4663), uses
-native ETH, and reuses the deployed `SignedPoolRaceOracle`. It is not deployed.
+The replacement is deployed on Robinhood Chain mainnet (chain id 4663), uses
+native ETH, and reuses the deployed `SignedPoolRaceOracle`.
 
 **Steps 0 and 1 below are for the user to run themselves, in their own
 terminal, never through Claude** — a private key printed into a chat
