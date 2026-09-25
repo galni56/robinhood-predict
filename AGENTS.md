@@ -63,7 +63,10 @@ the task from scratch or rescan the repository by default.
 - Do not perform unrelated refactors. Preserve existing dirty-tree changes and
   never discard work belonging to the user or another agent.
 - Do not install, remove, or upgrade dependencies without explicit permission.
-- Never commit or push unless the user explicitly asks.
+- The user has standing authorization for Codex to commit and push validated,
+  in-scope work to `dima/gonochki` without asking again. This authorization does
+  not cover `main`, other branches, deployments, transactions, VPS/services or
+  any production-impacting action; those still require explicit approval.
 - Never perform destructive Git operations without explicit permission.
 - Do not perform production-impacting actions without explicit authorization.
 
