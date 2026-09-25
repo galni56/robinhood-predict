@@ -1,8 +1,8 @@
 # Native ETH mainnet deployment record
 
-Status: **the corrected PredictionMarket, AssetRace and PriceArena are deployed
-and configured. The complete PredictionMarket and AssetRace canaries passed;
-PriceArena canary and public frontend/service binding remain pending.**
+Status: **the corrected PredictionMarket, AssetRace and PriceArena are deployed,
+configured and have passed complete mainnet lifecycle canaries. Public frontend/
+service binding remains pending.**
 
 Deployment date: 2026-09-25. Original release source: `455744a`; corrected
 PredictionMarket source: `c53ba0a`. Chain ID: `4663`.
@@ -136,6 +136,41 @@ Both assets used the same exact endpoint sources at T0 `1790355141` and T1
 race liability and global user liability are zero, while accumulated fees and
 contract balance both equal `0.000002 ETH`. All 17 AssetRace canary receipts
 succeeded, using 3,111,423 gas and paying `0.000111718644322 ETH`.
+
+## PriceArena canary — passed
+
+The guarded creation phase created two one-minute TSLA arenas after ten-minute
+lobbies. Arena #0 had two distinct wallets; the owner entered with
+`0.0001 ETH`, updated the prediction and added another `0.0001 ETH`, while the
+second wallet entered with `0.0001 ETH`. Arena #1 had one owner position of
+`0.0001 ETH`. The six creation/entry transactions were:
+
+- arena #0 create/owner enter/update:
+  `0x2336875db2ff92263a28786caef4bb897bb7e048a40439e31287421193ec5a3c`,
+  `0x1d008ce891613b64f8e0b33637aafea36728d373467413c0390aef25381b9b48`,
+  `0x55a4cfecd8d4e0387c72aad7eaf914e219d142b7b03d73775d52b440c1e5886d`;
+- arena #1 create/owner enter:
+  `0xaf8a35a73c211c86dd9fffe2fdd29afc3450f024859e67fd3a9cb01eb254e744`,
+  `0x340e87ccb204286432036b3e7fbe1ec23a9d42f4aca4382799608d1f5dde363e`;
+- distinct-player arena #0 entry:
+  `0xc663a400724e7afc45b7244044720e304bea8f0ece8e3bfd2b7f82a7be7d6f3a`.
+
+The one-off keeper resolved #0 from the signed deadline endpoint and cancelled
+#1 for fewer than two participants:
+
+- resolve #0: `0x2aefcff7919163603c102cfaf69216f181a0f5ff6e6b7f5b2d38fa2b583f4d88`;
+- cancel #1: `0x684f1ff766c64a703b017e65eefeb899de86d3f136584e54db99918874fa764d`.
+
+The final price was `372.474968441969632545` with observation timestamp
+`1790356983`, strictly before deadline `1790356984`. The second wallet won and
+claimed `0.000296 ETH` in
+`0x62783558fd858d2f0b4de743e2e9a8e7c6bd75c7af13d2529df97775fd27256c`.
+The owner recovered `0.0001 ETH` from #1 in
+`0xa9387567fb9e63d08ede21b59a0795ecdc8c72bb8bb114ac2242f97e911c6343`.
+
+Final arena liabilities and global user liability are zero. Accumulated fees and
+contract balance both equal `0.000004 ETH`. All 10 PriceArena canary receipts
+succeeded, using 1,458,823 gas and paying `0.000052258214478 ETH`.
 
 ## Verified postconditions
 

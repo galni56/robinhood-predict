@@ -1,25 +1,26 @@
 # Price Arena
 
 Status: native-ETH PriceArena is deployed and configured at
-`0x383840a8Ca00dcB4b6cAc17e746c793426fE2f05`; tiny-value canary and keeper/
-frontend binding are pending. The earlier USDG generation at
+`0x383840a8Ca00dcB4b6cAc17e746c793426fE2f05`; its complete tiny-value canary
+passed and only public keeper/frontend binding remains pending. The earlier USDG generation at
 `0xBAca2605914d8f7f0DF5663AA01f79FB8a6DA8ae` contains owner test activity only
 and is unsupported/denylisted. See `NATIVE_ETH_MAINNET_DEPLOYMENT.md`. No
 independent security audit.
 
-## Native ETH canary preparation
+## Native ETH canary result
 
 `contracts/script/PriceArenaCanary.s.sol` is hard-bound to the native successor
 and checks chain, owner, signer, pause state, stake/lobby/fee policy and exact
-TSLA binding. `CreatePriceArenaCanaries` prepares two one-minute arenas with
+TSLA binding. `CreatePriceArenaCanaries` created two one-minute arenas with
 ten-minute lobbies: arena #0 uses two wallets, exercises payable `enter` and
-`updateEntry`, and must resolve; arena #1 has one wallet and must cancel.
-`FinalizePriceArenaCanaries` then asserts the winner payout, protocol fee and
-cancelled-player refund before sending claim/refund transactions.
+`updateEntry`, and resolved; arena #1 had one wallet and cancelled.
+`FinalizePriceArenaCanaries` asserted and sent the winner payout, protocol fee
+and cancelled-player refund.
 
-The public preflight currently reads `arenaCount=0`, contract balance `0` and
-`newActivityPaused=false`. Do not broadcast until the PredictionMarket and
-AssetRace lifecycle canaries have passed in order.
+The final public readback is `arenaCount=2`, `totalUserLiability=0`,
+`accumulatedFees=0.000004 ETH`, contract balance `0.000004 ETH`, and
+`newActivityPaused=false`. All ten lifecycle receipts succeeded. Full hashes and
+endpoint/accounting evidence are recorded in `NATIVE_ETH_MAINNET_DEPLOYMENT.md`.
 
 Price Arena is a fixed-time closest-price contest for the same reviewed
 Robinhood Chain pools used by Asset Race. It has separate Stock and Meme

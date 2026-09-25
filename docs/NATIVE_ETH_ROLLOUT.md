@@ -1,9 +1,9 @@
 # Native ETH production rollout
 
 Status: the corrected PredictionMarket, AssetRace and PriceArena are deployed/
-configured. Complete PredictionMarket and AssetRace lifecycle canaries passed;
-PriceArena canary plus public frontend/service binding remain pending. The first
-native PredictionMarket deployment is superseded and unused.
+configured and all three complete lifecycle canaries passed. Public frontend/
+service binding remains pending. The first native PredictionMarket deployment
+is superseded and unused.
 Earlier USDG deployments contain only owner test activity; the owner waived
 recovery and the release does not expose or automate those contracts. See
 `NATIVE_ETH_MAINNET_DEPLOYMENT.md` for the complete transaction record.
@@ -30,8 +30,8 @@ recovery and the release does not expose or automate those contracts. See
   postconditions and hard stop before canary/service switching are in
   `NATIVE_ETH_DEPLOYMENT_OPERATOR_PACKET.md`.
 - Deployment/configuration broadcasts completed and all public postconditions
-  passed. PredictionMarket and AssetRace canaries are fully complete with exact
-  final accounting; no VPS/service/frontend change or `main` merge has occurred.
+  passed. All three mainnet canaries are fully complete with exact final
+  accounting; no VPS/service/frontend change or `main` merge has occurred.
 
 ## Non-negotiable boundaries
 
@@ -77,10 +77,9 @@ recovery and the release does not expose or automate those contracts. See
 5. **Mainnet deployment — complete.** The corrected PredictionMarket, AssetRace
    and PriceArena are deployed/configured and their public postconditions pass.
    See `NATIVE_ETH_MAINNET_DEPLOYMENT.md`. The public frontend remains unbound.
-6. **Tiny-value canary — two of three passed.** PredictionMarket and AssetRace
+6. **Tiny-value canary — complete.** PredictionMarket, AssetRace and PriceArena
    completed real keeper settlement plus claim/refund paths with exact final
-   accounting. PriceArena remains the final product canary. Stop on any
-   accounting/event mismatch.
+   accounting. All public receipt/state checks passed.
 7. **Service and frontend canary.** Update public contract bindings and keeper/
    share-preview addresses, preserve the single paid-Alchemy routing and shared
    ETH/USD cache, then validate the production-shaped build on desktop/mobile.
