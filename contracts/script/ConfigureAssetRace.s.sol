@@ -8,6 +8,7 @@ import {Script, console} from "forge-std/Script.sol";
 import {AssetRace} from "../src/AssetRace.sol";
 import {SignedPoolRaceOracle} from "../src/oracles/SignedPoolRaceOracle.sol";
 import {AssetRaceOperatorSafety} from "./helpers/AssetRaceOperatorSafety.sol";
+import {NativeEthDeploymentSafety} from "./helpers/NativeEthDeploymentSafety.sol";
 
 contract ConfigureAssetRace is Script {
     uint8 private constant STOCK_DECIMALS = 18;
@@ -15,10 +16,17 @@ contract ConfigureAssetRace is Script {
 
     function run() external {
         uint256 deployerKey = vm.envUint("ASSET_RACE_DEPLOYER_PRIVATE_KEY");
+        address expectedOwner = vm.envAddress("EXPECTED_OWNER_ADDRESS");
         AssetRace race = AssetRace(payable(vm.envAddress("ASSET_RACE_ADDRESS")));
         SignedPoolRaceOracle oracle = SignedPoolRaceOracle(vm.envAddress("ASSET_RACE_SIGNED_POOL_ORACLE_ADDRESS"));
         address expectedSigner = vm.envAddress("ASSET_RACE_PRICE_SIGNER_ADDRESS");
-        require(oracle.TRUSTED_SIGNER() == expectedSigner, "price signer mismatch");
+        NativeEthDeploymentSafety.validateSigningOwner(vm.addr(deployerKey), expectedOwner);
+        NativeEthDeploymentSafety.validateContractOwner(race.owner(), expectedOwner);
+        NativeEthDeploymentSafety.validateReleaseRoles(expectedOwner, address(oracle), expectedSigner);
+        require(address(oracle).code.length > 0, "signed pool oracle has no code");
+        NativeEthDeploymentSafety.validateOracle(
+            address(oracle), address(oracle), oracle.TRUSTED_SIGNER(), expectedSigner
+        );
         AssetRaceOperatorSafety.validateConfiguration(vm.addr(deployerKey), race.owner(), expectedSigner);
 
         uint64 maxPriceAge = _envUint64("ASSET_RACE_MAX_PRICE_AGE");

@@ -12,15 +12,15 @@ claim/refund access throughout the rollout.
   `SignedPoolRaceOracle`; it cannot silently create a second oracle.
 - A combined Foundry rehearsal deploys all three native products against one
   signed oracle and completes both resolve/claim and cancel/refund lifecycles.
-- Full validation before the dual-input follow-up passed: 181 Forge tests,
-  128,000 invariant calls and 96 Node tests, plus registry/build/lint/diff gates.
+- Full validation after release-role hardening passed: 185 Forge tests,
+  128,000 invariant calls and 97 Node tests, plus registry/build/lint/diff gates.
 - The public deployment manifest is generated directly from the validated
   registry and rejects malformed addresses, pool ids, mixed validation profiles,
   duplicate bindings and unexpected production asset counts.
 - Broad fixed safety limits are approved: `0.0001 ETH` minimum where required
   and `0.1 ETH` maximum. Live `$1–$50` enforcement remains in the frontend.
-- A no-broadcast fork simulation with those limits passed at chain-4663 block
-  `71859076`; its owner remains a provisional input. See
+- A no-broadcast fork simulation with those limits and the approved existing
+  project owner passed at chain-4663 block `72035407`. See
   `NATIVE_ETH_SIMULATION_REPORT.md`.
 - No broadcast, VPS change or `main` merge has occurred.
 
@@ -49,7 +49,13 @@ claim/refund access throughout the rollout.
    equivalent of $1–$50 in either USD-input or ETH-input mode; the contract
    limits only reject dust and catastrophically large values. Generate and
    review the complete public configuration from the same registry with
-   `node scripts/native-eth-deployment-manifest.mjs --oracle-address <address> --price-signer-address <address>`.
+   `node scripts/native-eth-deployment-manifest.mjs --owner-address <address> --oracle-address <address> --price-signer-address <address>`.
+   The manifest rejects a missing/zero role and any owner/oracle/signer overlap.
+   Pass the reviewed owner to every deploy/config dry-run as the public
+   `EXPECTED_OWNER_ADDRESS`. The scripts derive the signing account from the
+   operator key and stop before broadcast if it differs; configuration also
+   checks the deployed contract's `owner()`. Oracle-consuming paths verify the
+   reviewed oracle bytecode address and its onchain `TRUSTED_SIGNER`.
 3. **Local lifecycle rehearsal.** Deploy all three replacements against one
    local signed-pool oracle and exercise PredictionMarket, AssetRace and
    PriceArena from entry through resolve/cancel and claim/refund. Confirm one

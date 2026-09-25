@@ -50,10 +50,13 @@ function approvedAssets() {
   return assets
 }
 
-export function nativeEthDeploymentManifest({ oracleAddress, priceSignerAddress }) {
+export function nativeEthDeploymentManifest({ ownerAddress, oracleAddress, priceSignerAddress }) {
+  const owner = checkedAddress(ownerAddress, 'OwnerAddress')
   const oracle = checkedAddress(oracleAddress, 'OracleAddress')
   const priceSigner = checkedAddress(priceSignerAddress, 'PriceSignerAddress')
   if (oracle.toLowerCase() === priceSigner.toLowerCase()) throw new Error('OracleAndSignerMustDiffer')
+  if (owner.toLowerCase() === priceSigner.toLowerCase()) throw new Error('OwnerAndSignerMustDiffer')
+  if (owner.toLowerCase() === oracle.toLowerCase()) throw new Error('OwnerAndOracleMustDiffer')
 
   const assets = approvedAssets()
   const stocks = assets.filter((asset) => asset.category === 'STOCK')
@@ -76,7 +79,7 @@ export function nativeEthDeploymentManifest({ oracleAddress, priceSignerAddress 
   ) throw new Error('InvalidProductionNetwork')
 
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     chain: {
       key: MAINNET,
       chainId: registry.networks[MAINNET].chainId,
@@ -87,6 +90,11 @@ export function nativeEthDeploymentManifest({ oracleAddress, priceSignerAddress 
       signedPoolOracleAddress: oracle,
       expectedTrustedSigner: priceSigner,
       outputDecimals: registry.poolInfrastructure.outputDecimals,
+    },
+    roles: {
+      ownerAddress: owner,
+      signedPoolOracleAddress: oracle,
+      priceSignerAddress: priceSigner,
     },
     guardrails: caps,
     predictionMarket: {
@@ -133,12 +141,12 @@ export function nativeEthDeploymentManifest({ oracleAddress, priceSignerAddress 
 
 function cliArgs(argv) {
   const result = {}
-  const allowed = new Set(['oracle-address', 'price-signer-address'])
+  const allowed = new Set(['owner-address', 'oracle-address', 'price-signer-address'])
   for (let i = 0; i < argv.length; i += 2) {
     const name = argv[i]
     const value = argv[i + 1]
     if (!name?.startsWith('--') || value == null || !allowed.has(name.slice(2))) {
-      throw new Error('Usage: --oracle-address <address> --price-signer-address <address>')
+      throw new Error('Usage: --owner-address <address> --oracle-address <address> --price-signer-address <address>')
     }
     result[name.slice(2)] = value
   }
@@ -149,6 +157,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   try {
     const args = cliArgs(process.argv.slice(2))
     console.log(JSON.stringify(nativeEthDeploymentManifest({
+      ownerAddress: args['owner-address'],
       oracleAddress: args['oracle-address'],
       priceSignerAddress: args['price-signer-address'],
     }), null, 2))

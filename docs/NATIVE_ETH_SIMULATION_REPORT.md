@@ -1,6 +1,6 @@
 # Native ETH no-broadcast simulation report
 
-Status: **provisional release-candidate evidence, not deployment approval**.
+Status: **final release-candidate simulation evidence, not deployment approval**.
 
 The authoritative simulation source is the commit containing this report. The
 run used `SimulateNativeEthDeployment.s.sol`, which has no broadcast cheatcode
@@ -12,15 +12,16 @@ frontend, keeper or production configuration.
 
 - Date: 2026-09-25
 - Fork chain ID: `4663`
-- Fork block: `71859076`
+- Fork block: `72035407`
 - Registry: 10 enabled Stock assets and 13 enabled Meme assets
 - Existing oracle: `0x5b0f7e62E0A5fF5C5C02Ad219Afcd086F2618Db7`
 - Verified `TRUSTED_SIGNER`: `0x79F4991Ccc64Cbb8143fB61e4cBD49b8b64d3635`
-- Provisional simulation owner: `0x6d68157bEDa778346Dd27f8Ef4F917f69aD2Dc41`
+- Approved existing project owner/deployer: `0x6d68157bEDa778346Dd27f8Ef4F917f69aD2Dc41`
+- Existing keeper transaction account: `0xaF95287026339B51b1Ff45DC385b4D56F507634a`
 
-The owner above is the public owner of the prior AssetRace deployment and was
-used only to exercise owner postconditions. It is not an approval to reuse that
-address for the native deployment.
+The user approved reusing the existing project wallets. The owner above remains
+the admin/deployer, the keeper remains a separate transaction account and the
+price signer remains a separate signing role. No private key was read or used.
 
 ## Approved economic safety inputs
 
@@ -75,6 +76,6 @@ real transaction immediately before any separately approved broadcast.
 
 ## Remaining gate
 
-Approve the final public owner and repeat this simulation from the exact reviewed
-release commit on a fixed block. Only a matching final report may proceed to the
-separate deployment approval.
+Commit and review the exact release candidate containing this report. Deployment,
+configuration and tiny-value lifecycle transactions still require a separate
+explicit production approval; this simulation does not authorize them.

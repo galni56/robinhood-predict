@@ -67,6 +67,9 @@ USDG; Meme prices are quoted in ETH.
 - Deploy with `contracts/script/DeployPriceArena.s.sol`.
 - Configure all reviewed assets with
   `contracts/script/ConfigurePriceArena.s.sol`.
+- Both scripts require the reviewed public `EXPECTED_OWNER_ADDRESS`; they stop
+  before broadcast unless the signing key maps to it. Configuration also checks
+  the deployed `owner()`, shared oracle and its onchain `TRUSTED_SIGNER`.
 - Run `scripts/price-arena-keeper.mjs` as a separate service. It may reuse the
   Prediction Market keeper transaction wallet, lifecycle RPC, archive pool RPC,
   and pool price signer, but must use its own service and endpoint cache file.

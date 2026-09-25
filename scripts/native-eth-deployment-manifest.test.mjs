@@ -4,18 +4,25 @@ import { nativeEthDeploymentManifest } from './native-eth-deployment-manifest.mj
 
 const ORACLE = '0x5b0f7e62E0A5fF5C5C02Ad219Afcd086F2618Db7'
 const SIGNER = '0x79F4991Ccc64Cbb8143fB61e4cBD49b8b64d3635'
+const OWNER = '0x6d68157bEDa778346Dd27f8Ef4F917f69aD2Dc41'
 
 test('deployment manifest derives every product binding from one registry', () => {
   const manifest = nativeEthDeploymentManifest({
+    ownerAddress: OWNER,
     oracleAddress: ORACLE,
     priceSignerAddress: SIGNER,
   })
-  assert.equal(manifest.schemaVersion, 2)
+  assert.equal(manifest.schemaVersion, 3)
   assert.equal(manifest.chain.chainId, 4663)
   assert.equal(manifest.chain.nativeCurrency, 'ETH')
   assert.equal(manifest.chain.stockPriceQuote, 'USDG')
   assert.equal(manifest.settlement.signedPoolOracleAddress, ORACLE)
   assert.equal(manifest.settlement.expectedTrustedSigner, SIGNER)
+  assert.deepEqual(manifest.roles, {
+    ownerAddress: OWNER,
+    signedPoolOracleAddress: ORACLE,
+    priceSignerAddress: SIGNER,
+  })
   assert.equal(manifest.predictionMarket.assets.length, 10)
   assert.equal(manifest.assetRace.stockAssets.length, 10)
   assert.equal(manifest.assetRace.memeAssets.length, 13)
@@ -37,7 +44,10 @@ test('deployment manifest derives every product binding from one registry', () =
 })
 
 test('deployment manifest rejects missing, zero, malformed and overlapping public roles', () => {
-  const valid = { oracleAddress: ORACLE, priceSignerAddress: SIGNER }
+  const valid = { ownerAddress: OWNER, oracleAddress: ORACLE, priceSignerAddress: SIGNER }
+  for (const ownerAddress of [undefined, '', 'invalid', '0x0000000000000000000000000000000000000000']) {
+    assert.throws(() => nativeEthDeploymentManifest({ ...valid, ownerAddress }), /InvalidOwnerAddress/)
+  }
   for (const oracleAddress of [undefined, '', 'invalid', '0x0000000000000000000000000000000000000000']) {
     assert.throws(() => nativeEthDeploymentManifest({ ...valid, oracleAddress }), /InvalidOracleAddress/)
   }
@@ -47,5 +57,13 @@ test('deployment manifest rejects missing, zero, malformed and overlapping publi
   assert.throws(
     () => nativeEthDeploymentManifest({ ...valid, priceSignerAddress: ORACLE }),
     /OracleAndSignerMustDiffer/,
+  )
+  assert.throws(
+    () => nativeEthDeploymentManifest({ ...valid, priceSignerAddress: OWNER }),
+    /OwnerAndSignerMustDiffer/,
+  )
+  assert.throws(
+    () => nativeEthDeploymentManifest({ ...valid, oracleAddress: OWNER }),
+    /OwnerAndOracleMustDiffer/,
   )
 })

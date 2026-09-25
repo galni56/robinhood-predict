@@ -53,6 +53,7 @@ Generate and review all public values from the registry/manifest. Only the
 deployer key belongs exclusively in the operator's secret-aware environment:
 
 - `ASSET_RACE_DEPLOYER_PRIVATE_KEY`
+- `EXPECTED_OWNER_ADDRESS` (reviewed public address; must match the deployer)
 - `ASSET_RACE_PRICE_SIGNER_ADDRESS` (public address only)
 - `ASSET_RACE_ADDRESS` after deployment
 - `ASSET_RACE_SIGNED_POOL_ORACLE_ADDRESS` (the existing verified oracle)
@@ -95,9 +96,12 @@ forge script script/DeployAssetRace.s.sol:DeployAssetRace --rpc-url <rpc-alias> 
 forge script script/ConfigureAssetRace.s.sol:ConfigureAssetRace --rpc-url <rpc-alias> --broadcast
 ```
 
-`DeployAssetRace` requires `ASSET_RACE_SIGNED_POOL_ORACLE_ADDRESS` and verifies
-its onchain `TRUSTED_SIGNER`; it deploys only the replacement AssetRace and must
-not create a second oracle.
+`DeployAssetRace` requires `EXPECTED_OWNER_ADDRESS` and stops before broadcast
+unless it matches the account derived from the deployer key. It also requires
+`ASSET_RACE_SIGNED_POOL_ORACLE_ADDRESS`, verifies its onchain `TRUSTED_SIGNER`
+and enforces distinct owner/oracle/signer roles. Configuration rechecks both the
+signing account and deployed `owner()`. The script deploys only the replacement
+AssetRace and must not create a second oracle.
 
 ## Keeper configuration
 

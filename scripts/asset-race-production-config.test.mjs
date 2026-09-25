@@ -92,7 +92,9 @@ test('native-ETH builds reject every known USDG contract binding', () => {
 
 test('native AssetRace deployment reuses the existing signed-pool oracle', () => {
   assert.match(deployAssetRaceScript, /envAddress\("ASSET_RACE_SIGNED_POOL_ORACLE_ADDRESS"\)/)
-  assert.match(deployAssetRaceScript, /TRUSTED_SIGNER\(\) == priceSigner/)
+  assert.match(deployAssetRaceScript, /envAddress\("EXPECTED_OWNER_ADDRESS"\)/)
+  assert.match(deployAssetRaceScript, /validateSigningOwner\(deployer, expectedOwner\)/)
+  assert.match(deployAssetRaceScript, /validateOracle\([^;]*oracle\.TRUSTED_SIGNER\(\), priceSigner\)/)
   assert.doesNotMatch(deployAssetRaceScript, /new SignedPoolRaceOracle/)
 })
 
