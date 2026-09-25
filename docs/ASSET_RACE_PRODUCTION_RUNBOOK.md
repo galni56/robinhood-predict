@@ -16,6 +16,23 @@ and independently read-checked. The native-ETH successor is deployed and
 configured at `0x02F030Bd9D9DC86d713CDF0772ae4d1E3b81f235`; canary and public
 binding are pending. See `NATIVE_ETH_MAINNET_DEPLOYMENT.md`.
 
+### Native ETH canary preparation
+
+`contracts/script/AssetRaceCanary.s.sol` is hard-bound to the native successor
+and rechecks chain, owner, signer, pause state and exact NVDA/TSLA registry
+bindings. Its three separately simulated/broadcast phases are:
+
+1. `CreateAssetRaceCanaries`: create settlement race #0 and insufficient-active-
+   contender cancellation race #1 with a delayed three-minute betting window;
+2. `FundAssetRaceCanaries`: put two distinct wallets on different assets in #0
+   and only the owner on one asset in #1, using `0.0001 ETH` per position;
+3. after keeper start/capture/resolve, `FinalizeAssetRaceCanaries`: claim the
+   unique winner of #0 and refund #1, asserting exact ETH deltas and fee.
+
+The public preflight currently reads `raceCount=0`, contract balance `0` and
+`newActivityPaused=false`. Do not broadcast any phase until the preceding
+PredictionMarket lifecycle canary is fully complete and independently verified.
+
 Current Robinhood Chain mainnet deployment (chain4663):
 
 - `SignedPoolRaceOracle`: `0x5b0f7e62E0A5fF5C5C02Ad219Afcd086F2618Db7`
