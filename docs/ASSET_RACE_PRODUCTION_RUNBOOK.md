@@ -85,14 +85,19 @@ export ASSET_RACE_MEME_ORACLE_IDS="$(node scripts/check-asset-race-registry.mjs 
 Meme arrays are optional (omit both for a Stock-only configuration). The same
 oracle registers each category separately; a race cannot mix Stocks and Memes.
 Stock pool quotes remain USDG; approved Meme pool quotes are canonical WETH or
-hook-free V4 native ETH, normalized to ETH_QUOTE/18. Bets/payouts remain USDG;
-there is no conversion hop. See `ASSET_RACE_MEME_CATALOG_EXPANSION.md` for the
-thirteen approved identities/sources and unresolved candidates.
+hook-free V4 native ETH, normalized to ETH_QUOTE/18. Historical deployed races
+bet/pay in USDG; the replacement AssetRace bets/pays directly in native ETH with
+no conversion hop. See `ASSET_RACE_MEME_CATALOG_EXPANSION.md` for the thirteen
+approved identities/sources and unresolved candidates.
 
 ```sh
 forge script script/DeployAssetRace.s.sol:DeployAssetRace --rpc-url <rpc-alias> --broadcast
 forge script script/ConfigureAssetRace.s.sol:ConfigureAssetRace --rpc-url <rpc-alias> --broadcast
 ```
+
+`DeployAssetRace` requires `ASSET_RACE_SIGNED_POOL_ORACLE_ADDRESS` and verifies
+its onchain `TRUSTED_SIGNER`; it deploys only the replacement AssetRace and must
+not create a second oracle.
 
 ## Keeper configuration
 

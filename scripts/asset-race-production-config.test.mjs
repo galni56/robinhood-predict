@@ -9,6 +9,7 @@ const configured = { VITE_ASSET_RACE_NETWORK: 'robinhood-mainnet',
   VITE_ASSET_RACE_SIGNED_POOL_ORACLE_ADDRESS: '0x2222222222222222222222222222222222222222' }
 const registry = JSON.parse(readFileSync(new URL('../config/asset-race-assets.json', import.meta.url), 'utf8'))
 const pagesWorkflow = readFileSync(new URL('../.github/workflows/deploy.yml', import.meta.url), 'utf8')
+const deployAssetRaceScript = readFileSync(new URL('../contracts/script/DeployAssetRace.s.sol', import.meta.url), 'utf8')
 
 test('production LIVE defaults to one shared two-second pool heartbeat', () => {
   assert.equal(registry.poolInfrastructure.livePollIntervalMs, 2_000)
@@ -83,6 +84,12 @@ test('native-ETH builds reject every known USDG contract binding', () => {
     VITE_ASSET_RACE_ADDRESS: '0x2222222222222222222222222222222222222222',
     VITE_PRICE_ARENA_ADDRESS: '0x3333333333333333333333333333333333333333',
   })
+})
+
+test('native AssetRace deployment reuses the existing signed-pool oracle', () => {
+  assert.match(deployAssetRaceScript, /envAddress\("ASSET_RACE_SIGNED_POOL_ORACLE_ADDRESS"\)/)
+  assert.match(deployAssetRaceScript, /TRUSTED_SIGNER\(\) == priceSigner/)
+  assert.doesNotMatch(deployAssetRaceScript, /new SignedPoolRaceOracle/)
 })
 
 test('LIVE enablement rejects build-time typos', () => {
