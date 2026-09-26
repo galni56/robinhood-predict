@@ -270,13 +270,28 @@ export function OnchainLandingPage() {
             </div>
           </div>
 
-          <div className="flex flex-col gap-3 px-2 pt-6 text-sm font-bold text-white/60 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
-            <span>Anyone can create: ask a YES / NO question, assemble an Asset Race, or launch a Price Arena.</span>
-            <span className="flex flex-wrap items-center gap-x-4 gap-y-2">
-              <Link to="/onchain/create" className="text-[#B3A7FA] transition-colors hover:text-white">Create Market ↗</Link>
-              <Link to="/onchain/races/create" className="text-[#B3A7FA] transition-colors hover:text-white">Create Race ↗</Link>
-              <Link to="/onchain/arenas/create" className="text-[#B3A7FA] transition-colors hover:text-white">Create Arena ↗</Link>
-            </span>
+          <div className="relative mt-5 overflow-hidden rounded-[2rem] border border-[#B3A7FA]/30 bg-gradient-to-br from-[#6A5AE0] via-[#5B49C7] to-[#322451] px-6 py-7 shadow-[0_24px_60px_-35px_rgba(139,124,247,0.95)] sm:px-9 sm:py-9">
+            <div className="pointer-events-none absolute -right-16 -top-24 h-64 w-64 rounded-full bg-[#F2A65A]/20 blur-3xl" />
+            <div className="relative grid gap-7 lg:grid-cols-[1fr_auto] lg:items-center">
+              <div className="max-w-2xl">
+                <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.18em] text-white/65">✦ Create onchain</p>
+                <h2 className="font-display text-2xl font-bold tracking-tight text-white sm:text-3xl">Don’t just play. Create the game.</h2>
+                <p className="mt-2 text-sm leading-relaxed text-white/70 sm:text-base">
+                  Any wallet can ask a YES / NO question, assemble an Asset Race, or launch a Price Arena for the community.
+                </p>
+              </div>
+              <div className="grid gap-2.5 sm:grid-cols-3">
+                <Link to="/onchain/create" className="inline-flex min-w-40 items-center justify-between gap-3 rounded-full bg-[#f7f1e3] py-2.5 pl-5 pr-2.5 text-sm font-extrabold text-[#241a33] transition-all hover:-translate-y-0.5 hover:bg-white">
+                  Market <span className="grid h-8 w-8 place-items-center rounded-full bg-[#8B7CF7] text-white">↗</span>
+                </Link>
+                <Link to="/onchain/races/create" className="inline-flex min-w-40 items-center justify-between gap-3 rounded-full bg-[#f7f1e3] py-2.5 pl-5 pr-2.5 text-sm font-extrabold text-[#241a33] transition-all hover:-translate-y-0.5 hover:bg-white">
+                  Race <span className="grid h-8 w-8 place-items-center rounded-full bg-[#8B7CF7] text-white">↗</span>
+                </Link>
+                <Link to="/onchain/arenas/create" className="inline-flex min-w-40 items-center justify-between gap-3 rounded-full bg-[#f7f1e3] py-2.5 pl-5 pr-2.5 text-sm font-extrabold text-[#241a33] transition-all hover:-translate-y-0.5 hover:bg-white">
+                  Arena <span className="grid h-8 w-8 place-items-center rounded-full bg-[#8B7CF7] text-white">↗</span>
+                </Link>
+              </div>
+            </div>
           </div>
         </section>
       </div>
