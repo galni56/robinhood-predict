@@ -441,12 +441,7 @@ export function OnchainLandingPage() {
       {/* A cross-product board containing only games that still accept entry. */}
       <section className="mx-auto max-w-[1500px] px-4 pb-10 pt-14">
         <p className="mb-2 text-sm font-bold text-[#B3A7FA]">Open now</p>
-        <div className="mb-8 max-w-2xl">
-          <h2 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">Choose your game.</h2>
-          <p className="mt-2 text-sm leading-relaxed text-white/45 sm:text-base">
-            Only games you can still join appear here. Running and finished rounds move to their dedicated pages.
-          </p>
-        </div>
+        <h2 className="mb-8 font-display text-3xl font-bold tracking-tight sm:text-4xl">Choose your game.</h2>
 
         <div className="grid gap-5 lg:grid-cols-3">
           <GameColumn
