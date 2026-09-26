@@ -29,6 +29,7 @@ const GAME_GUIDES = [
     summary: 'Call whether a stock finishes above or below a target.',
     accent: '#6A5AE0',
     soft: '#eeeafd',
+    image: 'brand/game-guides/prediction-markets.webp',
     href: '/onchain',
     cta: 'Explore markets',
     steps: [
@@ -44,6 +45,7 @@ const GAME_GUIDES = [
     summary: 'Back the asset with the strongest percentage return.',
     accent: '#ED8F3A',
     soft: '#fff0df',
+    image: 'brand/game-guides/asset-races.webp',
     href: '/onchain/races',
     cta: 'Explore races',
     steps: [
@@ -59,6 +61,7 @@ const GAME_GUIDES = [
     summary: 'Forecast the exact price at the end of the round.',
     accent: '#8B7CF7',
     soft: '#f1edff',
+    image: 'brand/game-guides/price-arena.webp',
     href: '/onchain/arenas',
     cta: 'Explore arenas',
     steps: [
@@ -569,14 +572,25 @@ export function OnchainLandingPage() {
                 }}
               >
                 <div className="h-2" style={{ background: guide.accent }} />
-                <div className="flex flex-1 flex-col p-6 sm:p-7">
-                  <div>
+                <div className="relative min-h-48 overflow-hidden border-b border-[#241a33]/5 p-6 sm:p-7" style={{ background: guide.soft }}>
+                  <div className="relative z-10 max-w-[58%]">
                     <p className="text-[0.68rem] font-extrabold tracking-[0.18em]" style={{ color: guide.accent }}>{guide.eyebrow}</p>
-                    <h3 className="mt-2 font-display text-2xl font-bold">{guide.title}</h3>
-                    <p className="mt-2 min-h-10 text-sm font-medium leading-relaxed text-[#241a33]/55">{guide.summary}</p>
+                    <h3 className="mt-2 font-display text-2xl font-bold leading-tight">{guide.title}</h3>
+                    <p className="mt-2 text-sm font-medium leading-relaxed text-[#241a33]/55">{guide.summary}</p>
                   </div>
+                  <div className="pointer-events-none absolute -bottom-14 -right-12 h-52 w-52 rounded-full bg-white/55" />
+                  <img
+                    src={`${import.meta.env.BASE_URL}${guide.image}`}
+                    alt=""
+                    width={500}
+                    height={500}
+                    className="pointer-events-none absolute -bottom-5 -right-5 h-44 w-44 object-contain transition-transform duration-500 group-hover:-translate-y-1 group-hover:rotate-2 sm:h-48 sm:w-48"
+                  />
+                </div>
 
-                  <ol className="mt-6 flex flex-1 flex-col gap-5">
+                <div className="flex flex-1 flex-col p-6 sm:p-7">
+
+                  <ol className="flex flex-1 flex-col gap-5">
                     {guide.steps.map(([title, body], stepIndex) => (
                       <li key={title} className="grid grid-cols-[2rem_1fr] gap-3">
                         <span
