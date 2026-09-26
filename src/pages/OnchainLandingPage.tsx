@@ -22,42 +22,51 @@ import { useRobinhoodAssets, useTokenLogos } from '@/chain/robinhoodApi'
 import { TokenLogo } from '@/components/TokenLogo'
 import { formatCountdown, formatUsd } from '@/lib/format'
 
-const STEPS = [
+const GAME_GUIDES = [
   {
-    n: '01',
-    color: '#8B7CF7',
-    title: 'Choose a stock, target and deadline',
-    body: 'Anyone can create a YES/NO market for one of ten reviewed tokenized stocks. The target is shown against a live onchain stock price before the market is created.',
+    eyebrow: 'YES / NO',
+    title: 'Prediction Markets',
+    summary: 'Call whether a stock finishes above or below a target.',
+    accent: '#6A5AE0',
+    soft: '#eeeafd',
+    href: '/onchain',
+    cta: 'Explore markets',
+    steps: [
+      ['Choose the question', 'Open a market—or create one with a reviewed stock, target price and deadline.'],
+      ['Take YES or NO', 'Enter a stake in USD or ETH. Your wallet sends the exact amount as native ETH in one transaction.'],
+      ['Bet before the cutoff', 'Earlier bets carry more pool-share weight. Betting closes before the final price deadline.'],
+      ['Settle the pool', 'The last valid price before the deadline decides it. Both sides and two wallets are required; otherwise every stake is refundable. Winners recover principal and split the losing pool, with a 2% fee only on profit.'],
+    ],
   },
   {
-    n: '02',
-    color: '#F2A65A',
-    title: 'Enter your stake in USD or ETH',
-    body: 'Use whichever input is easier. Prophet shows both equivalents, freezes the exact amount, and your wallet sends native ETH directly in one transaction—no approval or swap.',
+    eyebrow: 'FASTEST MOVER',
+    title: 'Asset Races',
+    summary: 'Back the asset with the strongest percentage return.',
+    accent: '#ED8F3A',
+    soft: '#fff0df',
+    href: '/onchain/races',
+    cta: 'Explore races',
+    steps: [
+      ['Pick a race', 'Choose a stock or meme race. Community lobbies can assemble 2–6 approved assets before betting.'],
+      ['Back one contender', 'During the betting window, choose one asset and stake in USD or ETH; top-ups stay on that asset.'],
+      ['Watch T0 → T1', 'Every contender uses the same fixed start and finish snapshots. The highest percentage return wins—even if all returns are negative.'],
+      ['Claim or refund', 'Backers of the winner recover principal and share the losing pools after the 2% profit fee. An exact top tie voids the race and makes stakes refundable.'],
+    ],
   },
   {
-    n: '03',
-    color: '#B3A7FA',
-    title: 'Betting early carries more weight',
-    body: 'A bet placed in the first two-thirds of the betting window counts up to 2x; the closer to the cutoff, the more that decays, down to 0.5x right before betting closes. Conviction early is worth more than sniping the obvious side at the last second.',
-  },
-  {
-    n: '04',
-    color: '#ED8F3A',
-    title: 'The deadline price fixes the outcome',
-    body: 'Settlement uses the reviewed onchain price from the last Robinhood block strictly before the scheduled deadline. Resolving later cannot replace it with a newer price.',
-  },
-  {
-    n: '05',
-    color: '#6A5AE0',
-    title: 'A real opposing market is required',
-    body: 'Settlement needs funded YES and NO pools from at least two distinct wallets. If those conditions are not met, the market cancels and every position can reclaim its full stake with no protocol fee.',
-  },
-  {
-    n: '06',
-    color: '#E8C46B',
-    title: 'Winners split the losing pool',
-    body: 'Payouts are parimutuel: your own stake always comes back first, then your weighted share of what the losing side staked - minus a 2% protocol fee that only ever applies to winnings, never to your principal.',
+    eyebrow: 'CLOSEST PRICE',
+    title: 'Price Arena',
+    summary: 'Forecast the exact price at the end of the round.',
+    accent: '#8B7CF7',
+    soft: '#f1edff',
+    href: '/onchain/arenas',
+    cta: 'Explore arenas',
+    steps: [
+      ['Enter the lobby', 'Submit one exact price and a USD or ETH stake. Forecasts stay hidden while entry is open.'],
+      ['Refine your call', 'Change the prediction or add stake before the lobby closes. Each arena accepts up to 20 players.'],
+      ['Follow the round', 'Predictions become visible when play starts. The fixed deadline price ranks everyone by absolute error.'],
+      ['Closest half wins', 'The closest half recover principal and share the losing half’s pool after the 2% profit fee. If the arena cannot settle by rule, stakes are refundable.'],
+    ],
   },
 ] as const
 
@@ -524,8 +533,7 @@ export function OnchainLandingPage() {
         <p className="pt-6 text-xs font-medium text-white/30">Native ETH wagers · One wallet transaction · Onchain settlement</p>
       </section>
 
-      {/* How it works -- light island in the hero's visual language,
-          scroll-staggered card reveal */}
+      {/* Three product flows in one glance. */}
       <section className="max-w-[1500px] mx-auto px-4 py-14">
         <div ref={stepsReveal.ref} className="relative overflow-hidden rounded-[2.5rem] bg-[#e7e1f8] text-[#241a33] px-6 py-12 sm:px-12 sm:py-14">
           <span className="pointer-events-none absolute right-[6%] top-[8%] text-[#7C5CF0] text-2xl" style={{ animation: 'sparkle-pop 2.6s ease-in-out infinite' }}>
@@ -538,53 +546,64 @@ export function OnchainLandingPage() {
             ✦
           </span>
 
-          <div className="flex flex-wrap items-end justify-between gap-4 mb-10">
-            <div>
-              <p className="inline-flex items-center gap-2 rounded-full bg-white/60 px-3.5 py-1.5 text-xs font-bold text-[#241a33]/70 mb-4">
-                <span className="text-[#8B7CF7]">✦</span>
-                Prediction Markets · start to settlement
-              </p>
-              <h2 className="font-display text-3xl sm:text-5xl font-bold tracking-tight">How YES / NO works</h2>
-            </div>
-            <div className="hidden sm:flex items-center gap-3 pb-1">
-              <img
-                src={`${import.meta.env.BASE_URL}brand/mascot-small.png`}
-                alt=""
-                className="w-14"
-                style={{ animation: 'mascot-float 5s ease-in-out infinite' }}
-              />
-              <div className="-rotate-2 rounded-2xl rounded-bl-sm bg-[#fdf9ee] px-3.5 py-2 shadow-md text-xs font-bold">
-                No bookmaker.
-                <br />
-                Just the pool.
-              </div>
-            </div>
+          <div className="mb-10 max-w-2xl">
+            <p className="mb-4 inline-flex items-center gap-2 rounded-full bg-white/60 px-3.5 py-1.5 text-xs font-bold text-[#241a33]/70">
+              <span className="text-[#8B7CF7]">✦</span>
+              Three games · one wallet flow
+            </p>
+            <h2 className="font-display text-3xl font-bold tracking-tight sm:text-5xl">How each game works</h2>
+            <p className="mt-3 text-sm font-medium leading-relaxed text-[#241a33]/55 sm:text-base">
+              Choose the format, make your call, send native ETH and let the published rules settle the result.
+            </p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {STEPS.map((s, i) => {
-              const badge = i % 2 === 0 ? '#6A5AE0' : '#ED8F3A'
-              return (
-                <div
-                  key={s.n}
-                  className="group rounded-3xl bg-white/60 p-6 transition-all duration-500 hover:-translate-y-1.5 hover:bg-white/80 hover:shadow-[0_16px_40px_-20px_rgba(36,26,51,0.35)]"
-                  style={{
-                    opacity: stepsReveal.visible ? 1 : 0,
-                    transform: stepsReveal.visible ? 'translateY(0)' : 'translateY(28px)',
-                    transitionDelay: `${i * 90}ms`,
-                  }}
-                >
-                  <span
-                    className="inline-grid place-items-center w-12 h-12 rounded-2xl font-display font-bold text-lg text-[#f7f1e3] mb-4 transition-transform duration-300 group-hover:-rotate-6"
-                    style={{ background: badge }}
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
+            {GAME_GUIDES.map((guide, guideIndex) => (
+              <article
+                key={guide.title}
+                className="group flex flex-col overflow-hidden rounded-[2rem] border border-[#241a33]/5 bg-white/65 transition-all duration-500 hover:-translate-y-1 hover:bg-white/85 hover:shadow-[0_22px_50px_-28px_rgba(36,26,51,0.35)]"
+                style={{
+                  opacity: stepsReveal.visible ? 1 : 0,
+                  transform: stepsReveal.visible ? 'translateY(0)' : 'translateY(28px)',
+                  transitionDelay: `${guideIndex * 110}ms`,
+                }}
+              >
+                <div className="h-2" style={{ background: guide.accent }} />
+                <div className="flex flex-1 flex-col p-6 sm:p-7">
+                  <div>
+                    <p className="text-[0.68rem] font-extrabold tracking-[0.18em]" style={{ color: guide.accent }}>{guide.eyebrow}</p>
+                    <h3 className="mt-2 font-display text-2xl font-bold">{guide.title}</h3>
+                    <p className="mt-2 min-h-10 text-sm font-medium leading-relaxed text-[#241a33]/55">{guide.summary}</p>
+                  </div>
+
+                  <ol className="mt-6 flex flex-1 flex-col gap-5">
+                    {guide.steps.map(([title, body], stepIndex) => (
+                      <li key={title} className="grid grid-cols-[2rem_1fr] gap-3">
+                        <span
+                          className="grid h-8 w-8 place-items-center rounded-xl font-display text-sm font-bold"
+                          style={{ background: guide.soft, color: guide.accent }}
+                        >
+                          {stepIndex + 1}
+                        </span>
+                        <div>
+                          <h4 className="font-display text-sm font-bold leading-snug">{title}</h4>
+                          <p className="mt-1 text-xs leading-relaxed text-[#241a33]/55">{body}</p>
+                        </div>
+                      </li>
+                    ))}
+                  </ol>
+
+                  <Link
+                    to={guide.href}
+                    className="mt-7 inline-flex items-center justify-between rounded-full py-2.5 pl-5 pr-2.5 text-sm font-bold text-white transition-all hover:brightness-110"
+                    style={{ background: guide.accent }}
                   >
-                    {s.n}
-                  </span>
-                  <h3 className="font-display font-bold text-lg leading-snug mb-2">{s.title}</h3>
-                  <p className="text-[#241a33]/65 text-sm leading-relaxed">{s.body}</p>
+                    {guide.cta}
+                    <span className="grid h-8 w-8 place-items-center rounded-full bg-white/20">→</span>
+                  </Link>
                 </div>
-              )
-            })}
+              </article>
+            ))}
           </div>
         </div>
       </section>
