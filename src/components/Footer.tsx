@@ -85,7 +85,7 @@ export function Footer() {
           <span>© {new Date().getFullYear()} Prophet Markets</span>
           <span>
             {isOnchain
-              ? 'Independent project on Robinhood Chain, not affiliated with Robinhood Markets, Inc. Unaudited smart contract - play responsibly.'
+              ? 'Independent project on Robinhood Chain, not affiliated with Robinhood Markets, Inc.'
               : RHCHAIN_META.disclaimer}
           </span>
         </div>

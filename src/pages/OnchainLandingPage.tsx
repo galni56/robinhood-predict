@@ -391,7 +391,7 @@ export function OnchainLandingPage() {
               View all {openMarkets.length} markets →
             </Link>
           </span>
-          <span>Capital at risk · Contract unaudited</span>
+          <span>Native ETH wagers · Onchain settlement</span>
         </div>
       </section>
 

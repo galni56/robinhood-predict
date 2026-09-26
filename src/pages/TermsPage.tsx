@@ -17,8 +17,8 @@ export function TermsPage() {
         <p className="text-white/40 text-sm mt-3">
           Last updated {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}.
           Prophet's real mode is a live mainnet product - real wallet and real money. The supported contract
-          generation uses native ETH for wagers; earlier USDG test deployments are unsupported. See §9 before
-          assuming legal/regulatory review is complete; it isn't.
+          generation uses native ETH for wagers; earlier USDG test deployments are unsupported. See §9 for launch
+          and legal-review status.
         </p>
       </div>
 
@@ -58,9 +58,8 @@ export function TermsPage() {
         <p>
           You must be able to form a binding contract to use the Service, and you're responsible for complying with
           any laws that apply to you wherever you access it from - including local rules about prediction markets,
-          derivatives, or gambling, which vary widely and are your responsibility to check, not Prophet's. Real mode
-          involves real financial risk: you can lose the full amount you stake. Only use funds you can afford to
-          lose, and see §6 on the lack of a security audit before treating this as a safe place to hold value.
+          derivatives, or gambling, which vary widely and are your responsibility to check, not Prophet's. Losing
+          positions can lose the full amount staked.
         </p>
       </Section>
 
@@ -88,9 +87,7 @@ export function TermsPage() {
       <Section title="6. No warranty">
         <p>
           The Service is provided "as is." Prices, market data, and mock-demo data can be wrong, delayed, or
-          unavailable without notice. <strong className="text-white/80">The smart contract has not completed an external security audit</strong> -
-          it has had an internal self-review only (documented in the project's own engineering notes), which is not
-          a substitute for one. Prophet makes no warranty that the Service, or the underlying blockchain/RPC
+          unavailable without notice. Prophet makes no warranty that the Service, or the underlying blockchain/RPC
           infrastructure it depends on, will be uninterrupted, error-free, or fit for any particular purpose.
         </p>
       </Section>
@@ -99,8 +96,7 @@ export function TermsPage() {
         <p>
           To the fullest extent permitted by law, Prophet and its contributors aren't liable for any loss arising
           from your use of the Service - including loss of funds, data, or availability, whether from a bug, an
-          exploit, a chain/RPC outage, or otherwise. Real mode moves real money with no audit behind it; this
-          limitation is a direct response to that risk, not boilerplate.
+          exploit, a chain/RPC outage, or otherwise.
         </p>
       </Section>
 
@@ -114,12 +110,9 @@ export function TermsPage() {
       <Section title="9. Launch status & legal review" id="launch-status">
         <p>
           Prophet's real mode is live on Robinhood Chain mainnet with real money moving through it today - this is
-          not a future state. That said, it has not had: an external security audit of the smart contract, or a
-          genuine legal and regulatory review of prediction markets in every jurisdiction it's reachable from.
-          Neither has happened yet. Being live doesn't mean either has been cleared - this document existing is not
-          a substitute for that review, and nothing in it should be read as Prophet asserting it has cleared that
-          bar. The contract is also owner-centralized: a single address controls which price feeds are allowed and
-          the protocol fee, which is a real trust assumption you're making by using it.
+          not a future state. Legal and regulatory treatment of prediction markets varies by jurisdiction, and this
+          document does not represent legal clearance in any jurisdiction. The contract is owner-centralized: a
+          single address controls which price feeds are allowed and the protocol fee.
         </p>
       </Section>
     </div>
