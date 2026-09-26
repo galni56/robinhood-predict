@@ -303,13 +303,13 @@ export function OnchainLeaderboardPage() {
     <div className="max-w-5xl mx-auto px-4 py-8 space-y-10">
       <div className="flex items-end justify-between gap-6 flex-wrap">
         <div className="max-w-xl">
-          <p className="text-sm font-bold text-[#B3A7FA] mb-1">Best callers</p>
-          <h1 className="font-display text-3xl sm:text-4xl font-bold tracking-tight mb-2">Leaderboard</h1>
+          <p className="text-sm font-bold text-[#B3A7FA] mb-1">Prediction Markets</p>
+          <h1 className="font-display text-3xl sm:text-4xl font-bold tracking-tight mb-2">Market leaderboard</h1>
           <p className="text-white/40 text-sm">
             Built live from the contract's own <code className="text-[#B3A7FA]">BetPlaced</code>/
             <code className="text-[#B3A7FA]">Claimed</code> events - no backend, no indexer, just what's actually on
-            the chain. Net is claimed minus staked across a wallet's whole history, so it's a lower bound while bets
-            are still open.
+            the chain. This board covers YES/NO markets; net is claimed minus staked across that history, so it is a
+            lower bound while bets are still open.
           </p>
         </div>
         <div className="flex gap-3">

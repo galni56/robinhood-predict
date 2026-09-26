@@ -15,7 +15,7 @@ export function DisclaimerBanner() {
         {isLocalRaceRoute
           ? 'LOCAL TEST NETWORK · NO REAL FUNDS - Asset Race transactions use Anvil and test ETH only.'
           : isOnchain
-          ? 'Real mode: wagers and payouts use native ETH; stock prices remain quoted in USDG.'
+          ? 'Live on Robinhood Chain · Enter stakes in USD or ETH · Wallets send and receive native ETH.'
           : `Demo / prototype running on mock data. ${RHCHAIN_META.disclaimer}`}
       </span>
     </div>

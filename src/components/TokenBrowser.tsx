@@ -53,7 +53,7 @@ export function TokenBrowser() {
       <p className="text-white/40 text-xs mb-4">
         {query.trim()
           ? `${visibleTickers.length} match${visibleTickers.length === 1 ? '' : 'es'}`
-          : `${DEFAULT_TICKERS.length} reviewed StockToken/USDG assets are enabled for predictions.`}
+          : `${DEFAULT_TICKERS.length} reviewed tokenized stocks are enabled for prediction markets.`}
       </p>
 
       {visibleTickers.length === 0 ? (

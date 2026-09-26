@@ -137,8 +137,8 @@ export function OnchainMarketsListPage() {
           <p className="text-sm font-bold text-[#B3A7FA] mb-1">The board</p>
           <h1 className="font-display text-3xl sm:text-4xl font-bold tracking-tight">What's your call?</h1>
           <p className="text-white/50 text-sm mt-2">
-            {count} market{count === 1 ? '' : 's'} live on Robinhood Chain mainnet. Bet YES or NO before the deadline -
-            early bets carry more weight, and a market with only one side ever betting cancels and refunds in full.
+            {count} market{count === 1 ? '' : 's'} live on Robinhood Chain mainnet. Enter a stake in USD or ETH,
+            choose YES or NO, and the wallet sends the exact native ETH amount. Earlier calls carry more payout weight.
           </p>
         </div>
         <Link
@@ -154,7 +154,7 @@ export function OnchainMarketsListPage() {
 
       {!PREDICTION_MARKET_CONFIGURED && !isDemoMode() && (
         <div className="mb-6 rounded-2xl border border-amber-400/25 bg-amber-400/10 p-4 text-sm text-amber-100">
-          The native ETH PredictionMarket is not configured in this build, so real market transactions are unavailable.
+          Prediction Markets are not configured in this build, so market transactions are unavailable.
         </div>
       )}
 
@@ -177,7 +177,7 @@ export function OnchainMarketsListPage() {
       </div>
 
       {!PREDICTION_MARKET_CONFIGURED && !isDemoMode() ? (
-        <p className="py-16 text-center text-sm text-white/35">Native ETH markets will appear after the new deployment address is configured.</p>
+        <p className="py-16 text-center text-sm text-white/35">Prediction Markets are unavailable in this build.</p>
       ) : marketCount.isLoading ? (
         <p className="text-white/50 text-sm">Loading…</p>
       ) : count === 0 ? (

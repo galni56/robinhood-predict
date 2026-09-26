@@ -19,14 +19,14 @@ const STEPS = [
   {
     n: '01',
     color: '#8B7CF7',
-    title: 'Markets target a real ticker and price',
-    body: 'Anyone can create a market for one of ten reviewed tokenized stocks, choose a target and a deadline. The interface keeps targets in a sensible range around the live StockToken/USDG pool price.',
+    title: 'Choose a stock, target and deadline',
+    body: 'Anyone can create a YES/NO market for one of ten reviewed tokenized stocks. The target is shown against a live onchain stock price before the market is created.',
   },
   {
     n: '02',
     color: '#F2A65A',
-    title: 'Stake native ETH on YES or NO',
-    body: "Every bet goes into one shared pool per side - there's no bookmaker setting a line and no fixed odds. The live YES/NO split of the pool is the price, and it moves in real time as people bet.",
+    title: 'Enter your stake in USD or ETH',
+    body: 'Use whichever input is easier. Prophet shows both equivalents, freezes the exact amount, and your wallet sends native ETH directly in one transaction—no approval or swap.',
   },
   {
     n: '03',
@@ -37,14 +37,14 @@ const STEPS = [
   {
     n: '04',
     color: '#ED8F3A',
-    title: 'The Robinhood pool fixes the outcome',
-    body: 'The outcome uses the StockToken/USDG pool state from the last Robinhood block strictly before the scheduled deadline. A keeper submits a signed adjacent-block proof, so resolving later cannot change which price wins.',
+    title: 'The deadline price fixes the outcome',
+    body: 'Settlement uses the reviewed onchain price from the last Robinhood block strictly before the scheduled deadline. Resolving later cannot replace it with a newer price.',
   },
   {
     n: '05',
     color: '#6A5AE0',
-    title: 'One-sided markets are cancelled',
-    body: 'If a market reaches its deadline with bets on only one side, the keeper cancels it instead of settling - every stake comes back in full, no protocol fee taken. Conviction on one side alone never just gets swallowed.',
+    title: 'A real opposing market is required',
+    body: 'Settlement needs funded YES and NO pools from at least two distinct wallets. If those conditions are not met, the market cancels and every position can reclaim its full stake with no protocol fee.',
   },
   {
     n: '06',
@@ -56,28 +56,28 @@ const STEPS = [
 
 const FEATURES = [
   {
-    tag: '0% VIG',
+    tag: 'POOL TO POOL',
     color: '#8B7CF7',
-    title: 'No spread. No vig. No middleman.',
-    body: "Every sportsbook, every prediction platform, most of DeFi - they all bake a spread into the price before you even click a button. Prophet doesn't. There's no market maker quietly skimming the top and no house edge disguised as odds. Winners split exactly what losers staked, pool against pool, in proportion to weighted stake. The pool is the price. Nothing else touches it.",
+    title: 'Players compete against players',
+    body: 'There are no fixed bookmaker odds. Each game forms an onchain pool, and winners receive principal plus their rule-based share of the losing pool after the 2% protocol fee on that profit portion.',
   },
   {
-    tag: '2X → 0.5X',
+    tag: 'USD ↔ ETH',
     color: '#F2A65A',
-    title: 'Early conviction is priced in - literally',
-    body: "Most platforms treat every dollar the same whether you bet the second a market opens or the second before it locks. Prophet doesn't. Bet inside the first two-thirds of the window and your stake carries up to 2x weight toward the payout; wait until the crowd has already piled in and that decays down to 0.5x. Being right isn't enough here - being right early is what actually gets paid.",
+    title: 'Choose how you enter the amount',
+    body: 'Type a convenient dollar amount or enter ETH directly. Every stake form shows the matching value from one shared ETH/USD quote before the wallet opens; the contract receives native ETH.',
   },
   {
-    tag: '100% REFUND',
+    tag: 'CLEAR OUTCOMES',
     color: '#B3A7FA',
-    title: 'Your capital never gets trapped in a dead market',
-    body: "If a market hits its deadline and only one side ever placed a bet, there's no outcome to force. It cancels on-chain automatically and every wallet gets its full stake back - no protocol fee, no dispute process, no support ticket to file. Dead markets don't hold your money hostage here.",
+    title: 'Settle by rule or refund by rule',
+    body: 'Each mode defines its price snapshot, eligibility and tie behavior in advance. If a game cannot settle under those rules, it reaches a refundable terminal state instead of substituting an arbitrary result.',
   },
   {
     tag: 'LIVE ON MAINNET',
     color: '#ED8F3A',
-    title: 'Not a testnet. Not a simulation. Not a promise.',
-    body: 'The release candidate uses native ETH for every wager and payout while preserving reviewed StockToken/USDG pools only as stock price sources. Permissionless market creation and deterministic deadline proofs keep the core rules transparent on-chain.',
+    title: 'Three games, one native currency',
+    body: 'Prediction Markets, Asset Races and Price Arena run on Robinhood Chain. Stakes, pools, claims and refunds use native ETH; stock quote assets are used only to determine game prices and results.',
   },
 ] as const
 
@@ -182,31 +182,35 @@ export function OnchainLandingPage() {
       <div>
         <section className="max-w-[1500px] mx-auto px-4 pt-8 pb-8">
           <div className="relative overflow-hidden rounded-[2.5rem] bg-[#e7e1f8] text-[#241a33] px-6 py-12 sm:px-14 sm:py-16">
-            <div className="relative grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-              <div>
+            <div className="relative grid min-w-0 grid-cols-1 items-center gap-12 lg:grid-cols-2">
+              <div className="min-w-0">
                 <p className="inline-flex items-center gap-2 rounded-full bg-white/60 px-3.5 py-1.5 text-xs font-bold text-[#241a33]/70 mb-6">
                   <span className="text-[#8B7CF7]">✦</span>
-                  A little foresight. A lot of personality.
+                  Three ways to call the market
                 </p>
                 <h1 className="font-display text-5xl sm:text-[4rem] font-bold tracking-tight leading-[1.04]">
-                  Big opinions.
+                  Call it. Race it.
                   <br />
-                  A little foresight.
+                  Name the price.
                 </h1>
                 <p className="text-[#241a33]/70 text-base sm:text-lg mt-5 max-w-md font-medium">
-                  Think you know where stocks are heading? Find a question. Explore both sides. Make your call.
+                  Play YES/NO Prediction Markets, back the fastest mover in Asset Races, or forecast the exact finish
+                  in Price Arena. Enter your stake in USD or ETH; your wallet sends native ETH.
                 </p>
 
-                <div className="mt-8 flex flex-wrap items-center gap-6">
+                <div className="mt-8 flex flex-col items-start gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:gap-5">
                   <Link
                     to="/onchain"
                     className="inline-flex items-center gap-3 rounded-full bg-[#241a33] text-[#f7f1e3] pl-6 pr-2.5 py-2.5 text-sm font-bold hover:bg-[#31234a] transition-colors"
                   >
-                    Find your next call
+                    Prediction Markets
                     <span className="w-8 h-8 rounded-full bg-[#8B7CF7] text-[#f7f1e3] grid place-items-center text-sm">↗</span>
                   </Link>
-                  <Link to="/demo" className="text-sm font-bold underline underline-offset-4 decoration-2 hover:text-[#6A5AE0] transition-colors">
-                    Try a practice call
+                  <Link to="/onchain/races" className="text-sm font-bold underline underline-offset-4 decoration-2 hover:text-[#6A5AE0] transition-colors">
+                    Asset Races
+                  </Link>
+                  <Link to="/onchain/arenas" className="text-sm font-bold underline underline-offset-4 decoration-2 hover:text-[#6A5AE0] transition-colors">
+                    Price Arena
                   </Link>
                 </div>
 
@@ -259,9 +263,9 @@ export function OnchainLandingPage() {
           </div>
 
           <div className="flex flex-wrap items-center justify-between gap-3 px-2 sm:px-6 pt-6 text-sm font-bold text-white/60">
-            <span>Good questions beat long explanations.</span>
+            <span>Three formats. One onchain playground.</span>
             <span className="flex items-center gap-2">
-              Pick a market <span className="text-[#B3A7FA]">→</span> Explore YES / NO <span className="text-[#B3A7FA]">→</span> See how it settles
+              Choose a game <span className="text-[#B3A7FA]">→</span> Enter USD or ETH <span className="text-[#B3A7FA]">→</span> Sign one native ETH transaction
             </span>
           </div>
         </section>
@@ -385,7 +389,7 @@ export function OnchainLandingPage() {
 
         <div className="flex flex-wrap items-center justify-between gap-3 pt-8 text-xs font-bold text-white/40">
           <span>
-            Real markets use native ETH · one wallet transaction, no approval · 2% fee on winnings ·{' '}
+            Prediction Markets use native ETH · one wallet transaction · 2% fee on each winner’s profit share ·{' '}
             <Link to="/onchain" className="text-[#B3A7FA] hover:underline">
               View all {openMarkets.length} markets →
             </Link>
@@ -412,9 +416,9 @@ export function OnchainLandingPage() {
             <div>
               <p className="inline-flex items-center gap-2 rounded-full bg-white/60 px-3.5 py-1.5 text-xs font-bold text-[#241a33]/70 mb-4">
                 <span className="text-[#8B7CF7]">✦</span>
-                Six steps, start to settlement
+                Prediction Markets · start to settlement
               </p>
-              <h2 className="font-display text-3xl sm:text-5xl font-bold tracking-tight">How it works</h2>
+              <h2 className="font-display text-3xl sm:text-5xl font-bold tracking-tight">How YES / NO works</h2>
             </div>
             <div className="hidden sm:flex items-center gap-3 pb-1">
               <img
@@ -469,7 +473,7 @@ export function OnchainLandingPage() {
           Why <span className="text-[#B3A7FA]">Prophet</span>
         </h2>
         <p className="text-white/40 text-sm sm:text-base text-center mb-12 max-w-xl mx-auto">
-          No spread. No stale markets. No trust required - just math that settles itself, on-chain, in the open.
+          Pick the format that matches your conviction. The rules, pools and settlement state stay visible onchain.
         </p>
         <div ref={featuresReveal.ref} className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           {FEATURES.map((f, i) => {
@@ -505,7 +509,7 @@ export function OnchainLandingPage() {
         </div>
       </section>
 
-      {/* Asset Races -- second product surface alongside YES/NO markets.
+      {/* Asset Races and Price Arena -- the two alternative product surfaces.
           Deliberately no live race data here (a brand-new feature can have
           zero races at any given moment, which would make a marketing
           section look broken) -- just the pitch and a way in. */}
@@ -521,41 +525,41 @@ export function OnchainLandingPage() {
             <div>
               <p className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3.5 py-1.5 text-xs font-bold text-white/70 mb-6">
                 <span className="text-[#C6FF3D]">⚡</span>
-                New · Asset Races
+                Beyond YES / NO · Races + Arena
               </p>
               <h2 className="font-display text-3xl sm:text-5xl font-bold tracking-tight leading-[1.08]">
-                Forget the target price.
+                Back the fastest.
                 <br />
-                Just back the fastest.
+                Or name the finish.
               </h2>
               <p className="text-white/55 text-base mt-5 max-w-md">
-                Pick 2 to 6 assets, stocks or memes, and watch the clock. Whichever moves the most before it runs out
-                takes the pool - no target price to guess, no deadline to argue about. Some races settle in as
-                little as a minute.
+                Asset Races compare 2 to 6 stocks—or 2 to 6 memes—by percentage return. Price Arena hides every forecast
+                during the lobby, then rewards the closest half at the deadline. Both accept USD or ETH input and
+                settle entirely in native ETH.
               </p>
               <div className="mt-8 flex flex-wrap items-center gap-4">
                 <Link
                   to="/onchain/races"
                   className="inline-flex items-center gap-3 rounded-full bg-[#C6FF3D] text-black pl-6 pr-2.5 py-2.5 text-sm font-bold hover:brightness-110 transition-all"
                 >
-                  Watch a race
+                  Explore Asset Races
                   <span className="w-8 h-8 rounded-full bg-black/15 grid place-items-center text-sm">↗</span>
                 </Link>
                 <Link
-                  to="/onchain/races/create"
+                  to="/onchain/arenas"
                   className="text-sm font-bold text-white/70 hover:text-white underline underline-offset-4 decoration-2 transition-colors"
                 >
-                  Start your own race
+                  Enter Price Arena
                 </Link>
               </div>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {[
-                { emoji: '⚡', title: 'Fast', body: 'As quick as a 1-minute clock - built for people who hate waiting.' },
-                { emoji: '📈🚀', title: 'Stocks or memes', body: 'Race tokenized stocks head-to-head, or go full chaos in the meme lane.' },
-                { emoji: '🏆', title: 'Fastest mover wins', body: 'Highest % move between start and finish takes the pool. No line, no odds set for you.' },
-                { emoji: '🍿', title: 'Watch it live', body: 'Prices update in real time while the clock runs - no refreshing to see who’s ahead.' },
+                { emoji: '⚡', title: 'Asset Races', body: 'Back one of 2–6 contenders. Highest percentage return between the shared snapshots wins.' },
+                { emoji: '🎯', title: 'Price Arena', body: 'Predict one exact final price. The closest half shares the losing half’s pool.' },
+                { emoji: '📈🚀', title: 'Stocks or memes', body: 'Choose the stock lane or the meme lane; quote rules stay specific to each category.' },
+                { emoji: '🍿', title: 'Follow it live', body: 'Watch rankings move in real time while onchain settlement stays tied to the fixed deadline.' },
               ].map((f) => (
                 <div key={f.title} className="rounded-2xl bg-white/5 border border-white/10 p-5">
                   <span className="text-2xl">{f.emoji}</span>
@@ -591,8 +595,8 @@ export function OnchainLandingPage() {
             </p>
             <h2 className="font-display text-3xl sm:text-5xl font-bold tracking-tight mb-3">Browse tokenized stocks</h2>
             <p className="text-[#241a33]/60 text-sm sm:text-base font-medium mb-8">
-              Tokenized stocks discovered on Robinhood Chain. A colored dot means its reviewed StockToken/USDG pool is
-              enabled, so you can open a market on it right now.
+              Tokenized stocks discovered on Robinhood Chain. A colored dot means Prophet has enabled a reviewed
+              onchain price source, so you can create a YES/NO market for it now.
             </p>
 
             <div className="relative max-w-sm mx-auto mb-10">
@@ -648,7 +652,7 @@ export function OnchainLandingPage() {
                         <span className="font-bold text-sm text-[#241a33] shrink-0">{a.tokenSymbol}</span>
                         <span className="text-xs text-[#241a33]/50 truncate flex-1">{label}</span>
                         <span className={hasFeed ? 'text-xs font-bold text-[#6A5AE0] shrink-0' : 'text-[11px] font-bold text-[#241a33]/35 shrink-0'}>
-                          {hasFeed ? 'Open market →' : 'Pool not approved'}
+                          {hasFeed ? 'Create market →' : 'Not enabled'}
                         </span>
                       </button>
                     )
@@ -692,7 +696,7 @@ export function OnchainLandingPage() {
                 return (
                   <span
                     key={a.tokenSymbol}
-                    title={`${label} - no reviewed StockToken/USDG pool is enabled for prediction markets yet.`}
+                    title={`${label} - no reviewed price source is enabled for Prediction Markets yet.`}
                     className="flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-dashed border-[#241a33]/20 text-sm text-[#241a33]/40 font-bold cursor-default"
                   >
                     {dot}
@@ -754,26 +758,32 @@ export function OnchainLandingPage() {
             />
             <p className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3.5 py-1.5 text-xs font-bold text-white/70 mb-5">
               <span className="text-[#B3A7FA]">✦</span>
-              One question. Two sides.
+              Three games. Your call.
             </p>
-            <h2 className="font-display text-3xl sm:text-5xl font-bold tracking-tight mb-4">Ready to make your first call?</h2>
+            <h2 className="font-display text-3xl sm:text-5xl font-bold tracking-tight mb-4">Ready to play your first game?</h2>
             <p className="text-white/50 text-sm sm:text-base mb-9 max-w-lg mx-auto">
-              No wallet required to look around - browsing every market is open to everyone. Connect a wallet
-              (MetaMask) when you're ready to actually place a bet.
+              Browse Markets, Races and Arena without connecting. When you are ready, connect a supported wallet,
+              enter the stake in USD or ETH, and review the exact native ETH amount before signing.
             </p>
             <div className="flex flex-wrap gap-4 justify-center items-center">
               <Link
                 to="/onchain"
                 className="inline-flex items-center gap-3 rounded-full bg-gradient-to-r from-[#8B7CF7] to-[#6A5AE0] hover:brightness-110 text-white pl-7 pr-3 py-3 text-sm font-bold transition-all shadow-[0_14px_36px_-12px_rgba(106,90,224,0.8)]"
               >
-                Find your next call
+                Prediction Markets
                 <span className="w-8 h-8 rounded-full bg-white/20 grid place-items-center text-sm">↗</span>
               </Link>
               <Link
-                to="/onchain/create"
+                to="/onchain/races"
                 className="text-sm px-7 py-3.5 rounded-full border border-white/15 text-white/80 hover:text-white hover:border-white/40 font-bold transition-colors"
               >
-                Create a market
+                Asset Races
+              </Link>
+              <Link
+                to="/onchain/arenas"
+                className="text-sm px-7 py-3.5 rounded-full border border-white/15 text-white/80 hover:text-white hover:border-white/40 font-bold transition-colors"
+              >
+                Price Arena
               </Link>
             </div>
           </div>

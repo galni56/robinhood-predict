@@ -16,9 +16,9 @@ export function TermsPage() {
         <h1 className="text-3xl font-extrabold tracking-tight">Terms of Service</h1>
         <p className="text-white/40 text-sm mt-3">
           Last updated {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}.
-          Prophet's real mode is a live mainnet product - real wallet and real money. The supported contract
-          generation uses native ETH for wagers; earlier USDG test deployments are unsupported. See §9 for launch
-          and legal-review status.
+          Prophet's real mode is a live mainnet product with real wallet transactions. Prediction Markets, Asset
+          Races and Price Arena use native ETH for stakes, payouts and refunds. See §9 for launch and legal-review
+          status.
         </p>
       </div>
 
@@ -42,12 +42,12 @@ export function TermsPage() {
 
       <Section title="2. What the Service is">
         <p>
-          Prophet is a parimutuel prediction market on tokenized stocks, running on Robinhood Chain (a real EVM
-          network Robinhood operates for tokenized equities). <strong className="text-white/80">Real mode is the default experience</strong>: connecting
-          a browser wallet (MetaMask or similar) lets you interact with live smart contracts and money you can
-          genuinely gain or lose. Dollar stake fields are only a conversion convenience: the wallet sends the exact
-          displayed native ETH value and the supported contracts account in wei. Earlier USDG test contracts are
-          not supported by this interface or its automation. A separate mock demo, reachable via "Try the demo", is a
+          Prophet offers three parimutuel prediction games for tokenized assets on Robinhood Chain (a real EVM
+          network Robinhood operates for tokenized equities): YES/NO Prediction Markets, Asset Races and Price Arena.
+          <strong className="text-white/80"> Real mode is the default experience</strong>: connecting a browser wallet
+          lets you interact with live smart contracts and money you can genuinely gain or lose. USD stake fields are
+          a conversion convenience; the wallet sends the exact displayed native ETH value and the contracts account
+          in wei. A separate mock demo, reachable via "Try the demo", is a
           fully client-side simulation with no wallet, no real prices, and no real funds - useful to see how the
           product works without risking anything, but distinct from real mode in every respect. Nothing here
           constitutes a regulated financial product, exchange, or brokerage, and using it doesn't make Prophet one.

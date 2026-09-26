@@ -353,7 +353,7 @@ export function OnchainMarketPage() {
         return
       }
       if (market.data.poolYes > 0n && market.data.poolNo > 0n && participantCount.data >= 2n) {
-        setError('The keeper is collecting the signed StockToken/USDG deadline price. No wallet action is needed.')
+        setError('The keeper is collecting the verified deadline price. No wallet action is needed.')
         return
       }
       setTx({ label: 'Confirm resolve in your wallet…' })
@@ -694,7 +694,7 @@ export function OnchainMarketPage() {
                       </button>
                     ) : (
                       <p className="rounded-xl bg-white/5 px-3 py-2.5 text-sm text-white/50">
-                        Deadline passed. The keeper is fixing the signed StockToken/USDG pool price automatically.
+                        Deadline passed. The keeper is submitting the verified onchain deadline price.
                       </p>
                     )
                   )}

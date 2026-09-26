@@ -75,7 +75,7 @@ export function OnchainArenasListPage() {
         <Link to={`/onchain/arenas/create${mode === 'memes' ? '?mode=memes' : ''}`} className={`rounded-full px-5 py-3 text-sm font-bold ${mode === 'memes' ? 'bg-[#F2A65A] text-[#3b2416]' : 'bg-[#8B7CF7] text-white'}`}>+ Create {mode === 'memes' ? 'meme' : 'stock'} arena</Link>
       </div>
 
-      {!isConfigured && <div className="mt-6 rounded-2xl border border-amber-400/25 bg-amber-400/10 p-4 text-sm text-amber-100">Price Arena is not deployed in this build yet. {PRICE_ARENA_CONFIG_ERROR}</div>}
+      {!isConfigured && <div className="mt-6 rounded-2xl border border-amber-400/25 bg-amber-400/10 p-4 text-sm text-amber-100">Price Arena is not configured in this build. {PRICE_ARENA_CONFIG_ERROR}</div>}
 
       <div className="mt-8 flex flex-wrap items-center justify-between gap-3">
         <div className="flex gap-1.5">

@@ -128,7 +128,7 @@ export function AssetRaceLobbyView({
                       <div className="text-xs font-bold text-white/45">Selected contender</div>
                       <div className="mt-1 font-display text-lg font-bold">{pendingAsset.symbol} <span className="font-sans text-sm font-normal text-white/40">{pendingAsset.name}</span></div>
                       <p className="mt-2 max-w-xl text-xs leading-relaxed text-white/50">
-                        Confirm adding {pendingAsset.symbol} to this race. Your wallet will ask you to approve the transaction and its ETH network fee.
+                        Confirm adding {pendingAsset.symbol} to this race. Your wallet will ask you to sign the transaction and pay its ETH network fee.
                       </p>
                     </div>
                     <div className="flex w-full gap-2 sm:w-auto">

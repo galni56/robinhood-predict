@@ -205,7 +205,7 @@ export function OnchainRacePage() {
         <div className="mb-5 rounded-2xl border border-[#8B7CF7]/25 bg-[#8B7CF7]/10 px-4 py-3 text-sm font-medium text-[#B3A7FA]">
           {isLocalAssetRace
             ? 'Local test network - contract state and transactions come from this Mac’s Anvil chain using local ETH.'
-            : 'Real AssetRace contract mode on Robinhood Chain. Wallet actions use native ETH and need no token approval.'}
+            : 'Live Asset Race on Robinhood Chain. Enter the stake in USD or ETH; your wallet sends native ETH directly.'}
         </div>
       )}
 

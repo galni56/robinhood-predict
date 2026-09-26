@@ -3,6 +3,8 @@ import { RHCHAIN_META } from '@/market/tokens'
 
 const realModeLinks = [
   { to: '/onchain', label: 'Markets' },
+  { to: '/onchain/races', label: 'Asset Races' },
+  { to: '/onchain/arenas', label: 'Price Arena' },
   { to: '/onchain/portfolio', label: 'Portfolio' },
   { to: '/onchain/leaderboard', label: 'Leaderboard' },
   { to: '/demo', label: 'Try the demo' },
@@ -37,8 +39,8 @@ export function Footer() {
             </span>
           </div>
           <p className="text-white/40 text-sm mt-3">
-            Parimutuel prediction markets for tokenized stocks. Pick YES or NO on a target price, bet early for a
-            bigger share, settle when the deadline hits.
+            Three onchain prediction games for tokenized assets: call a target, back the fastest mover, or name the
+            final price. Stakes and payouts use native ETH.
           </p>
           <a
             href="https://x.com/prophetmarketsx"

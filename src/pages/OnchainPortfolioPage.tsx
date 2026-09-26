@@ -103,8 +103,8 @@ export function OnchainPortfolioPage() {
     return (
       <div className="max-w-2xl mx-auto px-4 py-8">
         <p className="text-sm font-bold text-[#B3A7FA] mb-1">Your account</p>
-        <h1 className="font-display text-3xl sm:text-4xl font-bold tracking-tight mb-1">Your on-chain portfolio</h1>
-        <p className="text-white/40 text-sm mb-6">Connect a wallet to see your real stakes across every market.</p>
+        <h1 className="font-display text-3xl sm:text-4xl font-bold tracking-tight mb-1">Your market portfolio</h1>
+        <p className="text-white/40 text-sm mb-6">Connect a wallet to see your YES/NO Prediction Market positions.</p>
         <WalletOptionsList />
       </div>
     )
@@ -160,7 +160,7 @@ export function OnchainPortfolioPage() {
         <div>
           <p className="text-sm font-bold text-[#B3A7FA] mb-1">Your account</p>
           <h1 className="font-display text-3xl sm:text-4xl font-bold tracking-tight mb-1">
-            {nickname.data ? nickname.data : 'Your on-chain portfolio'}
+            {nickname.data ? nickname.data : 'Your market portfolio'}
           </h1>
           <p className="text-white/40 text-xs font-mono break-all">{address}</p>
         </div>

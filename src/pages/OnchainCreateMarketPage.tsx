@@ -99,7 +99,7 @@ export function OnchainCreateMarketPage() {
       return
     }
     if (!livePrice || livePrice.stale) {
-      setError("Live StockToken/USDG pool price isn't ready - try again")
+      setError("The live onchain stock price isn't ready - try again")
       return
     }
 
@@ -143,9 +143,9 @@ export function OnchainCreateMarketPage() {
           <h1 className="font-display text-3xl sm:text-4xl font-bold tracking-tight mb-2">Ask the next big question</h1>
           <p className="text-white/50 text-sm mb-6">
             A real transaction on mainnet. Target price must sit a reasonable distance from the current price - the
-            further out the deadline, the wider that band. YES/NO pools start at $0 - if only one side has bets by the
-            deadline, the market cancels and native ETH is refunded in full. Wagers use native ETH in one wallet
-            transaction; no token approval or swap is involved.
+            further out the deadline, the wider that band. Settlement needs funded YES and NO pools from at least two
+            wallets; otherwise every position can reclaim its native ETH in full. Enter the stake in USD or ETH—the
+            wallet sends native ETH directly, with no token approval or swap.
           </p>
 
           {/* Live preview: the question this form is about to put on the board */}
@@ -187,7 +187,7 @@ export function OnchainCreateMarketPage() {
             ))}
           </div>
           <p className="text-[11px] text-white/30 mt-1.5">
-            Only reviewed StockToken/USDG pools can settle a market. Ten production assets are enabled.
+            Ten reviewed tokenized stocks have an onchain price source enabled for market settlement.
           </p>
         </div>
 

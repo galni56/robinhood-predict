@@ -47,9 +47,9 @@ export function WhitepaperPage() {
             Prophet: three onchain prediction games for tokenized assets
           </h1>
           <p className="mt-3 text-sm text-white/40">
-            Version 2.0 · Robinhood Chain mainnet. This document describes the native-ETH product implemented for
-            the next deployments. Earlier USDG test deployments are unsupported historical contracts and are not
-            exposed by the product UI. This document is not legal, financial or investment advice. See the{' '}
+            Version 2.0 · Robinhood Chain mainnet. This document describes the live native-ETH product across
+            Prediction Markets, Asset Races and Price Arena. This document is not legal, financial or investment
+            advice. See the{' '}
             <Link to="/terms" className="text-[#8B7CF7] hover:underline">
               Terms of Service
             </Link>
@@ -115,9 +115,10 @@ export function WhitepaperPage() {
           <p>The current market lifecycle is:</p>
           <ol className="list-decimal space-y-2 pl-5">
             <li>
-              Any wallet creates a market for one of the 10 approved StockToken/USDG pools, chooses a positive target
-              and selects a deadline. The interface offers 30 minutes, 1 hour, 24 hours and 7 days. Thirty minutes is
-              the onchain minimum.
+              Any wallet creates a market for one of 10 approved tokenized stocks, chooses a positive target and
+              selects a deadline. Each stock uses a reviewed StockToken/USDG pool as its price source—not as the
+              wager currency. The interface offers 30 minutes, 1 hour, 24 hours and 7 days. Thirty minutes is the
+              onchain minimum.
             </li>
             <li>
               Players enter the live equivalent of $1–$50 in USD or ETH and stake the displayed native ETH amount on YES or NO. A wallet may place one bet per side. It is
