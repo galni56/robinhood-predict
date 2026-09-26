@@ -198,19 +198,27 @@ export function OnchainLandingPage() {
                   in Price Arena. Enter your stake in USD or ETH; your wallet sends native ETH.
                 </p>
 
-                <div className="mt-8 flex flex-col items-start gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:gap-5">
+                <div className="mt-8 flex flex-col items-start gap-3 sm:flex-row sm:flex-wrap sm:items-center">
                   <Link
                     to="/onchain"
-                    className="inline-flex items-center gap-3 rounded-full bg-[#241a33] text-[#f7f1e3] pl-6 pr-2.5 py-2.5 text-sm font-bold hover:bg-[#31234a] transition-colors"
+                    className="inline-flex min-w-[190px] items-center justify-between gap-3 rounded-full bg-[#241a33] py-2.5 pl-6 pr-2.5 text-sm font-bold text-[#f7f1e3] transition-all hover:-translate-y-0.5 hover:bg-[#31234a]"
                   >
                     Prediction Markets
                     <span className="w-8 h-8 rounded-full bg-[#8B7CF7] text-[#f7f1e3] grid place-items-center text-sm">↗</span>
                   </Link>
-                  <Link to="/onchain/races" className="text-sm font-bold underline underline-offset-4 decoration-2 hover:text-[#6A5AE0] transition-colors">
+                  <Link
+                    to="/onchain/races"
+                    className="inline-flex min-w-[190px] items-center justify-between gap-3 rounded-full bg-[#241a33] py-2.5 pl-6 pr-2.5 text-sm font-bold text-[#f7f1e3] transition-all hover:-translate-y-0.5 hover:bg-[#31234a]"
+                  >
                     Asset Races
+                    <span className="w-8 h-8 rounded-full bg-[#8B7CF7] text-[#f7f1e3] grid place-items-center text-sm">↗</span>
                   </Link>
-                  <Link to="/onchain/arenas" className="text-sm font-bold underline underline-offset-4 decoration-2 hover:text-[#6A5AE0] transition-colors">
+                  <Link
+                    to="/onchain/arenas"
+                    className="inline-flex min-w-[190px] items-center justify-between gap-3 rounded-full bg-[#241a33] py-2.5 pl-6 pr-2.5 text-sm font-bold text-[#f7f1e3] transition-all hover:-translate-y-0.5 hover:bg-[#31234a]"
+                  >
                     Price Arena
+                    <span className="w-8 h-8 rounded-full bg-[#8B7CF7] text-[#f7f1e3] grid place-items-center text-sm">↗</span>
                   </Link>
                 </div>
 

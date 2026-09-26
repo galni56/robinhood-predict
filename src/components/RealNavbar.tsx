@@ -111,9 +111,9 @@ export function RealNavbar() {
             target="_blank"
             rel="noreferrer"
             aria-label="Prophet on X"
-            className="w-8 h-8 shrink-0 flex items-center justify-center rounded-full text-white/40 hover:text-white hover:bg-white/5 transition-colors"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#8B7CF7]/40 bg-[#8B7CF7]/15 text-white shadow-[0_6px_18px_-8px_rgba(139,124,247,0.9)] transition-all hover:-translate-y-0.5 hover:border-[#B3A7FA] hover:bg-[#8B7CF7]/30"
           >
-            <svg viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5">
+            <svg viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4">
               <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
             </svg>
           </a>
@@ -210,7 +210,7 @@ export function RealNavbar() {
             target="_blank"
             rel="noreferrer"
             onClick={() => setMobileOpen(false)}
-            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-bold text-white/40 hover:bg-white/5 hover:text-white"
+            className="flex items-center gap-2 rounded-lg border border-[#8B7CF7]/30 bg-[#8B7CF7]/10 px-3 py-2 text-sm font-bold text-white/80 hover:border-[#B3A7FA] hover:bg-[#8B7CF7]/20 hover:text-white"
           >
             <svg viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5">
               <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
