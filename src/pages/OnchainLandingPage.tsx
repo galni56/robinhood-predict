@@ -270,10 +270,12 @@ export function OnchainLandingPage() {
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-3 px-2 sm:px-6 pt-6 text-sm font-bold text-white/60">
-            <span>Three formats. One onchain playground.</span>
-            <span className="flex items-center gap-2">
-              Choose a game <span className="text-[#B3A7FA]">→</span> Enter USD or ETH <span className="text-[#B3A7FA]">→</span> Sign one native ETH transaction
+          <div className="flex flex-col gap-3 px-2 pt-6 text-sm font-bold text-white/60 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
+            <span>Anyone can create: ask a YES / NO question, assemble an Asset Race, or launch a Price Arena.</span>
+            <span className="flex flex-wrap items-center gap-x-4 gap-y-2">
+              <Link to="/onchain/create" className="text-[#B3A7FA] transition-colors hover:text-white">Create Market ↗</Link>
+              <Link to="/onchain/races/create" className="text-[#B3A7FA] transition-colors hover:text-white">Create Race ↗</Link>
+              <Link to="/onchain/arenas/create" className="text-[#B3A7FA] transition-colors hover:text-white">Create Arena ↗</Link>
             </span>
           </div>
         </section>
