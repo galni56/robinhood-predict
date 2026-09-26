@@ -210,7 +210,6 @@ export function OnchainLandingPage() {
                   </Link>
                 </div>
 
-                <p className="text-xs text-[#241a33]/50 mt-4 font-bold">Explore first. No wallet needed.</p>
               </div>
 
               <div className="relative flex flex-col items-center py-6 mt-6 lg:mt-0">
