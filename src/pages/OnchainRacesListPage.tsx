@@ -62,21 +62,15 @@ function statusChipClass(status: number) {
 function RaceCard({ race, nowMs, tokenDecimals }: { race: AssetRaceViewModel; nowMs: number; tokenDecimals: number }) {
   const topBacked = [...race.assets].sort((a, b) => (a.pool > b.pool ? -1 : a.pool < b.pool ? 1 : 0))[0]
   const platform = race.origin === ASSET_RACE_ORIGIN.PLATFORM
-  const meme = race.category === ASSET_RACE_CATEGORY.MEME
-  const accentText = meme ? 'text-[#F2A65A]' : 'text-[#B3A7FA]'
   return (
     <Link
       to={`/onchain/races/${race.id}`}
-      className={`group flex flex-col rounded-3xl border border-white/5 bg-[#241b2f] p-5 transition-all hover:-translate-y-0.5 ${
-        meme
-          ? 'hover:border-[#F2A65A]/40 hover:shadow-[0_24px_50px_-30px_rgba(237,143,58,0.7)]'
-          : 'hover:border-[#8B7CF7]/40 hover:shadow-[0_24px_50px_-30px_rgba(106,90,224,0.7)]'
-      }`}
+      className="group flex flex-col rounded-3xl border border-white/5 bg-[#241b2f] p-5 transition-all hover:-translate-y-0.5 hover:border-[#F2A65A]/40 hover:shadow-[0_24px_50px_-30px_rgba(237,143,58,0.7)]"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-1.5 text-xs font-bold">
-            <span className={`rounded-full px-2.5 py-1 ${platform ? (meme ? 'bg-[#F2A65A]/15 text-[#F2A65A]' : 'bg-[#8B7CF7]/15 text-[#B3A7FA]') : 'bg-white/5 text-white/50'}`}>
+            <span className={`rounded-full px-2.5 py-1 ${platform ? 'bg-[#F2A65A]/15 text-[#F2A65A]' : 'bg-white/5 text-white/50'}`}>
               {platform ? 'Featured' : 'Community'}
             </span>
             <span className={`rounded-full px-2.5 py-1 ${statusChipClass(race.status)}`}>{assetRaceStatusLabel(race.status)}</span>
@@ -121,7 +115,7 @@ function RaceCard({ race, nowMs, tokenDecimals }: { race: AssetRaceViewModel; no
               <span className="flex items-center gap-1.5 font-bold"><TokenLogo ticker={asset.symbol} className="h-5 w-5 rounded-md" />{asset.symbol}</span>
               <div className="h-1.5 overflow-hidden rounded-full bg-white/5">
                 <div
-                  className={`h-full rounded-full ${meme ? 'bg-[#F2A65A]' : 'bg-[#8B7CF7]'}`}
+                  className="h-full rounded-full bg-[#F2A65A]"
                   style={{ width: formatPoolShare(asset.pool, race.totalPool) }}
                 />
               </div>
@@ -139,7 +133,7 @@ function RaceCard({ race, nowMs, tokenDecimals }: { race: AssetRaceViewModel; no
               ? `${formatStakeRaw(race.totalPool, tokenDecimals)} pool · ${topBacked.symbol} leads the backing`
               : 'Waiting for the first bet'}
         </span>
-        <span className={`inline-flex shrink-0 items-center gap-1.5 text-sm font-bold ${accentText}`}>
+        <span className="inline-flex shrink-0 items-center gap-1.5 text-sm font-bold text-[#F2A65A]">
           {raceCta(race.status)}
           <span className="transition-transform group-hover:translate-x-0.5">→</span>
         </span>
@@ -178,7 +172,7 @@ export function OnchainRacesListPage() {
           {ASSET_RACE_CONFIG_ERROR && <span className="mt-1 block text-rose-300">{ASSET_RACE_CONFIG_ERROR}</span>}
         </div>
       ) : (
-        <div className="mb-6 rounded-2xl border border-[#8B7CF7]/25 bg-[#8B7CF7]/10 px-4 py-3 text-sm font-medium text-[#B3A7FA]">
+        <div className="mb-6 rounded-2xl border border-[#F2A65A]/25 bg-[#F2A65A]/10 px-4 py-3 text-sm font-medium text-[#F2A65A]">
           {isLocalAssetRace
             ? 'Local test network - races use Anvil and local ETH, no real funds.'
             : `Races are read from the configured contract. Live prices are display-only; settlement stays onchain. Pools use ${ASSET_RACE_TOKEN_LABEL}.`}
@@ -187,7 +181,7 @@ export function OnchainRacesListPage() {
 
       <div className="mb-8 flex flex-wrap items-end justify-between gap-6">
         <div className="max-w-2xl">
-          <p className={`mb-1 text-sm font-bold ${mode === 'memes' ? 'text-[#F2A65A]' : 'text-[#B3A7FA]'}`}>
+          <p className="mb-1 text-sm font-bold text-[#F2A65A]">
             Prophet races · {modeRaceCount} {isPreview ? 'preview' : mode === 'memes' ? 'meme' : 'stock'} race{modeRaceCount === 1 ? '' : 's'}
           </p>
           <h1 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">
@@ -201,14 +195,10 @@ export function OnchainRacesListPage() {
         </div>
         <Link
           to={`/onchain/races/create${mode === 'memes' ? '?mode=memes' : ''}`}
-          className={`inline-flex shrink-0 items-center gap-2.5 rounded-full py-2 pl-5 pr-2 text-sm font-bold text-white transition-all hover:brightness-110 ${
-            mode === 'memes'
-              ? 'bg-gradient-to-r from-[#F2A65A] to-[#ED8F3A] text-[#3b2416] shadow-[0_10px_28px_-10px_rgba(237,143,58,0.8)]'
-              : 'bg-gradient-to-r from-[#8B7CF7] to-[#6A5AE0] shadow-[0_10px_28px_-10px_rgba(106,90,224,0.8)]'
-          }`}
+          className="inline-flex shrink-0 items-center gap-2.5 rounded-full bg-gradient-to-r from-[#F2A65A] to-[#ED8F3A] py-2 pl-5 pr-2 text-sm font-bold text-[#3b2416] shadow-[0_10px_28px_-10px_rgba(237,143,58,0.8)] transition-all hover:brightness-110"
         >
           Create {mode === 'memes' ? 'meme' : 'stock'} race
-          <span className={`grid h-7 w-7 place-items-center rounded-full text-xs ${mode === 'memes' ? 'bg-[#3b2416]/15' : 'bg-white/20'}`}>↗</span>
+          <span className="grid h-7 w-7 place-items-center rounded-full bg-[#3b2416]/15 text-xs">↗</span>
         </Link>
       </div>
 
@@ -236,7 +226,7 @@ export function OnchainRacesListPage() {
               key={item}
               onClick={() => setFilter(item)}
               className={`whitespace-nowrap rounded-full px-3.5 py-1.5 text-xs font-bold transition-colors ${
-                filter === item ? 'bg-[#8B7CF7] text-[#f7f1e3]' : 'text-white/50 hover:bg-white/5 hover:text-white'
+                filter === item ? 'bg-[#ED8F3A] text-[#3b2416]' : 'text-white/50 hover:bg-white/5 hover:text-white'
               }`}
             >
               {filterLabel(item)}

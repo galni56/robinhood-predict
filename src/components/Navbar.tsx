@@ -61,8 +61,8 @@ export function Navbar() {
             to="/markets/create"
             className={({ isActive }) =>
               clsx(
-                'px-3 py-1.5 rounded-full transition-colors font-medium text-emerald-300',
-                isActive ? 'bg-emerald-500/15' : 'hover:bg-emerald-500/10',
+                'px-3 py-1.5 rounded-full transition-colors font-medium text-[#B3A7FA]',
+                isActive ? 'bg-[#8B7CF7]/15' : 'hover:bg-[#8B7CF7]/10',
               )
             }
           >

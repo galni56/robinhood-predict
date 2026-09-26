@@ -225,9 +225,9 @@ export function OnchainRacePage() {
                 {race.assets.slice(0, 4).map((asset) => <TokenLogo key={asset.assetIndex} ticker={asset.symbol} className="h-10 w-10 rounded-xl border-2 border-[#17111f]" />)}
               </div>
               <div className="min-w-0">
-              <p className={`flex flex-wrap items-center gap-2 text-sm font-bold ${race.category === 1 ? 'text-[#F2A65A]' : 'text-[#B3A7FA]'}`}>
+              <p className="flex flex-wrap items-center gap-2 text-sm font-bold text-[#F2A65A]">
                 {assetRaceCategoryLabel(race.category)} race #{race.id.toString()}
-                <span className={`rounded-full px-2.5 py-0.5 text-xs ${race.origin === ASSET_RACE_ORIGIN.PLATFORM ? 'bg-[#8B7CF7]/15 text-[#B3A7FA]' : 'bg-white/5 text-white/50'}`}>
+                <span className={`rounded-full px-2.5 py-0.5 text-xs ${race.origin === ASSET_RACE_ORIGIN.PLATFORM ? 'bg-[#F2A65A]/15 text-[#F2A65A]' : 'bg-white/5 text-white/50'}`}>
                   {race.origin === ASSET_RACE_ORIGIN.PLATFORM ? 'Featured' : 'Community'}
                 </span>
               </p>

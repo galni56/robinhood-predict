@@ -79,7 +79,7 @@ export function OnchainCreateRacePage() {
 
       <div className="mt-6 flex flex-wrap items-end justify-between gap-4">
         <div className="max-w-2xl">
-          <p className={`mb-1 text-sm font-bold ${mode === 'memes' ? 'text-[#F2A65A]' : 'text-[#B3A7FA]'}`}>
+          <p className="mb-1 text-sm font-bold text-[#F2A65A]">
             Create a community {mode === 'memes' ? 'meme' : 'stock'} race
           </p>
           <h1 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">
@@ -125,7 +125,7 @@ export function OnchainCreateRacePage() {
               maxLength={64}
               onChange={(event) => setTitle(event.target.value)}
               placeholder="AI stock battle"
-              className="w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 font-medium outline-none transition-colors focus:border-[#8B7CF7]/50"
+              className="w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 font-medium outline-none transition-colors focus:border-[#F2A65A]/50"
             />
             <div className={`mt-1 text-right text-[11px] font-medium ${titleBytes > 64 ? 'text-rose-400' : 'text-white/30'}`}>{titleBytes} / 64 bytes</div>
           </div>
@@ -135,7 +135,7 @@ export function OnchainCreateRacePage() {
             <select
               value={selectedDuration.toString()}
               onChange={(event) => setDuration(BigInt(event.target.value))}
-              className="w-full rounded-xl border border-white/10 bg-[#1e1728] px-3.5 py-2.5 font-medium outline-none focus:border-[#8B7CF7]/50"
+              className="w-full rounded-xl border border-white/10 bg-[#1e1728] px-3.5 py-2.5 font-medium outline-none focus:border-[#F2A65A]/50"
             >
               {durations.map((seconds) => <option key={seconds.toString()} value={seconds.toString()}>{durationLabel(seconds)}</option>)}
             </select>
@@ -148,12 +148,12 @@ export function OnchainCreateRacePage() {
                 <div className="text-sm font-bold text-white/60">Initial assets · optional</div>
                 <p className="mt-1 text-xs font-medium text-white/35">Approved registry assets only. Minimum two are needed when the lobby closes.</p>
               </div>
-              <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-bold ${mode === 'memes' ? 'bg-[#F2A65A]/15 text-[#F2A65A]' : 'bg-[#8B7CF7]/15 text-[#B3A7FA]'}`}>{selected.length} / 6</span>
+              <span className="shrink-0 rounded-full bg-[#F2A65A]/15 px-2.5 py-1 text-xs font-bold text-[#F2A65A]">{selected.length} / 6</span>
             </div>
             {selected.length > 0 && (
               <div className="mb-3 flex flex-wrap gap-2">
                 {selected.map((asset) => (
-                  <button key={asset.assetId} type="button" onClick={() => toggleAsset(asset)} className="inline-flex items-center gap-1.5 rounded-full bg-[#8B7CF7]/15 py-1 pl-1 pr-3 text-xs font-bold text-[#B3A7FA] hover:bg-[#8B7CF7]/25">
+                  <button key={asset.assetId} type="button" onClick={() => toggleAsset(asset)} className="inline-flex items-center gap-1.5 rounded-full bg-[#F2A65A]/15 py-1 pl-1 pr-3 text-xs font-bold text-[#F2A65A] hover:bg-[#F2A65A]/25">
                     <TokenLogo ticker={asset.symbol} className="h-5 w-5 rounded-md" />{asset.symbol} ×
                   </button>
                 ))}
@@ -174,7 +174,7 @@ export function OnchainCreateRacePage() {
             <button
               onClick={createRace}
               disabled={!address || !validTitle || selectedDuration === 0n || !!txLabel}
-              className="w-full rounded-xl bg-gradient-to-r from-[#8B7CF7] to-[#6A5AE0] py-3 text-sm font-bold text-white transition-all hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+              className="w-full rounded-xl bg-gradient-to-r from-[#F2A65A] to-[#ED8F3A] py-3 text-sm font-bold text-[#3b2416] transition-all hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
             >
               {txLabel ?? `Create ${mode === 'memes' ? 'meme' : 'stock'} race`}
             </button>

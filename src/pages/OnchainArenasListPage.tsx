@@ -28,10 +28,10 @@ function countdown(arena: PriceArenaViewModel, nowMs: number) {
 function ArenaCard({ arena, nowMs }: { arena: PriceArenaViewModel; nowMs: number }) {
   const meme = arena.category === PRICE_ARENA_CATEGORY.MEME
   return (
-    <Link to={`/onchain/arenas/${arena.id}`} className={`group rounded-3xl border bg-[#241b2f] p-5 transition-all hover:-translate-y-0.5 ${meme ? 'border-[#F2A65A]/15 hover:border-[#F2A65A]/50' : 'border-[#8B7CF7]/15 hover:border-[#8B7CF7]/50'}`}>
+    <Link to={`/onchain/arenas/${arena.id}`} className="group rounded-3xl border border-emerald-400/15 bg-[#241b2f] p-5 transition-all hover:-translate-y-0.5 hover:border-emerald-300/50">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className={`text-xs font-bold uppercase tracking-[0.16em] ${meme ? 'text-[#F2A65A]' : 'text-[#B3A7FA]'}`}>{meme ? 'Meme Arena' : 'Stock Arena'} · #{arena.id.toString()}</div>
+          <div className="text-xs font-bold uppercase tracking-[0.16em] text-emerald-300">{meme ? 'Meme Arena' : 'Stock Arena'} · #{arena.id.toString()}</div>
           <h2 className="mt-2 font-display text-xl font-bold">{arena.title}</h2>
           <p className="mt-1 text-xs text-white/35">by <AddressLabel address={arena.creator} className="text-white/50" /></p>
         </div>
@@ -44,7 +44,7 @@ function ArenaCard({ arena, nowMs }: { arena: PriceArenaViewModel; nowMs: number
       </div>
       <div className="mt-4 flex items-center justify-between text-xs">
         <span className="text-white/40">{arenaDurationLabel(arena.duration)} round · {countdown(arena, nowMs)}</span>
-        <span className={`font-bold ${meme ? 'text-[#F2A65A]' : 'text-[#B3A7FA]'}`}>Open arena →</span>
+        <span className="font-bold text-emerald-300">Open arena →</span>
       </div>
     </Link>
   )
@@ -68,11 +68,11 @@ export function OnchainArenasListPage() {
     <div className="mx-auto max-w-[1500px] px-4 py-8">
       <div className="flex flex-wrap items-end justify-between gap-6">
         <div className="max-w-2xl">
-          <p className={`text-sm font-bold ${mode === 'memes' ? 'text-[#F2A65A]' : 'text-[#B3A7FA]'}`}>Price Arena · closest price wins</p>
+          <p className="text-sm font-bold text-emerald-300">Price Arena · closest price wins</p>
           <h1 className="mt-1 font-display text-3xl font-bold sm:text-4xl">Name the final price.</h1>
           <p className="mt-2 text-sm leading-relaxed text-white/50">Predictions stay hidden in the lobby. When the round starts, the board goes live and the closest half shares the losing half’s pool.</p>
         </div>
-        <Link to={`/onchain/arenas/create${mode === 'memes' ? '?mode=memes' : ''}`} className={`rounded-full px-5 py-3 text-sm font-bold ${mode === 'memes' ? 'bg-[#F2A65A] text-[#3b2416]' : 'bg-[#8B7CF7] text-white'}`}>+ Create {mode === 'memes' ? 'meme' : 'stock'} arena</Link>
+        <Link to={`/onchain/arenas/create${mode === 'memes' ? '?mode=memes' : ''}`} className="rounded-full bg-emerald-400 px-5 py-3 text-sm font-bold text-[#12372c] transition-colors hover:bg-emerald-300">+ Create {mode === 'memes' ? 'meme' : 'stock'} arena</Link>
       </div>
 
       {!isConfigured && <div className="mt-6 rounded-2xl border border-amber-400/25 bg-amber-400/10 p-4 text-sm text-amber-100">Price Arena is not configured in this build. {PRICE_ARENA_CONFIG_ERROR}</div>}
@@ -81,7 +81,7 @@ export function OnchainArenasListPage() {
         <div className="flex gap-1.5">
           {(['stocks', 'memes'] as const).map((item) => <button key={item} onClick={() => setParams(item === 'memes' ? { mode: 'memes' } : {})} className={`rounded-full px-4 py-1.5 text-sm font-bold ${mode === item ? (item === 'memes' ? 'bg-[#F2A65A] text-[#3b2416]' : 'bg-[#f7f1e3] text-[#241a33]') : 'text-white/50 hover:bg-white/5'}`}>{item === 'stocks' ? 'Stocks' : 'Memes'}</button>)}
         </div>
-        <div className="flex gap-1.5">{FILTERS.map((item) => <button key={item} onClick={() => setFilter(item)} className={`rounded-full px-3.5 py-1.5 text-xs font-bold ${filter === item ? 'bg-[#8B7CF7]' : 'text-white/50 hover:bg-white/5'}`}>{item.charAt(0) + item.slice(1).toLowerCase()}</button>)}</div>
+        <div className="flex gap-1.5">{FILTERS.map((item) => <button key={item} onClick={() => setFilter(item)} className={`rounded-full px-3.5 py-1.5 text-xs font-bold ${filter === item ? 'bg-emerald-400 text-[#12372c]' : 'text-white/50 hover:bg-white/5'}`}>{item.charAt(0) + item.slice(1).toLowerCase()}</button>)}</div>
       </div>
 
       <div className="mt-6 flex items-start gap-6">

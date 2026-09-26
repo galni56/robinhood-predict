@@ -59,8 +59,8 @@ const GAME_GUIDES = [
     eyebrow: 'CLOSEST PRICE',
     title: 'Price Arena',
     summary: 'Forecast the exact price at the end of the round.',
-    accent: '#8B7CF7',
-    soft: '#f1edff',
+    accent: '#34D399',
+    soft: '#ddf8ec',
     image: 'brand/game-guides/price-arena.webp',
     href: '/onchain/arenas',
     cta: 'Explore arenas',
@@ -166,15 +166,15 @@ function GameColumn({
   title: string
   count: number
   href: string
-  accent: 'purple' | 'orange' | 'cream'
+  accent: 'purple' | 'orange' | 'green'
   loading: boolean
   empty: string
   children: ReactNode
 }) {
   const accentClass = accent === 'orange'
     ? 'text-[#F2A65A] bg-[#F2A65A]/10'
-    : accent === 'cream'
-      ? 'text-[#f7f1e3] bg-[#f7f1e3]/10'
+    : accent === 'green'
+      ? 'text-emerald-300 bg-emerald-300/10'
       : 'text-[#B3A7FA] bg-[#8B7CF7]/10'
 
   return (
@@ -242,21 +242,21 @@ function ArenaPreviewCard({ arena, nowMs }: { arena: PriceArenaViewModel; nowMs:
   return (
     <Link
       to={`/onchain/arenas/${arena.id}`}
-      className="group block rounded-2xl border border-white/5 bg-black/10 p-4 transition-all hover:-translate-y-0.5 hover:border-[#f7f1e3]/30 hover:bg-white/5"
+      className="group block rounded-2xl border border-white/5 bg-black/10 p-4 transition-all hover:-translate-y-0.5 hover:border-emerald-300/40 hover:bg-emerald-300/10"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2.5">
           <TokenLogo ticker={arena.asset?.symbol} className="h-9 w-9 rounded-xl" />
           <div className="min-w-0">
-            <div className="text-xs font-bold text-white/40">{arena.asset?.symbol ?? 'ARENA'} · {arenaDurationLabel(arena.duration)}</div>
+            <div className="text-xs font-bold text-emerald-300">{arena.asset?.symbol ?? 'ARENA'} · {arenaDurationLabel(arena.duration)}</div>
             <h4 className="mt-1 truncate font-display text-lg font-bold">{arena.title}</h4>
           </div>
         </div>
-        <span className="shrink-0 rounded-full bg-white/5 px-2.5 py-1 text-xs font-bold text-white/65">{timeLeft(arena.startsAt, nowMs)}</span>
+        <span className="shrink-0 rounded-full bg-emerald-300/10 px-2.5 py-1 text-xs font-bold text-emerald-300">{timeLeft(arena.startsAt, nowMs)}</span>
       </div>
       <div className="mt-4 flex items-center justify-between gap-3 text-xs">
         <span className="text-white/35">{arena.participantCount} / {PRICE_ARENA_MAX_PARTICIPANTS} players · {compactEth(arena.totalPool)} pool</span>
-        <span className="shrink-0 font-bold text-[#f7f1e3]">Enter arena →</span>
+        <span className="shrink-0 font-bold text-emerald-300">Enter arena →</span>
       </div>
     </Link>
   )
@@ -355,24 +355,24 @@ export function OnchainLandingPage() {
                 <div className="mt-8 flex flex-col items-start gap-3 sm:flex-row sm:flex-wrap sm:items-center">
                   <Link
                     to="/onchain"
-                    className="inline-flex min-w-[190px] items-center justify-between gap-3 rounded-full bg-[#241a33] py-2.5 pl-6 pr-2.5 text-sm font-bold text-[#f7f1e3] transition-all hover:-translate-y-0.5 hover:bg-[#31234a]"
+                    className="inline-flex min-w-[190px] items-center justify-between gap-3 rounded-full bg-[#6A5AE0] py-2.5 pl-6 pr-2.5 text-sm font-bold text-white shadow-[0_12px_28px_-16px_rgba(106,90,224,0.9)] transition-all hover:-translate-y-0.5 hover:bg-[#5B49C7]"
                   >
                     Prediction Markets
-                    <span className="w-8 h-8 rounded-full bg-[#8B7CF7] text-[#f7f1e3] grid place-items-center text-sm">↗</span>
+                    <span className="grid h-8 w-8 place-items-center rounded-full bg-white/20 text-sm text-white">↗</span>
                   </Link>
                   <Link
                     to="/onchain/races"
-                    className="inline-flex min-w-[190px] items-center justify-between gap-3 rounded-full bg-[#241a33] py-2.5 pl-6 pr-2.5 text-sm font-bold text-[#f7f1e3] transition-all hover:-translate-y-0.5 hover:bg-[#31234a]"
+                    className="inline-flex min-w-[190px] items-center justify-between gap-3 rounded-full bg-[#ED8F3A] py-2.5 pl-6 pr-2.5 text-sm font-bold text-[#3b2416] shadow-[0_12px_28px_-16px_rgba(237,143,58,0.9)] transition-all hover:-translate-y-0.5 hover:bg-[#F2A65A]"
                   >
                     Asset Races
-                    <span className="w-8 h-8 rounded-full bg-[#8B7CF7] text-[#f7f1e3] grid place-items-center text-sm">↗</span>
+                    <span className="grid h-8 w-8 place-items-center rounded-full bg-[#3b2416]/15 text-sm">↗</span>
                   </Link>
                   <Link
                     to="/onchain/arenas"
-                    className="inline-flex min-w-[190px] items-center justify-between gap-3 rounded-full bg-[#241a33] py-2.5 pl-6 pr-2.5 text-sm font-bold text-[#f7f1e3] transition-all hover:-translate-y-0.5 hover:bg-[#31234a]"
+                    className="inline-flex min-w-[190px] items-center justify-between gap-3 rounded-full bg-emerald-400 py-2.5 pl-6 pr-2.5 text-sm font-bold text-[#12372c] shadow-[0_12px_28px_-16px_rgba(52,211,153,0.9)] transition-all hover:-translate-y-0.5 hover:bg-emerald-300"
                   >
                     Price Arena
-                    <span className="w-8 h-8 rounded-full bg-[#8B7CF7] text-[#f7f1e3] grid place-items-center text-sm">↗</span>
+                    <span className="grid h-8 w-8 place-items-center rounded-full bg-[#12372c]/15 text-sm">↗</span>
                   </Link>
                 </div>
 
@@ -439,10 +439,10 @@ export function OnchainLandingPage() {
                   Market <span className="grid h-8 w-8 place-items-center rounded-full bg-[#8B7CF7] text-white">↗</span>
                 </Link>
                 <Link to="/onchain/races/create" className="inline-flex min-w-40 items-center justify-between gap-3 rounded-full bg-[#f7f1e3] py-2.5 pl-5 pr-2.5 text-sm font-extrabold text-[#241a33] transition-all hover:-translate-y-0.5 hover:bg-white">
-                  Race <span className="grid h-8 w-8 place-items-center rounded-full bg-[#8B7CF7] text-white">↗</span>
+                  Race <span className="grid h-8 w-8 place-items-center rounded-full bg-[#ED8F3A] text-[#3b2416]">↗</span>
                 </Link>
                 <Link to="/onchain/arenas/create" className="inline-flex min-w-40 items-center justify-between gap-3 rounded-full bg-[#f7f1e3] py-2.5 pl-5 pr-2.5 text-sm font-extrabold text-[#241a33] transition-all hover:-translate-y-0.5 hover:bg-white">
-                  Arena <span className="grid h-8 w-8 place-items-center rounded-full bg-[#8B7CF7] text-white">↗</span>
+                  Arena <span className="grid h-8 w-8 place-items-center rounded-full bg-emerald-400 text-[#12372c]">↗</span>
                 </Link>
               </div>
             </div>
@@ -523,7 +523,7 @@ export function OnchainLandingPage() {
             title="Price Arena"
             count={joinableArenas.length}
             href="/onchain/arenas"
-            accent="cream"
+            accent="green"
             loading={arenasLoading}
             empty="No Price Arenas are accepting players right now."
           >
@@ -674,8 +674,8 @@ export function OnchainLandingPage() {
           section look broken) -- just the pitch and a way in. */}
       <section className="max-w-[1500px] mx-auto px-4 py-14">
         <div className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-[#241b2f] via-[#241b2f] to-[#2c1f42] border border-white/5 px-6 py-12 sm:px-14 sm:py-16">
-          <div className="pointer-events-none absolute -top-20 -right-16 w-80 h-80 rounded-full bg-[#C6FF3D]/10 blur-3xl" />
-          <div className="pointer-events-none absolute -bottom-24 -left-16 w-72 h-72 rounded-full bg-[#8B7CF7]/20 blur-3xl" />
+          <div className="pointer-events-none absolute -top-20 -right-16 w-80 h-80 rounded-full bg-emerald-400/10 blur-3xl" />
+          <div className="pointer-events-none absolute -bottom-24 -left-16 w-72 h-72 rounded-full bg-[#ED8F3A]/15 blur-3xl" />
           <span className="pointer-events-none absolute right-[10%] top-[14%] text-[#B3A7FA] text-2xl" style={{ animation: 'sparkle-pop 2.6s ease-in-out infinite' }}>
             ✦
           </span>
@@ -683,7 +683,7 @@ export function OnchainLandingPage() {
           <div className="relative grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div>
               <p className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3.5 py-1.5 text-xs font-bold text-white/70 mb-6">
-                <span className="text-[#C6FF3D]">⚡</span>
+                <span className="text-[#F2A65A]">⚡</span>
                 Beyond YES / NO · Races + Arena
               </p>
               <h2 className="font-display text-3xl sm:text-5xl font-bold tracking-tight leading-[1.08]">
@@ -699,14 +699,14 @@ export function OnchainLandingPage() {
               <div className="mt-8 flex flex-wrap items-center gap-4">
                 <Link
                   to="/onchain/races"
-                  className="inline-flex items-center gap-3 rounded-full bg-[#C6FF3D] text-black pl-6 pr-2.5 py-2.5 text-sm font-bold hover:brightness-110 transition-all"
+                  className="inline-flex items-center gap-3 rounded-full bg-[#ED8F3A] py-2.5 pl-6 pr-2.5 text-sm font-bold text-[#3b2416] transition-all hover:bg-[#F2A65A]"
                 >
                   Explore Asset Races
                   <span className="w-8 h-8 rounded-full bg-black/15 grid place-items-center text-sm">↗</span>
                 </Link>
                 <Link
                   to="/onchain/arenas"
-                  className="text-sm font-bold text-white/70 hover:text-white underline underline-offset-4 decoration-2 transition-colors"
+                  className="text-sm font-bold text-emerald-300 underline decoration-2 underline-offset-4 transition-colors hover:text-emerald-200"
                 >
                   Enter Price Arena
                 </Link>
@@ -934,13 +934,13 @@ export function OnchainLandingPage() {
               </Link>
               <Link
                 to="/onchain/races"
-                className="text-sm px-7 py-3.5 rounded-full border border-white/15 text-white/80 hover:text-white hover:border-white/40 font-bold transition-colors"
+                className="rounded-full border border-[#ED8F3A]/50 px-7 py-3.5 text-sm font-bold text-[#F2A65A] transition-colors hover:border-[#F2A65A] hover:bg-[#ED8F3A]/10"
               >
                 Asset Races
               </Link>
               <Link
                 to="/onchain/arenas"
-                className="text-sm px-7 py-3.5 rounded-full border border-white/15 text-white/80 hover:text-white hover:border-white/40 font-bold transition-colors"
+                className="rounded-full border border-emerald-400/50 px-7 py-3.5 text-sm font-bold text-emerald-300 transition-colors hover:border-emerald-300 hover:bg-emerald-400/10"
               >
                 Price Arena
               </Link>

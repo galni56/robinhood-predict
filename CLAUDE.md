@@ -61,6 +61,14 @@ lessons" section below.
 | Hosting | VPS (`prophetmarkets.fun`) is the canonical live site. The feature branch prepares the GitHub Pages and VPS builds for the exact native successors; neither becomes public until the approved `main`/VPS cutover. nginx on the VPS proxies Robinhood Chain's read-only price/catalog REST API (`/api/robinhood/*`) with 15s server-side caching. |
 | Audit | **None.** Said explicitly in the UI disclaimer banner on every real-mode page. Owner-centralized (one EOA controls the approved asset/pool registry, protocol fee, and seed liquidity) — a known, accepted risk for this stage. |
 
+### Product color system
+
+Use purple (`#6A5AE0` / `#8B7CF7`) for Prediction Markets, orange
+(`#ED8F3A` / `#F2A65A`) for Asset Races, and green (`#34D399` / emerald)
+for Price Arena across navigation, primary actions, cards, and product labels.
+Outcome, status, warning, and Stocks/Memes category colors may keep their own
+semantic meaning; do not use them to redefine a product's identity color.
+
 ## Critical operating rules (learned through actual friction — read before acting)
 
 1. **Never handle a private key.** Not generate it, not read it, not put it

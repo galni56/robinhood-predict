@@ -58,8 +58,8 @@ export function RealNavbar() {
             to="/onchain/create"
             className={({ isActive }) =>
               clsx(
-                'px-3 py-1.5 rounded-full transition-colors font-bold text-[#F2A65A] whitespace-nowrap',
-                isActive ? 'bg-[#F2A65A]/15' : 'hover:bg-[#F2A65A]/10',
+                'px-3 py-1.5 rounded-full transition-colors font-bold text-[#B3A7FA] whitespace-nowrap',
+                isActive ? 'bg-[#8B7CF7]/15' : 'hover:bg-[#8B7CF7]/10',
               )
             }
           >
@@ -69,8 +69,8 @@ export function RealNavbar() {
             to="/onchain/races/create"
             className={({ isActive }) =>
               clsx(
-                'px-3 py-1.5 rounded-full transition-colors font-medium text-[#8B7CF7] whitespace-nowrap',
-                isActive ? 'bg-[#8B7CF7]/15' : 'hover:bg-[#8B7CF7]/10',
+                'px-3 py-1.5 rounded-full transition-colors font-medium text-[#F2A65A] whitespace-nowrap',
+                isActive ? 'bg-[#F2A65A]/15' : 'hover:bg-[#F2A65A]/10',
               )
             }
           >
@@ -167,14 +167,14 @@ export function RealNavbar() {
           <NavLink
             to="/onchain/create"
             onClick={() => setMobileOpen(false)}
-            className="block px-3 py-2 rounded-lg text-sm font-bold text-[#F2A65A] hover:bg-[#F2A65A]/10"
+            className="block px-3 py-2 rounded-lg text-sm font-bold text-[#B3A7FA] hover:bg-[#8B7CF7]/10"
           >
             + Create market
           </NavLink>
           <NavLink
             to="/onchain/races/create"
             onClick={() => setMobileOpen(false)}
-            className="block px-3 py-2 rounded-lg text-sm font-medium text-[#8B7CF7] hover:bg-[#8B7CF7]/10"
+            className="block px-3 py-2 rounded-lg text-sm font-medium text-[#F2A65A] hover:bg-[#F2A65A]/10"
           >
             + Create Race
           </NavLink>
