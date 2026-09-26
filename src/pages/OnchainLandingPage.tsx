@@ -1,19 +1,26 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { formatUnits } from 'viem'
+import { formatEther, formatUnits } from 'viem'
 import { useReadContract, useReadContracts } from 'wagmi'
 import {
   PREDICTION_MARKET_ADDRESS,
   PREDICTION_MARKET_CONFIGURED,
   predictionMarketAbi,
+  BETTING_WINDOW_BP,
+  BP_DENOMINATOR,
   MarketStatusOnchain,
 } from '@/chain/contracts'
+import { ASSET_RACE_ORIGIN, ASSET_RACE_STATUS, type AssetRaceViewModel } from '@/chain/assetRaces'
 import { demoPools, isDemoMode } from '@/chain/demo'
 import { predictionAssetForTicker, tickerForPredictionAssetId } from '@/chain/predictionMarketAssets'
+import { PRICE_ARENA_MAX_PARTICIPANTS, PRICE_ARENA_PHASE, arenaDurationLabel, type PriceArenaViewModel } from '@/chain/priceArena'
+import { useAssetRaceClock } from '@/chain/useAssetRaceClock'
 import { useAssetRaceLiveDisplay } from '@/chain/useAssetRaceLiveDisplay'
+import { useAssetRaces } from '@/chain/useAssetRaces'
+import { usePriceArenas } from '@/chain/usePriceArenas'
 import { useRobinhoodAssets, useTokenLogos } from '@/chain/robinhoodApi'
 import { TokenLogo } from '@/components/TokenLogo'
-import { formatUsd } from '@/lib/format'
+import { formatCountdown, formatUsd } from '@/lib/format'
 
 const STEPS = [
   {
@@ -90,8 +97,6 @@ function hueForTicker(sym: string) {
   return h
 }
 
-const ETF_TICKERS = new Set(['SPY', 'QQQ', 'IWM', 'DIA', 'GLD', 'SLV', 'USO', 'VTI', 'VOO', 'XLE', 'XLF', 'XLK', 'ARKK', 'TQQQ', 'SQQQ'])
-
 // One-shot reveal for scroll-triggered stagger animations: flips to
 // visible the first time the element enters the viewport, then stops
 // observing. Cards inside get their own transition-delay.
@@ -124,6 +129,127 @@ function formatDeadlineUtc(deadline: bigint) {
   return `${day} · ${hh}:${mm} UTC`
 }
 
+function compactEth(value: bigint) {
+  const amount = Number(formatEther(value))
+  if (amount === 0) return '0 ETH'
+  return `${amount.toLocaleString('en-US', { maximumFractionDigits: 4 })} ETH`
+}
+
+function timeLeft(target: bigint, nowMs: number) {
+  const remaining = Number(target) * 1_000 - nowMs
+  return remaining > 0 ? formatCountdown(remaining) : 'closed'
+}
+
+function GameColumn({
+  eyebrow,
+  title,
+  count,
+  href,
+  accent,
+  loading,
+  empty,
+  children,
+}: {
+  eyebrow: string
+  title: string
+  count: number
+  href: string
+  accent: 'purple' | 'orange' | 'cream'
+  loading: boolean
+  empty: string
+  children: ReactNode
+}) {
+  const accentClass = accent === 'orange'
+    ? 'text-[#F2A65A] bg-[#F2A65A]/10'
+    : accent === 'cream'
+      ? 'text-[#f7f1e3] bg-[#f7f1e3]/10'
+      : 'text-[#B3A7FA] bg-[#8B7CF7]/10'
+
+  return (
+    <div className="flex min-h-[18rem] flex-col rounded-[2rem] border border-white/5 bg-[#21182c] p-5 sm:p-6 lg:min-h-[28rem]">
+      <div className="flex items-start justify-between gap-4 border-b border-white/5 pb-5">
+        <div>
+          <p className={`inline-flex rounded-full px-2.5 py-1 text-[0.65rem] font-extrabold tracking-[0.16em] ${accentClass}`}>{eyebrow}</p>
+          <h3 className="mt-2 font-display text-2xl font-bold">{title}</h3>
+        </div>
+        <span className="grid h-9 min-w-9 place-items-center rounded-full bg-white/5 px-2 text-sm font-bold text-white/60">{count}</span>
+      </div>
+
+      <div className="flex flex-1 flex-col gap-3 py-4">
+        {loading && count === 0 ? (
+          <div className="grid flex-1 place-items-center rounded-2xl border border-dashed border-white/10 text-sm text-white/35">Loading open games…</div>
+        ) : count === 0 ? (
+          <div className="grid flex-1 place-items-center rounded-2xl border border-dashed border-white/10 px-6 text-center text-sm leading-relaxed text-white/35">{empty}</div>
+        ) : children}
+      </div>
+
+      <Link to={href} className="group flex items-center justify-between border-t border-white/5 pt-4 text-sm font-bold text-white/55 transition-colors hover:text-white">
+        View all
+        <span className="transition-transform group-hover:translate-x-1">→</span>
+      </Link>
+    </div>
+  )
+}
+
+function RacePreviewCard({ race, nowMs }: { race: AssetRaceViewModel; nowMs: number }) {
+  const inLobby = race.status === ASSET_RACE_STATUS.LOBBY
+  const target = inLobby ? race.lobbyEndTime : race.bettingEndTime
+
+  return (
+    <Link
+      to={`/onchain/races/${race.id}`}
+      className="group block rounded-2xl border border-white/5 bg-black/10 p-4 transition-all hover:-translate-y-0.5 hover:border-[#F2A65A]/40 hover:bg-[#F2A65A]/10"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-xs font-bold text-[#F2A65A]">{inLobby ? 'LOBBY OPEN' : 'BETTING OPEN'}</div>
+          <h4 className="mt-1 truncate font-display text-lg font-bold">{race.title || `Asset Race #${race.id}`}</h4>
+        </div>
+        <span className="shrink-0 rounded-full bg-[#F2A65A]/10 px-2.5 py-1 text-xs font-bold text-[#F2A65A]">{timeLeft(target, nowMs)}</span>
+      </div>
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        {race.assets.slice(0, 5).map((asset) => (
+          <span key={asset.assetIndex} className="inline-flex items-center gap-1 rounded-full bg-white/5 py-1 pl-1 pr-2 text-xs font-bold text-white/65">
+            <TokenLogo ticker={asset.symbol} className="h-5 w-5 rounded-md" />
+            {asset.symbol}
+          </span>
+        ))}
+        {race.assets.length > 5 && <span className="px-1 py-1 text-xs text-white/35">+{race.assets.length - 5}</span>}
+      </div>
+      <div className="mt-4 flex items-center justify-between gap-3 text-xs">
+        <span className="text-white/35">
+          {inLobby ? `${race.candidateCount} / 6 assets` : `${compactEth(race.totalPool)} pool`}
+        </span>
+        <span className="shrink-0 font-bold text-[#F2A65A]">{inLobby ? 'Add an asset' : 'Bet now'} →</span>
+      </div>
+    </Link>
+  )
+}
+
+function ArenaPreviewCard({ arena, nowMs }: { arena: PriceArenaViewModel; nowMs: number }) {
+  return (
+    <Link
+      to={`/onchain/arenas/${arena.id}`}
+      className="group block rounded-2xl border border-white/5 bg-black/10 p-4 transition-all hover:-translate-y-0.5 hover:border-[#f7f1e3]/30 hover:bg-white/5"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <TokenLogo ticker={arena.asset?.symbol} className="h-9 w-9 rounded-xl" />
+          <div className="min-w-0">
+            <div className="text-xs font-bold text-white/40">{arena.asset?.symbol ?? 'ARENA'} · {arenaDurationLabel(arena.duration)}</div>
+            <h4 className="mt-1 truncate font-display text-lg font-bold">{arena.title}</h4>
+          </div>
+        </div>
+        <span className="shrink-0 rounded-full bg-white/5 px-2.5 py-1 text-xs font-bold text-white/65">{timeLeft(arena.startsAt, nowMs)}</span>
+      </div>
+      <div className="mt-4 flex items-center justify-between gap-3 text-xs">
+        <span className="text-white/35">{arena.participantCount} / {PRICE_ARENA_MAX_PARTICIPANTS} players · {compactEth(arena.totalPool)} pool</span>
+        <span className="shrink-0 font-bold text-[#f7f1e3]">Enter arena →</span>
+      </div>
+    </Link>
+  )
+}
+
 export function OnchainLandingPage() {
   const marketCount = useReadContract({
     address: PREDICTION_MARKET_ADDRESS,
@@ -140,6 +266,12 @@ export function OnchainLandingPage() {
   })
 
   const live = useAssetRaceLiveDisplay({ enabled: true })
+  const { races, isPreview: racesPreview, isLoading: racesLoading } = useAssetRaces()
+  const { arenas, isLoading: arenasLoading } = usePriceArenas()
+  const clockMs = useAssetRaceClock()
+  const [initialNowMs] = useState(() => Date.now())
+  const nowMs = clockMs || initialNowMs
+  const nowSeconds = BigInt(Math.floor(nowMs / 1_000))
 
   const openMarkets = ids
     .map((id, i) => {
@@ -152,11 +284,29 @@ export function OnchainLandingPage() {
     // handful forever as more get created.
     .sort((a, b) => (a.id > b.id ? -1 : a.id < b.id ? 1 : 0))
 
+  const joinableMarkets = openMarkets.filter((market) => {
+    const bettingEnd = market.createdAt + ((market.deadline - market.createdAt) * BETTING_WINDOW_BP) / BP_DENOMINATOR
+    return nowSeconds < bettingEnd
+  })
+  const joinableRaces = (racesPreview ? [] : races).filter((race) => (
+    (race.status === ASSET_RACE_STATUS.LOBBY
+      && race.origin === ASSET_RACE_ORIGIN.COMMUNITY
+      && race.candidateCount < 6
+      && nowSeconds < race.lobbyEndTime)
+    || (race.status === ASSET_RACE_STATUS.BETTING
+      && nowSeconds >= race.bettingStartTime
+      && nowSeconds < race.bettingEndTime)
+  ))
+  const joinableArenas = arenas.filter((arena) => (
+    arena.phase === PRICE_ARENA_PHASE.LOBBY
+    && nowSeconds < arena.startsAt
+    && arena.participantCount < PRICE_ARENA_MAX_PARTICIPANTS
+  ))
+
   const assets = useRobinhoodAssets()
   const logos = useTokenLogos()
   const [stockQuery, setStockQuery] = useState('')
   const [searchFocused, setSearchFocused] = useState(false)
-  const [category, setCategory] = useState<'all' | 'stocks' | 'etfs'>('all')
   const stepsReveal = useRevealOnScroll<HTMLDivElement>()
   const featuresReveal = useRevealOnScroll<HTMLDivElement>()
   const ctaReveal = useRevealOnScroll<HTMLDivElement>()
@@ -166,14 +316,6 @@ export function OnchainLandingPage() {
     if (!q) return true
     return a.tokenSymbol.toLowerCase().includes(q) || a.tokenName.toLowerCase().includes(q)
   })
-
-  const categorized = openMarkets.filter((m) => {
-    if (category === 'all') return true
-    const ticker = tickerForPredictionAssetId(m.assetId)
-    if (!ticker) return category === 'stocks'
-    return category === 'etfs' ? ETF_TICKERS.has(ticker) : !ETF_TICKERS.has(ticker)
-  })
-  const preview = categorized.slice(0, 6)
 
   return (
     <div>
@@ -296,131 +438,95 @@ export function OnchainLandingPage() {
         </section>
       </div>
 
-      {/* What's your call -- live markets in the mockup card style */}
-      <section className="max-w-[1500px] mx-auto px-4 pt-14 pb-10">
-        <p className="text-sm font-bold text-[#B3A7FA] mb-2">The next big question</p>
-        <div className="flex items-end justify-between flex-wrap gap-4 mb-8">
-          <h2 className="font-display text-3xl sm:text-4xl font-bold tracking-tight">What's your call?</h2>
-          <div className="flex items-center gap-2">
-            {(
-              [
-                ['all', 'All'],
-                ['stocks', 'Stocks'],
-                ['etfs', 'ETFs'],
-              ] as const
-            ).map(([key, label]) => (
-              <button
-                key={key}
-                onClick={() => setCategory(key)}
-                className={
-                  category === key
-                    ? 'px-4 py-1.5 rounded-full bg-[#f7f1e3] text-[#241a33] text-sm font-bold'
-                    : 'px-4 py-1.5 rounded-full text-sm font-bold text-white/50 hover:text-white hover:bg-white/5 transition-colors'
-                }
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+      {/* A cross-product board containing only games that still accept entry. */}
+      <section className="mx-auto max-w-[1500px] px-4 pb-10 pt-14">
+        <p className="mb-2 text-sm font-bold text-[#B3A7FA]">Open now</p>
+        <div className="mb-8 max-w-2xl">
+          <h2 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">Choose your game.</h2>
+          <p className="mt-2 text-sm leading-relaxed text-white/45 sm:text-base">
+            Only games you can still join appear here. Running and finished rounds move to their dedicated pages.
+          </p>
         </div>
 
-        {preview.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {preview.map((m) => {
-              const ticker = tickerForPredictionAssetId(m.assetId)
+        <div className="grid gap-5 lg:grid-cols-3">
+          <GameColumn
+            eyebrow="YES / NO"
+            title="Prediction Markets"
+            count={joinableMarkets.length}
+            href="/onchain"
+            accent="purple"
+            loading={marketCount.isLoading || (count > 0 && markets.isLoading)}
+            empty="No prediction markets are accepting bets right now."
+          >
+            {joinableMarkets.slice(0, 3).map((market) => {
+              const ticker = tickerForPredictionAssetId(market.assetId)
               const price = ticker ? live.assets[ticker] : undefined
-              const targetUsd = Number(formatUnits(m.targetPrice, m.priceDecimals))
+              const targetUsd = Number(formatUnits(market.targetPrice, market.priceDecimals))
               const currentUsd = price && !price.stale ? Number(formatUnits(BigInt(price.priceRaw), price.decimals)) : null
-              const pools = isDemoMode() ? demoPools(m.id) : { poolYes: m.poolYes, poolNo: m.poolNo }
+              const pools = isDemoMode() ? demoPools(market.id) : { poolYes: market.poolYes, poolNo: market.poolNo }
               const totalPool = pools.poolYes + pools.poolNo
-              const yesPct = totalPool > 0n ? Number((pools.poolYes * 10000n) / totalPool) / 100 : 50
-              const hasBothSides = pools.poolYes > 0n && pools.poolNo > 0n
+              const bettingEnd = market.createdAt + ((market.deadline - market.createdAt) * BETTING_WINDOW_BP) / BP_DENOMINATOR
 
               return (
-                <div
-                  key={m.id.toString()}
-                  className="flex flex-col rounded-3xl bg-[#241b2f] border border-white/5 p-6 hover:border-[#8B7CF7]/30 hover:-translate-y-0.5 hover:shadow-[0_24px_50px_-30px_rgba(106,90,224,0.7)] transition-all"
+                <Link
+                  key={market.id.toString()}
+                  to={`/onchain/${market.id}`}
+                  className="group block rounded-2xl border border-white/5 bg-black/10 p-4 transition-all hover:-translate-y-0.5 hover:border-[#8B7CF7]/40 hover:bg-[#8B7CF7]/10"
                 >
-                  <div className="flex items-start justify-between mb-5">
-                    <div className="flex items-center gap-3">
-                      <TokenLogo ticker={ticker} logoUrl={ticker ? logos.get(ticker) : undefined} className="w-10 h-10 rounded-2xl text-lg" />
-                      <div>
-                        <div className="font-bold text-sm tracking-wide leading-tight">{ticker ?? '…'}</div>
-                        <div className="text-white/35 text-xs font-medium mt-0.5">{formatDeadlineUtc(m.deadline)}</div>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-2.5">
+                      <TokenLogo ticker={ticker} logoUrl={ticker ? logos.get(ticker) : undefined} className="h-9 w-9 rounded-xl text-base" />
+                      <div className="min-w-0">
+                        <div className="font-bold">{ticker ?? 'Market'}</div>
+                        <div className="truncate text-xs text-white/35">{formatDeadlineUtc(market.deadline)}</div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 pt-1">
-                      <span className="relative flex h-1.5 w-1.5">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#8B7CF7]/60" />
-                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-[#8B7CF7]" />
-                      </span>
-                      <span className="font-mono text-sm text-white/75">{currentUsd != null ? formatUsd(currentUsd) : '…'}</span>
-                    </div>
+                    <span className="shrink-0 rounded-full bg-[#8B7CF7]/15 px-2.5 py-1 text-xs font-bold text-[#B3A7FA]">
+                      {timeLeft(bettingEnd, nowMs)}
+                    </span>
                   </div>
-
-                  <Link to={`/onchain/${m.id}`} className="block group">
-                    <h3 className="font-display text-[1.35rem] font-bold leading-snug group-hover:text-[#B3A7FA] transition-colors">
-                      Will {ticker ?? 'it'} be at or above {targetUsd != null ? formatUsd(targetUsd) : '…'} at the deadline?
-                    </h3>
-                  </Link>
-
-                  <div className="mt-auto pt-5">
-                    {hasBothSides ? (
-                      <>
-                        <div className="flex items-center justify-between text-xs font-bold mb-2">
-                          <span className="text-[#B3A7FA]">YES {yesPct.toFixed(0)}%</span>
-                          <span className="text-[#F2A65A]">NO {(100 - yesPct).toFixed(0)}%</span>
-                        </div>
-                        <div className="flex h-1.5 gap-0.5 mb-5">
-                          <div className="rounded-full bg-[#8B7CF7]" style={{ width: `${yesPct}%` }} />
-                          <div className="rounded-full bg-[#F2A65A] flex-1" />
-                        </div>
-                      </>
-                    ) : (
-                      <p className="flex items-center gap-2 text-xs font-medium text-white/45 mb-5">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#F2A65A] shrink-0" />
-                        {totalPool === 0n
-                          ? 'New market - be the first to call it.'
-                          : 'One side is in - take the other, or it refunds in full.'}
-                      </p>
-                    )}
-
-                    <div className="grid grid-cols-2 gap-2.5">
-                      <Link
-                        to={`/onchain/${m.id}`}
-                        className="group/btn flex items-center justify-center gap-2 py-3 rounded-2xl bg-[#372a4f] text-[#B3A7FA] text-sm font-extrabold hover:bg-[#8B7CF7] hover:text-[#f7f1e3] transition-colors"
-                      >
-                        YES
-                        <span className="opacity-60 transition-transform group-hover/btn:-translate-y-0.5 group-hover/btn:translate-x-0.5">↗</span>
-                      </Link>
-                      <Link
-                        to={`/onchain/${m.id}`}
-                        className="group/btn flex items-center justify-center gap-2 py-3 rounded-2xl bg-[#3b2a20] text-[#F2A65A] text-sm font-extrabold hover:bg-[#F2A65A] hover:text-[#3b2416] transition-colors"
-                      >
-                        NO
-                        <span className="opacity-60 transition-transform group-hover/btn:translate-y-0.5 group-hover/btn:translate-x-0.5">↘</span>
-                      </Link>
-                    </div>
+                  <h3 className="mt-3 font-display text-lg font-bold leading-snug transition-colors group-hover:text-[#B3A7FA]">
+                    Will {ticker ?? 'it'} finish at or above {formatUsd(targetUsd)}?
+                  </h3>
+                  <div className="mt-4 flex items-center justify-between gap-3 text-xs">
+                    <span className="text-white/35">{compactEth(totalPool)} pool{currentUsd != null ? ` · now ${formatUsd(currentUsd)}` : ''}</span>
+                    <span className="shrink-0 font-bold text-[#B3A7FA]">Place a bet →</span>
                   </div>
-                </div>
+                </Link>
               )
             })}
-          </div>
-        ) : (
-          <p className="text-white/40 text-sm py-8">
-            {openMarkets.length === 0 ? 'Loading live markets…' : 'No open markets in this category right now.'}
-          </p>
-        )}
+          </GameColumn>
 
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-8 text-xs font-bold text-white/40">
-          <span>
-            Prediction Markets use native ETH · one wallet transaction · 2% fee on each winner’s profit share ·{' '}
-            <Link to="/onchain" className="text-[#B3A7FA] hover:underline">
-              View all {openMarkets.length} markets →
-            </Link>
-          </span>
-          <span>Native ETH wagers · Onchain settlement</span>
+          <GameColumn
+            eyebrow="FASTEST MOVER"
+            title="Asset Races"
+            count={joinableRaces.length}
+            href="/onchain/races"
+            accent="orange"
+            loading={racesLoading}
+            empty="No Asset Races can be joined right now."
+          >
+            {joinableRaces.slice(0, 3).map((race) => (
+              <RacePreviewCard key={race.id.toString()} race={race} nowMs={nowMs} />
+            ))}
+          </GameColumn>
+
+          <GameColumn
+            eyebrow="CLOSEST PRICE"
+            title="Price Arena"
+            count={joinableArenas.length}
+            href="/onchain/arenas"
+            accent="cream"
+            loading={arenasLoading}
+            empty="No Price Arenas are accepting players right now."
+          >
+            {joinableArenas.slice(0, 3).map((arena) => (
+              <ArenaPreviewCard key={arena.id.toString()} arena={arena} nowMs={nowMs} />
+            ))}
+          </GameColumn>
         </div>
+
+        <p className="pt-6 text-xs font-medium text-white/30">Native ETH wagers · One wallet transaction · Onchain settlement</p>
       </section>
 
       {/* How it works -- light island in the hero's visual language,

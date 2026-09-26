@@ -20,6 +20,7 @@ export const PRICE_ARENA_STATUS = { OPEN: 0, RESOLVED: 1, CANCELLED: 2 } as cons
 export const PRICE_ARENA_PHASE = { LOBBY: 0, RUNNING: 1, RESOLVED: 2, CANCELLED: 3 } as const
 export const PRICE_ARENA_DURATIONS = [60n, 300n, 900n, 3600n] as const
 export const PRICE_ARENA_LOBBY_SECONDS = 600n
+export const PRICE_ARENA_MAX_PARTICIPANTS = 20
 export const PRICE_ARENA_MIN_STAKE = 1
 export const PRICE_ARENA_MAX_STAKE = 50
 export const PRICE_ARENA_TOKEN_DECIMALS = 18
