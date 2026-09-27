@@ -5,7 +5,7 @@ import { useAccount, useChainId, useSwitchChain, useWriteContract } from 'wagmi'
 import { simulateContract, waitForTransactionReceipt } from 'wagmi/actions'
 import { robinhoodMainnet, wagmiConfig } from '@/chain/config'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
-import { TokenLogo } from '@/components/TokenLogo'
+import { CompactAssetSelector } from '@/components/CompactAssetSelector'
 import { GameLifecycleGuide } from '@/components/GameLifecycleGuide'
 import {
   PREDICTION_MARKET_ADDRESS,
@@ -220,23 +220,15 @@ export function OnchainCreateMarketPage() {
       <form onSubmit={onSubmit} className="h-full min-w-0 space-y-5 rounded-3xl border border-white/5 bg-[#241b2f] p-6 sm:p-7">
         <div>
           <label className="block text-sm font-bold text-white/60 mb-2">Tokenized stock</label>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
-            {PREDICTION_MARKET_ASSETS.map((asset) => (
-              <button
-                type="button"
-                key={asset.ticker}
-                onClick={() => setAssetId(asset.assetId)}
-                className={`min-w-0 flex items-center justify-center gap-2 rounded-xl px-2 py-2 text-sm font-bold transition-colors ${
-                  assetId === asset.assetId
-                    ? 'bg-[#8B7CF7] text-[#f7f1e3]'
-                    : 'bg-white/5 text-white/60 hover:bg-white/10 hover:text-white'
-                }`}
-              >
-                <TokenLogo ticker={asset.ticker} className="h-6 w-6 rounded-lg" />
-                {asset.ticker}
-              </button>
-            ))}
-          </div>
+          <CompactAssetSelector
+            assets={PREDICTION_MARKET_ASSETS.map((asset) => ({ id: asset.assetId, symbol: asset.ticker, name: asset.displayName }))}
+            selectedIds={[assetId]}
+            onSelect={(id) => {
+              const next = PREDICTION_MARKET_ASSETS.find((asset) => asset.assetId.toLowerCase() === id.toLowerCase())
+              if (next) setAssetId(next.assetId)
+            }}
+            tone="market"
+          />
           <p className="text-[11px] text-white/30 mt-1.5">
             Ten reviewed tokenized stocks have an onchain price source enabled for market settlement.
           </p>

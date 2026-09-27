@@ -6,10 +6,9 @@ import type { ApprovedRaceAsset, AssetRaceMode } from '@/chain/assetRaces'
 import { ASSET_RACE_ADDRESS, assetRaceAbi, categoryForRaceMode } from '@/chain/assetRaces'
 import { assetRaceChain, isLocalAssetRace, wagmiConfig } from '@/chain/config'
 import { useApprovedRaceAssets } from '@/chain/useApprovedRaceAssets'
-import { AssetRaceAssetPicker } from '@/components/AssetRaceAssetPicker'
+import { CompactAssetSelector } from '@/components/CompactAssetSelector'
 import { GameLifecycleGuide } from '@/components/GameLifecycleGuide'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
-import { TokenLogo } from '@/components/TokenLogo'
 import { shortTxError } from '@/lib/format'
 
 function durationLabel(seconds: bigint) {
@@ -190,17 +189,18 @@ export function OnchainCreateRacePage() {
               </div>
               <span className="shrink-0 rounded-full bg-[#F2A65A]/15 px-2.5 py-1 text-xs font-bold text-[#F2A65A]">{selected.length} / 6</span>
             </div>
-            {selected.length > 0 && (
-              <div className="mb-3 flex flex-wrap gap-2">
-                {selected.map((asset) => (
-                  <button key={asset.assetId} type="button" onClick={() => toggleAsset(asset)} className="inline-flex items-center gap-1.5 rounded-full bg-[#F2A65A]/15 py-1 pl-1 pr-3 text-xs font-bold text-[#F2A65A] hover:bg-[#F2A65A]/25">
-                    <TokenLogo ticker={asset.symbol} className="h-5 w-5 rounded-md" />{asset.symbol} ×
-                  </button>
-                ))}
-              </div>
-            )}
             {isLoading ? <p className="py-8 text-center text-sm text-white/35">Loading approved assets…</p> : (
-              <AssetRaceAssetPicker assets={visibleAssets} selectedIds={selected.map((asset) => asset.assetId)} onSelect={toggleAsset} category={category} compact />
+              <CompactAssetSelector
+                assets={visibleAssets.map((asset) => ({ id: asset.assetId, symbol: asset.symbol, name: asset.name, logoUrl: asset.logoUrl }))}
+                selectedIds={selected.map((asset) => asset.assetId)}
+                onSelect={(id) => {
+                  const asset = visibleAssets.find((item) => item.assetId.toLowerCase() === id.toLowerCase())
+                  if (asset) toggleAsset(asset)
+                }}
+                tone="race"
+                multiple
+                maxSelected={6}
+              />
             )}
           </div>
 

@@ -13,8 +13,8 @@ import {
   priceArenaAbi,
   type PriceArenaMode,
 } from '@/chain/priceArena'
+import { CompactAssetSelector } from '@/components/CompactAssetSelector'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
-import { TokenLogo } from '@/components/TokenLogo'
 import { GameLifecycleGuide } from '@/components/GameLifecycleGuide'
 import { shortTxError } from '@/lib/format'
 
@@ -125,7 +125,17 @@ export function OnchainCreateArenaPage() {
       {!PRICE_ARENA_ADDRESS ? <div className="h-full rounded-2xl border border-amber-400/25 bg-amber-400/10 p-5 text-amber-100">Deploy and configure Price Arena before creating games.</div> : (
         <div className="h-full min-w-0 space-y-4 rounded-3xl border border-white/5 bg-[#241b2f] p-5 sm:p-6">
           <label className="block"><span className="mb-2 block text-sm font-bold text-white/60">Arena title</span><input value={title} onChange={(event) => setTitle(event.target.value)} maxLength={64} placeholder={mode === 'memes' ? 'Meme price showdown' : 'NVDA closing shot'} className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 outline-none focus:border-[#7A9FF0]/50" /><span className="mt-1 block text-right text-xs text-white/30">{titleBytes} / 64 bytes</span></label>
-          <div><div className="mb-2 text-sm font-bold text-white/60">Asset</div><div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{assets.map((asset) => <button key={asset.assetId} onClick={() => setAssetId(asset.assetId)} className={`flex items-center gap-2.5 rounded-xl border px-3 py-2 text-left ${selected?.assetId === asset.assetId ? 'border-[#7A9FF0] bg-[#7A9FF0]/15' : 'border-white/5 bg-white/[0.03] hover:border-[#7A9FF0]/35'}`}><TokenLogo ticker={asset.symbol} className="h-8 w-8 rounded-lg" /><div><div className="font-bold">{asset.symbol}</div><div className="text-xs text-white/35">{asset.name}</div></div></button>)}</div>{assets.length === 0 && <p className="py-5 text-sm text-white/40">Loading configured assets…</p>}</div>
+          <div>
+            <div className="mb-2 text-sm font-bold text-white/60">Asset</div>
+            {assets.length > 0 ? (
+              <CompactAssetSelector
+                assets={assets.map((asset) => ({ id: asset.assetId, symbol: asset.symbol, name: asset.name }))}
+                selectedIds={selected ? [selected.assetId] : []}
+                onSelect={setAssetId}
+                tone="arena"
+              />
+            ) : <p className="py-5 text-sm text-white/40">Loading configured assets…</p>}
+          </div>
           <div><div className="mb-2 text-sm font-bold text-white/60">Game duration</div><div className="grid grid-cols-2 gap-2 sm:grid-cols-4">{PRICE_ARENA_DURATIONS.map((seconds) => <button key={seconds.toString()} onClick={() => setDuration(seconds)} className={`rounded-xl border px-3 py-3 text-sm font-bold ${duration === seconds ? 'border-[#7A9FF0] bg-[#7A9FF0]/15 text-[#B7CEFF]' : 'border-white/5 bg-white/[0.03] text-white/50'}`}>{arenaDurationLabel(seconds)}</button>)}</div></div>
           {error && <p className="text-sm text-rose-400">{error}</p>}
           {!isConnected ? <WalletOptionsList tone="arena" /> : chainId !== assetRaceChain.id ? <button onClick={() => switchChain({ chainId: assetRaceChain.id })} disabled={isSwitching} className="w-full rounded-xl bg-[#7A9FF0] py-3 font-bold text-[#152447] hover:bg-[#8EB1F8]">Switch to {assetRaceChain.name}</button> : <button onClick={create} disabled={!address || !valid || !!txLabel} className="w-full rounded-xl bg-gradient-to-r from-[#8EB1F8] to-[#7A9FF0] py-3 font-bold text-[#152447] disabled:opacity-40">{txLabel ?? 'Create Price Arena'}</button>}
