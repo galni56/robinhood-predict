@@ -16,6 +16,8 @@
     "test:prediction-market-keeper": "node --test scripts/prediction-market-keeper.test.mjs",
     "keeper:price-arena": "node scripts/price-arena-keeper.mjs",
     "test:price-arena-keeper": "node --test scripts/price-arena-keeper.test.mjs",
+    "seeder:event": "node scripts/event-seeder.mjs",
+    "test:event-seeder": "node --test scripts/event-seeder.test.mjs",
     "serve:share-preview": "node scripts/share-preview-server.mjs",
     "test:share-preview": "node --test scripts/share-preview-server.test.mjs",
     "config:price-arena": "node scripts/price-arena-deployment-config.mjs",
