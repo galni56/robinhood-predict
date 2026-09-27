@@ -10,6 +10,7 @@ export function AssetRaceAssetPicker({
   highlightedId,
   maxSelected = 6,
   category = ASSET_RACE_CATEGORY.STOCK,
+  compact = false,
 }: {
   assets: ApprovedRaceAsset[]
   selectedIds: readonly Hex[]
@@ -17,6 +18,7 @@ export function AssetRaceAssetPicker({
   highlightedId?: Hex
   maxSelected?: number
   category?: number
+  compact?: boolean
 }) {
   const meme = category === ASSET_RACE_CATEGORY.MEME
   const [query, setQuery] = useState('')
@@ -37,7 +39,7 @@ export function AssetRaceAssetPicker({
         placeholder={meme ? 'Search approved meme assets…' : 'Search Stock Tokens…'}
         className="w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 text-sm font-medium outline-none transition-colors focus:border-[#8B7CF7]/50"
       />
-      <div className="grid max-h-80 grid-cols-1 gap-2 overflow-y-auto pr-1 sm:grid-cols-2">
+      <div className={`grid grid-cols-1 gap-2 overflow-y-auto pr-1 sm:grid-cols-2 ${compact ? 'max-h-52' : 'max-h-80'}`}>
         {matches.map((asset) => {
           const alreadySelected = selected.has(asset.assetId.toLowerCase())
           const highlighted = highlightedId?.toLowerCase() === asset.assetId.toLowerCase()

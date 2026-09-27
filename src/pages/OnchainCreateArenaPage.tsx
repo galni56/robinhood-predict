@@ -64,16 +64,13 @@ export function OnchainCreateArenaPage() {
   }
 
   return (
-    <div className="mx-auto max-w-[1280px] px-4 py-8">
+    <div className="mx-auto max-w-[1280px] px-4 py-5 lg:min-h-[calc(100dvh-104px)]">
       <Link to={`/onchain/arenas${mode === 'memes' ? '?mode=memes' : ''}`} className="text-sm text-white/40 hover:text-white">← All arenas</Link>
-      <div className="mt-6 grid min-w-0 items-start gap-8 lg:grid-cols-[440px_1fr] xl:gap-10">
-        <div className="min-w-0">
+      <div className="mt-4 grid min-w-0 items-stretch gap-6 lg:min-h-[calc(100dvh-180px)] lg:grid-cols-[440px_1fr] xl:gap-8">
+        <div className="flex min-w-0 flex-col">
           <p className="text-sm font-bold text-[#B7CEFF]">Create Price Arena</p>
           <h1 className="mt-1 font-display text-3xl font-bold sm:text-4xl">Set the stage.</h1>
-          <p className="mt-2 text-sm leading-relaxed text-white/50">
-            Pick one approved asset and a game duration. Players compete to submit the closest final-price forecast.
-          </p>
-          <div className="mt-4 flex gap-1.5">
+          <div className="mt-3 flex gap-1.5">
             {(['stocks', 'memes'] as const).map((item) => (
               <button
                 key={item}
@@ -86,8 +83,9 @@ export function OnchainCreateArenaPage() {
             ))}
           </div>
 
-          <div className="mt-5">
+          <div className="mt-4 flex-1">
             <GameLifecycleGuide
+              className="lg:h-full"
               tone="arena"
               eyebrow={`${arenaDurationLabel(duration)} arena · full lifecycle`}
               title="From forecast to final ranking"
@@ -124,10 +122,10 @@ export function OnchainCreateArenaPage() {
           </div>
         </div>
 
-      {!PRICE_ARENA_ADDRESS ? <div className="rounded-2xl border border-amber-400/25 bg-amber-400/10 p-5 text-amber-100">Deploy and configure Price Arena before creating games.</div> : (
-        <div className="min-w-0 space-y-6 rounded-3xl border border-white/5 bg-[#241b2f] p-6 sm:p-8">
+      {!PRICE_ARENA_ADDRESS ? <div className="h-full rounded-2xl border border-amber-400/25 bg-amber-400/10 p-5 text-amber-100">Deploy and configure Price Arena before creating games.</div> : (
+        <div className="h-full min-w-0 space-y-4 rounded-3xl border border-white/5 bg-[#241b2f] p-5 sm:p-6">
           <label className="block"><span className="mb-2 block text-sm font-bold text-white/60">Arena title</span><input value={title} onChange={(event) => setTitle(event.target.value)} maxLength={64} placeholder={mode === 'memes' ? 'Meme price showdown' : 'NVDA closing shot'} className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 outline-none focus:border-[#7A9FF0]/50" /><span className="mt-1 block text-right text-xs text-white/30">{titleBytes} / 64 bytes</span></label>
-          <div><div className="mb-2 text-sm font-bold text-white/60">Asset</div><div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{assets.map((asset) => <button key={asset.assetId} onClick={() => setAssetId(asset.assetId)} className={`flex items-center gap-3 rounded-xl border px-4 py-3 text-left ${selected?.assetId === asset.assetId ? (mode === 'memes' ? 'border-[#F2A65A] bg-[#F2A65A]/10' : 'border-[#8B7CF7] bg-[#8B7CF7]/10') : 'border-white/5 bg-white/[0.03]'}`}><TokenLogo ticker={asset.symbol} className="h-10 w-10 rounded-xl" /><div><div className="font-bold">{asset.symbol}</div><div className="text-xs text-white/35">{asset.name}</div></div></button>)}</div>{assets.length === 0 && <p className="py-5 text-sm text-white/40">Loading configured assets…</p>}</div>
+          <div><div className="mb-2 text-sm font-bold text-white/60">Asset</div><div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{assets.map((asset) => <button key={asset.assetId} onClick={() => setAssetId(asset.assetId)} className={`flex items-center gap-2.5 rounded-xl border px-3 py-2 text-left ${selected?.assetId === asset.assetId ? (mode === 'memes' ? 'border-[#F2A65A] bg-[#F2A65A]/10' : 'border-[#8B7CF7] bg-[#8B7CF7]/10') : 'border-white/5 bg-white/[0.03]'}`}><TokenLogo ticker={asset.symbol} className="h-8 w-8 rounded-lg" /><div><div className="font-bold">{asset.symbol}</div><div className="text-xs text-white/35">{asset.name}</div></div></button>)}</div>{assets.length === 0 && <p className="py-5 text-sm text-white/40">Loading configured assets…</p>}</div>
           <div><div className="mb-2 text-sm font-bold text-white/60">Game duration</div><div className="grid grid-cols-2 gap-2 sm:grid-cols-4">{PRICE_ARENA_DURATIONS.map((seconds) => <button key={seconds.toString()} onClick={() => setDuration(seconds)} className={`rounded-xl border px-3 py-3 text-sm font-bold ${duration === seconds ? 'border-[#7A9FF0] bg-[#7A9FF0]/15 text-[#B7CEFF]' : 'border-white/5 bg-white/[0.03] text-white/50'}`}>{arenaDurationLabel(seconds)}</button>)}</div></div>
           {error && <p className="text-sm text-rose-400">{error}</p>}
           {!isConnected ? <WalletOptionsList /> : chainId !== assetRaceChain.id ? <button onClick={() => switchChain({ chainId: assetRaceChain.id })} disabled={isSwitching} className="w-full rounded-xl bg-[#F2A65A] py-3 font-bold text-[#3b2416]">Switch to {assetRaceChain.name}</button> : <button onClick={create} disabled={!address || !valid || !!txLabel} className="w-full rounded-xl bg-gradient-to-r from-[#8EB1F8] to-[#7A9FF0] py-3 font-bold text-[#152447] disabled:opacity-40">{txLabel ?? 'Create Price Arena'}</button>}

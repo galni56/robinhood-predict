@@ -8,6 +8,7 @@ export interface LifecycleStage {
 }
 
 interface GameLifecycleGuideProps {
+  className?: string
   tone: 'market' | 'race' | 'arena'
   eyebrow: string
   title: string
@@ -43,19 +44,19 @@ const toneClasses = {
   },
 } as const
 
-export function GameLifecycleGuide({ tone, eyebrow, title, intro, stages, note }: GameLifecycleGuideProps) {
+export function GameLifecycleGuide({ className, tone, eyebrow, title, intro, stages, note }: GameLifecycleGuideProps) {
   const colors = toneClasses[tone]
   const [expanded, setExpanded] = useState(false)
   const contentId = useId()
 
   return (
-    <section className={clsx('rounded-3xl border border-white/[0.07] bg-[#241b2f]', expanded ? 'p-5 sm:p-6' : 'p-4 sm:p-5')}>
+    <section className={clsx('flex flex-col rounded-3xl border border-white/[0.07] bg-[#241b2f]', expanded ? 'p-5 sm:p-6' : 'p-4 sm:p-5', className)}>
       <div className={clsx('mb-3 inline-flex rounded-full border px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em]', colors.badge)}>
         {eyebrow}
       </div>
       <h2 className="font-display text-2xl font-bold leading-tight text-white">{title}</h2>
 
-      <div id={contentId}>
+      <div id={contentId} className={expanded ? undefined : 'flex min-h-0 flex-1 flex-col'}>
         {expanded ? (
           <>
             <p className="mt-2 text-sm leading-relaxed text-white/50">{intro}</p>
@@ -82,7 +83,7 @@ export function GameLifecycleGuide({ tone, eyebrow, title, intro, stages, note }
             <p className={clsx('mt-4 rounded-2xl border px-4 py-3 text-xs font-medium leading-relaxed', colors.note)}>{note}</p>
           </>
         ) : (
-          <ol className="mt-4 overflow-hidden rounded-2xl border border-white/[0.07] bg-black/10">
+          <ol className="mt-4 grid flex-1 auto-rows-fr overflow-hidden rounded-2xl border border-white/[0.07] bg-black/10">
             {stages.map((stage, index) => (
               <li
                 key={`${stage.title}-${stage.timing}`}

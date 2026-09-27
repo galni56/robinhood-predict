@@ -153,18 +153,14 @@ export function OnchainCreateMarketPage() {
   const lockedSeconds = durationSeconds - bettingSeconds
 
   return (
-    <div className="mx-auto max-w-[1280px] px-4 py-8">
-      <div className="grid min-w-0 items-start gap-8 lg:grid-cols-[440px_1fr] xl:gap-10">
-        <div className="min-w-0">
+    <div className="mx-auto max-w-[1280px] px-4 py-5 lg:min-h-[calc(100dvh-104px)]">
+      <div className="grid min-w-0 items-stretch gap-6 lg:min-h-[calc(100dvh-144px)] lg:grid-cols-[440px_1fr] xl:gap-8">
+        <div className="flex min-w-0 flex-col">
           <p className="text-sm font-bold text-[#B3A7FA] mb-1">Make a market</p>
-          <h1 className="font-display text-3xl sm:text-4xl font-bold tracking-tight mb-2">Ask the next big question</h1>
-          <p className="mb-6 text-sm leading-relaxed text-white/50">
-            Choose a stock, target and deadline. Creation fixes the question; players fund YES or NO after the market
-            appears on the board.
-          </p>
+          <h1 className="font-display text-3xl sm:text-4xl font-bold tracking-tight">Ask the next big question</h1>
 
           {/* Live preview: the question this form is about to put on the board */}
-          <div className="rounded-3xl bg-[#e7e1f8] text-[#241a33] px-6 py-6 flex items-center gap-4">
+          <div className="mt-4 flex items-center gap-4 rounded-3xl bg-[#e7e1f8] px-5 py-5 text-[#241a33]">
             <img
               src={`${import.meta.env.BASE_URL}brand/mascot-small.png`}
               alt=""
@@ -180,8 +176,9 @@ export function OnchainCreateMarketPage() {
             </div>
           </div>
 
-          <div className="mt-5">
+          <div className="mt-4 flex-1">
             <GameLifecycleGuide
+              className="lg:h-full"
               tone="market"
               eyebrow={`${durationPreset.label} market · full lifecycle`}
               title="What happens after creation"
@@ -220,7 +217,7 @@ export function OnchainCreateMarketPage() {
           </div>
         </div>
 
-      <form onSubmit={onSubmit} className="min-w-0 bg-[#241b2f] border border-white/5 rounded-3xl p-6 sm:p-8 space-y-6">
+      <form onSubmit={onSubmit} className="h-full min-w-0 space-y-5 rounded-3xl border border-white/5 bg-[#241b2f] p-6 sm:p-7">
         <div>
           <label className="block text-sm font-bold text-white/60 mb-2">Tokenized stock</label>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">

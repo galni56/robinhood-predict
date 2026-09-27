@@ -75,22 +75,19 @@ export function OnchainCreateRacePage() {
   }
 
   return (
-    <div className={`mx-auto max-w-[1280px] px-4 py-8 ${mode === 'memes' ? 'asset-race-meme' : ''}`}>
+    <div className={`mx-auto max-w-[1280px] px-4 py-5 lg:min-h-[calc(100dvh-104px)] ${mode === 'memes' ? 'asset-race-meme' : ''}`}>
       <Link to={`/onchain/races${mode === 'memes' ? '?mode=memes' : ''}`} className="text-sm text-white/40 transition-colors hover:text-white/70">← All races</Link>
 
-      <div className="mt-6 grid min-w-0 items-start gap-8 lg:grid-cols-[440px_1fr] xl:gap-10">
-        <div className="min-w-0">
+      <div className="mt-4 grid min-w-0 items-stretch gap-6 lg:min-h-[calc(100dvh-180px)] lg:grid-cols-[440px_1fr] xl:gap-8">
+        <div className="flex min-w-0 flex-col">
           <p className="mb-1 text-sm font-bold text-[#F2A65A]">
             Create a community {mode === 'memes' ? 'meme' : 'stock'} race
           </p>
           <h1 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">
             {mode === 'memes' ? 'Assemble the meme pack' : 'Build the starting grid'}
           </h1>
-          <p className="mt-2 text-sm leading-relaxed text-white/50">
-            Name the race, choose an approved duration, and optionally seed the lobby with approved {mode === 'memes' ? 'meme assets' : 'Stock Tokens'}. Other wallets can add one approved asset each before the list locks.
-          </p>
           {isLocalAssetRace && <p className="mt-2 text-xs font-bold text-[#B3A7FA]">Local test network · no real funds</p>}
-          <div className="mt-4 flex gap-1.5">
+          <div className="mt-3 flex gap-1.5">
             {(['stocks', 'memes'] as const).map((item) => (
               <button
                 key={item}
@@ -109,8 +106,9 @@ export function OnchainCreateRacePage() {
             ))}
           </div>
 
-          <div className="mt-5">
+          <div className="mt-4 flex-1">
             <GameLifecycleGuide
+              className="lg:h-full"
               tone="race"
               eyebrow={`${selectedDuration > 0n ? durationLabel(selectedDuration) : 'Choose a duration'} race · full lifecycle`}
               title="From lobby to finish line"
@@ -153,13 +151,13 @@ export function OnchainCreateRacePage() {
         </div>
 
         {!ASSET_RACE_ADDRESS ? (
-          <div className="rounded-xl border border-amber-400/25 bg-amber-400/10 p-5 text-sm text-amber-100">
+          <div className="h-full rounded-xl border border-amber-400/25 bg-amber-400/10 p-5 text-sm text-amber-100">
             Community creation needs a configured AssetRace contract. Preview mode cannot send transactions.
           </div>
         ) : registryError ? (
-          <div className="rounded-xl border border-rose-500/25 bg-rose-500/10 p-5 text-sm text-rose-300">Could not read the approved Race registry.</div>
+          <div className="h-full rounded-xl border border-rose-500/25 bg-rose-500/10 p-5 text-sm text-rose-300">Could not read the approved Race registry.</div>
         ) : (
-          <div className="min-w-0 space-y-6 rounded-3xl border border-white/5 bg-[#241b2f] p-5 sm:p-7">
+          <div className="h-full min-w-0 space-y-4 rounded-3xl border border-white/5 bg-[#241b2f] p-5 sm:p-6">
           <div>
             <label className="mb-2 block text-sm font-bold text-white/60">Race title</label>
             <input
@@ -202,7 +200,7 @@ export function OnchainCreateRacePage() {
               </div>
             )}
             {isLoading ? <p className="py-8 text-center text-sm text-white/35">Loading approved assets…</p> : (
-              <AssetRaceAssetPicker assets={visibleAssets} selectedIds={selected.map((asset) => asset.assetId)} onSelect={toggleAsset} category={category} />
+              <AssetRaceAssetPicker assets={visibleAssets} selectedIds={selected.map((asset) => asset.assetId)} onSelect={toggleAsset} category={category} compact />
             )}
           </div>
 
