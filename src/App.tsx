@@ -39,6 +39,7 @@ import { SettingsPage } from '@/pages/SettingsPage'
 import { TermsPage } from '@/pages/TermsPage'
 import { TxDetailPage } from '@/pages/TxDetailPage'
 import { WhitepaperPage } from '@/pages/WhitepaperPage'
+import { RoadmapPage } from '@/pages/RoadmapPage'
 import { isLocalAssetRace } from '@/chain/config'
 import { AssetRaceLiveDisplayProvider } from '@/chain/useAssetRaceLiveDisplay'
 
@@ -52,7 +53,7 @@ export default function App() {
   // to land on the mock navbar with no way back to real "/", only a route
   // to mock pages ("testnet"). Mock-mode visitors can still get back to the
   // demo via RealNavbar's own "Demo" link.
-  const isRealMode = pathname === '/' || pathname.startsWith('/onchain') || pathname === '/whitepaper' || pathname === '/terms'
+  const isRealMode = pathname === '/' || pathname.startsWith('/onchain') || pathname === '/roadmap' || pathname === '/whitepaper' || pathname === '/terms'
   const isLocalRaceRoute = isLocalAssetRace && pathname.startsWith('/onchain/races')
 
   return (
@@ -75,6 +76,7 @@ export default function App() {
           <Route path="/" element={<OnchainLandingPage />} />
           <Route path="/demo" element={<LandingPage />} />
           <Route path="/whitepaper" element={<WhitepaperPage />} />
+          <Route path="/roadmap" element={<RoadmapPage />} />
           <Route path="/terms" element={<TermsPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />

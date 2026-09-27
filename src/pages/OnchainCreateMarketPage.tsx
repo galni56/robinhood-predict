@@ -6,6 +6,7 @@ import { simulateContract, waitForTransactionReceipt } from 'wagmi/actions'
 import { robinhoodMainnet, wagmiConfig } from '@/chain/config'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
 import { TokenLogo } from '@/components/TokenLogo'
+import { GameLifecycleGuide } from '@/components/GameLifecycleGuide'
 import {
   PREDICTION_MARKET_ADDRESS,
   PREDICTION_MARKET_CONFIGURED,
@@ -27,6 +28,20 @@ const DURATION_PRESETS = [
   { label: '24 hours', seconds: 24 * 60 * 60, submissionBufferSeconds: 0 },
   { label: '7 days', seconds: 7 * 24 * 60 * 60, submissionBufferSeconds: 0 },
 ] as const
+
+function compactDuration(seconds: number) {
+  const roundedMinutes = Math.round(seconds / 60)
+  if (roundedMinutes >= 24 * 60) {
+    const days = Math.floor(roundedMinutes / (24 * 60))
+    const hours = Math.round((roundedMinutes % (24 * 60)) / 60)
+    return `${days}d${hours > 0 ? ` ${hours}h` : ''}`
+  }
+  if (roundedMinutes >= 60) {
+    const hours = Math.round(roundedMinutes / 60)
+    return `${hours} hour${hours === 1 ? '' : 's'}`
+  }
+  return `${roundedMinutes} min`
+}
 
 export function OnchainCreateMarketPage() {
   const navigate = useNavigate()
@@ -134,18 +149,18 @@ export function OnchainCreateMarketPage() {
 
   const selectedTicker = selectedAsset.ticker
   const targetNumPreview = Number(target)
+  const bettingSeconds = Math.floor((durationSeconds * 6_667) / 10_000)
+  const lockedSeconds = durationSeconds - bettingSeconds
 
   return (
-    <div className="max-w-[1100px] mx-auto px-4 py-8">
-      <div className="grid min-w-0 lg:grid-cols-[400px_1fr] gap-10 items-start">
-        <div className="min-w-0 lg:sticky lg:top-24">
+    <div className="mx-auto max-w-[1280px] px-4 py-8">
+      <div className="grid min-w-0 items-start gap-8 lg:grid-cols-[440px_1fr] xl:gap-10">
+        <div className="min-w-0">
           <p className="text-sm font-bold text-[#B3A7FA] mb-1">Make a market</p>
           <h1 className="font-display text-3xl sm:text-4xl font-bold tracking-tight mb-2">Ask the next big question</h1>
-          <p className="text-white/50 text-sm mb-6">
-            A real transaction on mainnet. Target price must sit a reasonable distance from the current price - the
-            further out the deadline, the wider that band. Settlement needs funded YES and NO pools from at least two
-            wallets; otherwise every position can reclaim its native ETH in full. Enter the stake in USD or ETH—the
-            wallet sends native ETH directly, with no token approval or swap.
+          <p className="mb-6 text-sm leading-relaxed text-white/50">
+            Choose a stock, target and deadline. Creation fixes the question; players fund YES or NO after the market
+            appears on the board.
           </p>
 
           {/* Live preview: the question this form is about to put on the board */}
@@ -163,6 +178,45 @@ export function OnchainCreateMarketPage() {
                 {DURATION_PRESETS[durationIdx].label} deadline?
               </p>
             </div>
+          </div>
+
+          <div className="mt-5">
+            <GameLifecycleGuide
+              tone="market"
+              eyebrow={`${durationPreset.label} market · full lifecycle`}
+              title="What happens after creation"
+              intro="The target and deadline cannot be edited after the creation transaction confirms. Creating the question costs gas, but does not place a stake."
+              stages={[
+                {
+                  title: 'The market opens',
+                  timing: 'Immediately',
+                  body: 'Players choose YES or NO and enter $1–$50 in USD or ETH. The wallet sends the exact native ETH amount in one transaction—no approval or swap. Each wallet may place one position on each side.',
+                },
+                {
+                  title: 'Betting is open',
+                  timing: `First ≈${compactDuration(bettingSeconds)}`,
+                  body: 'Betting lasts for the first two-thirds of the market. Winning positions placed earlier receive more weight when the losing pool is divided: the multiplier declines from 2.00× to 0.50×.',
+                },
+                {
+                  title: 'The pools lock',
+                  timing: `Final ≈${compactDuration(lockedSeconds)}`,
+                  body: 'No new bets are accepted during the final third. The YES and NO pools, participants and target stay visible while the market waits for its fixed deadline.',
+                },
+                {
+                  title: 'The deadline fixes the result',
+                  timing: durationPreset.label,
+                  body: 'Settlement uses the reviewed onchain stock price from the last Robinhood block strictly before the deadline. A price at or above the target means YES; a lower price means NO.',
+                },
+                {
+                  title: 'Claim or receive a refund',
+                  timing: 'After resolution',
+                  body: 'A valid market needs funded YES and NO pools and at least two distinct wallets. Winners claim principal plus their weighted share of the losing pool; the 2% fee applies only to that profit. If eligibility or price rules fail, every position can reclaim its full stake.',
+                },
+              ]}
+              note={durationPreset.submissionBufferSeconds > 0
+                ? 'The 30-minute preset includes up to 2 extra minutes for wallet confirmation, so its onchain countdown begins near 30–32 minutes.'
+                : `Selected schedule: about ${compactDuration(bettingSeconds)} open for bets, then ${compactDuration(lockedSeconds)} locked before the ${durationPreset.label} deadline.`}
+            />
           </div>
         </div>
 

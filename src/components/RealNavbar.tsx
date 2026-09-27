@@ -3,6 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom'
 import clsx from 'clsx'
 import { isLocalAssetRace, robinhoodMainnet } from '@/chain/config'
 import { ConnectWalletButton } from '@/components/ConnectWalletButton'
+import { PROPHET_X_URL } from '@/lib/social'
 
 const links = [
   { to: '/onchain', label: 'Markets', end: true },
@@ -11,6 +12,7 @@ const links = [
   { to: '/onchain/portfolio', label: 'Portfolio' },
   { to: '/onchain/leaderboard', label: 'Leaderboard' },
   { to: '/onchain/archive', label: 'Archive' },
+  { to: '/roadmap', label: 'Roadmap' },
 ]
 
 /** Full-size navbar for the real (mainnet) side of the site - the landing
@@ -29,7 +31,7 @@ export function RealNavbar() {
 
   return (
     <header className="sticky top-0 z-20 border-b border-white/10 bg-[#17111f]/95 xl:bg-[#17111f]/85 xl:backdrop-blur">
-      <div className="max-w-[1500px] mx-auto px-4 h-16 flex items-center gap-4 xl:gap-6">
+      <div className="max-w-[1500px] mx-auto px-4 h-16 flex items-center gap-3 xl:gap-4">
         <NavLink to="/" className="flex items-center gap-2 shrink-0">
           <img src={`${import.meta.env.BASE_URL}brand/mascot-small.png`} alt="" className="w-9 h-9 shrink-0" />
           <span className="font-display font-bold text-xl leading-none text-[#f7f1e3]">
@@ -38,7 +40,7 @@ export function RealNavbar() {
           {localRaceRoute && <span className="hidden text-xs font-normal text-white/30 sm:inline">on Local Anvil (test only)</span>}
         </NavLink>
 
-        <nav className="hidden xl:flex items-center gap-1 text-sm shrink-0">
+        <nav className="hidden xl:flex items-center gap-0.5 text-[13px] shrink-0">
           {links.map((l) => (
             <NavLink
               key={l.to}
@@ -46,7 +48,7 @@ export function RealNavbar() {
               end={l.end}
               className={({ isActive }) =>
                 clsx(
-                  'px-3 py-1.5 rounded-full transition-colors font-bold whitespace-nowrap',
+                  'px-2.5 py-1.5 rounded-full transition-colors font-bold whitespace-nowrap',
                   isActive ? 'bg-[#8B7CF7]/15 text-[#B3A7FA]' : 'text-white/60 hover:text-white hover:bg-white/5',
                 )
               }
@@ -58,7 +60,7 @@ export function RealNavbar() {
             to="/onchain/create"
             className={({ isActive }) =>
               clsx(
-                'px-3 py-1.5 rounded-full transition-colors font-bold text-[#B3A7FA] whitespace-nowrap',
+                'px-2.5 py-1.5 rounded-full transition-colors font-bold text-[#B3A7FA] whitespace-nowrap',
                 isActive ? 'bg-[#8B7CF7]/15' : 'hover:bg-[#8B7CF7]/10',
               )
             }
@@ -69,7 +71,7 @@ export function RealNavbar() {
             to="/onchain/races/create"
             className={({ isActive }) =>
               clsx(
-                'px-3 py-1.5 rounded-full transition-colors font-medium text-[#F2A65A] whitespace-nowrap',
+                'px-2.5 py-1.5 rounded-full transition-colors font-medium text-[#F2A65A] whitespace-nowrap',
                 isActive ? 'bg-[#F2A65A]/15' : 'hover:bg-[#F2A65A]/10',
               )
             }
@@ -80,7 +82,7 @@ export function RealNavbar() {
             to="/onchain/arenas/create"
             className={({ isActive }) =>
               clsx(
-                'px-3 py-1.5 rounded-full transition-colors font-medium text-[#B7CEFF] whitespace-nowrap',
+                'px-2.5 py-1.5 rounded-full transition-colors font-medium text-[#B7CEFF] whitespace-nowrap',
                 isActive ? 'bg-[#7A9FF0]/15' : 'hover:bg-[#7A9FF0]/10',
               )
             }
@@ -91,7 +93,7 @@ export function RealNavbar() {
             href={robinhoodMainnet.blockExplorers.default.url}
             target="_blank"
             rel="noreferrer"
-            className="px-3 py-1.5 rounded-full transition-colors font-bold text-white/40 hover:text-white hover:bg-white/5 whitespace-nowrap"
+            className="px-2.5 py-1.5 rounded-full transition-colors font-bold text-white/40 hover:text-white hover:bg-white/5 whitespace-nowrap"
           >
             Chain explorer ↗
           </a>}
@@ -99,7 +101,7 @@ export function RealNavbar() {
             to="/whitepaper"
             className={({ isActive }) =>
               clsx(
-                'px-3 py-1.5 rounded-full transition-colors font-bold whitespace-nowrap',
+                'px-2.5 py-1.5 rounded-full transition-colors font-bold whitespace-nowrap',
                 isActive ? 'bg-[#8B7CF7]/15 text-[#B3A7FA]' : 'text-white/40 hover:text-white hover:bg-white/5',
               )
             }
@@ -107,7 +109,7 @@ export function RealNavbar() {
             Whitepaper
           </NavLink>
           <a
-            href="https://x.com/prophetmarketsx"
+            href={PROPHET_X_URL}
             target="_blank"
             rel="noreferrer"
             aria-label="Prophet on X"
@@ -119,10 +121,10 @@ export function RealNavbar() {
           </a>
         </nav>
 
-        <div className="ml-auto hidden xl:flex items-center gap-3">
+        <div className="ml-auto hidden xl:flex items-center gap-2">
           <NavLink
             to="/demo"
-            className="text-xs px-2.5 py-1.5 rounded-full border border-white/10 text-white/50 hover:text-white hover:border-white/30 transition-colors font-bold"
+            className="hidden text-xs px-2.5 py-1.5 rounded-full border border-white/10 text-white/50 hover:text-white hover:border-white/30 transition-colors font-bold 2xl:block"
           >
             Demo →
           </NavLink>
@@ -206,7 +208,7 @@ export function RealNavbar() {
             Whitepaper
           </NavLink>
           <a
-            href="https://x.com/prophetmarketsx"
+            href={PROPHET_X_URL}
             target="_blank"
             rel="noreferrer"
             onClick={() => setMobileOpen(false)}

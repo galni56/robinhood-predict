@@ -5,7 +5,7 @@ import { RHCHAIN_META } from '@/market/tokens'
 
 export function DisclaimerBanner() {
   const { pathname } = useLocation()
-  const isOnchain = pathname === '/' || pathname.startsWith('/onchain') || pathname === '/whitepaper' || pathname === '/terms'
+  const isOnchain = pathname === '/' || pathname.startsWith('/onchain') || pathname === '/roadmap' || pathname === '/whitepaper' || pathname === '/terms'
   const isLocalRaceRoute = isLocalAssetRace && pathname.startsWith('/onchain/races')
 
   if (isOnchain && !isLocalRaceRoute) return null

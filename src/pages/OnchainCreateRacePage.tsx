@@ -7,6 +7,7 @@ import { ASSET_RACE_ADDRESS, assetRaceAbi, categoryForRaceMode } from '@/chain/a
 import { assetRaceChain, isLocalAssetRace, wagmiConfig } from '@/chain/config'
 import { useApprovedRaceAssets } from '@/chain/useApprovedRaceAssets'
 import { AssetRaceAssetPicker } from '@/components/AssetRaceAssetPicker'
+import { GameLifecycleGuide } from '@/components/GameLifecycleGuide'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
 import { TokenLogo } from '@/components/TokenLogo'
 import { shortTxError } from '@/lib/format'
@@ -74,11 +75,11 @@ export function OnchainCreateRacePage() {
   }
 
   return (
-    <div className={`mx-auto max-w-4xl px-4 py-8 ${mode === 'memes' ? 'asset-race-meme' : ''}`}>
+    <div className={`mx-auto max-w-[1280px] px-4 py-8 ${mode === 'memes' ? 'asset-race-meme' : ''}`}>
       <Link to={`/onchain/races${mode === 'memes' ? '?mode=memes' : ''}`} className="text-sm text-white/40 transition-colors hover:text-white/70">← All races</Link>
 
-      <div className="mt-6 flex flex-wrap items-end justify-between gap-4">
-        <div className="max-w-2xl">
+      <div className="mt-6 grid min-w-0 items-start gap-8 lg:grid-cols-[440px_1fr] xl:gap-10">
+        <div className="min-w-0">
           <p className="mb-1 text-sm font-bold text-[#F2A65A]">
             Create a community {mode === 'memes' ? 'meme' : 'stock'} race
           </p>
@@ -89,35 +90,76 @@ export function OnchainCreateRacePage() {
             Name the race, choose an approved duration, and optionally seed the lobby with approved {mode === 'memes' ? 'meme assets' : 'Stock Tokens'}. Other wallets can add one approved asset each before the list locks.
           </p>
           {isLocalAssetRace && <p className="mt-2 text-xs font-bold text-[#B3A7FA]">Local test network · no real funds</p>}
-        </div>
-        <div className="flex gap-1.5">
-          {(['stocks', 'memes'] as const).map((item) => (
-            <button
-              key={item}
-              type="button"
-              onClick={() => selectMode(item)}
-              className={`rounded-full px-4 py-1.5 text-sm font-bold transition-colors ${
-                mode === item
-                  ? item === 'memes'
-                    ? 'bg-[#F2A65A] text-[#3b2416]'
-                    : 'bg-[#f7f1e3] text-[#241a33]'
-                  : 'text-white/50 hover:bg-white/5 hover:text-white'
-              }`}
-            >
-              {item === 'stocks' ? 'Stocks' : 'Memes'}
-            </button>
-          ))}
-        </div>
-      </div>
+          <div className="mt-4 flex gap-1.5">
+            {(['stocks', 'memes'] as const).map((item) => (
+              <button
+                key={item}
+                type="button"
+                onClick={() => selectMode(item)}
+                className={`rounded-full px-4 py-1.5 text-sm font-bold transition-colors ${
+                  mode === item
+                    ? item === 'memes'
+                      ? 'bg-[#F2A65A] text-[#3b2416]'
+                      : 'bg-[#f7f1e3] text-[#241a33]'
+                    : 'text-white/50 hover:bg-white/5 hover:text-white'
+                }`}
+              >
+                {item === 'stocks' ? 'Stocks' : 'Memes'}
+              </button>
+            ))}
+          </div>
 
-      {!ASSET_RACE_ADDRESS ? (
-        <div className="mt-5 rounded-xl border border-amber-400/25 bg-amber-400/10 p-5 text-sm text-amber-100">
-          Community creation needs a configured AssetRace contract. Preview mode cannot send transactions.
+          <div className="mt-5">
+            <GameLifecycleGuide
+              tone="race"
+              eyebrow={`${selectedDuration > 0n ? durationLabel(selectedDuration) : 'Choose a duration'} race · full lifecycle`}
+              title="From lobby to finish line"
+              intro="Creating a race costs gas but places no bet. The creator defines the category and duration; the protocol fixes every later phase."
+              stages={[
+                {
+                  title: 'Build the grid',
+                  timing: 'Lobby · 5 min',
+                  body: `The creator may add up to six approved ${mode === 'memes' ? 'memes' : 'stocks'}. During the lobby, other wallets may add one approved asset each. At least two assets must be present when the lobby closes.`,
+                },
+                {
+                  title: 'Back one contender',
+                  timing: 'Betting · 5 min',
+                  body: 'Choose one asset and enter $1–$50 in USD or ETH; the wallet sends native ETH directly. You may add to that same position while betting is open, but cannot switch assets.',
+                },
+                {
+                  title: 'Lock the starting prices',
+                  timing: 'At betting close',
+                  body: 'Only assets with funded pools become active. At least two must be active or the race cancels. The exact starting snapshot is fixed at the betting cutoff; its proof has a 3-minute submission grace period.',
+                },
+                {
+                  title: 'Run the race',
+                  timing: selectedDuration > 0n ? durationLabel(selectedDuration) : '1, 5 or 15 min',
+                  body: 'Live rankings compare each active asset by percentage return from the shared starting snapshot. The displayed leaderboard can move, but the scheduled finish time cannot.',
+                },
+                {
+                  title: 'Fix the finish and settle',
+                  timing: '5 min proof grace',
+                  body: 'The finish snapshot belongs to the scheduled end. Highest return wins—even if every return is negative, the least-negative asset leads. An exact top tie voids the race.',
+                },
+                {
+                  title: 'Claim or refund',
+                  timing: 'After settlement',
+                  body: 'Winning positions claim principal plus their stake-proportional share of losing pools, minus a 2% fee on that profit only. Cancelled or void races return each position in full.',
+                },
+              ]}
+              note="If a required start or finish proof misses its grace period, the contract moves to a refundable terminal state instead of accepting a late substitute price."
+            />
+          </div>
         </div>
-      ) : registryError ? (
-        <div className="mt-5 rounded-xl border border-rose-500/25 bg-rose-500/10 p-5 text-sm text-rose-300">Could not read the approved Race registry.</div>
-      ) : (
-        <div className="mt-6 space-y-6 rounded-3xl border border-white/5 bg-[#241b2f] p-5 sm:p-7">
+
+        {!ASSET_RACE_ADDRESS ? (
+          <div className="rounded-xl border border-amber-400/25 bg-amber-400/10 p-5 text-sm text-amber-100">
+            Community creation needs a configured AssetRace contract. Preview mode cannot send transactions.
+          </div>
+        ) : registryError ? (
+          <div className="rounded-xl border border-rose-500/25 bg-rose-500/10 p-5 text-sm text-rose-300">Could not read the approved Race registry.</div>
+        ) : (
+          <div className="min-w-0 space-y-6 rounded-3xl border border-white/5 bg-[#241b2f] p-5 sm:p-7">
           <div>
             <label className="mb-2 block text-sm font-bold text-white/60">Race title</label>
             <input
@@ -180,11 +222,9 @@ export function OnchainCreateRacePage() {
             </button>
           )}
 
-          <p className="text-[11px] leading-relaxed text-white/30">
-            No betting occurs during the lobby. Fees, stake limits, oracle configuration, grace periods, and settlement remain protocol-controlled.
-          </p>
-        </div>
-      )}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

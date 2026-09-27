@@ -1,5 +1,6 @@
 import { Link, useLocation } from 'react-router-dom'
 import { RHCHAIN_META } from '@/market/tokens'
+import { PROPHET_X_URL } from '@/lib/social'
 
 const realModeLinks = [
   { to: '/onchain', label: 'Markets' },
@@ -19,13 +20,14 @@ const mockModeLinks = [
 ]
 
 const resourceLinks = [
+  { to: '/roadmap', label: 'Roadmap' },
   { to: '/whitepaper', label: 'Whitepaper' },
   { to: '/terms', label: 'Terms of Service' },
 ]
 
 export function Footer() {
   const { pathname } = useLocation()
-  const isOnchain = pathname === '/' || pathname.startsWith('/onchain') || pathname === '/whitepaper' || pathname === '/terms'
+  const isOnchain = pathname === '/' || pathname.startsWith('/onchain') || pathname === '/roadmap' || pathname === '/whitepaper' || pathname === '/terms'
   const productLinks = isOnchain ? realModeLinks : mockModeLinks
 
   return (
@@ -43,7 +45,7 @@ export function Footer() {
             final price. Stakes and payouts use native ETH.
           </p>
           <a
-            href="https://x.com/prophetmarketsx"
+            href={PROPHET_X_URL}
             target="_blank"
             rel="noreferrer"
             aria-label="Prophet on X"
