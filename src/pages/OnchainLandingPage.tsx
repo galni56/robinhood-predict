@@ -79,24 +79,32 @@ const FEATURES = [
     color: '#8B7CF7',
     title: 'Players compete against players',
     body: 'There are no fixed bookmaker odds. Each game forms an onchain pool, and winners receive principal plus their rule-based share of the losing pool after the 2% protocol fee on that profit portion.',
+    links: [],
   },
   {
     tag: 'USD ↔ ETH',
     color: '#F2A65A',
     title: 'Choose how you enter the amount',
     body: 'Type a convenient dollar amount or enter ETH directly. Every stake form shows the matching value from one shared ETH/USD quote before the wallet opens; the contract receives native ETH.',
+    links: [],
   },
   {
     tag: 'CLEAR OUTCOMES',
     color: '#B3A7FA',
     title: 'Settle by rule or refund by rule',
     body: 'Each mode defines its price snapshot, eligibility and tie behavior in advance. If a game cannot settle under those rules, it reaches a refundable terminal state instead of substituting an arbitrary result.',
+    links: [],
   },
   {
-    tag: 'LIVE ON MAINNET',
-    color: '#ED8F3A',
-    title: 'Three games, one native currency',
-    body: 'Prediction Markets, Asset Races and Price Arena run on Robinhood Chain. Stakes, pools, claims and refunds use native ETH; stock quote assets are used only to determine game prices and results.',
+    tag: 'YOUR IDEA, ONCHAIN',
+    color: '#7A9FF0',
+    title: 'If the game does not exist, create it',
+    body: 'Any wallet can create a YES/NO market, assemble an Asset Race or open a Price Arena from reviewed assets. Set the rules up front, then invite the community into the pool.',
+    links: [
+      { label: '+ Market', to: '/onchain/create', className: 'bg-[#6A5AE0] text-white hover:bg-[#5B49C7]' },
+      { label: '+ Race', to: '/onchain/races/create', className: 'bg-[#ED8F3A] text-[#3b2416] hover:bg-[#F2A65A]' },
+      { label: '+ Arena', to: '/onchain/arenas/create', className: 'bg-[#7A9FF0] text-[#152447] hover:bg-[#8EB1F8]' },
+    ],
   },
 ] as const
 
@@ -636,8 +644,9 @@ export function OnchainLandingPage() {
         </p>
         <div ref={featuresReveal.ref} className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           {FEATURES.map((f, i) => {
-            const tile =
-              i % 2 === 0
+            const tile = i === 3
+              ? { background: 'linear-gradient(105deg, #6A5AE0, #ED8F3A 52%, #7A9FF0)', color: '#fff', shadow: '0 14px 30px -14px rgba(122,159,240,0.8)' }
+              : i % 2 === 0
                 ? { background: '#6A5AE0', color: '#f7f1e3', shadow: '0 14px 30px -14px rgba(106,90,224,0.8)' }
                 : { background: '#F2A65A', color: '#3b2416', shadow: '0 14px 30px -14px rgba(237,143,58,0.8)' }
             return (
@@ -662,6 +671,19 @@ export function OnchainLandingPage() {
                 </span>
                 <h3 className="relative font-display text-2xl font-bold tracking-tight mb-3">{f.title}</h3>
                 <p className="relative text-white/55 text-sm leading-relaxed">{f.body}</p>
+                {f.links.length > 0 && (
+                  <div className="relative mt-6 flex flex-wrap gap-2.5">
+                    {f.links.map((link) => (
+                      <Link
+                        key={link.to}
+                        to={link.to}
+                        className={`rounded-full px-4 py-2 text-xs font-extrabold transition-all hover:-translate-y-0.5 ${link.className}`}
+                      >
+                        {link.label}
+                      </Link>
+                    ))}
+                  </div>
+                )}
               </div>
             )
           })}
