@@ -86,7 +86,7 @@ export function OnchainCreateRacePage() {
           <h1 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">
             {mode === 'memes' ? 'Assemble the meme pack' : 'Build the starting grid'}
           </h1>
-          {isLocalAssetRace && <p className="mt-2 text-xs font-bold text-[#B3A7FA]">Local test network · no real funds</p>}
+          {isLocalAssetRace && <p className="mt-2 text-xs font-bold text-[#F2A65A]">Local test network · no real funds</p>}
           <div className="mt-3 flex gap-1.5">
             {(['stocks', 'memes'] as const).map((item) => (
               <button
@@ -206,7 +206,7 @@ export function OnchainCreateRacePage() {
 
           {error && <p className="text-sm text-rose-400">{error}</p>}
 
-          {!isConnected ? <WalletOptionsList /> : !onRightChain ? (
+          {!isConnected ? <WalletOptionsList tone="race" /> : !onRightChain ? (
             <button onClick={() => switchChain({ chainId: assetRaceChain.id })} disabled={isSwitching} className="w-full rounded-full bg-[#F2A65A] py-3 text-sm font-bold text-[#3b2416] disabled:opacity-50">
               {isSwitching ? 'Switching…' : `Switch to ${assetRaceChain.name}`}
             </button>

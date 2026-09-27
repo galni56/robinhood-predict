@@ -668,7 +668,7 @@ export function OnchainMarketPage() {
           <button
             onClick={() => switchChain({ chainId: robinhoodMainnet.id })}
             disabled={isSwitching}
-            className="ml-3 rounded-full bg-[#F2A65A] text-[#3b2416] px-3.5 py-1 font-bold"
+            className="ml-3 rounded-full bg-[#8B7CF7] px-3.5 py-1 font-bold text-white hover:bg-[#9D90FA]"
           >
             Switch network
           </button>
@@ -689,7 +689,7 @@ export function OnchainMarketPage() {
                 <>
                   {deadlineMs <= Date.now() && (
                     market.data.poolYes === 0n || market.data.poolNo === 0n || (participantCount.data ?? 2n) < 2n ? (
-                      <button onClick={handleResolve} className="w-full rounded-xl bg-white/10 hover:bg-white/20 py-2.5 text-sm font-bold transition-colors">
+                      <button onClick={handleResolve} className="w-full rounded-xl border border-[#8B7CF7]/30 bg-[#8B7CF7]/10 py-2.5 text-sm font-bold text-[#B3A7FA] transition-colors hover:bg-[#8B7CF7]/20">
                         Cancel ineligible market and enable refunds
                       </button>
                     ) : (
@@ -731,7 +731,7 @@ export function OnchainMarketPage() {
                             <button
                               onClick={() => setSide('NO')}
                               disabled={hasBetNo}
-                              className={`py-2.5 rounded-xl text-sm font-extrabold border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${side === 'NO' ? 'bg-[#F2A65A] text-[#3b2416] border-[#F2A65A]' : 'border-white/10 text-white/60 hover:border-[#F2A65A]/40'}`}
+                              className={`py-2.5 rounded-xl text-sm font-extrabold border transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${side === 'NO' ? 'border-[#8B7CF7] bg-[#8B7CF7] text-white' : 'border-white/10 text-white/60 hover:border-[#8B7CF7]/40'}`}
                             >
                               NO ↘{hasBetNo ? ' ✓' : ''}
                             </button>
@@ -777,11 +777,7 @@ export function OnchainMarketPage() {
                                   !!tx || !PREDICTION_MARKET_CONFIGURED || displayedBetWei <= 0n
                                     || maxStakePerSide.data == null || !!betGuardrailViolation
                                 }
-                                className={`w-full rounded-xl font-bold py-2.5 text-sm disabled:opacity-50 transition-all ${
-                                  side === 'YES'
-                                    ? 'bg-gradient-to-r from-[#8B7CF7] to-[#6A5AE0] hover:brightness-110 text-white'
-                                    : 'bg-gradient-to-r from-[#F2A65A] to-[#ED8F3A] hover:brightness-110 text-[#3b2416]'
-                                }`}
+                                className="w-full rounded-xl bg-gradient-to-r from-[#8B7CF7] to-[#6A5AE0] py-2.5 text-sm font-bold text-white transition-all hover:brightness-110 disabled:opacity-50"
                               >
                                 {tx ? tx.label : 'Place bet with ETH'}
                               </button>
@@ -829,14 +825,14 @@ export function OnchainMarketPage() {
                   <button
                     onClick={() => handleClaimOrRefund('refund', MarketSideOnchain.YES)}
                     disabled={!!tx || (myStakeYes.data ?? 0n) === 0n}
-                    className="rounded-xl bg-[#372a4f] text-[#B3A7FA] font-bold hover:bg-[#433460] py-2.5 text-sm disabled:opacity-30 transition-colors"
+                    className="rounded-xl border border-[#8B7CF7]/25 bg-[#8B7CF7]/15 py-2.5 text-sm font-bold text-[#B3A7FA] transition-colors hover:bg-[#8B7CF7]/25 disabled:opacity-30"
                   >
                     Refund YES
                   </button>
                   <button
                     onClick={() => handleClaimOrRefund('refund', MarketSideOnchain.NO)}
                     disabled={!!tx || (myStakeNo.data ?? 0n) === 0n}
-                    className="rounded-xl bg-[#3b2a20] text-[#F2A65A] font-bold hover:bg-[#4a3428] py-2.5 text-sm disabled:opacity-30 transition-colors"
+                    className="rounded-xl border border-[#8B7CF7]/25 bg-[#8B7CF7]/15 py-2.5 text-sm font-bold text-[#B3A7FA] transition-colors hover:bg-[#8B7CF7]/25 disabled:opacity-30"
                   >
                     Refund NO
                   </button>

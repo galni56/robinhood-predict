@@ -45,7 +45,10 @@ function useIsNarrowViewport(maxWidthPx: number) {
 /** Shared "pick a wallet" list - MetaMask icon + name, one click to connect.
  * Used both inside ConnectWalletButton's dropdown and
  * inline wherever a page prompts for a wallet before showing its content. */
-export function WalletOptionsList({ onConnect }: { onConnect?: () => void }) {
+export function WalletOptionsList({ onConnect, tone = 'market' }: {
+  onConnect?: () => void
+  tone?: 'market' | 'race' | 'arena'
+}) {
   const { connectors: allConnectors, connect, isPending } = useConnect()
   const isMobile = useIsNarrowViewport(MOBILE_BREAKPOINT_PX)
   const metaMaskConnectors = useMemo(
@@ -79,6 +82,16 @@ export function WalletOptionsList({ onConnect }: { onConnect?: () => void }) {
   }, [metaMaskConnectors])
 
   const availableConnectors = metaMaskConnectors.filter((connector) => availableConnectorUids.has(connector.uid))
+  const actionClass = tone === 'race'
+    ? 'hover:border-[#F2A65A]/50 hover:bg-[#F2A65A]/10'
+    : tone === 'arena'
+      ? 'hover:border-[#7A9FF0]/50 hover:bg-[#7A9FF0]/10'
+      : 'hover:border-[#8B7CF7]/50 hover:bg-[#8B7CF7]/10'
+  const actionTextClass = tone === 'race'
+    ? 'text-[#F2A65A]'
+    : tone === 'arena'
+      ? 'text-[#B7CEFF]'
+      : 'text-[#B3A7FA]'
 
   if (isCheckingWallet) {
     return <p className="px-4 py-3.5 text-sm text-white/40">Looking for MetaMask...</p>
@@ -93,7 +106,7 @@ export function WalletOptionsList({ onConnect }: { onConnect?: () => void }) {
             <span className="font-bold text-white/80">Wallet extension needed.</span> MetaMask is a browser
             extension for desktop Chrome, not something you can install on a phone browser. Open this site on a
             desktop computer with the MetaMask extension, or{' '}
-            <a href={metamaskAppLink} className="text-[#B3A7FA] font-bold underline underline-offset-2">
+            <a href={metamaskAppLink} className={`font-bold underline underline-offset-2 ${actionTextClass}`}>
               open it in the MetaMask app ↗
             </a>
             .
@@ -118,13 +131,13 @@ export function WalletOptionsList({ onConnect }: { onConnect?: () => void }) {
             connect({ connector })
             onConnect?.()
           }}
-          className="group w-full flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-left text-sm font-bold hover:border-[#8B7CF7]/50 hover:bg-[#8B7CF7]/10 transition-all disabled:opacity-50"
+          className={`group w-full flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-left text-sm font-bold transition-all disabled:opacity-50 ${actionClass}`}
         >
           <span className="w-9 h-9 rounded-xl bg-white/10 grid place-items-center shrink-0">
             <MetaMaskIcon />
           </span>
           {connector.name}
-          <span className="ml-auto inline-flex items-center gap-1.5 text-xs font-bold text-[#B3A7FA] opacity-0 group-hover:opacity-100 transition-opacity">
+          <span className={`ml-auto inline-flex items-center gap-1.5 text-xs font-bold opacity-0 transition-opacity group-hover:opacity-100 ${actionTextClass}`}>
             Connect
             <span className="transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5">↗</span>
           </span>

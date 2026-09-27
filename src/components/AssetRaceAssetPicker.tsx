@@ -37,7 +37,7 @@ export function AssetRaceAssetPicker({
         value={query}
         onChange={(event) => setQuery(event.target.value)}
         placeholder={meme ? 'Search approved meme assets…' : 'Search Stock Tokens…'}
-        className="w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 text-sm font-medium outline-none transition-colors focus:border-[#8B7CF7]/50"
+        className="w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 text-sm font-medium outline-none transition-colors focus:border-[#F2A65A]/60"
       />
       <div className={`grid grid-cols-1 gap-2 overflow-y-auto pr-1 sm:grid-cols-2 ${compact ? 'max-h-52' : 'max-h-80'}`}>
         {matches.map((asset) => {
@@ -52,10 +52,8 @@ export function AssetRaceAssetPicker({
               onClick={() => onSelect(asset)}
               className={`flex min-w-0 items-center gap-3 rounded-2xl border p-3 text-left transition-all disabled:cursor-not-allowed disabled:opacity-40 ${
                 highlighted
-                  ? meme
-                    ? 'border-[#F2A65A]/60 bg-[#F2A65A]/10'
-                    : 'border-[#8B7CF7]/60 bg-[#8B7CF7]/10'
-                  : `border-white/5 bg-white/5 ${meme ? 'hover:border-[#F2A65A]/40' : 'hover:border-[#8B7CF7]/40'}`
+                  ? 'border-[#F2A65A]/60 bg-[#F2A65A]/10'
+                  : 'border-white/5 bg-white/5 hover:border-[#F2A65A]/40'
               }`}
             >
               <TokenLogo ticker={asset.symbol} logoUrl={asset.logoUrl} className="h-9 w-9 rounded-xl" />
@@ -63,7 +61,7 @@ export function AssetRaceAssetPicker({
                 <span className="block font-bold">{asset.symbol}</span>
                 <span className="block truncate text-xs text-white/40">{asset.name}</span>
               </span>
-              <span className={`text-xs font-bold ${meme ? 'text-[#F2A65A]' : 'text-[#B3A7FA]'}`}>
+              <span className="text-xs font-bold text-[#F2A65A]">
                 {alreadySelected ? 'Added' : highlighted ? 'Selected' : 'Approved'}
               </span>
             </button>

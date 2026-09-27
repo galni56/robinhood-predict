@@ -202,7 +202,7 @@ export function OnchainRacePage() {
           {ASSET_RACE_CONFIG_ERROR && <span className="mt-1 block text-rose-300">{ASSET_RACE_CONFIG_ERROR}</span>}
         </div>
       ) : (
-        <div className="mb-5 rounded-2xl border border-[#8B7CF7]/25 bg-[#8B7CF7]/10 px-4 py-3 text-sm font-medium text-[#B3A7FA]">
+        <div className="mb-5 rounded-2xl border border-[#F2A65A]/25 bg-[#F2A65A]/10 px-4 py-3 text-sm font-medium text-[#F2A65A]">
           {isLocalAssetRace
             ? 'Local test network - contract state and transactions come from this Mac’s Anvil chain using local ETH.'
             : 'Live Asset Race on Robinhood Chain. Enter the stake in USD or ETH; your wallet sends native ETH directly.'}
@@ -241,7 +241,7 @@ export function OnchainRacePage() {
             </div>
             <div className="flex flex-wrap items-center justify-end gap-2">
               <ShareInviteButton kind="race" id={race.id} />
-              <span className="rounded-full bg-[#8B7CF7]/15 px-3 py-1 text-xs font-bold text-[#B3A7FA]">{assetRaceStatusLabel(race.status)}</span>
+              <span className="rounded-full bg-[#F2A65A]/15 px-3 py-1 text-xs font-bold text-[#F2A65A]">{assetRaceStatusLabel(race.status)}</span>
             </div>
           </div>
 

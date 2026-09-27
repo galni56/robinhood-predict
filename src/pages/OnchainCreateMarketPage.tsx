@@ -267,7 +267,7 @@ export function OnchainCreateMarketPage() {
                 key={d.label}
                 onClick={() => setDurationIdx(i)}
                 className={`rounded-xl px-3 py-2 text-sm font-bold transition-colors ${
-                  durationIdx === i ? 'bg-[#F2A65A] text-[#3b2416]' : 'bg-white/5 text-white/60 hover:bg-white/10 hover:text-white'
+                  durationIdx === i ? 'bg-[#8B7CF7] text-white' : 'bg-white/5 text-white/60 hover:bg-[#8B7CF7]/10 hover:text-white'
                 }`}
               >
                 {d.label}
@@ -301,7 +301,7 @@ export function OnchainCreateMarketPage() {
               type="button"
               onClick={() => switchChain({ chainId: robinhoodMainnet.id })}
               disabled={isSwitching}
-              className="shrink-0 rounded-full bg-[#F2A65A] text-[#3b2416] px-3.5 py-1 text-xs font-bold disabled:opacity-50"
+              className="shrink-0 rounded-full bg-[#8B7CF7] px-3.5 py-1 text-xs font-bold text-white disabled:opacity-50"
             >
               Switch network
             </button>

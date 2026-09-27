@@ -61,7 +61,6 @@ export function AssetRaceLeaderboard({
   nowSeconds?: number
 }) {
   const entries = raceLeaderboardEntries(race, final)
-  const meme = race.category === ASSET_RACE_CATEGORY.MEME
   const leaderReturn = entries[0]?.returnValue ?? 0n
   const maxMagnitude = entries.reduce((max, entry) => {
     const magnitude = entry.returnValue < 0n ? -entry.returnValue : entry.returnValue
@@ -82,7 +81,7 @@ export function AssetRaceLeaderboard({
           <div
             key={entry.assetIndex}
             className={`rounded-2xl border px-3 py-3 transition-colors ${
-              isMine ? (meme ? 'border-[#F2A65A]/50 bg-[#F2A65A]/[0.07]' : 'border-[#8B7CF7]/50 bg-[#8B7CF7]/[0.07]') : 'border-white/5 bg-[#241b2f]'
+              isMine ? 'border-[#F2A65A]/50 bg-[#F2A65A]/[0.07]' : 'border-white/5 bg-[#241b2f]'
             }`}
           >
             <div className="flex items-center gap-3">
@@ -97,13 +96,13 @@ export function AssetRaceLeaderboard({
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <span className="font-display font-bold tracking-wide">{entry.symbol}</span>
-                  {isMine && <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${meme ? 'bg-[#F2A65A]/15 text-[#F2A65A]' : 'bg-[#8B7CF7]/15 text-[#B3A7FA]'}`}>Your pick</span>}
+                  {isMine && <span className="rounded-full bg-[#F2A65A]/15 px-2 py-0.5 text-[10px] font-bold text-[#F2A65A]">Your pick</span>}
                   {isWinner && <span className="rounded-full bg-[#f7f1e3]/10 px-2 py-0.5 text-[10px] font-bold text-[#f7f1e3]">Winner</span>}
                 </div>
                 <div className="mt-2 relative h-2 rounded-full bg-white/5 overflow-hidden">
                   <div className="absolute inset-y-0 left-1/2 w-px bg-white/25" />
                   <div
-                    className={`absolute inset-y-0 rounded-full ${entry.returnValue >= 0n ? 'bg-[#8B7CF7]' : 'bg-rose-400'}`}
+                    className={`absolute inset-y-0 rounded-full ${entry.returnValue >= 0n ? 'bg-[#F2A65A]' : 'bg-rose-400'}`}
                     style={entry.returnValue >= 0n ? { left: '50%', width: `${width}%` } : { right: '50%', width: `${width}%` }}
                   />
                 </div>

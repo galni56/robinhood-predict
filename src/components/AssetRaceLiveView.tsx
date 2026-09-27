@@ -13,10 +13,10 @@ export function AssetRaceLiveView({ race, position, nowMs, tokenDecimals, tokenL
       <div className="rounded-3xl border border-white/5 bg-[#241b2f] p-6">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <div className={`mb-1 flex items-center gap-2 text-sm font-bold ${meme ? 'text-[#F2A65A]' : 'text-[#B3A7FA]'}`}>
+            <div className="mb-1 flex items-center gap-2 text-sm font-bold text-[#F2A65A]">
               <span className="relative flex h-2 w-2">
-                <span className={`absolute inline-flex h-full w-full animate-ping rounded-full motion-reduce:animate-none ${meme ? 'bg-[#F2A65A]/60' : 'bg-[#8B7CF7]/60'}`} />
-                <span className={`relative inline-flex h-2 w-2 rounded-full ${meme ? 'bg-[#F2A65A]' : 'bg-[#8B7CF7]'}`} />
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#F2A65A]/60 motion-reduce:animate-none" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-[#F2A65A]" />
               </span>
               Race live
             </div>
@@ -32,7 +32,7 @@ export function AssetRaceLiveView({ race, position, nowMs, tokenDecimals, tokenL
 
       {position?.exists && selectedAsset && (
         <div className="grid grid-cols-2 gap-3 rounded-3xl border border-white/5 bg-[#241b2f] p-4 text-sm sm:grid-cols-3">
-          <div><div className="text-xs font-bold text-white/35">Your asset</div><div className={`mt-1 flex items-center gap-2 font-display font-bold ${meme ? 'text-[#F2A65A]' : 'text-[#B3A7FA]'}`}><TokenLogo ticker={selectedAsset.symbol} className="h-7 w-7 rounded-lg" />{selectedAsset.symbol}</div></div>
+          <div><div className="text-xs font-bold text-white/35">Your asset</div><div className="mt-1 flex items-center gap-2 font-display font-bold text-[#F2A65A]"><TokenLogo ticker={selectedAsset.symbol} className="h-7 w-7 rounded-lg" />{selectedAsset.symbol}</div></div>
           <div><div className="text-xs font-bold text-white/35">Your stake</div><div className="font-mono">{formatStakeRaw(position.stake, tokenDecimals)} {tokenLabel}</div></div>
           <div className="col-span-2 sm:col-span-1"><div className="text-xs font-bold text-white/35">Position</div><div>Locked until result</div></div>
         </div>

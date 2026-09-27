@@ -52,7 +52,7 @@ function raceClock(race: AssetRaceViewModel, nowMs: number) {
 }
 
 function statusChipClass(status: number) {
-  if (status === ASSET_RACE_STATUS.BETTING) return 'bg-[#8B7CF7]/15 text-[#B3A7FA]'
+  if (status === ASSET_RACE_STATUS.BETTING) return 'bg-[#F2A65A]/15 text-[#F2A65A]'
   if (status === ASSET_RACE_STATUS.RUNNING) return 'bg-[#F2A65A]/15 text-[#F2A65A]'
   if (status === ASSET_RACE_STATUS.LOBBY) return 'bg-[#f7f1e3]/10 text-[#f7f1e3]/80'
   return 'bg-white/10 text-white/50'

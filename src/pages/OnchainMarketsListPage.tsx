@@ -296,7 +296,7 @@ export function OnchainMarketsListPage() {
                       e.stopPropagation()
                       goToMarket('NO')
                     }}
-                    className="group/btn flex items-center justify-center gap-2 py-2.5 rounded-2xl bg-[#3b2a20] text-[#F2A65A] text-sm font-extrabold hover:bg-[#F2A65A] hover:text-[#3b2416] disabled:opacity-40 disabled:hover:bg-[#3b2a20] disabled:hover:text-[#F2A65A] disabled:cursor-not-allowed transition-colors"
+                    className="group/btn flex items-center justify-center gap-2 rounded-2xl bg-[#2E2442] py-2.5 text-sm font-extrabold text-[#B3A7FA] transition-colors hover:bg-[#8B7CF7] hover:text-white disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-[#2E2442] disabled:hover:text-[#B3A7FA]"
                   >
                     NO
                     <span className="opacity-60 transition-transform group-hover/btn:translate-y-0.5 group-hover/btn:translate-x-0.5">↘</span>

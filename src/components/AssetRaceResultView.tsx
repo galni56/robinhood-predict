@@ -54,31 +54,31 @@ export function AssetRaceResultView({
   const action = race.source === 'preview' ? (
     <button disabled className="w-full rounded-lg bg-white/10 py-2.5 text-sm font-semibold text-white/45">Preview only — no transaction will be sent</button>
   ) : !isConnected ? (
-    <WalletOptionsList />
+    <WalletOptionsList tone="race" />
   ) : !onRightChain ? (
     <button onClick={onSwitchChain} disabled={isSwitching} className="w-full rounded-full bg-[#F2A65A] py-3 text-sm font-bold text-[#3b2416] disabled:opacity-50">
       {isSwitching ? 'Switching…' : `Switch to ${assetRaceChain.name}`}
     </button>
   ) : resolved && won ? (
-    <button onClick={onClaim} disabled={!!txLabel || position?.settled} className="w-full rounded-xl bg-gradient-to-r from-[#8B7CF7] to-[#6A5AE0] py-3 text-sm font-bold text-white disabled:opacity-40">
+    <button onClick={onClaim} disabled={!!txLabel || position?.settled} className="w-full rounded-xl bg-gradient-to-r from-[#F2A65A] to-[#ED8F3A] py-3 text-sm font-bold text-[#3b2416] disabled:opacity-40">
       {position?.settled ? 'Already claimed' : txLabel ?? `Claim ${formatStakeRaw(payout, tokenDecimals)} ${tokenLabel}`}
     </button>
   ) : refundable ? (
-    <button onClick={onRefund} disabled={!!txLabel} className="w-full rounded-xl bg-[#f7f1e3] py-3 text-sm font-bold text-[#241a33] disabled:opacity-40">
+    <button onClick={onRefund} disabled={!!txLabel} className="w-full rounded-xl border border-[#F2A65A]/35 bg-[#F2A65A]/15 py-3 text-sm font-bold text-[#F2A65A] transition-colors hover:bg-[#F2A65A]/25 disabled:opacity-40">
       {txLabel ?? `Refund ${formatStakeRaw(position.stake, tokenDecimals)} ${tokenLabel}`}
     </button>
   ) : null
 
   return (
     <div className="space-y-5">
-      <div className={`relative overflow-hidden rounded-3xl border p-6 ${resolved ? `race-result-enter ${meme ? 'border-[#F2A65A]/40' : 'border-[#8B7CF7]/30'} bg-gradient-to-b from-[#372a4f] to-[#241b2f]` : 'border-[#F2A65A]/25 bg-[#F2A65A]/5'}`}>
+      <div className={`relative overflow-hidden rounded-3xl border p-6 ${resolved ? 'race-result-enter border-[#F2A65A]/40 bg-gradient-to-b from-[#3D2A2B] to-[#241b2f]' : 'border-[#F2A65A]/25 bg-[#F2A65A]/5'}`}>
         {resolved && (
           <span aria-hidden="true" className={`absolute right-6 top-5 grid h-12 w-12 rotate-6 place-items-center rounded-2xl bg-[#f7f1e3] text-[#241a33] shadow-lg ${won ? 'animate-bounce motion-reduce:animate-none' : ''}`}>
             <TrophyIcon className="h-6 w-6" />
           </span>
         )}
         {won && <div aria-hidden="true" className="race-confetti"><i>●</i><i>◆</i><i>★</i><i>●</i><i>◆</i><i>★</i></div>}
-        <div className={`relative text-sm font-bold ${meme ? 'text-[#F2A65A]' : 'text-[#B3A7FA]'}`}>{resolved ? won ? 'You won' : 'Winner' : voided ? 'Race void' : 'Race cancelled'}</div>
+        <div className="relative text-sm font-bold text-[#F2A65A]">{resolved ? won ? 'You won' : 'Winner' : voided ? 'Race void' : 'Race cancelled'}</div>
         <h2 className="relative mt-1 flex items-center gap-3 pr-16 font-display text-3xl font-bold">{winner && <TokenLogo ticker={winner.symbol} className="h-11 w-11 rounded-xl" />}{winner ? `${winner.symbol} ${formatReturnWad(winner.returnValue)}` : voided ? 'No legitimate winner' : 'Race never started'}</h2>
         <p className="mt-2 text-sm text-white/50">
           {won ? `Your pick took the crown. ${meme ? 'Absolute scenes.' : 'Claim your payout below.'}` : lost ? 'Better luck next race. Final ranking uses the immutable P0/P1 values.' : resolved ? 'Final ranking uses the immutable P0/P1 values stored by AssetRace.' : voided ? 'Every principal stake is refundable. No protocol fee was charged.' : 'The start conditions were not met. Every principal stake is refundable with no fee.'}
@@ -86,10 +86,10 @@ export function AssetRaceResultView({
       </div>
 
       {position?.exists && (
-        <div className={`grid grid-cols-2 gap-3 rounded-3xl border p-4 transition-all sm:grid-cols-4 ${lost ? 'border-white/5 bg-[#241b2f]/75 opacity-80' : won ? `${meme ? 'border-[#F2A65A]/30' : 'border-[#8B7CF7]/25'} bg-[#241b2f]` : 'border-white/5 bg-[#241b2f]'}`}>
+        <div className={`grid grid-cols-2 gap-3 rounded-3xl border p-4 transition-all sm:grid-cols-4 ${lost ? 'border-white/5 bg-[#241b2f]/75 opacity-80' : won ? 'border-[#F2A65A]/30 bg-[#241b2f]' : 'border-white/5 bg-[#241b2f]'}`}>
           <div><div className="text-xs font-bold text-white/35">Your asset</div><div className="mt-1 flex items-center gap-2 font-display font-bold"><TokenLogo ticker={myAsset?.symbol} className="h-7 w-7 rounded-lg" />{myAsset?.symbol}</div></div>
           <div><div className="text-xs font-bold text-white/35">Your stake</div><div className="font-mono">{formatStakeRaw(position.stake, tokenDecimals)}</div></div>
-          <div><div className="text-xs font-bold text-white/35">Result</div><div className={won ? 'font-bold text-[#B3A7FA]' : resolved ? 'font-bold text-rose-400' : 'font-bold text-[#F2A65A]'}>{won ? 'Won' : resolved ? 'Lost' : 'Refund'}</div></div>
+          <div><div className="text-xs font-bold text-white/35">Result</div><div className={won ? 'font-bold text-[#F2A65A]' : resolved ? 'font-bold text-rose-400' : 'font-bold text-[#F2A65A]'}>{won ? 'Won' : resolved ? 'Lost' : 'Refund'}</div></div>
           <div><div className="text-xs font-bold text-white/35">Claimable</div><div className="font-mono">{won ? formatStakeRaw(payout, tokenDecimals) : refundable ? formatStakeRaw(position.stake, tokenDecimals) : '0'} {tokenLabel}</div></div>
         </div>
       )}

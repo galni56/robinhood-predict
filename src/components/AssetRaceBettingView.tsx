@@ -64,7 +64,7 @@ export function AssetRaceBettingView({
   quoteReady: boolean
 }) {
   const meme = race.category === ASSET_RACE_CATEGORY.MEME
-  const accentText = meme ? 'text-[#F2A65A]' : 'text-[#B3A7FA]'
+  const accentText = 'text-[#F2A65A]'
   const selected = race.assets[selectedAssetIndex]
   const existingStake = position?.exists ? position.stake : 0n
   const estimate = selected
@@ -109,10 +109,8 @@ export function AssetRaceBettingView({
                 onClick={() => setSelectedAssetIndex(asset.assetIndex)}
                 className={`rounded-2xl border p-4 text-left transition-all disabled:cursor-not-allowed disabled:opacity-35 ${
                   selectedNow
-                    ? meme
-                      ? 'border-[#F2A65A]/60 bg-[#F2A65A]/10'
-                      : 'border-[#8B7CF7]/60 bg-[#8B7CF7]/10'
-                    : 'border-white/5 bg-[#241b2f] hover:border-white/20'
+                    ? 'border-[#F2A65A]/60 bg-[#F2A65A]/10'
+                    : 'border-white/5 bg-[#241b2f] hover:border-[#F2A65A]/30'
                 }`}
               >
                 <div className="flex items-center justify-between">
@@ -139,7 +137,7 @@ export function AssetRaceBettingView({
           <div className="flex items-center justify-between gap-3">
             <h3 className="font-display text-lg font-bold">Your bet</h3>
             {selected && (
-              <span className={`inline-flex items-center gap-1.5 rounded-full py-1 pl-1 pr-2.5 text-xs font-bold ${meme ? 'bg-[#F2A65A]/15 text-[#F2A65A]' : 'bg-[#8B7CF7]/15 text-[#B3A7FA]'}`}>
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#F2A65A]/15 py-1 pl-1 pr-2.5 text-xs font-bold text-[#F2A65A]">
                 <TokenLogo ticker={selected.symbol} className="h-5 w-5 rounded-md" />{selected.symbol}
               </span>
             )}
@@ -164,6 +162,7 @@ export function AssetRaceBettingView({
               onChange={setAmount}
               onInputUnitChange={setInputUnit}
               disabled={!!txLabel}
+              tone="race"
             />
             <p className="mt-2 text-xs font-medium text-white/45">
               {exactEth
@@ -221,7 +220,7 @@ export function AssetRaceBettingView({
               Preview only - no transaction will be sent
             </button>
           ) : !isConnected ? (
-            <WalletOptionsList />
+            <WalletOptionsList tone="race" />
           ) : !onRightChain ? (
             <button
               onClick={onSwitchChain}
@@ -234,7 +233,7 @@ export function AssetRaceBettingView({
             <button
               onClick={onBet}
               disabled={!bettingOpen || amountRaw <= 0n || belowMinimum || exceedsMax || !!txLabel}
-              className="w-full rounded-xl bg-gradient-to-r from-[#8B7CF7] to-[#6A5AE0] py-3 text-sm font-bold text-white transition-all hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+              className="w-full rounded-xl bg-gradient-to-r from-[#F2A65A] to-[#ED8F3A] py-3 text-sm font-bold text-[#3b2416] transition-all hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
             >
               {txLabel ?? (position?.exists ? `Top up ${selected?.symbol}` : `Bet on ${selected?.symbol}`)}
             </button>

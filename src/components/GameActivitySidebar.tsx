@@ -16,12 +16,13 @@ export function GameActivitySidebar({
   const activity = useGameActivity(kind)
   const leaderboard = activity.data?.leaderboard
   const recent = activity.data?.recent
+  const accentText = kind === 'race' ? 'text-[#F2A65A]' : kind === 'arena' ? 'text-[#B7CEFF]' : 'text-[#B3A7FA]'
 
   return (
     <div className="space-y-5">
       <div className="rounded-3xl border border-white/5 bg-[#241b2f] p-4">
         <h2 className="mb-3 flex items-center gap-2 font-display text-sm font-bold">
-          <TrophyIcon className="h-4 w-4 text-[#F2A65A]" /> Leaderboard
+          <TrophyIcon className={`h-4 w-4 ${accentText}`} /> Leaderboard
         </h2>
         <div className="space-y-1">
           {activity.isLoading ? <p className="py-4 text-center text-xs text-white/30">Scanning chain…</p>
@@ -31,7 +32,7 @@ export function GameActivitySidebar({
                 return <a key={stats.address} href={`${robinhoodMainnet.blockExplorers.default.url}/address/${stats.address}`} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition-colors hover:bg-white/5">
                   <span className="w-4 text-center font-mono text-xs text-white/30">{index + 1}</span>
                   <AddressLabel address={stats.address} link={false} className="flex-1 truncate font-mono text-xs" />
-                  <span className={`font-mono text-xs ${net >= 0n ? 'text-[#B3A7FA]' : 'text-rose-400'}`}>{net >= 0n ? '+' : ''}{formatEther(net)} ETH</span>
+                  <span className={`font-mono text-xs ${net >= 0n ? accentText : 'text-rose-400'}`}>{net >= 0n ? '+' : ''}{formatEther(net)} ETH</span>
                 </a>
               })}
         </div>
@@ -39,7 +40,7 @@ export function GameActivitySidebar({
 
       <div className="rounded-3xl border border-white/5 bg-[#241b2f] p-4">
         <h2 className="mb-3 flex items-center gap-2 font-display text-sm font-bold">
-          <BoltIcon className="h-4 w-4 text-[#B3A7FA]" /> Recent bets
+          <BoltIcon className={`h-4 w-4 ${accentText}`} /> Recent bets
         </h2>
         <div className="space-y-1.5">
           {activity.isLoading ? <p className="py-4 text-center text-xs text-white/30">Scanning chain…</p>

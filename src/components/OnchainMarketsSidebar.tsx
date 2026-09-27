@@ -130,7 +130,7 @@ export function OnchainMarketsSidebar() {
       <div className="rounded-3xl border border-white/5 bg-[#241b2f] p-4">
         <div className="flex items-center justify-between mb-3">
           <h2 className="font-display text-sm font-bold flex items-center gap-2">
-            <TrophyIcon className="w-4 h-4 text-[#F2A65A]" />
+            <TrophyIcon className="w-4 h-4 text-[#B3A7FA]" />
             Leaderboard
           </h2>
           <Link to="/onchain/leaderboard" className="text-xs font-bold text-[#B3A7FA] hover:text-white">
