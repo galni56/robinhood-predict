@@ -326,7 +326,6 @@ export function OnchainLandingPage() {
   const logos = useTokenLogos()
   const stepsReveal = useRevealOnScroll<HTMLDivElement>()
   const featuresReveal = useRevealOnScroll<HTMLDivElement>()
-  const ctaReveal = useRevealOnScroll<HTMLDivElement>()
 
   return (
     <div>
@@ -784,82 +783,6 @@ export function OnchainLandingPage() {
         </div>
       </section>
 
-      {/* Final CTA -- dark poster island: "One question. Two sides." */}
-      <section className="max-w-[1500px] mx-auto px-4 pt-6 pb-20">
-        <div
-          ref={ctaReveal.ref}
-          className="relative overflow-hidden rounded-[2.5rem] bg-[#241b2f] border border-white/5 px-6 py-16 sm:py-20 text-center transition-all duration-700"
-          style={{
-            opacity: ctaReveal.visible ? 1 : 0,
-            transform: ctaReveal.visible ? 'translateY(0)' : 'translateY(28px)',
-          }}
-        >
-          <div className="pointer-events-none absolute -top-24 -left-24 w-96 h-96 rounded-full bg-[#6A5AE0]/25 blur-3xl" />
-          <div className="pointer-events-none absolute -bottom-28 -right-24 w-96 h-96 rounded-full bg-[#ED8F3A]/20 blur-3xl" />
-          <span className="pointer-events-none absolute left-[12%] top-[18%] text-[#B3A7FA] text-2xl" style={{ animation: 'sparkle-pop 2.6s ease-in-out infinite' }}>
-            ✦
-          </span>
-          <span
-            className="pointer-events-none absolute right-[14%] bottom-[20%] text-[#B3A7FA] text-lg"
-            style={{ animation: 'sparkle-pop 2.6s ease-in-out infinite', animationDelay: '1.2s' }}
-          >
-            ✦
-          </span>
-
-          {/* poster tiles, desktop only */}
-          <div
-            className="hidden lg:block absolute left-[16%] top-[38%] -rotate-[12deg] rounded-2xl bg-[#8B7CF7] px-6 py-3.5 shadow-[0_16px_36px_-14px_rgba(106,90,224,0.8)] font-display font-bold text-2xl text-[#f7f1e3]"
-            style={{ animation: 'mascot-float 6s ease-in-out infinite', animationDelay: '0.5s' }}
-          >
-            YES
-          </div>
-          <div
-            className="hidden lg:block absolute right-[16%] top-[42%] rotate-[10deg] rounded-2xl bg-[#F2A65A] px-6 py-3.5 shadow-[0_16px_36px_-14px_rgba(237,143,58,0.8)] font-display font-bold text-2xl text-[#3b2416]"
-            style={{ animation: 'mascot-float 6.8s ease-in-out infinite', animationDelay: '1.3s' }}
-          >
-            NO
-          </div>
-
-          <div className="relative max-w-xl mx-auto">
-            <img
-              src={`${import.meta.env.BASE_URL}brand/mascot-small.png`}
-              alt=""
-              className="w-20 sm:w-24 mx-auto mb-6"
-              style={{ animation: 'mascot-float 5s ease-in-out infinite' }}
-            />
-            <p className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3.5 py-1.5 text-xs font-bold text-white/70 mb-5">
-              <span className="text-[#B3A7FA]">✦</span>
-              Three games. Your call.
-            </p>
-            <h2 className="font-display text-3xl sm:text-5xl font-bold tracking-tight mb-4">Ready to play your first game?</h2>
-            <p className="text-white/50 text-sm sm:text-base mb-9 max-w-lg mx-auto">
-              Browse Markets, Races and Arena without connecting. When you are ready, connect a supported wallet,
-              enter the stake in USD or ETH, and review the exact native ETH amount before signing.
-            </p>
-            <div className="flex flex-wrap gap-4 justify-center items-center">
-              <Link
-                to="/onchain"
-                className="inline-flex items-center gap-3 rounded-full bg-gradient-to-r from-[#8B7CF7] to-[#6A5AE0] hover:brightness-110 text-white pl-7 pr-3 py-3 text-sm font-bold transition-all shadow-[0_14px_36px_-12px_rgba(106,90,224,0.8)]"
-              >
-                Prediction Markets
-                <span className="w-8 h-8 rounded-full bg-white/20 grid place-items-center text-sm">↗</span>
-              </Link>
-              <Link
-                to="/onchain/races"
-                className="rounded-full border border-[#ED8F3A]/50 px-7 py-3.5 text-sm font-bold text-[#F2A65A] transition-colors hover:border-[#F2A65A] hover:bg-[#ED8F3A]/10"
-              >
-                Asset Races
-              </Link>
-              <Link
-                to="/onchain/arenas"
-                className="rounded-full border border-[#7A9FF0]/50 px-7 py-3.5 text-sm font-bold text-[#B7CEFF] transition-colors hover:border-[#B7CEFF] hover:bg-[#7A9FF0]/10"
-              >
-                Price Arena
-              </Link>
-            </div>
-          </div>
-        </div>
-      </section>
     </div>
   )
 }
