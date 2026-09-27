@@ -7,6 +7,7 @@ import { robinhoodMainnet, wagmiConfig } from '@/chain/config'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
 import { CompactAssetSelector } from '@/components/CompactAssetSelector'
 import { GameLifecycleGuide } from '@/components/GameLifecycleGuide'
+import { GameModeMotion } from '@/components/GameModeMotion'
 import {
   PREDICTION_MARKET_ADDRESS,
   PREDICTION_MARKET_CONFIGURED,
@@ -217,7 +218,7 @@ export function OnchainCreateMarketPage() {
           </div>
         </div>
 
-      <form onSubmit={onSubmit} className="h-full min-w-0 space-y-5 rounded-3xl border border-white/5 bg-[#241b2f] p-6 sm:p-7">
+      <form onSubmit={onSubmit} className="flex h-full min-w-0 flex-col gap-5 rounded-3xl border border-white/5 bg-[#241b2f] p-6 sm:p-7">
         <div>
           <label className="block text-sm font-bold text-white/60 mb-2">Tokenized stock</label>
           <CompactAssetSelector
@@ -308,6 +309,8 @@ export function OnchainCreateMarketPage() {
             {!pending && <span className="w-6 h-6 rounded-full bg-white/20 grid place-items-center text-xs">↗</span>}
           </button>
         )}
+
+        <GameModeMotion mode="market" assets={[{ symbol: selectedAsset.ticker }]} className="mt-auto" />
       </form>
       </div>
     </div>

@@ -8,6 +8,7 @@ import { assetRaceChain, isLocalAssetRace, wagmiConfig } from '@/chain/config'
 import { useApprovedRaceAssets } from '@/chain/useApprovedRaceAssets'
 import { CompactAssetSelector } from '@/components/CompactAssetSelector'
 import { GameLifecycleGuide } from '@/components/GameLifecycleGuide'
+import { GameModeMotion } from '@/components/GameModeMotion'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
 import { shortTxError } from '@/lib/format'
 
@@ -156,7 +157,7 @@ export function OnchainCreateRacePage() {
         ) : registryError ? (
           <div className="h-full rounded-xl border border-rose-500/25 bg-rose-500/10 p-5 text-sm text-rose-300">Could not read the approved Race registry.</div>
         ) : (
-          <div className="h-full min-w-0 space-y-4 rounded-3xl border border-white/5 bg-[#241b2f] p-5 sm:p-6">
+          <div className="flex h-full min-w-0 flex-col gap-4 rounded-3xl border border-white/5 bg-[#241b2f] p-5 sm:p-6">
           <div>
             <label className="mb-2 block text-sm font-bold text-white/60">Race title</label>
             <input
@@ -219,6 +220,15 @@ export function OnchainCreateRacePage() {
               {txLabel ?? `Create ${mode === 'memes' ? 'meme' : 'stock'} race`}
             </button>
           )}
+
+          <GameModeMotion
+            mode="race"
+            assets={(selected.length > 0 ? selected : visibleAssets.slice(0, 3)).map((asset) => ({
+              symbol: asset.symbol,
+              logoUrl: asset.logoUrl,
+            }))}
+            className="mt-auto"
+          />
 
           </div>
         )}

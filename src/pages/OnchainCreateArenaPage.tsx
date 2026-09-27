@@ -16,6 +16,7 @@ import {
 import { CompactAssetSelector } from '@/components/CompactAssetSelector'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
 import { GameLifecycleGuide } from '@/components/GameLifecycleGuide'
+import { GameModeMotion } from '@/components/GameModeMotion'
 import { shortTxError } from '@/lib/format'
 
 export function OnchainCreateArenaPage() {
@@ -123,7 +124,7 @@ export function OnchainCreateArenaPage() {
         </div>
 
       {!PRICE_ARENA_ADDRESS ? <div className="h-full rounded-2xl border border-amber-400/25 bg-amber-400/10 p-5 text-amber-100">Deploy and configure Price Arena before creating games.</div> : (
-        <div className="h-full min-w-0 space-y-4 rounded-3xl border border-white/5 bg-[#241b2f] p-5 sm:p-6">
+        <div className="flex h-full min-w-0 flex-col gap-4 rounded-3xl border border-white/5 bg-[#241b2f] p-5 sm:p-6">
           <label className="block"><span className="mb-2 block text-sm font-bold text-white/60">Arena title</span><input value={title} onChange={(event) => setTitle(event.target.value)} maxLength={64} placeholder={mode === 'memes' ? 'Meme price showdown' : 'NVDA closing shot'} className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 outline-none focus:border-[#7A9FF0]/50" /><span className="mt-1 block text-right text-xs text-white/30">{titleBytes} / 64 bytes</span></label>
           <div>
             <div className="mb-2 text-sm font-bold text-white/60">Asset</div>
@@ -139,6 +140,7 @@ export function OnchainCreateArenaPage() {
           <div><div className="mb-2 text-sm font-bold text-white/60">Game duration</div><div className="grid grid-cols-2 gap-2 sm:grid-cols-4">{PRICE_ARENA_DURATIONS.map((seconds) => <button key={seconds.toString()} onClick={() => setDuration(seconds)} className={`rounded-xl border px-3 py-3 text-sm font-bold ${duration === seconds ? 'border-[#7A9FF0] bg-[#7A9FF0]/15 text-[#B7CEFF]' : 'border-white/5 bg-white/[0.03] text-white/50'}`}>{arenaDurationLabel(seconds)}</button>)}</div></div>
           {error && <p className="text-sm text-rose-400">{error}</p>}
           {!isConnected ? <WalletOptionsList tone="arena" /> : chainId !== assetRaceChain.id ? <button onClick={() => switchChain({ chainId: assetRaceChain.id })} disabled={isSwitching} className="w-full rounded-xl bg-[#7A9FF0] py-3 font-bold text-[#152447] hover:bg-[#8EB1F8]">Switch to {assetRaceChain.name}</button> : <button onClick={create} disabled={!address || !valid || !!txLabel} className="w-full rounded-xl bg-gradient-to-r from-[#8EB1F8] to-[#7A9FF0] py-3 font-bold text-[#152447] disabled:opacity-40">{txLabel ?? 'Create Price Arena'}</button>}
+          <GameModeMotion mode="arena" assets={selected ? [{ symbol: selected.symbol }] : []} className="mt-auto" />
         </div>
       )}
       </div>
