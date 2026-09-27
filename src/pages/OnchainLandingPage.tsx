@@ -690,69 +690,6 @@ export function OnchainLandingPage() {
         </div>
       </section>
 
-      {/* Asset Races and Price Arena -- the two alternative product surfaces.
-          Deliberately no live race data here (a brand-new feature can have
-          zero races at any given moment, which would make a marketing
-          section look broken) -- just the pitch and a way in. */}
-      <section className="max-w-[1500px] mx-auto px-4 py-14">
-        <div className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-[#241b2f] via-[#241b2f] to-[#2c1f42] border border-white/5 px-6 py-12 sm:px-14 sm:py-16">
-          <div className="pointer-events-none absolute -top-20 -right-16 w-80 h-80 rounded-full bg-[#7A9FF0]/10 blur-3xl" />
-          <div className="pointer-events-none absolute -bottom-24 -left-16 w-72 h-72 rounded-full bg-[#ED8F3A]/15 blur-3xl" />
-          <span className="pointer-events-none absolute right-[10%] top-[14%] text-[#B3A7FA] text-2xl" style={{ animation: 'sparkle-pop 2.6s ease-in-out infinite' }}>
-            ✦
-          </span>
-
-          <div className="relative grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-            <div>
-              <p className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3.5 py-1.5 text-xs font-bold text-white/70 mb-6">
-                <span className="text-[#F2A65A]">⚡</span>
-                Beyond YES / NO · Races + Arena
-              </p>
-              <h2 className="font-display text-3xl sm:text-5xl font-bold tracking-tight leading-[1.08]">
-                Back the fastest.
-                <br />
-                Or name the finish.
-              </h2>
-              <p className="text-white/55 text-base mt-5 max-w-md">
-                Asset Races compare 2 to 6 stocks—or 2 to 6 memes—by percentage return. Price Arena hides every forecast
-                during the lobby, then rewards the closest half at the deadline. Both accept USD or ETH input and
-                settle entirely in native ETH.
-              </p>
-              <div className="mt-8 flex flex-wrap items-center gap-4">
-                <Link
-                  to="/onchain/races"
-                  className="inline-flex items-center gap-3 rounded-full bg-[#ED8F3A] py-2.5 pl-6 pr-2.5 text-sm font-bold text-[#3b2416] transition-all hover:bg-[#F2A65A]"
-                >
-                  Explore Asset Races
-                  <span className="w-8 h-8 rounded-full bg-black/15 grid place-items-center text-sm">↗</span>
-                </Link>
-                <Link
-                  to="/onchain/arenas"
-                  className="text-sm font-bold text-[#B7CEFF] underline decoration-2 underline-offset-4 transition-colors hover:text-[#D0DFFF]"
-                >
-                  Enter Price Arena
-                </Link>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {[
-                { emoji: '⚡', title: 'Asset Races', body: 'Back one of 2–6 contenders. Highest percentage return between the shared snapshots wins.' },
-                { emoji: '🎯', title: 'Price Arena', body: 'Predict one exact final price. The closest half shares the losing half’s pool.' },
-                { emoji: '📈🚀', title: 'Stocks or memes', body: 'Choose the stock lane or the meme lane; quote rules stay specific to each category.' },
-                { emoji: '🍿', title: 'Follow it live', body: 'Watch rankings move in real time while onchain settlement stays tied to the fixed deadline.' },
-              ].map((f) => (
-                <div key={f.title} className="rounded-2xl bg-white/5 border border-white/10 p-5">
-                  <span className="text-2xl">{f.emoji}</span>
-                  <h3 className="font-display font-bold mt-2.5">{f.title}</h3>
-                  <p className="text-white/45 text-xs mt-1 leading-relaxed">{f.body}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* Every tokenized stock on the chain -- names only, no price/status.
           Deliberately not the same component as TokenBrowser (used on the
           markets list) -- that one shows live price + allowlist status per
