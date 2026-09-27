@@ -6,7 +6,6 @@ import {
   ASSET_RACE_CATEGORY,
   ASSET_RACE_ORIGIN,
   ASSET_RACE_STATUS,
-  ASSET_RACE_TOKEN_LABEL,
   assetRaceStatusLabel,
   formatPoolShare,
   formatStakeRaw,
@@ -171,13 +170,11 @@ export function OnchainRacesListPage() {
           Preview data - AssetRace is not deployed or configured, so these cards are local examples and cannot send transactions.
           {ASSET_RACE_CONFIG_ERROR && <span className="mt-1 block text-rose-300">{ASSET_RACE_CONFIG_ERROR}</span>}
         </div>
-      ) : (
+      ) : isLocalAssetRace ? (
         <div className="mb-6 rounded-2xl border border-[#F2A65A]/25 bg-[#F2A65A]/10 px-4 py-3 text-sm font-medium text-[#F2A65A]">
-          {isLocalAssetRace
-            ? 'Local test network - races use Anvil and local ETH, no real funds.'
-            : `Races are read from the configured contract. Live prices are display-only; settlement stays onchain. Pools use ${ASSET_RACE_TOKEN_LABEL}.`}
+          Local test network - races use Anvil and local ETH, no real funds.
         </div>
-      )}
+      ) : null}
 
       <div className="mb-8 flex flex-wrap items-end justify-between gap-6">
         <div className="max-w-2xl">
