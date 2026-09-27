@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { formatEther, formatUnits } from 'viem'
 import { useReadContract, useReadContracts } from 'wagmi'
 import {
@@ -11,14 +11,15 @@ import {
   MarketStatusOnchain,
 } from '@/chain/contracts'
 import { ASSET_RACE_ORIGIN, ASSET_RACE_STATUS, type AssetRaceViewModel } from '@/chain/assetRaces'
+import { assetRaceCatalog } from '@/chain/assetRaceRegistry'
 import { demoPools, isDemoMode } from '@/chain/demo'
-import { predictionAssetForTicker, tickerForPredictionAssetId } from '@/chain/predictionMarketAssets'
+import { tickerForPredictionAssetId } from '@/chain/predictionMarketAssets'
 import { PRICE_ARENA_MAX_PARTICIPANTS, PRICE_ARENA_PHASE, arenaDurationLabel, type PriceArenaViewModel } from '@/chain/priceArena'
 import { useAssetRaceClock } from '@/chain/useAssetRaceClock'
 import { useAssetRaceLiveDisplay } from '@/chain/useAssetRaceLiveDisplay'
 import { useAssetRaces } from '@/chain/useAssetRaces'
 import { usePriceArenas } from '@/chain/usePriceArenas'
-import { useRobinhoodAssets, useTokenLogos } from '@/chain/robinhoodApi'
+import { useTokenLogos } from '@/chain/robinhoodApi'
 import { TokenLogo } from '@/components/TokenLogo'
 import { formatCountdown, formatUsd } from '@/lib/format'
 
@@ -108,14 +109,13 @@ const FEATURES = [
   },
 ] as const
 
-// A stable-per-ticker hue so each pill in the "Browse tokenized stocks"
-// section gets a distinct-but-consistent color dot -- purely decorative,
-// no meaning attached to the color itself.
-function hueForTicker(sym: string) {
-  let h = 0
-  for (let i = 0; i < sym.length; i++) h = (h * 31 + sym.charCodeAt(i)) % 360
-  return h
-}
+const SUPPORTED_STOCKS = assetRaceCatalog.filter((asset) => (
+  asset.category === 'STOCK' && asset.networks['robinhood-mainnet'].enabled
+))
+
+const SUPPORTED_MEMES = assetRaceCatalog.filter((asset) => (
+  asset.category === 'MEME' && asset.networks['robinhood-mainnet'].enabled
+))
 
 // One-shot reveal for scroll-triggered stagger animations: flips to
 // visible the first time the element enters the viewport, then stops
@@ -323,19 +323,10 @@ export function OnchainLandingPage() {
     && arena.participantCount < PRICE_ARENA_MAX_PARTICIPANTS
   ))
 
-  const assets = useRobinhoodAssets()
   const logos = useTokenLogos()
-  const [stockQuery, setStockQuery] = useState('')
-  const [searchFocused, setSearchFocused] = useState(false)
   const stepsReveal = useRevealOnScroll<HTMLDivElement>()
   const featuresReveal = useRevealOnScroll<HTMLDivElement>()
   const ctaReveal = useRevealOnScroll<HTMLDivElement>()
-  const navigate = useNavigate()
-  const filteredAssets = (assets.data ?? []).filter((a) => {
-    const q = stockQuery.trim().toLowerCase()
-    if (!q) return true
-    return a.tokenSymbol.toLowerCase().includes(q) || a.tokenName.toLowerCase().includes(q)
-  })
 
   return (
     <div>
@@ -690,12 +681,11 @@ export function OnchainLandingPage() {
         </div>
       </section>
 
-      {/* Every tokenized stock on the chain -- names only, no price/status.
-          Deliberately not the same component as TokenBrowser (used on the
-          markets list) -- that one shows live price + allowlist status per
-          ticker; this is just "here's what exists on Robinhood Chain". */}
+      {/* The exact production asset universe, sourced from the same reviewed
+          registry used by Races and Arena. This is intentionally a curated
+          lineup rather than the chain's full token catalog. */}
       <section className="max-w-[1500px] mx-auto px-4 py-14">
-        <div className="relative overflow-hidden rounded-[2.5rem] bg-[#e7e1f8] text-[#241a33] px-6 py-12 sm:px-12 sm:py-14">
+        <div className="relative overflow-hidden rounded-[2.5rem] bg-[#e7e1f8] px-6 py-12 text-[#241a33] sm:px-12 sm:py-14">
           <span className="pointer-events-none absolute left-[5%] top-[10%] text-[#7C5CF0] text-2xl" style={{ animation: 'sparkle-pop 2.6s ease-in-out infinite' }}>
             ✦
           </span>
@@ -706,128 +696,91 @@ export function OnchainLandingPage() {
             ✦
           </span>
 
-          <div className="text-center max-w-2xl mx-auto">
+          <div className="relative mx-auto max-w-3xl text-center">
             <p className="inline-flex items-center gap-2 rounded-full bg-white/60 px-3.5 py-1.5 text-xs font-bold text-[#241a33]/70 mb-4">
               <span className="text-[#8B7CF7]">✦</span>
-              {assets.data?.length ?? 194} and counting
+              Curated asset universe
             </p>
-            <h2 className="font-display text-3xl sm:text-5xl font-bold tracking-tight mb-3">Browse tokenized stocks</h2>
-            <p className="text-[#241a33]/60 text-sm sm:text-base font-medium mb-8">
-              Tokenized stocks discovered on Robinhood Chain. A colored dot means Prophet has enabled a reviewed
-              onchain price source, so you can create a YES/NO market for it now.
+            <h2 className="font-display text-3xl font-bold tracking-tight sm:text-5xl">Not every asset makes the grid.</h2>
+            <p className="mx-auto mt-4 max-w-2xl text-sm font-medium leading-relaxed text-[#241a33]/65 sm:text-base">
+              Prophet keeps the lineup focused. Every supported asset needs a clear identity, an approved onchain
+              price source and reviewed trading depth so games can start and settle against dependable snapshots.
             </p>
-
-            <div className="relative max-w-sm mx-auto mb-10">
-              <div className="flex items-center gap-2.5 rounded-full bg-white/70 px-5 py-3 shadow-sm focus-within:ring-2 focus-within:ring-[#8B7CF7]/50 transition-shadow">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" className="text-[#241a33]/40 shrink-0">
-                  <circle cx="11" cy="11" r="7" />
-                  <path d="M21 21l-4.3-4.3" />
-                </svg>
-                <input
-                  value={stockQuery}
-                  onChange={(e) => setStockQuery(e.target.value)}
-                  onFocus={() => setSearchFocused(true)}
-                  onBlur={() => setSearchFocused(false)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Escape') setStockQuery('')
-                    if (e.key === 'Enter') {
-                      const first = filteredAssets.find((a) => !!predictionAssetForTicker(a.tokenSymbol))
-                      if (first && stockQuery.trim()) navigate(`/onchain/create?feed=${first.tokenSymbol}`)
-                    }
-                  }}
-                  placeholder="Search by ticker or name…"
-                  className="flex-1 bg-transparent outline-none text-sm font-bold placeholder:font-medium placeholder:text-[#241a33]/40"
-                />
-                {stockQuery && (
-                  <button onClick={() => setStockQuery('')} className="text-[#241a33]/40 hover:text-[#241a33] text-xs font-bold shrink-0">
-                    Clear
-                  </button>
-                )}
-              </div>
-              <p className="text-center text-[11px] font-bold text-[#241a33]/40 mt-2">{filteredAssets.length} shown</p>
-
-              {/* Autocomplete: top matches while typing. onMouseDown fires
-                  before the input's blur, so a click actually lands. */}
-              {searchFocused && stockQuery.trim() && filteredAssets.length > 0 && (
-                <div className="absolute left-0 right-0 top-[calc(100%-1.25rem)] z-20 rounded-2xl bg-white shadow-[0_20px_50px_-20px_rgba(36,26,51,0.45)] overflow-hidden text-left">
-                  {filteredAssets.slice(0, 6).map((a) => {
-                    const hasFeed = !!predictionAssetForTicker(a.tokenSymbol)
-                    const label = a.tokenName.replace(/\s*•\s*Robinhood Token$/i, '')
-                    return (
-                      <button
-                        key={a.tokenSymbol}
-                        onMouseDown={(e) => {
-                          e.preventDefault()
-                          if (hasFeed) navigate(`/onchain/create?feed=${a.tokenSymbol}`)
-                          else setStockQuery(a.tokenSymbol)
-                        }}
-                        className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-[#e7e1f8]/60 transition-colors"
-                      >
-                        <span
-                          className="w-1.5 h-1.5 rounded-full shrink-0"
-                          style={{ background: hasFeed ? `hsl(${hueForTicker(a.tokenSymbol)} 70% 45%)` : 'transparent', border: hasFeed ? undefined : '1px solid rgba(36,26,51,0.3)' }}
-                        />
-                        <span className="font-bold text-sm text-[#241a33] shrink-0">{a.tokenSymbol}</span>
-                        <span className="text-xs text-[#241a33]/50 truncate flex-1">{label}</span>
-                        <span className={hasFeed ? 'text-xs font-bold text-[#6A5AE0] shrink-0' : 'text-[11px] font-bold text-[#241a33]/35 shrink-0'}>
-                          {hasFeed ? 'Create market →' : 'Not enabled'}
-                        </span>
-                      </button>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
           </div>
 
-          {filteredAssets.length > 0 ? (
-            <div className="flex flex-wrap justify-center gap-2">
-              {filteredAssets.map((a) => {
-                const hasFeed = !!predictionAssetForTicker(a.tokenSymbol)
-                const dot = (
-                  <span
-                    className="w-1.5 h-1.5 rounded-full shrink-0"
-                    style={{ background: hasFeed ? `hsl(${hueForTicker(a.tokenSymbol)} 70% 45%)` : 'transparent', border: hasFeed ? undefined : '1px solid rgba(36,26,51,0.3)' }}
-                  />
-                )
-                const label = a.tokenName.replace(/\s*•\s*Robinhood Token$/i, '')
-
-                // Every ticker with a reviewed production pool can actually
-                // become a market -- send it straight to market creation,
-                // prefilled, instead of an inert link. One without a pool yet
-                // simply can't be created against, so it stays a plain (but
-                // clearly-labelled, not just dead) pill instead of pretending
-                // to be clickable.
-                if (hasFeed) {
-                  return (
-                    <Link
-                      key={a.tokenSymbol}
-                      to={`/onchain/create?feed=${a.tokenSymbol}`}
-                      title={`Create a market for ${label}`}
-                      className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/70 text-sm text-[#241a33]/80 font-bold hover:-translate-y-0.5 hover:bg-white hover:text-[#241a33] hover:shadow-md transition-all"
-                    >
-                      {dot}
-                      {a.tokenSymbol}
-                    </Link>
-                  )
-                }
-                return (
-                  <span
-                    key={a.tokenSymbol}
-                    title={`${label} - no reviewed price source is enabled for Prediction Markets yet.`}
-                    className="flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-dashed border-[#241a33]/20 text-sm text-[#241a33]/40 font-bold cursor-default"
-                  >
-                    {dot}
-                    {a.tokenSymbol}
+          <div className="relative mt-10 grid gap-5 lg:grid-cols-2">
+            {[
+              {
+                eyebrow: 'TOKENIZED STOCKS',
+                title: 'Market leaders',
+                description: 'Widely followed companies selected for recognizable markets, active trading and reviewed onchain pricing.',
+                assets: SUPPORTED_STOCKS,
+                accent: '#6A5AE0',
+                soft: '#EEEAFD',
+                ctaText: '#FFFFFF',
+                href: '/onchain/create',
+                cta: 'Create a stock market',
+              },
+              {
+                eyebrow: 'MEME ASSETS',
+                title: 'Culture with a price feed',
+                description: 'Community assets admitted only after identity, source and executable trading-depth checks.',
+                assets: SUPPORTED_MEMES,
+                accent: '#ED8F3A',
+                soft: '#FFF0DF',
+                ctaText: '#3B2416',
+                href: '/onchain/races?mode=memes',
+                cta: 'Explore meme races',
+              },
+            ].map((group) => (
+              <div key={group.eyebrow} className="flex flex-col rounded-[2rem] border border-[#241a33]/10 bg-white/60 p-5 shadow-[0_20px_45px_-35px_rgba(36,26,51,0.45)] sm:p-7">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-[0.68rem] font-extrabold tracking-[0.18em]" style={{ color: group.accent }}>{group.eyebrow}</p>
+                    <h3 className="mt-2 font-display text-2xl font-bold sm:text-3xl">{group.title}</h3>
+                  </div>
+                  <span className="grid h-10 min-w-10 place-items-center rounded-full px-2 text-sm font-extrabold" style={{ color: group.accent, backgroundColor: group.soft }}>
+                    {group.assets.length}
                   </span>
-                )
-              })}
-            </div>
-          ) : (
-            <p className="text-center text-[#241a33]/40 text-sm font-bold py-8">
-              {assets.data == null ? 'Loading the ticker list…' : `No stocks match "${stockQuery}".`}
-            </p>
-          )}
+                </div>
+                <p className="mt-3 min-h-12 text-sm leading-relaxed text-[#241a33]/60">{group.description}</p>
+
+                <div className="mt-6 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3">
+                  {group.assets.map((asset) => (
+                    <div
+                      key={asset.assetId}
+                      className="flex min-w-0 items-center gap-2.5 rounded-2xl border border-[#241a33]/[0.07] bg-white/75 p-2.5 transition-transform hover:-translate-y-0.5"
+                      title={asset.displayName}
+                    >
+                      <TokenLogo ticker={asset.symbol} className="h-9 w-9 rounded-xl text-sm" />
+                      <div className="min-w-0">
+                        <div className={`truncate font-extrabold tracking-tight ${asset.symbol.length > 8 ? 'text-[0.62rem]' : 'text-xs'}`}>{asset.symbol}</div>
+                        <div className="truncate text-[0.65rem] font-medium text-[#241a33]/45">{asset.displayName}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <Link
+                  to={group.href}
+                  className="mt-6 inline-flex w-fit items-center gap-2 rounded-full px-4 py-2.5 text-xs font-extrabold transition-all hover:-translate-y-0.5 hover:brightness-105"
+                  style={{ backgroundColor: group.accent, color: group.ctaText }}
+                >
+                  {group.cta}
+                  <span aria-hidden="true">→</span>
+                </Link>
+              </div>
+            ))}
+          </div>
+
+          <div className="relative mt-6 flex flex-wrap justify-center gap-x-6 gap-y-2 text-xs font-bold text-[#241a33]/50">
+            {['Verified identity', 'Approved price source', 'Reviewed trading depth'].map((label) => (
+              <span key={label} className="inline-flex items-center gap-2">
+                <span className="grid h-4 w-4 place-items-center rounded-full bg-[#6A5AE0] text-[0.6rem] text-white">✓</span>
+                {label}
+              </span>
+            ))}
+          </div>
         </div>
       </section>
 
