@@ -80,8 +80,8 @@ export function RealNavbar() {
             to="/onchain/arenas/create"
             className={({ isActive }) =>
               clsx(
-                'px-3 py-1.5 rounded-full transition-colors font-medium text-[#9EB8E5] whitespace-nowrap',
-                isActive ? 'bg-[#6F8FCB]/15' : 'hover:bg-[#6F8FCB]/10',
+                'px-3 py-1.5 rounded-full transition-colors font-medium text-[#B7CEFF] whitespace-nowrap',
+                isActive ? 'bg-[#7A9FF0]/15' : 'hover:bg-[#7A9FF0]/10',
               )
             }
           >
@@ -181,7 +181,7 @@ export function RealNavbar() {
           <NavLink
             to="/onchain/arenas/create"
             onClick={() => setMobileOpen(false)}
-            className="block px-3 py-2 rounded-lg text-sm font-medium text-[#9EB8E5] hover:bg-[#6F8FCB]/10"
+            className="block px-3 py-2 rounded-lg text-sm font-medium text-[#B7CEFF] hover:bg-[#7A9FF0]/10"
           >
             + Create Arena
           </NavLink>

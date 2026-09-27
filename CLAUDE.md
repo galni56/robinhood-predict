@@ -64,8 +64,8 @@ lessons" section below.
 ### Product color system
 
 Use purple (`#6A5AE0` / `#8B7CF7`) for Prediction Markets, orange
-(`#ED8F3A` / `#F2A65A`) for Asset Races, and dusty blue (`#6F8FCB` /
-`#9EB8E5`) for Price Arena across navigation, primary actions, cards, and
+(`#ED8F3A` / `#F2A65A`) for Asset Races, and cornflower blue (`#7A9FF0` /
+`#B7CEFF`) for Price Arena across navigation, primary actions, cards, and
 product labels.
 Outcome, status, warning, and Stocks/Memes category colors may keep their own
 semantic meaning; do not use them to redefine a product's identity color.
