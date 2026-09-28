@@ -5,10 +5,14 @@ import {
   OpenItemTracker,
   arenaTitleFor,
   buildCommunityRacePayload,
+  communityRaceTitleFor,
   isOpenNow,
+  isRaceOpenNow,
   nextAssetToSeed,
   pickCommunityRaceAssetIds,
+  pickCommunityRaceAssetIdsFrom,
   readSeederConfig,
+  rotateConfigs,
   targetPriceFromSnapshot,
 } from './event-seeder.mjs'
 
@@ -95,7 +99,7 @@ test('isOpenNow requires OPEN status and a future deadline', () => {
 function makeClient(rowsById) {
   return {
     async readContract({ functionName, args }) {
-      if (functionName !== 'getMarket' && functionName !== 'getArena') throw new Error(`unexpected call ${functionName}`)
+      if (!['getMarket', 'getArena', 'getRace'].includes(functionName)) throw new Error(`unexpected call ${functionName}`)
       const [id] = args
       const row = rowsById.get(id)
       if (!row) throw new Error(`no row for id ${id}`)
@@ -223,4 +227,82 @@ test('buildCommunityRacePayload rejects an asset the contract has not approved',
     () => buildCommunityRacePayload(racePayloadInputs({ assetIds: [racePayloadInputs().assetIds[0], unapproved] })),
     /AssetNotApproved/,
   )
+})
+
+test('config only requires EVENT_SEEDER_RACE_ADDRESS when Asset Race generation is enabled', () => {
+  withEnv({
+    EVENT_SEEDER_RPC_URL: 'https://rpc.invalid',
+    EVENT_SEEDER_MARKET_ADDRESS: '0x1111111111111111111111111111111111111111',
+    EVENT_SEEDER_ARENA_ADDRESS: '0x2222222222222222222222222222222222222222',
+    EVENT_SEEDER_ASSET_RACE_ENABLED: undefined,
+    EVENT_SEEDER_RACE_ADDRESS: undefined,
+    ASSET_RACE_ADDRESS: undefined,
+  }, () => {
+    const config = readSeederConfig()
+    assert.equal(config.assetRaceEnabled, false)
+    assert.equal(config.raceAddress, undefined)
+  })
+
+  withEnv({
+    EVENT_SEEDER_RPC_URL: 'https://rpc.invalid',
+    EVENT_SEEDER_MARKET_ADDRESS: '0x1111111111111111111111111111111111111111',
+    EVENT_SEEDER_ARENA_ADDRESS: '0x2222222222222222222222222222222222222222',
+    EVENT_SEEDER_ASSET_RACE_ENABLED: 'true',
+    EVENT_SEEDER_RACE_ADDRESS: undefined,
+    ASSET_RACE_ADDRESS: undefined,
+  }, () => {
+    assert.throws(() => readSeederConfig(), /EVENT_SEEDER_RACE_ADDRESS is invalid/)
+  })
+
+  withEnv({
+    EVENT_SEEDER_RPC_URL: 'https://rpc.invalid',
+    EVENT_SEEDER_MARKET_ADDRESS: '0x1111111111111111111111111111111111111111',
+    EVENT_SEEDER_ARENA_ADDRESS: '0x2222222222222222222222222222222222222222',
+    EVENT_SEEDER_ASSET_RACE_ENABLED: 'true',
+    EVENT_SEEDER_RACE_ADDRESS: undefined,
+    ASSET_RACE_ADDRESS: '0x3333333333333333333333333333333333333333',
+  }, () => {
+    const config = readSeederConfig()
+    assert.equal(config.raceAddress, '0x3333333333333333333333333333333333333333')
+    assert.equal(config.raceTargetOpen, 2)
+    assert.equal(config.raceDurationSeconds, 900)
+    assert.equal(config.raceAssetCount, 2)
+  })
+})
+
+test('isRaceOpenNow treats LOBBY/BETTING/RUNNING as open and RESOLVED/CANCELLED/VOID as terminal', () => {
+  assert.equal(isRaceOpenNow(5, 1_000n, 999n), true) // LOBBY
+  assert.equal(isRaceOpenNow(0, 1_000n, 999n), true) // BETTING
+  assert.equal(isRaceOpenNow(1, 1_000n, 999n), true) // RUNNING
+  assert.equal(isRaceOpenNow(2, 1_000n, 999n), false) // RESOLVED
+  assert.equal(isRaceOpenNow(3, 1_000n, 999n), false) // CANCELLED
+  assert.equal(isRaceOpenNow(4, 1_000n, 999n), false) // VOID
+  assert.equal(isRaceOpenNow(5, 1_000n, 1_000n), false) // past occupiedUntil
+})
+
+test('OpenItemTracker accepts a custom open predicate for races', async () => {
+  const rows = new Map([[0n, { assetId: '0xaa', status: 5, deadline: 1_000n }]]) // LOBBY
+  const tracker = new OpenItemTracker(0n, isRaceOpenNow)
+  await tracker.discover(makeClient(rows), { getFn: 'getRace', rowToItem: (row) => row }, 1n, 10n)
+  assert.equal(tracker.openCount(10n), 1)
+  assert.equal(tracker.openCount(1_000n), 0)
+})
+
+test('rotateConfigs wraps around the registry and starts at the given offset', () => {
+  const configs = [{ assetId: 'NVDA' }, { assetId: 'TSLA' }, { assetId: 'AAPL' }]
+  assert.deepEqual(rotateConfigs(configs, 2, 0), [{ assetId: 'NVDA' }, { assetId: 'TSLA' }])
+  assert.deepEqual(rotateConfigs(configs, 2, 1), [{ assetId: 'TSLA' }, { assetId: 'AAPL' }])
+  assert.deepEqual(rotateConfigs(configs, 2, 3), [{ assetId: 'NVDA' }, { assetId: 'TSLA' }]) // wraps
+})
+
+test('pickCommunityRaceAssetIdsFrom encodes the rotated selection', () => {
+  const configs = [{ assetId: 'NVDA' }, { assetId: 'TSLA' }, { assetId: 'AAPL' }]
+  assert.deepEqual(
+    pickCommunityRaceAssetIdsFrom(configs, 2, 1),
+    [stringToHex('TSLA', { size: 32 }), stringToHex('AAPL', { size: 32 })],
+  )
+})
+
+test('communityRaceTitleFor joins the candidate tickers and stays under the byte cap', () => {
+  assert.equal(communityRaceTitleFor([{ assetId: 'NVDA' }, { assetId: 'TSLA' }]), 'NVDA vs TSLA')
 })

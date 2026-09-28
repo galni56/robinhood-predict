@@ -21,6 +21,9 @@ const MAX_RACE_TITLE_BYTES = 64
 // contracts/src/PriceArena.sol:188 (isSupportedDuration) -- not queryable
 // on-chain, so mirrored here.
 const PRICE_ARENA_SUPPORTED_DURATIONS = [60, 300, 900, 3_600]
+// contracts/src/AssetRace.sol:34-41 (RaceStatus) -- a race stops occupying
+// a "slot" once it reaches one of these.
+const RACE_TERMINAL_STATUSES = new Set([2, 3, 4]) // RESOLVED, CANCELLED, VOID
 
 export class SeederConfigError extends Error {}
 
@@ -50,6 +53,12 @@ export function readSeederConfig() {
 
   const rawArenaAddress = process.env.EVENT_SEEDER_ARENA_ADDRESS?.trim() || process.env.PRICE_ARENA_ADDRESS?.trim()
   if (!rawArenaAddress || !isAddress(rawArenaAddress)) throw new SeederConfigError('EVENT_SEEDER_ARENA_ADDRESS is invalid')
+
+  const assetRaceEnabled = boolEnv('EVENT_SEEDER_ASSET_RACE_ENABLED', false)
+  const raceAddressRaw = process.env.EVENT_SEEDER_RACE_ADDRESS?.trim() || process.env.ASSET_RACE_ADDRESS?.trim()
+  if (assetRaceEnabled && (!raceAddressRaw || !isAddress(raceAddressRaw))) {
+    throw new SeederConfigError('EVENT_SEEDER_RACE_ADDRESS is invalid')
+  }
 
   const dryRun = boolEnv('DRY_RUN', true)
   const privateKey = process.env.EVENT_SEEDER_PRIVATE_KEY?.trim()
@@ -88,8 +97,12 @@ export function readSeederConfig() {
     pollIntervalMs: uintEnv('EVENT_SEEDER_POLL_INTERVAL_MS', 120_000, 1_000),
     marketScanFrom: BigInt(uintEnv('EVENT_SEEDER_MARKET_SCAN_FROM', 0)),
     arenaScanFrom: BigInt(uintEnv('EVENT_SEEDER_ARENA_SCAN_FROM', 0)),
-    // Not read by main() yet -- see the Asset Race section below.
-    assetRaceEnabled: boolEnv('EVENT_SEEDER_ASSET_RACE_ENABLED', false),
+    assetRaceEnabled,
+    raceAddress: raceAddressRaw && isAddress(raceAddressRaw) ? getAddress(raceAddressRaw) : undefined,
+    raceTargetOpen: uintEnv('EVENT_SEEDER_RACE_TARGET_OPEN', 2, 1),
+    raceDurationSeconds: uintEnv('EVENT_SEEDER_RACE_DURATION_SECONDS', 900, 60),
+    raceAssetCount: uintEnv('EVENT_SEEDER_RACE_ASSET_COUNT', MIN_ASSETS_PER_RACE, MIN_ASSETS_PER_RACE),
+    raceScanFrom: BigInt(uintEnv('EVENT_SEEDER_RACE_SCAN_FROM', 0)),
   }
 }
 
@@ -173,15 +186,27 @@ export function isOpenNow(status, deadline, now) {
   return Number(status) === OPEN && BigInt(deadline) > BigInt(now)
 }
 
+/** Races have no single OPEN status (LOBBY/BETTING/RUNNING are all
+ * non-terminal) and no single deadline field -- so `deadline` here is a
+ * conservative "occupiedUntil" computed once at discovery from the race's
+ * own (immutable) lobby/betting/start-grace/duration/resolution-grace
+ * fields (see raceRowToItem). A race that actually finishes earlier than
+ * that worst case is simply over-counted as "open" for a few extra
+ * minutes -- safe, just conservative, not a correctness issue. */
+export function isRaceOpenNow(status, occupiedUntil, now) {
+  return !RACE_TERMINAL_STATUSES.has(Number(status)) && BigInt(occupiedUntil) > BigInt(now)
+}
+
 /** Incrementally scans new ids since the last discover() call, tracking
  * only currently-open items. Deliberately mirrors the scan-cursor shape
  * of ActiveMarketTracker/ActiveArenaTracker (used by the settlement
  * keepers) so RPC read volume stays bounded by "how many new items
  * appeared", not by the contract's ever-growing total item count. */
 export class OpenItemTracker {
-  constructor(scanFrom = 0n) {
+  constructor(scanFrom = 0n, isOpen = isOpenNow) {
     this.nextId = BigInt(scanFrom)
     this.items = new Map()
+    this.isOpen = isOpen
   }
 
   async discover(publicClient, { address, abi, getFn, rowToItem }, count, now) {
@@ -189,7 +214,7 @@ export class OpenItemTracker {
     for (let id = this.nextId; id < count; id += 1n) {
       const row = await publicClient.readContract({ address, abi, functionName: getFn, args: [id] })
       const item = rowToItem(row)
-      if (isOpenNow(item.status, item.deadline, now)) this.items.set(id, { assetId: item.assetId, deadline: BigInt(item.deadline) })
+      if (this.isOpen(item.status, item.deadline, now)) this.items.set(id, { assetId: item.assetId, deadline: BigInt(item.deadline) })
     }
     this.nextId = count
   }
@@ -219,6 +244,16 @@ function marketRowToItem(market) {
 
 function arenaRowToItem(arena) {
   return { assetId: arena.assetId, status: arena.status, deadline: arena.deadline }
+}
+
+/** A race has several candidate assets, not one -- assetId here is an
+ * unused placeholder (openAssetIdSet() is never called for races, only
+ * openCount()). deadline is the conservative occupiedUntil described on
+ * isRaceOpenNow. */
+function raceRowToItem(race) {
+  const occupiedUntil = BigInt(race.lobbyEndTime) + BigInt(race.bettingWindow) + BigInt(race.startGrace)
+    + BigInt(race.raceDuration) + BigInt(race.resolutionGrace)
+  return { assetId: `0x${'0'.repeat(64)}`, status: race.status, deadline: occupiedUntil }
 }
 
 /** Picks the first configured asset (in registry order) that doesn't
@@ -266,11 +301,9 @@ function productionArenaConfigs(registry) {
 // --- Asset Race community races -------------------------------------
 //
 // createCommunityRace is permissionless and already enabled on mainnet
-// (communityPolicyConfigured() reads true), so this generator is fully
-// correct and unit-tested -- but main() below never calls it. Turning it
-// on is a deliberate, separate decision: set
-// EVENT_SEEDER_ASSET_RACE_ENABLED=true and wire seedRaceIfNeeded (not
-// defined here) into the poll loop once that decision is made.
+// (communityPolicyConfigured() reads true). Gated behind
+// EVENT_SEEDER_ASSET_RACE_ENABLED (default false) -- when off, none of
+// this runs; main() below skips seedRaceIfNeeded entirely.
 
 export const assetRaceCommunityAbi = [
   {
@@ -285,6 +318,44 @@ export const assetRaceCommunityAbi = [
   { type: 'function', name: 'getApprovedAssetIds', stateMutability: 'view', inputs: [], outputs: [{ type: 'bytes32[]' }] },
   { type: 'function', name: 'getApprovedRaceDurations', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint64[]' }] },
   { type: 'function', name: 'communityPolicyConfigured', stateMutability: 'view', inputs: [], outputs: [{ type: 'bool' }] },
+  { type: 'function', name: 'raceCount', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
+  {
+    type: 'function', name: 'getRace', stateMutability: 'view', inputs: [{ name: 'raceId', type: 'uint256' }],
+    outputs: [{
+      type: 'tuple',
+      components: [
+        { name: 'category', type: 'uint8' },
+        { name: 'status', type: 'uint8' },
+        { name: 'bettingStartTime', type: 'uint64' },
+        { name: 'bettingEndTime', type: 'uint64' },
+        { name: 'actualStartTime', type: 'uint64' },
+        { name: 'raceEndTime', type: 'uint64' },
+        { name: 'resolvedAt', type: 'uint64' },
+        { name: 'raceDuration', type: 'uint64' },
+        { name: 'startGrace', type: 'uint64' },
+        { name: 'resolutionGrace', type: 'uint64' },
+        { name: 'maxOracleTimestampSkew', type: 'uint64' },
+        { name: 'feeBp', type: 'uint16' },
+        { name: 'minActiveContenders', type: 'uint8' },
+        { name: 'candidateCount', type: 'uint8' },
+        { name: 'activeCount', type: 'uint8' },
+        { name: 'winningAssetIndex', type: 'uint8' },
+        { name: 'endSnapshotsCaptured', type: 'bool' },
+        { name: 'minStake', type: 'uint256' },
+        { name: 'maxStakePerWallet', type: 'uint256' },
+        { name: 'totalPool', type: 'uint256' },
+        { name: 'winningPool', type: 'uint256' },
+        { name: 'distributableLosingPool', type: 'uint256' },
+        { name: 'protocolFee', type: 'uint256' },
+        { name: 'remainingLiability', type: 'uint256' },
+        { name: 'origin', type: 'uint8' },
+        { name: 'creator', type: 'address' },
+        { name: 'title', type: 'string' },
+        { name: 'lobbyEndTime', type: 'uint64' },
+        { name: 'bettingWindow', type: 'uint64' },
+      ],
+    }],
+  },
   {
     type: 'function', name: 'createCommunityRace', stateMutability: 'nonpayable',
     inputs: [
@@ -306,6 +377,32 @@ function hasVisibleTitleByte(title) {
 export function pickCommunityRaceAssetIds(configsForCategory, count) {
   if (configsForCategory.length < count) throw new Error('NotEnoughApprovedAssetsForRace')
   return configsForCategory.slice(0, count).map((config) => stringToHex(config.assetId, { size: 32 }))
+}
+
+/** The `count` configs starting `offset` positions into the registry
+ * (wrapping around) -- lets successive races cycle through different
+ * asset pairs instead of always the same one. */
+export function rotateConfigs(configsForCategory, count, offset) {
+  const n = configsForCategory.length
+  if (n < count) throw new Error('NotEnoughApprovedAssetsForRace')
+  const start = ((offset % n) + n) % n
+  return configsForCategory.slice(start).concat(configsForCategory.slice(0, start)).slice(0, count)
+}
+
+/** Same as pickCommunityRaceAssetIds, but starting `offset` positions into
+ * the registry (wrapping around) -- lets successive races cycle through
+ * different pairs instead of always the same two assets. Fewer candidates
+ * per race (the contract minimum, by default) means fewer distinct
+ * organic bettors are needed to actually start it -- see
+ * AssetRace.startRace's minActiveContenders check. */
+export function pickCommunityRaceAssetIdsFrom(configsForCategory, count, offset) {
+  return pickCommunityRaceAssetIds(rotateConfigs(configsForCategory, count, offset), count)
+}
+
+export function communityRaceTitleFor(configs) {
+  const title = configs.map((config) => config.assetId).join(' vs ')
+  if (Buffer.byteLength(title, 'utf8') > MAX_RACE_TITLE_BYTES) throw new Error('RaceTitleTooLong')
+  return title
 }
 
 /** Validates and shapes a createCommunityRace call. Mirrors the
@@ -357,6 +454,19 @@ async function main() {
 
   const marketTracker = new OpenItemTracker(config.marketScanFrom)
   const arenaTracker = new OpenItemTracker(config.arenaScanFrom)
+  const raceTracker = config.assetRaceEnabled ? new OpenItemTracker(config.raceScanFrom, isRaceOpenNow) : undefined
+  let raceAssetOffset = 0
+
+  if (config.assetRaceEnabled) {
+    const [communityPolicyConfigured, approvedRaceDurations] = await Promise.all([
+      publicClient.readContract({ address: config.raceAddress, abi: assetRaceCommunityAbi, functionName: 'communityPolicyConfigured' }),
+      publicClient.readContract({ address: config.raceAddress, abi: assetRaceCommunityAbi, functionName: 'getApprovedRaceDurations' }),
+    ])
+    if (!communityPolicyConfigured) throw new SeederConfigError('AssetRace community policy is not configured on-chain')
+    if (!approvedRaceDurations.map(Number).includes(config.raceDurationSeconds)) {
+      throw new SeederConfigError(`EVENT_SEEDER_RACE_DURATION_SECONDS must be one of: ${approvedRaceDurations.join(', ')}`)
+    }
+  }
 
   let stopping = false
   process.once('SIGINT', () => { stopping = true })
@@ -415,10 +525,38 @@ async function main() {
     console.log(`[event-seeder] arena created on ${next.assetId} (${hash})`)
   }
 
+  async function seedRaceIfNeeded(now) {
+    const count = await publicClient.readContract({ address: config.raceAddress, abi: assetRaceCommunityAbi, functionName: 'raceCount' })
+    await raceTracker.discover(publicClient, { address: config.raceAddress, abi: assetRaceCommunityAbi, getFn: 'getRace', rowToItem: raceRowToItem }, count, now)
+    raceTracker.prune(now)
+    if (raceTracker.openCount(now) >= config.raceTargetOpen) return
+
+    const selected = rotateConfigs(marketConfigs, config.raceAssetCount, raceAssetOffset)
+    raceAssetOffset += config.raceAssetCount
+    const picked = selected.map((c) => stringToHex(c.assetId, { size: 32 }))
+    const title = communityRaceTitleFor(selected)
+
+    if (config.dryRun) {
+      console.log(`[dry-run] would create race ${title} duration=${config.raceDurationSeconds}`)
+      return
+    }
+    const simulation = await publicClient.simulateContract({
+      account, address: config.raceAddress, abi: assetRaceCommunityAbi, functionName: 'createCommunityRace',
+      args: [title, 0, BigInt(config.raceDurationSeconds), picked],
+    })
+    const hash = await walletClient.writeContract(simulation.request)
+    const receipt = await publicClient.waitForTransactionReceipt({ hash })
+    if (receipt.status !== 'success') throw new Error('TransactionReverted')
+    console.log(`[event-seeder] race created ${title} (${hash})`)
+  }
+
   do {
     const block = await publicClient.getBlock({ blockTag: 'latest' })
     try { await seedMarketIfNeeded(block.timestamp) } catch (error) { console.error(`[event-seeder] market seeding failed (${safeErrorName(error)}); continuing`) }
     try { await seedArenaIfNeeded(block.timestamp) } catch (error) { console.error(`[event-seeder] arena seeding failed (${safeErrorName(error)}); continuing`) }
+    if (config.assetRaceEnabled) {
+      try { await seedRaceIfNeeded(block.timestamp) } catch (error) { console.error(`[event-seeder] race seeding failed (${safeErrorName(error)}); continuing`) }
+    }
     if (config.runOnce || stopping) break
     await new Promise((resolve) => setTimeout(resolve, config.pollIntervalMs))
   } while (!stopping)
