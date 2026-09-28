@@ -116,6 +116,7 @@ const phaseStyles: Record<PhaseTone, {
   marker: string
   bullet: string
   callout: string
+  ghost: string
 }> = {
   purple: {
     badge: 'border-[#8B7CF7]/35 bg-[#8B7CF7]/12 text-[#B3A7FA]',
@@ -125,6 +126,7 @@ const phaseStyles: Record<PhaseTone, {
     marker: 'border-[#8B7CF7] bg-[#8B7CF7] shadow-[0_0_28px_rgba(139,124,247,0.6)]',
     bullet: 'bg-[#B3A7FA]',
     callout: 'border-[#8B7CF7]/20 bg-[#8B7CF7]/8 text-[#d8d0ff]',
+    ghost: 'text-[#8B7CF7]',
   },
   orange: {
     badge: 'border-[#F2A65A]/35 bg-[#F2A65A]/12 text-[#F2A65A]',
@@ -134,6 +136,7 @@ const phaseStyles: Record<PhaseTone, {
     marker: 'border-[#F2A65A] bg-[#F2A65A] shadow-[0_0_28px_rgba(242,166,90,0.55)]',
     bullet: 'bg-[#F2A65A]',
     callout: 'border-[#F2A65A]/20 bg-[#F2A65A]/8 text-[#ffd3a8]',
+    ghost: 'text-[#F2A65A]',
   },
   token: {
     badge: 'border-white/20 bg-white/8 text-white/85',
@@ -143,6 +146,7 @@ const phaseStyles: Record<PhaseTone, {
     marker: 'border-white bg-white shadow-[0_0_32px_rgba(255,255,255,0.4)]',
     bullet: 'bg-white/80',
     callout: 'border-white/15 bg-white/[0.05] text-white/75',
+    ghost: 'text-white',
   },
   creator: {
     badge: 'border-[#E88BC7]/35 bg-[#E88BC7]/12 text-[#F0B3DB]',
@@ -152,6 +156,7 @@ const phaseStyles: Record<PhaseTone, {
     marker: 'border-[#E88BC7] bg-[#E88BC7] shadow-[0_0_28px_rgba(232,139,199,0.5)]',
     bullet: 'bg-[#F0B3DB]',
     callout: 'border-[#E88BC7]/20 bg-[#E88BC7]/8 text-[#F0B3DB]',
+    ghost: 'text-[#E88BC7]',
   },
   blue: {
     badge: 'border-[#7A9FF0]/35 bg-[#7A9FF0]/12 text-[#B7CEFF]',
@@ -161,6 +166,7 @@ const phaseStyles: Record<PhaseTone, {
     marker: 'border-[#7A9FF0] bg-[#7A9FF0] shadow-[0_0_28px_rgba(122,159,240,0.55)]',
     bullet: 'bg-[#B7CEFF]',
     callout: 'border-[#7A9FF0]/20 bg-[#7A9FF0]/8 text-[#d7e4ff]',
+    ghost: 'text-[#7A9FF0]',
   },
 }
 
@@ -277,6 +283,9 @@ export function RoadmapPage() {
                     </div>
                   </div>
 
+                  <div className={`hidden px-7 sm:block ${cardOnRight ? 'sm:col-start-1 sm:row-start-1 sm:text-right' : 'sm:col-start-3 sm:row-start-1'}`}>
+                    <div className={`font-display text-4xl font-black uppercase tracking-[-0.04em] lg:text-6xl ${colors.ghost}`}>{phase.eyebrow}</div>
+                  </div>
                 </article>
               )
             })}
