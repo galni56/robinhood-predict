@@ -1,3 +1,5 @@
+import { formatEther } from 'viem'
+
 export function formatUsd(value: number, digits = 2): string {
   return value.toLocaleString('en-US', {
     style: 'currency',
@@ -5,6 +7,22 @@ export function formatUsd(value: number, digits = 2): string {
     minimumFractionDigits: digits,
     maximumFractionDigits: digits,
   })
+}
+
+/** Compact ETH for dense UI while preserving useful precision for tiny bets. */
+export function formatCompactEth(value: bigint, fractionalSignificantDigits = 4): string {
+  const exact = formatEther(value)
+  const negative = exact.startsWith('-')
+  const unsigned = negative ? exact.slice(1) : exact
+  const [whole, fraction = ''] = unsigned.split('.')
+  const firstSignificant = fraction.search(/[1-9]/)
+  const fractionLength = whole !== '0'
+    ? fractionalSignificantDigits
+    : firstSignificant < 0
+      ? 0
+      : firstSignificant + fractionalSignificantDigits
+  const compactFraction = fraction.slice(0, fractionLength).replace(/0+$/, '')
+  return `${negative ? '-' : ''}${whole}${compactFraction ? `.${compactFraction}` : ''} ETH`
 }
 
 export function formatPct(value: number, digits = 1): string {

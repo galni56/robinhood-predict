@@ -11,7 +11,7 @@ import {
   MarketStatusOnchain,
 } from '@/chain/contracts'
 import { ASSET_RACE_ORIGIN, ASSET_RACE_STATUS, type AssetRaceViewModel } from '@/chain/assetRaces'
-import { assetRaceCatalog } from '@/chain/assetRaceRegistry'
+import { assetRaceCatalog, priceSourceUrlForCatalogAsset } from '@/chain/assetRaceRegistry'
 import { demoPools, isDemoMode } from '@/chain/demo'
 import { tickerForPredictionAssetId } from '@/chain/predictionMarketAssets'
 import { PRICE_ARENA_MAX_PARTICIPANTS, PRICE_ARENA_PHASE, arenaDurationLabel, type PriceArenaViewModel } from '@/chain/priceArena'
@@ -745,19 +745,29 @@ export function OnchainLandingPage() {
                 <p className="mt-3 min-h-12 text-sm leading-relaxed text-[#241a33]/60">{group.description}</p>
 
                 <div className="mt-6 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3">
-                  {group.assets.map((asset) => (
-                    <div
-                      key={asset.assetId}
-                      className="flex min-w-0 items-center gap-2.5 rounded-2xl border border-[#241a33]/[0.07] bg-white/75 p-2.5 transition-transform hover:-translate-y-0.5"
-                      title={asset.displayName}
-                    >
-                      <TokenLogo ticker={asset.symbol} className="h-9 w-9 rounded-xl text-sm" />
-                      <div className="min-w-0">
-                        <div className={`truncate font-extrabold tracking-tight ${asset.symbol.length > 8 ? 'text-[0.62rem]' : 'text-xs'}`}>{asset.symbol}</div>
-                        <div className="truncate text-[0.65rem] font-medium text-[#241a33]/45">{asset.displayName}</div>
-                      </div>
-                    </div>
-                  ))}
+                  {group.assets.map((asset) => {
+                    const priceUrl = priceSourceUrlForCatalogAsset(asset)
+                    if (!priceUrl) return null
+                    return (
+                      <a
+                        key={asset.assetId}
+                        href={priceUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label={`View ${asset.symbol} price from the exact settlement pool on DEX Screener (opens in a new tab)`}
+                        className="group/asset flex min-w-0 items-center gap-2.5 rounded-2xl border border-[#241a33]/[0.07] bg-white/75 p-2.5 transition-all hover:-translate-y-0.5 hover:border-[#241a33]/20 hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-2"
+                        style={{ outlineColor: group.accent }}
+                        title={`View ${asset.symbol} exact pool chart`}
+                      >
+                        <TokenLogo ticker={asset.symbol} className="h-9 w-9 shrink-0 rounded-xl text-sm" />
+                        <div className="min-w-0 flex-1">
+                          <div className={`truncate font-extrabold tracking-tight ${asset.symbol.length > 8 ? 'text-[0.62rem]' : 'text-xs'}`}>{asset.symbol}</div>
+                          <div className="truncate text-[0.65rem] font-medium text-[#241a33]/45">{asset.displayName}</div>
+                          <div className="mt-0.5 text-[0.6rem] font-extrabold" style={{ color: group.accent }}>View price ↗</div>
+                        </div>
+                      </a>
+                    )
+                  })}
                 </div>
 
                 <Link

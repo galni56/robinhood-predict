@@ -10,7 +10,7 @@ import { useBetLogs } from '@/chain/betLogs'
 import { DEMO_MARKET_IDS, demoBetLogs, demoClaimLogs, isDemoMode, loadDemoLeaderboard } from '@/chain/demo'
 import { DEPLOY_BLOCK, MarketSideOnchain, PREDICTION_MARKET_ADDRESS, PREDICTION_MARKET_CONFIGURED } from '@/chain/contracts'
 import { shortHash } from '@/lib/hash'
-import { formatUsd } from '@/lib/format'
+import { formatCompactEth, formatUsd } from '@/lib/format'
 
 const CLAIMED_EVENT = parseAbiItem('event Claimed(uint256 indexed id, address indexed user, uint256 payout)')
 
@@ -151,13 +151,16 @@ export function OnchainMarketsSidebar() {
                   href={`${robinhoodMainnet.blockExplorers.default.url}/address/${s.address}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="flex items-center gap-2 text-sm rounded-lg px-2 py-1.5 hover:bg-white/5 transition-colors"
+                  className="grid min-w-0 grid-cols-[1rem_minmax(0,1fr)_auto] items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition-colors hover:bg-white/5"
                 >
                   <span className="w-4 text-white/30 text-xs font-mono text-center">{i + 1}</span>
-                  <AddressLabel address={s.address} link={false} className="font-mono text-xs truncate flex-1" />
-                  <span className={`font-mono text-xs ${net >= 0n ? 'text-[#B3A7FA]' : 'text-rose-400'}`}>
+                  <AddressLabel address={s.address} link={false} className="min-w-0 truncate font-mono text-xs" />
+                  <span
+                    title={isDemoMode() ? undefined : `${formatEther(net)} ETH`}
+                    className={`whitespace-nowrap text-right font-mono text-[0.7rem] tabular-nums ${net >= 0n ? 'text-[#B3A7FA]' : 'text-rose-400'}`}
+                  >
                     {net >= 0n ? '+' : ''}
-                    {isDemoMode() ? formatUsd(Number(formatUnits(net, 6)), 0) : `${formatEther(net)} ETH`}
+                    {isDemoMode() ? formatUsd(Number(formatUnits(net, 6)), 0) : formatCompactEth(net)}
                   </span>
                 </a>
               )
@@ -178,18 +181,23 @@ export function OnchainMarketsSidebar() {
             <p className="text-white/30 text-xs text-center py-4">No bets yet</p>
           ) : (
             recent.map((log) => (
-              <div key={log.txHash + log.id.toString()} className="flex items-center justify-between gap-2 text-xs px-2 py-1.5 rounded-lg bg-white/5">
-                <div className="flex items-center gap-1.5 min-w-0">
+              <div key={log.txHash + log.id.toString()} className="rounded-xl bg-white/5 px-2.5 py-2 text-xs">
+                <div className="flex min-w-0 items-center justify-between gap-2">
                   <SideBadge side={log.side === MarketSideOnchain.YES ? 'YES' : 'NO'} />
-                  <AddressLabel address={log.user} className="font-mono text-white/60 hover:text-white truncate" />
+                  <span
+                    title={isDemoMode() ? undefined : `${formatEther(log.amount)} ETH`}
+                    className="whitespace-nowrap text-right font-mono text-white/70 tabular-nums"
+                  >
+                    {isDemoMode() ? `${formatUnits(log.amount, 6)} USDG` : formatCompactEth(log.amount)}
+                  </span>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <span className="font-mono text-white/70">{isDemoMode() ? `${formatUnits(log.amount, 6)} USDG` : `${formatEther(log.amount)} ETH`}</span>
+                <div className="mt-1.5 grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 border-t border-white/5 pt-1.5">
+                  <AddressLabel address={log.user} className="min-w-0 truncate font-mono text-white/45 hover:text-white" />
                   <a
                     href={`${robinhoodMainnet.blockExplorers.default.url}/tx/${log.txHash}`}
                     target="_blank"
                     rel="noreferrer"
-                    className="font-mono text-white/40 hover:text-white"
+                    className="whitespace-nowrap font-mono text-white/40 hover:text-white"
                   >
                     {shortHash(log.txHash)}
                   </a>

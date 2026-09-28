@@ -4,6 +4,7 @@ import { type GameActivityKind, useGameActivity } from '@/chain/gameActivity'
 import { AddressLabel } from '@/components/AddressLabel'
 import { BoltIcon, TrophyIcon } from '@/components/icons'
 import { TokenLogo } from '@/components/TokenLogo'
+import { formatCompactEth } from '@/lib/format'
 import { shortHash } from '@/lib/hash'
 
 export function GameActivitySidebar({
@@ -29,10 +30,10 @@ export function GameActivitySidebar({
             : !leaderboard?.length ? <p className="py-4 text-center text-xs text-white/30">No bets placed yet</p>
               : leaderboard.map((stats, index) => {
                 const net = stats.claimed - stats.staked
-                return <a key={stats.address} href={`${robinhoodMainnet.blockExplorers.default.url}/address/${stats.address}`} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition-colors hover:bg-white/5">
+                return <a key={stats.address} href={`${robinhoodMainnet.blockExplorers.default.url}/address/${stats.address}`} target="_blank" rel="noreferrer" className="grid min-w-0 grid-cols-[1rem_minmax(0,1fr)_auto] items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition-colors hover:bg-white/5">
                   <span className="w-4 text-center font-mono text-xs text-white/30">{index + 1}</span>
-                  <AddressLabel address={stats.address} link={false} className="flex-1 truncate font-mono text-xs" />
-                  <span className={`font-mono text-xs ${net >= 0n ? accentText : 'text-rose-400'}`}>{net >= 0n ? '+' : ''}{formatEther(net)} ETH</span>
+                  <AddressLabel address={stats.address} link={false} className="min-w-0 truncate font-mono text-xs" />
+                  <span title={`${formatEther(net)} ETH`} className={`whitespace-nowrap text-right font-mono text-[0.7rem] tabular-nums ${net >= 0n ? accentText : 'text-rose-400'}`}>{net >= 0n ? '+' : ''}{formatCompactEth(net)}</span>
                 </a>
               })}
         </div>
@@ -47,12 +48,18 @@ export function GameActivitySidebar({
             : !recent?.length ? <p className="py-4 text-center text-xs text-white/30">No bets yet</p>
               : recent.map((bet) => {
                 const symbol = symbolFor(bet.gameId, bet.assetIndex)
-                return <div key={`${bet.txHash}:${bet.gameId}`} className="flex items-center justify-between gap-2 rounded-lg bg-white/5 px-2 py-1.5 text-xs">
-                  <div className="flex min-w-0 items-center gap-1.5">
-                    <TokenLogo ticker={symbol} className="h-6 w-6 rounded-md" />
-                    <div className="min-w-0"><div className="truncate font-bold text-white/75">{symbol ?? `${kind} #${bet.gameId}`}</div><AddressLabel address={bet.user} className="block truncate font-mono text-white/40 hover:text-white" /></div>
+                return <div key={`${bet.txHash}:${bet.gameId}`} className="rounded-xl bg-white/5 px-2.5 py-2 text-xs">
+                  <div className="flex min-w-0 items-center justify-between gap-2">
+                    <div className="flex min-w-0 items-center gap-1.5">
+                      <TokenLogo ticker={symbol} className="h-6 w-6 rounded-md" />
+                      <div className="min-w-0 truncate font-bold text-white/75">{symbol ?? `${kind} #${bet.gameId}`}</div>
+                    </div>
+                    <div title={`${formatEther(bet.amount)} ETH`} className="shrink-0 whitespace-nowrap text-right font-mono text-white/70 tabular-nums">{formatCompactEth(bet.amount)}</div>
                   </div>
-                  <div className="shrink-0 text-right"><div className="font-mono text-white/70">{formatEther(bet.amount)} ETH</div><a href={`${robinhoodMainnet.blockExplorers.default.url}/tx/${bet.txHash}`} target="_blank" rel="noreferrer" className="font-mono text-white/35 hover:text-white">{shortHash(bet.txHash)}</a></div>
+                  <div className="mt-1.5 grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 border-t border-white/5 pt-1.5">
+                    <AddressLabel address={bet.user} className="min-w-0 truncate font-mono text-white/40 hover:text-white" />
+                    <a href={`${robinhoodMainnet.blockExplorers.default.url}/tx/${bet.txHash}`} target="_blank" rel="noreferrer" className="whitespace-nowrap font-mono text-white/35 hover:text-white">{shortHash(bet.txHash)}</a>
+                  </div>
                 </div>
               })}
         </div>

@@ -16,7 +16,7 @@ import {
   loadDemoLeaderboard,
   saveDemoLeaderboard,
 } from '@/chain/demo'
-import { formatUsd, shortTxError } from '@/lib/format'
+import { formatCompactEth, formatUsd, shortTxError } from '@/lib/format'
 import { shortHash } from '@/lib/hash'
 
 // viem's `getLogs` wants the specific ABI event item (not the full contract
@@ -316,7 +316,7 @@ export function OnchainLeaderboardPage() {
           {(
             [
               ['Players', stats == null ? '…' : String(stats.length)],
-              ['Staked', stats == null ? '…' : isDemoMode() ? formatUsd(Number(formatUnits(totalStaked, 6)), 0) : `${formatEther(totalStaked)} ETH`],
+              ['Staked', stats == null ? '…' : isDemoMode() ? formatUsd(Number(formatUnits(totalStaked, 6)), 0) : formatCompactEth(totalStaked)],
               ['Bets', stats == null ? '…' : String(totalBets)],
             ] as const
           ).map(([label, value]) => (
@@ -345,7 +345,7 @@ export function OnchainLeaderboardPage() {
                 return (
                   <div
                     key={s.address}
-                    className={`flex items-center gap-3 text-sm rounded-xl px-3 py-2.5 transition-colors ${
+                    className={`grid min-w-0 grid-cols-[1.5rem_minmax(0,1fr)_auto_auto] items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors ${
                       leader
                         ? 'bg-gradient-to-r from-[#372a4f] to-[#241b2f] border border-[#8B7CF7]/40'
                         : 'bg-[#241b2f] border border-white/5 hover:border-[#8B7CF7]/30'
@@ -358,15 +358,16 @@ export function OnchainLeaderboardPage() {
                     ) : (
                       <span className="w-6 text-center text-white/30 text-xs font-bold shrink-0">{i + 1}</span>
                     )}
-                    <AddressLabel address={s.address} className="font-mono text-xs text-white/70 hover:text-white truncate" />
+                    <AddressLabel address={s.address} className="min-w-0 truncate font-mono text-xs text-white/70 hover:text-white" />
                     <span className="text-white/40 text-xs font-bold shrink-0">
                       {s.bets} bet{s.bets === 1 ? '' : 's'}
                     </span>
                     <span
-                      className={`ml-auto font-mono text-xs shrink-0 ${leader ? 'font-bold text-sm text-[#B3A7FA]' : net >= 0n ? 'text-[#B3A7FA]' : 'text-rose-400'}`}
+                      title={isDemoMode() ? undefined : `${formatEther(net)} ETH`}
+                      className={`shrink-0 whitespace-nowrap text-right font-mono text-xs tabular-nums ${leader ? 'font-bold text-sm text-[#B3A7FA]' : net >= 0n ? 'text-[#B3A7FA]' : 'text-rose-400'}`}
                     >
                       {net >= 0n ? '+' : ''}
-                      {isDemoMode() ? formatUsd(Number(formatUnits(net, 6))) : `${formatEther(net)} ETH`}
+                      {isDemoMode() ? formatUsd(Number(formatUnits(net, 6))) : formatCompactEth(net)}
                     </span>
                   </div>
                 )
@@ -388,13 +389,18 @@ export function OnchainLeaderboardPage() {
                 {recent.map((log) => (
                   <div
                     key={log.txHash + log.id.toString()}
-                    className="flex items-center gap-2.5 text-sm bg-[#241b2f] border border-white/5 rounded-xl px-3 py-2.5"
+                    className="grid min-w-0 grid-cols-[auto_auto_minmax(0,1fr)_auto] items-center gap-2.5 rounded-xl border border-white/5 bg-[#241b2f] px-3 py-2.5 text-sm"
                   >
                     <SideBadge side={log.side === MarketSideOnchain.YES ? 'YES' : 'NO'} />
                     <Link to={`/onchain/${log.id}`} className="font-mono text-xs text-white/50 hover:text-white shrink-0">
                       #{log.id.toString()}
                     </Link>
-                    <span className="font-mono text-xs truncate">{isDemoMode() ? `${formatUnits(log.amount, 6)} USDG` : `${formatEther(log.amount)} ETH`}</span>
+                    <span
+                      title={isDemoMode() ? undefined : `${formatEther(log.amount)} ETH`}
+                      className="min-w-0 truncate text-right font-mono text-xs tabular-nums"
+                    >
+                      {isDemoMode() ? `${formatUnits(log.amount, 6)} USDG` : formatCompactEth(log.amount)}
+                    </span>
                     <a
                       href={`${robinhoodMainnet.blockExplorers.default.url}/tx/${log.txHash}`}
                       target="_blank"
