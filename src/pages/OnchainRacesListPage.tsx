@@ -22,7 +22,7 @@ import { PriceSourceLink } from '@/components/PriceSourceLink'
 import { TokenLogo } from '@/components/TokenLogo'
 import { formatCountdown } from '@/lib/format'
 
-const FILTERS = ['ALL', 'LOBBY', 'BETTING', 'RUNNING', 'FINISHED'] as const
+const FILTERS = ['ALL', 'LOBBY', 'BETTING', 'RUNNING', 'FINISHED', 'CANCELLED'] as const
 type RaceFilter = (typeof FILTERS)[number]
 
 function filterLabel(filter: RaceFilter) {
@@ -177,13 +177,19 @@ export function OnchainRacesListPage() {
   const [filter, setFilter] = useState<RaceFilter>('ALL')
   const raceNowMs = useAssetRaceClock()
 
+  // "All" deliberately excludes cancelled/void races -- an auto-seeded race
+  // that never reached its minimum contenders cancels itself, and without
+  // this the list fills up with dead cards. They stay fully visible, just
+  // one tab over, not hidden from the chain.
+  const isDead = (status: number) => status === ASSET_RACE_STATUS.CANCELLED || status === ASSET_RACE_STATUS.VOID
   const filtered = races.filter((race) => {
     if (race.category !== category) return false
-    if (filter === 'ALL') return true
+    if (filter === 'ALL') return !isDead(race.status)
     if (filter === 'LOBBY') return race.status === ASSET_RACE_STATUS.LOBBY
     if (filter === 'BETTING') return race.status === ASSET_RACE_STATUS.BETTING
     if (filter === 'RUNNING') return race.status === ASSET_RACE_STATUS.RUNNING
-    return race.status === ASSET_RACE_STATUS.RESOLVED || race.status === ASSET_RACE_STATUS.CANCELLED || race.status === ASSET_RACE_STATUS.VOID
+    if (filter === 'FINISHED') return race.status === ASSET_RACE_STATUS.RESOLVED
+    return isDead(race.status)
   })
   const featured = filtered.filter((race) => race.origin === ASSET_RACE_ORIGIN.PLATFORM)
   const community = filtered
