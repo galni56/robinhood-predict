@@ -1,5 +1,5 @@
 import { hexToString, stringToHex, type Hex } from 'viem'
-import { assetRaceCatalog, oracleIdForCatalogAsset } from '@/chain/assetRaceRegistry'
+import { assetRaceCatalog, oracleIdForCatalogAsset, priceSourceUrlForCatalogAsset } from '@/chain/assetRaceRegistry'
 
 export const PREDICTION_MARKET_ASSETS = assetRaceCatalog.flatMap((asset) => {
   const source = asset.networks['robinhood-mainnet']
@@ -13,6 +13,7 @@ export const PREDICTION_MARKET_ASSETS = assetRaceCatalog.flatMap((asset) => {
     decimals: source.oracle.expectedDecimals,
     displayName: asset.displayName,
     ticker: asset.symbol,
+    priceUrl: priceSourceUrlForCatalogAsset(asset),
   }]
 })
 

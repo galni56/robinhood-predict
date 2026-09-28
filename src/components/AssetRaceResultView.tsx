@@ -1,9 +1,11 @@
 import { formatUnits } from 'viem'
 import { AssetRaceLeaderboard } from '@/components/AssetRaceLeaderboard'
 import { TrophyIcon } from '@/components/icons'
+import { PriceSourceLink } from '@/components/PriceSourceLink'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
 import { TokenLogo } from '@/components/TokenLogo'
 import { assetRaceChain } from '@/chain/config'
+import { priceSourceUrlForAssetId } from '@/chain/assetRaceRegistry'
 import {
   ASSET_RACE_CATEGORY,
   ASSET_RACE_STATUS,
@@ -106,7 +108,7 @@ export function AssetRaceResultView({
         <h3 className="mb-3 font-display text-lg font-bold">Final standings</h3>
         {resolved || voided ? <AssetRaceLeaderboard race={race} position={position} final /> : (
           <div className="space-y-2">
-            {race.assets.map((asset) => <div key={asset.assetIndex} className="flex justify-between rounded-lg border border-white/10 bg-[#241b2f]/95 px-3 py-2 text-sm"><span className="flex items-center gap-2 font-bold"><TokenLogo ticker={asset.symbol} className="h-6 w-6 rounded-md" />{asset.symbol}</span><span className="font-mono text-white/45">{formatStakeRaw(asset.pool, tokenDecimals)} {tokenLabel} backed</span></div>)}
+            {race.assets.map((asset) => <div key={asset.assetIndex} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-white/10 bg-[#241b2f]/95 px-3 py-2 text-sm"><span className="flex items-center gap-2 font-bold"><TokenLogo ticker={asset.symbol} className="h-6 w-6 rounded-md" />{asset.symbol}</span><span className="ml-auto font-mono text-white/45">{formatStakeRaw(asset.pool, tokenDecimals)} {tokenLabel} backed</span><PriceSourceLink href={priceSourceUrlForAssetId(asset.assetId)} symbol={asset.symbol} tone="race" className="px-2 py-1 text-[10px]" /></div>)}
           </div>
         )}
       </div>

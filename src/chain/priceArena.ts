@@ -1,5 +1,5 @@
 import { getAddress, isAddress, stringToHex, type Address, type Hex } from 'viem'
-import { assetRaceCatalog, type AssetRaceCategoryName } from '@/chain/assetRaceRegistry'
+import { assetRaceCatalog, priceSourceUrlForCatalogAsset, type AssetRaceCategoryName } from '@/chain/assetRaceRegistry'
 import { assetRaceNetworkKey } from '@/chain/config'
 import { DENIED_USDG_PRICE_ARENA_ADDRESS } from '@/chain/contracts'
 
@@ -35,6 +35,7 @@ export interface PriceArenaAsset {
   category: number
   categoryName: AssetRaceCategoryName
   quoteSymbol: 'USDG' | 'ETH'
+  priceUrl?: string
 }
 
 export const PRICE_ARENA_ASSETS: PriceArenaAsset[] = assetRaceCatalog.flatMap((asset) => {
@@ -47,6 +48,7 @@ export const PRICE_ARENA_ASSETS: PriceArenaAsset[] = assetRaceCatalog.flatMap((a
     category: asset.category === 'MEME' ? PRICE_ARENA_CATEGORY.MEME : PRICE_ARENA_CATEGORY.STOCK,
     categoryName: asset.category,
     quoteSymbol: asset.category === 'MEME' ? 'ETH' : 'USDG',
+    priceUrl: priceSourceUrlForCatalogAsset(asset),
   }]
 })
 

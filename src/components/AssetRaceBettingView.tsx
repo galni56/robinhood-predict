@@ -3,7 +3,9 @@ import type { StakeInputUnit } from '@/chain/ethUsd'
 import { ClockIcon } from '@/components/icons'
 import { StakeAmountInput } from '@/components/StakeAmountInput'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
+import { PriceSourceLink } from '@/components/PriceSourceLink'
 import { TokenLogo } from '@/components/TokenLogo'
+import { priceSourceUrlForAssetId } from '@/chain/assetRaceRegistry'
 import { formatCountdown } from '@/lib/format'
 import {
   ASSET_RACE_CATEGORY,
@@ -102,31 +104,41 @@ export function AssetRaceBettingView({
             const selectedNow = selectedAssetIndex === asset.assetIndex
             const unavailable = lockedIndex != null && lockedIndex !== asset.assetIndex
             return (
-              <button
+              <div
                 key={asset.assetIndex}
-                type="button"
-                disabled={unavailable}
-                onClick={() => setSelectedAssetIndex(asset.assetIndex)}
-                className={`rounded-2xl border p-4 text-left transition-all disabled:cursor-not-allowed disabled:opacity-35 ${
+                className={`overflow-hidden rounded-2xl border transition-all ${
                   selectedNow
                     ? 'border-[#F2A65A]/60 bg-[#F2A65A]/10'
                     : 'border-white/5 bg-[#241b2f] hover:border-[#F2A65A]/30'
                 }`}
               >
-                <div className="flex items-center justify-between">
-                  <span className="flex items-center gap-2 font-display text-lg font-bold"><TokenLogo ticker={asset.symbol} className="h-9 w-9 rounded-xl" />{asset.symbol}</span>
-                  {selectedNow && <span className={`text-xs font-bold ${accentText}`}>Selected</span>}
-                </div>
-                <div className="mt-3 flex items-end justify-between gap-3">
-                  <div>
-                    <div className="text-xs font-bold text-white/30">Backing pool</div>
-                    <div className="font-mono text-sm">
-                      {formatStakeRaw(asset.pool, tokenDecimals)} {tokenLabel}
-                    </div>
+                <button
+                  type="button"
+                  disabled={unavailable}
+                  onClick={() => setSelectedAssetIndex(asset.assetIndex)}
+                  className="w-full p-4 text-left disabled:cursor-not-allowed disabled:opacity-35"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="flex items-center gap-2 font-display text-lg font-bold"><TokenLogo ticker={asset.symbol} className="h-9 w-9 rounded-xl" />{asset.symbol}</span>
+                    {selectedNow && <span className={`text-xs font-bold ${accentText}`}>Selected</span>}
                   </div>
-                  <div className="font-mono text-sm text-white/55">{formatPoolShare(asset.pool, race.totalPool)}</div>
-                </div>
-              </button>
+                  <div className="mt-3 flex items-end justify-between gap-3">
+                    <div>
+                      <div className="text-xs font-bold text-white/30">Backing pool</div>
+                      <div className="font-mono text-sm">
+                        {formatStakeRaw(asset.pool, tokenDecimals)} {tokenLabel}
+                      </div>
+                    </div>
+                    <div className="font-mono text-sm text-white/55">{formatPoolShare(asset.pool, race.totalPool)}</div>
+                  </div>
+                </button>
+                <PriceSourceLink
+                  href={priceSourceUrlForAssetId(asset.assetId)}
+                  symbol={asset.symbol}
+                  tone="race"
+                  className="w-full rounded-none border-t border-white/10 px-4 py-2.5"
+                />
+              </div>
             )
           })}
         </div>

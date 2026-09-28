@@ -28,6 +28,10 @@ export interface AssetRaceCatalogAsset {
   canonicalTokenAddress: string | null
   maxRecommendedRaceExposureUsd?: number | null // Advisory only; not a consensus stake/payout cap.
   raceExposureReviewStatus?: 'PENDING_CURRENT_EXECUTABLE_DEPTH' | 'REVIEWED'
+  marketSource?: {
+    type: 'UNISWAP_V3' | 'UNISWAP_V4'
+    poolIdentifier: string
+  }
   liveDisplay?: {
     type: 'DEXSCREENER_STOCK_TOKEN'
     profile: 'DEXSCREENER_STOCK_TOKEN_V1'
@@ -65,6 +69,32 @@ export const assetRaceMemeQuote = { ...registryJson.marketQuoteUniverses.MEME, s
 export const assetRaceCatalogById = new Map(
   assetRaceCatalog.map((asset) => [stringToHex(asset.assetId, { size: 32 }).toLowerCase(), asset]),
 )
+
+const EXACT_POOL_IDENTIFIER = /^0x(?:[0-9a-fA-F]{40}|[0-9a-fA-F]{64})$/
+
+export function priceSourceUrlForCatalogAsset(asset?: AssetRaceCatalogAsset): string | undefined {
+  if (!asset) return undefined
+  const network = asset.networks['robinhood-mainnet']
+  const poolIdentifier = asset.marketSource?.poolIdentifier
+  if (
+    !network.enabled
+    || network.oracle?.type !== 'SIGNED_POOL_BLOCK_PAIR'
+    || !poolIdentifier
+    || !EXACT_POOL_IDENTIFIER.test(poolIdentifier)
+  ) return undefined
+  return `https://dexscreener.com/robinhood/${poolIdentifier.toLowerCase()}`
+}
+
+export function priceSourceUrlForAssetId(assetId?: string): string | undefined {
+  return assetId ? priceSourceUrlForCatalogAsset(assetRaceCatalogById.get(assetId.toLowerCase())) : undefined
+}
+
+export function priceSourceUrlForSymbol(symbol?: string): string | undefined {
+  if (!symbol) return undefined
+  return priceSourceUrlForCatalogAsset(
+    assetRaceCatalog.find((asset) => asset.symbol.toLowerCase() === symbol.toLowerCase()),
+  )
+}
 
 export function configuredChainlinkRaceOracle(): Address | undefined {
   const value = import.meta.env.VITE_ASSET_RACE_CHAINLINK_ORACLE_ADDRESS?.trim()

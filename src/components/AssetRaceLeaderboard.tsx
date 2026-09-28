@@ -1,6 +1,7 @@
 import { formatUnits } from 'viem'
 import { displayedRaceReturnWad } from '@/chain/assetRaceLiveDisplay'
-import { assetRaceCatalogById, assetRaceMemeQuote } from '@/chain/assetRaceRegistry'
+import { assetRaceCatalogById, assetRaceMemeQuote, priceSourceUrlForAssetId } from '@/chain/assetRaceRegistry'
+import { PriceSourceLink } from '@/components/PriceSourceLink'
 import { TokenLogo } from '@/components/TokenLogo'
 import {
   ASSET_RACE_CATEGORY,
@@ -11,6 +12,7 @@ import {
 
 interface LeaderboardEntry {
   assetIndex: number
+  assetId: string
   symbol: string
   returnValue: bigint
   pool: bigint
@@ -28,6 +30,7 @@ function raceLeaderboardEntries(race: AssetRaceViewModel, final = false): Leader
     .filter((asset) => asset.active || race.status === 0)
     .map((asset) => ({
       assetIndex: asset.assetIndex,
+      assetId: asset.assetId,
       symbol: asset.symbol,
       returnValue: displayedRaceReturnWad({
         final,
@@ -120,6 +123,12 @@ export function AssetRaceLeaderboard({
               {entry.source && <span>{entry.source}</span>}
               {entry.stale && <span>live display unavailable</span>}
               {freshness != null && <span>updated {freshness}s ago</span>}
+              <PriceSourceLink
+                href={priceSourceUrlForAssetId(entry.assetId)}
+                symbol={entry.symbol}
+                tone="race"
+                className="px-2 py-0.5 text-[10px]"
+              />
             </div>
           </div>
         )

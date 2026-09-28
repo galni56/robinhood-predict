@@ -1,4 +1,5 @@
 import { TokenLogo } from '@/components/TokenLogo'
+import { PriceSourceLink } from '@/components/PriceSourceLink'
 
 type ProductTone = 'market' | 'race' | 'arena'
 
@@ -7,6 +8,7 @@ export interface CompactAssetOption {
   symbol: string
   name?: string
   logoUrl?: string
+  priceUrl?: string
 }
 
 const TONE_CLASSES: Record<ProductTone, { selected: string; idle: string }> = {
@@ -49,21 +51,26 @@ export function CompactAssetSelector({
         const disabled = multiple && !active && selected.size >= maxSelected
 
         return (
-          <button
-            key={asset.id}
-            type="button"
-            title={asset.name ?? asset.symbol}
-            aria-label={`${active ? 'Selected' : 'Select'} ${asset.name ?? asset.symbol}`}
-            aria-pressed={active}
-            disabled={disabled}
-            onClick={() => onSelect(asset.id)}
-            className={`flex min-w-0 items-center justify-center gap-2 rounded-xl px-2 py-2 text-sm font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-30 ${
-              active ? classes.selected : classes.idle
-            }`}
-          >
-            <TokenLogo ticker={asset.symbol} logoUrl={asset.logoUrl} className="h-6 w-6 shrink-0 rounded-lg" />
-            <span className="truncate">{asset.symbol}</span>
-          </button>
+          <div key={asset.id} className={`min-w-0 overflow-hidden rounded-xl transition-colors ${active ? classes.selected : classes.idle}`}>
+            <button
+              type="button"
+              title={asset.name ?? asset.symbol}
+              aria-label={`${active ? 'Selected' : 'Select'} ${asset.name ?? asset.symbol}`}
+              aria-pressed={active}
+              disabled={disabled}
+              onClick={() => onSelect(asset.id)}
+              className="flex w-full min-w-0 items-center justify-center gap-2 px-2 pb-1.5 pt-2 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-30"
+            >
+              <TokenLogo ticker={asset.symbol} logoUrl={asset.logoUrl} className="h-6 w-6 shrink-0 rounded-lg" />
+              <span className="truncate">{asset.symbol}</span>
+            </button>
+            <PriceSourceLink
+              href={asset.priceUrl}
+              symbol={asset.symbol}
+              tone={tone}
+              className="w-full rounded-none border-t border-white/10 px-1 py-1 text-[10px]"
+            />
+          </div>
         )
       })}
     </div>

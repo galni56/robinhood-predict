@@ -77,6 +77,7 @@ export interface ApprovedRaceAsset {
   symbol: string
   name: string
   logoUrl?: string
+  priceUrl?: string
 }
 
 export interface AssetRaceAsset {

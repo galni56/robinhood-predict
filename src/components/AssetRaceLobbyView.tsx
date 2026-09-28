@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import type { Hex } from 'viem'
 import { assetRaceChain, isLocalAssetRace } from '@/chain/config'
+import { priceSourceUrlForAssetId } from '@/chain/assetRaceRegistry'
 import { useApprovedRaceAssets } from '@/chain/useApprovedRaceAssets'
 import { AddressLabel } from '@/components/AddressLabel'
 import { AssetRaceAssetPicker } from '@/components/AssetRaceAssetPicker'
+import { PriceSourceLink } from '@/components/PriceSourceLink'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
 import { TokenLogo } from '@/components/TokenLogo'
 import { formatCountdown } from '@/lib/format'
@@ -77,6 +79,12 @@ export function AssetRaceLobbyView({
             <div key={asset.assetIndex} className="rounded-2xl border border-white/5 bg-white/5 px-3.5 py-3">
               <div className="flex items-center gap-2"><TokenLogo ticker={asset.symbol} className="h-9 w-9 rounded-xl" /><div className="font-display text-lg font-bold">{asset.symbol}</div></div>
               <div className="text-xs font-bold text-[#F2A65A]">Approved {meme ? 'meme' : 'stock'}</div>
+              <PriceSourceLink
+                href={priceSourceUrlForAssetId(asset.assetId)}
+                symbol={asset.symbol}
+                tone="race"
+                className="mt-2 px-2 py-1.5"
+              />
             </div>
           ))}
           {Array.from({ length: Math.max(0, 2 - race.assets.length) }, (_, index) => (

@@ -130,7 +130,12 @@ export function OnchainCreateArenaPage() {
             <div className="mb-2 text-sm font-bold text-white/60">Asset</div>
             {assets.length > 0 ? (
               <CompactAssetSelector
-                assets={assets.map((asset) => ({ id: asset.assetId, symbol: asset.symbol, name: asset.name }))}
+                assets={assets.map((asset) => ({
+                  id: asset.assetId,
+                  symbol: asset.symbol,
+                  name: asset.name,
+                  priceUrl: asset.priceUrl,
+                }))}
                 selectedIds={selected ? [selected.assetId] : []}
                 onSelect={setAssetId}
                 tone="arena"

@@ -6,11 +6,13 @@ import { waitForTransactionReceipt } from 'wagmi/actions'
 import { robinhoodMainnet, wagmiConfig } from '@/chain/config'
 import { DEMO_USERS, demoBetLogs, demoPools, isDemoMode } from '@/chain/demo'
 import { tickerForPredictionAssetId } from '@/chain/predictionMarketAssets'
+import { priceSourceUrlForSymbol } from '@/chain/assetRaceRegistry'
 import { useAssetRaceLiveDisplay } from '@/chain/useAssetRaceLiveDisplay'
 import { AddressLabel } from '@/components/AddressLabel'
 import { ClockIcon } from '@/components/icons'
 import { SideBadge } from '@/components/Pills'
 import { ShareInviteButton } from '@/components/ShareInviteButton'
+import { PriceSourceLink } from '@/components/PriceSourceLink'
 import { StakeAmountInput } from '@/components/StakeAmountInput'
 import { TokenLogo } from '@/components/TokenLogo'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
@@ -472,6 +474,12 @@ export function OnchainMarketPage() {
                 </>
               )}
             </p>
+            <PriceSourceLink
+              href={priceSourceUrlForSymbol(ticker)}
+              symbol={ticker}
+              tone="market"
+              className="mt-2 bg-[#8B7CF7]/10 px-3 py-1.5"
+            />
             </div>
           </div>
           <ShareInviteButton kind="market" id={MARKET_ID} />

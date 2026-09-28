@@ -222,7 +222,12 @@ export function OnchainCreateMarketPage() {
         <div>
           <label className="block text-sm font-bold text-white/60 mb-2">Tokenized stock</label>
           <CompactAssetSelector
-            assets={PREDICTION_MARKET_ASSETS.map((asset) => ({ id: asset.assetId, symbol: asset.ticker, name: asset.displayName }))}
+            assets={PREDICTION_MARKET_ASSETS.map((asset) => ({
+              id: asset.assetId,
+              symbol: asset.ticker,
+              name: asset.displayName,
+              priceUrl: asset.priceUrl,
+            }))}
             selectedIds={[assetId]}
             onSelect={(id) => {
               const next = PREDICTION_MARKET_ASSETS.find((asset) => asset.assetId.toLowerCase() === id.toLowerCase())

@@ -192,7 +192,13 @@ export function OnchainCreateRacePage() {
             </div>
             {isLoading ? <p className="py-8 text-center text-sm text-white/35">Loading approved assets…</p> : (
               <CompactAssetSelector
-                assets={visibleAssets.map((asset) => ({ id: asset.assetId, symbol: asset.symbol, name: asset.name, logoUrl: asset.logoUrl }))}
+                assets={visibleAssets.map((asset) => ({
+                  id: asset.assetId,
+                  symbol: asset.symbol,
+                  name: asset.name,
+                  logoUrl: asset.logoUrl,
+                  priceUrl: asset.priceUrl,
+                }))}
                 selectedIds={selected.map((asset) => asset.assetId)}
                 onSelect={(id) => {
                   const asset = visibleAssets.find((item) => item.assetId.toLowerCase() === id.toLowerCase())

@@ -3,7 +3,7 @@ import { zeroAddress, type Address, type Hex } from 'viem'
 import { useReadContract, useReadContracts } from 'wagmi'
 import { ASSET_RACE_ADDRESS, assetRaceAbi, symbolForRaceAsset, type ApprovedRaceAsset } from '@/chain/assetRaces'
 import { assetRaceChain, assetRaceNetworkKey, isLocalAssetRace } from '@/chain/config'
-import { approvedAssetMatchesCatalog, assetRaceCatalogById } from '@/chain/assetRaceRegistry'
+import { approvedAssetMatchesCatalog, assetRaceCatalogById, priceSourceUrlForCatalogAsset } from '@/chain/assetRaceRegistry'
 import { useRobinhoodAssets } from '@/chain/robinhoodApi'
 
 export function useApprovedRaceAssets() {
@@ -70,6 +70,7 @@ export function useApprovedRaceAssets() {
         symbol,
         name: catalogAsset.displayName ?? item?.tokenName.replace(/\s*•\s*Robinhood Token$/i, '') ?? symbol,
         logoUrl: item?.logoUrl,
+        priceUrl: priceSourceUrlForCatalogAsset(catalogAsset),
       }]
     })
   }, [catalog.data, ids, registryQueries.data])
