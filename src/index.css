@@ -568,5 +568,182 @@ h3,
   .race-confetti i,
   .game-mode-motion *,
   .game-mode-motion *::before,
-  .game-mode-motion *::after { animation: none !important; }
+  .game-mode-motion *::after,
+  .roadmap-hero *,
+  .roadmap-marker,
+  .roadmap-spine,
+  .roadmap-flow-arrow,
+  .roadmap-loop-symbol,
+  .roadmap-fee-bar { animation: none !important; }
+}
+
+/* Roadmap: a slow orbital system turns the three live game modes into one
+   future utility layer. Motion is decorative and disabled above for users who
+   prefer reduced motion. */
+.roadmap-hero-grid {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+  background-size: 42px 42px;
+  mask-image: linear-gradient(to right, black, transparent 78%);
+}
+
+.roadmap-gradient-text {
+  color: transparent;
+  background: linear-gradient(100deg, #b3a7fa 5%, #f2a65a 50%, #b7ceff 95%);
+  background-clip: text;
+  -webkit-background-clip: text;
+}
+
+.roadmap-orbit {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  aspect-ratio: 1;
+  translate: -50% -50%;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+}
+
+.roadmap-orbit::before,
+.roadmap-orbit::after {
+  content: '';
+  position: absolute;
+  border-radius: inherit;
+}
+
+.roadmap-orbit::before {
+  inset: -1px;
+  border-top: 2px solid rgba(139, 124, 247, 0.85);
+  border-right: 2px solid transparent;
+  animation: roadmap-orbit-spin 15s linear infinite;
+}
+
+.roadmap-orbit::after {
+  left: 50%;
+  top: -4px;
+  width: 7px;
+  height: 7px;
+  background: #f7f1e3;
+  box-shadow: 0 0 14px rgba(179, 167, 250, 0.95);
+}
+
+.roadmap-orbit--outer { width: min(390px, 88vw); rotate: -12deg; }
+.roadmap-orbit--middle { width: min(285px, 67vw); rotate: 24deg; }
+.roadmap-orbit--middle::before { border-top-color: rgba(242, 166, 90, 0.9); animation-duration: 11s; animation-direction: reverse; }
+.roadmap-orbit--middle::after { box-shadow: 0 0 14px rgba(242, 166, 90, 0.95); }
+.roadmap-orbit--inner { width: min(180px, 44vw); rotate: -34deg; }
+.roadmap-orbit--inner::before { border-top-color: rgba(122, 159, 240, 0.9); animation-duration: 8s; }
+.roadmap-orbit--inner::after { box-shadow: 0 0 14px rgba(122, 159, 240, 0.95); }
+
+.roadmap-orbit-glow {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 190px;
+  height: 190px;
+  translate: -50% -50%;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(139, 124, 247, 0.28), rgba(242, 166, 90, 0.08) 46%, transparent 70%);
+  filter: blur(10px);
+  animation: roadmap-core-pulse 4s ease-in-out infinite;
+}
+
+.roadmap-orbit-core {
+  position: absolute;
+  z-index: 5;
+  left: 50%;
+  top: 50%;
+  display: flex;
+  width: 150px;
+  height: 150px;
+  translate: -50% -50%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  background: linear-gradient(145deg, rgba(139, 124, 247, 0.26), rgba(23, 17, 31, 0.96) 55%, rgba(122, 159, 240, 0.18));
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.1), 0 28px 70px -30px rgba(139, 124, 247, 0.85);
+}
+
+.roadmap-orbit-node {
+  position: absolute;
+  z-index: 6;
+  display: flex;
+  min-width: 104px;
+  flex-direction: column;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  padding: 9px 12px;
+  background: rgba(36, 27, 47, 0.9);
+  box-shadow: 0 16px 32px -20px rgba(0, 0, 0, 0.9);
+  backdrop-filter: blur(12px);
+  animation: roadmap-node-float 5s ease-in-out infinite;
+}
+
+.roadmap-orbit-node span { font-size: 8px; font-weight: 900; letter-spacing: 0.14em; opacity: 0.48; }
+.roadmap-orbit-node b { margin-top: 2px; font-family: var(--font-display); font-size: 14px; }
+.roadmap-orbit-node--market { left: 2%; top: 22%; color: #b3a7fa; }
+.roadmap-orbit-node--race { right: 0; top: 18%; color: #f2a65a; animation-delay: -1.5s; }
+.roadmap-orbit-node--arena { bottom: 17%; right: 5%; color: #b7ceff; animation-delay: -3s; }
+
+.roadmap-orbit-particle {
+  --roadmap-radius: 120px;
+  position: absolute;
+  z-index: 4;
+  left: 50%;
+  top: 50%;
+  width: 5px;
+  height: 5px;
+  margin: -2.5px;
+  border-radius: 999px;
+  background: white;
+  box-shadow: 0 0 12px white;
+  animation: roadmap-particle-orbit 7s linear infinite;
+}
+
+.roadmap-orbit-particle--one { --roadmap-radius: 92px; background: #b3a7fa; animation-duration: 6s; }
+.roadmap-orbit-particle--two { --roadmap-radius: 144px; background: #f2a65a; animation-duration: 9s; animation-delay: -3s; }
+.roadmap-orbit-particle--three { --roadmap-radius: 194px; background: #b7ceff; animation-duration: 13s; animation-delay: -7s; }
+
+.roadmap-spine {
+  background: linear-gradient(to bottom, transparent, #8b7cf7 12%, #f2a65a 38%, white 58%, #e88bc7 78%, #7a9ff0 92%, transparent);
+  background-size: 100% 180%;
+  animation: roadmap-spine-flow 7s ease-in-out infinite;
+}
+
+.roadmap-marker { animation: roadmap-marker-pulse 3.8s ease-in-out infinite; }
+.roadmap-flow-arrow { animation: roadmap-arrow-shift 1.8s ease-in-out infinite; }
+.roadmap-loop-symbol { animation: roadmap-orbit-spin 4s linear infinite; }
+.roadmap-fee-bar { transform-origin: left; animation: roadmap-bar-breathe 4s ease-in-out infinite; }
+.roadmap-fee-bar:nth-child(2) { animation-delay: -1s; }
+
+@keyframes roadmap-orbit-spin { to { transform: rotate(360deg); } }
+@keyframes roadmap-core-pulse { 50% { opacity: 0.68; transform: scale(1.1); } }
+@keyframes roadmap-node-float { 50% { transform: translateY(-8px) rotate(1deg); } }
+@keyframes roadmap-particle-orbit { to { transform: rotate(360deg) translateX(var(--roadmap-radius)); } }
+@keyframes roadmap-spine-flow { 50% { background-position: 0 100%; } }
+@keyframes roadmap-marker-pulse { 50% { scale: 1.08; } }
+@keyframes roadmap-arrow-shift { 50% { transform: translateX(4px); color: rgba(255, 255, 255, 0.55); } }
+@keyframes roadmap-bar-breathe { 50% { transform: scaleX(0.94); filter: brightness(1.18); } }
+
+@media (max-width: 640px) {
+  .roadmap-orbit-node { min-width: 88px; padding: 7px 9px; }
+  .roadmap-orbit-node b { font-size: 12px; }
+  .roadmap-orbit-node--market { left: 0; top: 19%; }
+  .roadmap-orbit-node--race { right: 0; top: 17%; }
+  .roadmap-orbit-node--arena { bottom: 14%; right: 1%; }
+  .roadmap-orbit-particle--three { --roadmap-radius: min(174px, 42vw); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .roadmap-hero *,
+  .roadmap-hero *::before,
+  .roadmap-hero *::after,
+  .roadmap-marker,
+  .roadmap-spine,
+  .roadmap-flow-arrow,
+  .roadmap-loop-symbol,
+  .roadmap-fee-bar { animation: none !important; }
 }
