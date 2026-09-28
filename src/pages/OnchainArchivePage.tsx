@@ -10,7 +10,9 @@ import {
   predictionMarketAbi,
 } from '@/chain/contracts'
 import { tickerForPredictionAssetId } from '@/chain/predictionMarketAssets'
+import { priceSourceUrlForSymbol } from '@/chain/assetRaceRegistry'
 import { useTokenLogos } from '@/chain/robinhoodApi'
+import { PriceSourceLink } from '@/components/PriceSourceLink'
 import { TokenLogo } from '@/components/TokenLogo'
 import { formatUsd, timeAgo } from '@/lib/format'
 
@@ -60,23 +62,30 @@ export function OnchainArchivePage() {
           const cancelled = m.status === MarketStatusOnchain.Cancelled
 
           return (
-            <Link
+            <div
               key={id.toString()}
-              to={`/onchain/${id.toString()}`}
               className="flex flex-wrap items-center gap-3 text-sm bg-[#241b2f] border border-white/5 rounded-xl px-4 py-3 hover:border-[#8B7CF7]/40 transition-colors"
             >
-              <TokenLogo ticker={ticker} logoUrl={logos.get(ticker)} className="w-7 h-7 rounded-lg text-sm" />
-              <span className="font-bold min-w-14">{ticker}</span>
-              <span className="text-white/50 flex-1 min-w-40">At or above {formatUsd(targetUsd)} at deadline?</span>
-              {cancelled ? <CancelledBadge /> : <SideBadge side={m.outcome === MarketSideOnchain.YES ? 'YES' : 'NO'} />}
-              <span className="text-white/40 text-xs w-28 text-right">
-                {yesPct.toFixed(1)}% / {(100 - yesPct).toFixed(1)}%
-              </span>
-              <span className="text-white/40 text-xs w-24 text-right">
-                pool {formatEther(totalPool)} ETH
-              </span>
-              <span className="text-white/30 text-xs w-20 text-right">{timeAgo(Number(m.deadline) * 1000)}</span>
-            </Link>
+              <Link to={`/onchain/${id.toString()}`} className="flex min-w-0 flex-1 flex-wrap items-center gap-3">
+                <TokenLogo ticker={ticker} logoUrl={logos.get(ticker)} className="w-7 h-7 rounded-lg text-sm" />
+                <span className="font-bold min-w-14">{ticker}</span>
+                <span className="text-white/50 flex-1 min-w-40">At or above {formatUsd(targetUsd)} at deadline?</span>
+                {cancelled ? <CancelledBadge /> : <SideBadge side={m.outcome === MarketSideOnchain.YES ? 'YES' : 'NO'} />}
+                <span className="text-white/40 text-xs w-28 text-right">
+                  {yesPct.toFixed(1)}% / {(100 - yesPct).toFixed(1)}%
+                </span>
+                <span className="text-white/40 text-xs w-24 text-right">
+                  pool {formatEther(totalPool)} ETH
+                </span>
+                <span className="text-white/30 text-xs w-20 text-right">{timeAgo(Number(m.deadline) * 1000)}</span>
+              </Link>
+              <PriceSourceLink
+                href={priceSourceUrlForSymbol(ticker)}
+                symbol={ticker}
+                tone="market"
+                className="bg-[#8B7CF7]/10 px-2.5 py-1"
+              />
+            </div>
           )
         })}
         {settled.length === 0 && (

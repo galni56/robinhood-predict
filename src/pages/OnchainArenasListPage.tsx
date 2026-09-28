@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { formatEther } from 'viem'
 import { useAssetRaceClock } from '@/chain/useAssetRaceClock'
 import { usePriceArenas } from '@/chain/usePriceArenas'
@@ -14,6 +14,7 @@ import {
 } from '@/chain/priceArena'
 import { AddressLabel } from '@/components/AddressLabel'
 import { GameActivitySidebar } from '@/components/GameActivitySidebar'
+import { PriceSourceLink } from '@/components/PriceSourceLink'
 import { TokenLogo } from '@/components/TokenLogo'
 import { formatCountdown } from '@/lib/format'
 
@@ -26,9 +27,25 @@ function countdown(arena: PriceArenaViewModel, nowMs: number) {
 }
 
 function ArenaCard({ arena, nowMs }: { arena: PriceArenaViewModel; nowMs: number }) {
+  const navigate = useNavigate()
   const meme = arena.category === PRICE_ARENA_CATEGORY.MEME
   return (
-    <Link to={`/onchain/arenas/${arena.id}`} className="group rounded-3xl border border-[#7A9FF0]/15 bg-[#241b2f] p-5 transition-all hover:-translate-y-0.5 hover:border-[#B7CEFF]/50">
+    <div
+      role="link"
+      tabIndex={0}
+      aria-label={`Open ${arena.title}`}
+      onClick={(event) => {
+        if ((event.target as HTMLElement).closest('a, button')) return
+        navigate(`/onchain/arenas/${arena.id}`)
+      }}
+      onKeyDown={(event) => {
+        if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) {
+          event.preventDefault()
+          navigate(`/onchain/arenas/${arena.id}`)
+        }
+      }}
+      className="group cursor-pointer rounded-3xl border border-[#7A9FF0]/15 bg-[#241b2f] p-5 transition-all hover:-translate-y-0.5 hover:border-[#B7CEFF]/50"
+    >
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="text-xs font-bold uppercase tracking-[0.16em] text-[#B7CEFF]">{meme ? 'Meme Arena' : 'Stock Arena'} · #{arena.id.toString()}</div>
@@ -44,9 +61,17 @@ function ArenaCard({ arena, nowMs }: { arena: PriceArenaViewModel; nowMs: number
       </div>
       <div className="mt-4 flex items-center justify-between text-xs">
         <span className="text-white/40">{arenaDurationLabel(arena.duration)} round · {countdown(arena, nowMs)}</span>
-        <span className="font-bold text-[#B7CEFF]">Open arena →</span>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <PriceSourceLink
+            href={arena.asset?.priceUrl}
+            symbol={arena.asset?.symbol}
+            tone="arena"
+            className="bg-[#7A9FF0]/10 px-2.5 py-1"
+          />
+          <span className="font-bold text-[#B7CEFF]">Open arena →</span>
+        </div>
       </div>
-    </Link>
+    </div>
   )
 }
 

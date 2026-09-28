@@ -17,8 +17,10 @@ import {
 } from '@/chain/contracts'
 import { demoPools, isDemoMode } from '@/chain/demo'
 import { tickerForPredictionAssetId } from '@/chain/predictionMarketAssets'
+import { priceSourceUrlForSymbol } from '@/chain/assetRaceRegistry'
 import { useAssetRaceLiveDisplay } from '@/chain/useAssetRaceLiveDisplay'
 import { useTokenLogos } from '@/chain/robinhoodApi'
+import { PriceSourceLink } from '@/components/PriceSourceLink'
 import { formatCountdown, formatUsd } from '@/lib/format'
 
 type StatusFilter = 'ALL' | 'OPEN' | 'RESOLVED' | 'CANCELLED'
@@ -223,8 +225,14 @@ export function OnchainMarketsListPage() {
                 key={id.toString()}
                 role="link"
                 tabIndex={0}
+                aria-label={`Open ${ticker ?? 'prediction'} market #${id.toString()}`}
                 onClick={() => goToMarket()}
-                onKeyDown={(e) => e.key === 'Enter' && goToMarket()}
+                onKeyDown={(event) => {
+                  if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) {
+                    event.preventDefault()
+                    goToMarket()
+                  }
+                }}
                 className="group relative rounded-3xl bg-[#241b2f] border border-white/5 p-5 hover:border-[#8B7CF7]/40 hover:-translate-y-0.5 hover:shadow-[0_20px_50px_-28px_rgba(106,90,224,0.8)] transition-all cursor-pointer"
               >
                 <div className="flex items-start justify-between mb-3">
@@ -314,6 +322,12 @@ export function OnchainMarketsListPage() {
                           ? `betting: ${formatCountdown(Number(bettingWindowEndSeconds(m.createdAt, m.deadline)) * 1000 - Date.now())}`
                           : `resolves: ${formatCountdown(deadlineMs - Date.now())}`}
                   </span>
+                  <PriceSourceLink
+                    href={priceSourceUrlForSymbol(ticker)}
+                    symbol={ticker}
+                    tone="market"
+                    className="bg-[#8B7CF7]/10 px-2.5 py-1"
+                  />
                 </div>
 
               </div>

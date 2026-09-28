@@ -28,11 +28,13 @@ import {
 import { useAssetRace } from '@/chain/useAssetRace'
 import { useAssetRaceClock } from '@/chain/useAssetRaceClock'
 import { useAssetRaceLiveDisplay } from '@/chain/useAssetRaceLiveDisplay'
+import { priceSourceUrlForAssetId } from '@/chain/assetRaceRegistry'
 import { AssetRaceBettingView } from '@/components/AssetRaceBettingView'
 import { AssetRaceLiveView } from '@/components/AssetRaceLiveView'
 import { AssetRaceLobbyView } from '@/components/AssetRaceLobbyView'
 import { AssetRaceResultView } from '@/components/AssetRaceResultView'
 import { AddressLabel } from '@/components/AddressLabel'
+import { PriceSourceLink } from '@/components/PriceSourceLink'
 import { ShareInviteButton } from '@/components/ShareInviteButton'
 import { TokenLogo } from '@/components/TokenLogo'
 import { shortTxError } from '@/lib/format'
@@ -237,6 +239,18 @@ export function OnchainRacePage() {
               ) : (
                 <p className="mt-1 text-xs font-medium text-white/40">Created by <AddressLabel address={race.creator} link={!isLocalAssetRace} className="font-bold text-white/65" /></p>
               )}
+              <div className="mt-2 flex flex-wrap gap-1.5" aria-label="Participating asset price charts">
+                {race.assets.map((asset) => (
+                  <PriceSourceLink
+                    key={asset.assetIndex}
+                    href={priceSourceUrlForAssetId(asset.assetId)}
+                    symbol={asset.symbol}
+                    tone="race"
+                    label={`${asset.symbol} chart`}
+                    className="bg-[#F2A65A]/10 px-2.5 py-1"
+                  />
+                ))}
+              </div>
               </div>
             </div>
             <div className="flex flex-wrap items-center justify-end gap-2">

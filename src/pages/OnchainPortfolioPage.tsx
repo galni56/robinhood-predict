@@ -6,6 +6,8 @@ import { truncateAddress } from '@/components/AddressLabel'
 import { SideBadge, StatusBadge } from '@/components/Pills'
 import { SetNicknameModal } from '@/components/SetNicknameModal'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
+import { PriceSourceLink } from '@/components/PriceSourceLink'
+import { TokenLogo } from '@/components/TokenLogo'
 import {
   DEPLOY_BLOCK,
   MarketSideOnchain,
@@ -14,6 +16,8 @@ import {
   PREDICTION_MARKET_CONFIGURED,
   predictionMarketAbi,
 } from '@/chain/contracts'
+import { priceSourceUrlForSymbol } from '@/chain/assetRaceRegistry'
+import { tickerForPredictionAssetId } from '@/chain/predictionMarketAssets'
 import { useNickname } from '@/chain/nicknames'
 import type { MarketSide } from '@/types'
 
@@ -21,6 +25,7 @@ const CLAIMED_EVENT = parseAbiItem('event Claimed(uint256 indexed id, address in
 
 interface Position {
   id: bigint
+  ticker?: string
   status: number
   outcome: number
   yesStake: bigint
@@ -119,7 +124,7 @@ export function OnchainPortfolioPage() {
       const noStake = stakesNo.data?.[i]?.status === 'success' ? stakesNo.data[i].result : 0n
       if (yesStake === 0n && noStake === 0n) return null
       const hasClaimed = claimedFlags.data?.[i]?.status === 'success' ? claimedFlags.data[i].result : false
-      return { id, status: m.status, outcome: m.outcome, yesStake, noStake, hasClaimed }
+      return { id, ticker: tickerForPredictionAssetId(m.assetId), status: m.status, outcome: m.outcome, yesStake, noStake, hasClaimed }
     })
     .filter((p): p is Position => p != null)
 
@@ -207,38 +212,47 @@ function PositionList({ positions }: { positions: Position[] }) {
   return (
     <div className="space-y-2">
       {positions.map((p) => (
-        <Link
+        <div
           key={p.id.toString()}
-          to={`/onchain/${p.id}`}
           className="flex flex-wrap items-center gap-3 text-sm bg-[#241b2f] border border-white/5 rounded-xl px-4 py-3 hover:border-[#8B7CF7]/40 transition-colors"
         >
-          <span className="font-mono text-white/70">#{p.id.toString()}</span>
-          {p.yesStake > 0n && (
-            <span className="flex items-center gap-1.5">
-              <SideBadge side="YES" />
-              <span className="font-mono text-xs">{formatEther(p.yesStake)} ETH</span>
-            </span>
-          )}
-          {p.noStake > 0n && (
-            <span className="flex items-center gap-1.5">
-              <SideBadge side="NO" />
-              <span className="font-mono text-xs">{formatEther(p.noStake)} ETH</span>
-            </span>
-          )}
-          <span className="ml-auto text-xs">
-            {p.status === MarketStatusOnchain.Open ? (
-              <StatusBadge status="pending" />
-            ) : p.status === MarketStatusOnchain.Cancelled ? (
-              <span className="text-white/40">cancelled - refundable</span>
-            ) : p.hasClaimed ? (
-              <span className="text-white/40">claimed</span>
-            ) : (outcome(p) === 'YES' && p.yesStake > 0n) || (outcome(p) === 'NO' && p.noStake > 0n) ? (
-              <span className="font-bold text-[#B3A7FA]">won - claim now</span>
-            ) : (
-              <span className="text-rose-400">lost</span>
+          <Link to={`/onchain/${p.id}`} className="flex min-w-0 flex-1 flex-wrap items-center gap-3">
+            {p.ticker && <TokenLogo ticker={p.ticker} className="h-7 w-7 rounded-lg" />}
+            <span className="font-bold text-white/80">{p.ticker ?? `#${p.id.toString()}`}</span>
+            <span className="font-mono text-xs text-white/35">#{p.id.toString()}</span>
+            {p.yesStake > 0n && (
+              <span className="flex items-center gap-1.5">
+                <SideBadge side="YES" />
+                <span className="font-mono text-xs">{formatEther(p.yesStake)} ETH</span>
+              </span>
             )}
-          </span>
-        </Link>
+            {p.noStake > 0n && (
+              <span className="flex items-center gap-1.5">
+                <SideBadge side="NO" />
+                <span className="font-mono text-xs">{formatEther(p.noStake)} ETH</span>
+              </span>
+            )}
+            <span className="ml-auto text-xs">
+              {p.status === MarketStatusOnchain.Open ? (
+                <StatusBadge status="pending" />
+              ) : p.status === MarketStatusOnchain.Cancelled ? (
+                <span className="text-white/40">cancelled - refundable</span>
+              ) : p.hasClaimed ? (
+                <span className="text-white/40">claimed</span>
+              ) : (outcome(p) === 'YES' && p.yesStake > 0n) || (outcome(p) === 'NO' && p.noStake > 0n) ? (
+                <span className="font-bold text-[#B3A7FA]">won - claim now</span>
+              ) : (
+                <span className="text-rose-400">lost</span>
+              )}
+            </span>
+          </Link>
+          <PriceSourceLink
+            href={priceSourceUrlForSymbol(p.ticker)}
+            symbol={p.ticker}
+            tone="market"
+            className="bg-[#8B7CF7]/10 px-2.5 py-1"
+          />
+        </div>
       ))}
     </div>
   )

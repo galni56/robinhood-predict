@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { formatEther, formatUnits } from 'viem'
 import { useReadContract, useReadContracts } from 'wagmi'
 import {
@@ -11,7 +11,7 @@ import {
   MarketStatusOnchain,
 } from '@/chain/contracts'
 import { ASSET_RACE_ORIGIN, ASSET_RACE_STATUS, type AssetRaceViewModel } from '@/chain/assetRaces'
-import { assetRaceCatalog, priceSourceUrlForCatalogAsset } from '@/chain/assetRaceRegistry'
+import { assetRaceCatalog, priceSourceUrlForAssetId, priceSourceUrlForCatalogAsset, priceSourceUrlForSymbol } from '@/chain/assetRaceRegistry'
 import { demoPools, isDemoMode } from '@/chain/demo'
 import { tickerForPredictionAssetId } from '@/chain/predictionMarketAssets'
 import { PRICE_ARENA_MAX_PARTICIPANTS, PRICE_ARENA_PHASE, arenaDurationLabel, type PriceArenaViewModel } from '@/chain/priceArena'
@@ -21,6 +21,7 @@ import { useAssetRaces } from '@/chain/useAssetRaces'
 import { usePriceArenas } from '@/chain/usePriceArenas'
 import { useTokenLogos } from '@/chain/robinhoodApi'
 import { TokenLogo } from '@/components/TokenLogo'
+import { PriceSourceLink } from '@/components/PriceSourceLink'
 import { formatCountdown, formatUsd } from '@/lib/format'
 
 const GAME_GUIDES = [
@@ -212,13 +213,26 @@ function GameColumn({
 }
 
 function RacePreviewCard({ race, nowMs }: { race: AssetRaceViewModel; nowMs: number }) {
+  const navigate = useNavigate()
   const inLobby = race.status === ASSET_RACE_STATUS.LOBBY
   const target = inLobby ? race.lobbyEndTime : race.bettingEndTime
 
   return (
-    <Link
-      to={`/onchain/races/${race.id}`}
-      className="group block rounded-2xl border border-white/5 bg-black/10 p-4 transition-all hover:-translate-y-0.5 hover:border-[#F2A65A]/40 hover:bg-[#F2A65A]/10"
+    <div
+      role="link"
+      tabIndex={0}
+      aria-label={`Open ${race.title || `race #${race.id.toString()}`}`}
+      onClick={(event) => {
+        if ((event.target as HTMLElement).closest('a, button')) return
+        navigate(`/onchain/races/${race.id}`)
+      }}
+      onKeyDown={(event) => {
+        if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) {
+          event.preventDefault()
+          navigate(`/onchain/races/${race.id}`)
+        }
+      }}
+      className="group block cursor-pointer rounded-2xl border border-white/5 bg-black/10 p-4 transition-all hover:-translate-y-0.5 hover:border-[#F2A65A]/40 hover:bg-[#F2A65A]/10"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
@@ -236,21 +250,46 @@ function RacePreviewCard({ race, nowMs }: { race: AssetRaceViewModel; nowMs: num
         ))}
         {race.assets.length > 5 && <span className="px-1 py-1 text-xs text-white/35">+{race.assets.length - 5}</span>}
       </div>
+      <div className="mt-2 flex flex-wrap gap-1.5" aria-label="Asset price charts">
+        {race.assets.map((asset) => (
+          <PriceSourceLink
+            key={asset.assetIndex}
+            href={priceSourceUrlForAssetId(asset.assetId)}
+            symbol={asset.symbol}
+            tone="race"
+            label={`${asset.symbol} chart`}
+            className="bg-[#F2A65A]/10 px-2 py-1 text-[10px]"
+          />
+        ))}
+      </div>
       <div className="mt-4 flex items-center justify-between gap-3 text-xs">
         <span className="text-white/35">
           {inLobby ? `${race.candidateCount} / 6 assets` : `${compactEth(race.totalPool)} pool`}
         </span>
         <span className="shrink-0 font-bold text-[#F2A65A]">{inLobby ? 'Add an asset' : 'Bet now'} →</span>
       </div>
-    </Link>
+    </div>
   )
 }
 
 function ArenaPreviewCard({ arena, nowMs }: { arena: PriceArenaViewModel; nowMs: number }) {
+  const navigate = useNavigate()
   return (
-    <Link
-      to={`/onchain/arenas/${arena.id}`}
-      className="group block rounded-2xl border border-white/5 bg-black/10 p-4 transition-all hover:-translate-y-0.5 hover:border-[#B7CEFF]/40 hover:bg-[#7A9FF0]/10"
+    <div
+      role="link"
+      tabIndex={0}
+      aria-label={`Open ${arena.title}`}
+      onClick={(event) => {
+        if ((event.target as HTMLElement).closest('a, button')) return
+        navigate(`/onchain/arenas/${arena.id}`)
+      }}
+      onKeyDown={(event) => {
+        if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) {
+          event.preventDefault()
+          navigate(`/onchain/arenas/${arena.id}`)
+        }
+      }}
+      className="group block cursor-pointer rounded-2xl border border-white/5 bg-black/10 p-4 transition-all hover:-translate-y-0.5 hover:border-[#B7CEFF]/40 hover:bg-[#7A9FF0]/10"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2.5">
@@ -264,13 +303,17 @@ function ArenaPreviewCard({ arena, nowMs }: { arena: PriceArenaViewModel; nowMs:
       </div>
       <div className="mt-4 flex items-center justify-between gap-3 text-xs">
         <span className="text-white/35">{arena.participantCount} / {PRICE_ARENA_MAX_PARTICIPANTS} players · {compactEth(arena.totalPool)} pool</span>
-        <span className="shrink-0 font-bold text-[#B7CEFF]">Enter arena →</span>
+        <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+          <PriceSourceLink href={arena.asset?.priceUrl} symbol={arena.asset?.symbol} tone="arena" className="bg-[#7A9FF0]/10 px-2 py-1" />
+          <span className="font-bold text-[#B7CEFF]">Enter arena →</span>
+        </div>
       </div>
-    </Link>
+    </div>
   )
 }
 
 export function OnchainLandingPage() {
+  const navigate = useNavigate()
   const marketCount = useReadContract({
     address: PREDICTION_MARKET_ADDRESS,
     abi: predictionMarketAbi,
@@ -473,10 +516,22 @@ export function OnchainLandingPage() {
               const bettingEnd = market.createdAt + ((market.deadline - market.createdAt) * BETTING_WINDOW_BP) / BP_DENOMINATOR
 
               return (
-                <Link
+                <div
                   key={market.id.toString()}
-                  to={`/onchain/${market.id}`}
-                  className="group block rounded-2xl border border-white/5 bg-black/10 p-4 transition-all hover:-translate-y-0.5 hover:border-[#8B7CF7]/40 hover:bg-[#8B7CF7]/10"
+                  role="link"
+                  tabIndex={0}
+                  aria-label={`Open ${ticker ?? 'prediction'} market #${market.id.toString()}`}
+                  onClick={(event) => {
+                    if ((event.target as HTMLElement).closest('a, button')) return
+                    navigate(`/onchain/${market.id}`)
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) {
+                      event.preventDefault()
+                      navigate(`/onchain/${market.id}`)
+                    }
+                  }}
+                  className="group block cursor-pointer rounded-2xl border border-white/5 bg-black/10 p-4 transition-all hover:-translate-y-0.5 hover:border-[#8B7CF7]/40 hover:bg-[#8B7CF7]/10"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex min-w-0 items-center gap-2.5">
@@ -495,9 +550,12 @@ export function OnchainLandingPage() {
                   </h3>
                   <div className="mt-4 flex items-center justify-between gap-3 text-xs">
                     <span className="text-white/35">{compactEth(totalPool)} pool{currentUsd != null ? ` · now ${formatUsd(currentUsd)}` : ''}</span>
-                    <span className="shrink-0 font-bold text-[#B3A7FA]">Place a bet →</span>
+                    <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+                      <PriceSourceLink href={priceSourceUrlForSymbol(ticker)} symbol={ticker} tone="market" className="bg-[#8B7CF7]/10 px-2 py-1" />
+                      <span className="font-bold text-[#B3A7FA]">Place a bet →</span>
+                    </div>
                   </div>
-                </Link>
+                </div>
               )
             })}
           </GameColumn>

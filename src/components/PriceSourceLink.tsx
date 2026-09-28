@@ -10,11 +10,13 @@ export function PriceSourceLink({
   href,
   symbol,
   tone,
+  label = 'View price',
   className = '',
 }: {
   href?: string
   symbol?: string
   tone: ProductTone
+  label?: string
   className?: string
 }) {
   if (!href) return null
@@ -28,7 +30,7 @@ export function PriceSourceLink({
       onClick={(event) => event.stopPropagation()}
       className={`inline-flex items-center justify-center gap-1.5 rounded-full text-xs font-bold transition-colors ${TONE_CLASSES[tone]} ${className}`}
     >
-      View price <span aria-hidden="true">↗</span>
+      {label} <span aria-hidden="true">↗</span>
     </a>
   )
 }

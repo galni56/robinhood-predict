@@ -4,6 +4,7 @@ import { formatUnits } from 'viem'
 import { PREDICTION_MARKET_ASSETS } from '@/chain/predictionMarketAssets'
 import { useRobinhoodAssets } from '@/chain/robinhoodApi'
 import { useAssetRaceLiveDisplay } from '@/chain/useAssetRaceLiveDisplay'
+import { PriceSourceLink } from '@/components/PriceSourceLink'
 import { TokenLogo } from '@/components/TokenLogo'
 import { formatUsd } from '@/lib/format'
 
@@ -62,6 +63,7 @@ export function TokenBrowser() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {visibleTickers.map((ticker) => {
             const asset = nameByTicker.get(ticker)
+            const marketAsset = PREDICTION_MARKET_ASSETS.find((item) => item.ticker === ticker)
             const price = live.assets[ticker]
             const current = price && !price.stale
               ? Number(formatUnits(BigInt(price.priceRaw), price.decimals))
@@ -69,7 +71,7 @@ export function TokenBrowser() {
             const prev = prevByTicker.current.get(ticker)
             const tickedUp = current == null || prev == null ? true : current >= prev
             return (
-              <div key={ticker} className="bg-[#241b2f] border border-white/5 rounded-2xl p-4 flex items-center justify-between gap-3 hover:border-[#8B7CF7]/30 transition-colors">
+              <div key={ticker} className="flex flex-col gap-3 rounded-2xl border border-white/5 bg-[#241b2f] p-4 transition-colors hover:border-[#8B7CF7]/30 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex min-w-0 items-center gap-3">
                   <TokenLogo ticker={ticker} className="h-11 w-11 rounded-xl" />
                   <div className="min-w-0">
@@ -79,13 +81,16 @@ export function TokenBrowser() {
                     </div>
                   </div>
                 </div>
-                <div className="text-right shrink-0">
+                <div className="flex items-end justify-between gap-3 sm:block sm:shrink-0 sm:text-right">
                   <div className={`font-mono text-sm font-semibold ${tickedUp ? 'text-emerald-400' : 'text-rose-400'}`}>
                     {current != null ? formatUsd(current) : '…'}
                   </div>
-                  <Link to={`/onchain/create?feed=${ticker}`} className="text-[11px] font-bold text-[#B3A7FA] hover:underline">
-                    Create Prediction
-                  </Link>
+                  <div className="flex flex-wrap items-center justify-end gap-x-2 gap-y-1 sm:mt-1">
+                    <PriceSourceLink href={marketAsset?.priceUrl} symbol={ticker} tone="market" className="text-[11px]" />
+                    <Link to={`/onchain/create?feed=${ticker}`} className="text-[11px] font-bold text-[#B3A7FA] hover:underline">
+                      Create Prediction
+                    </Link>
+                  </div>
                 </div>
               </div>
             )

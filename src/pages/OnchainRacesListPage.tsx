@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { isLocalAssetRace } from '@/chain/config'
 import {
   ASSET_RACE_CONFIG_ERROR,
@@ -14,9 +14,11 @@ import {
 } from '@/chain/assetRaces'
 import { useAssetRaces } from '@/chain/useAssetRaces'
 import { useAssetRaceClock } from '@/chain/useAssetRaceClock'
+import { priceSourceUrlForAssetId } from '@/chain/assetRaceRegistry'
 import { AddressLabel } from '@/components/AddressLabel'
 import { ClockIcon } from '@/components/icons'
 import { GameActivitySidebar } from '@/components/GameActivitySidebar'
+import { PriceSourceLink } from '@/components/PriceSourceLink'
 import { TokenLogo } from '@/components/TokenLogo'
 import { formatCountdown } from '@/lib/format'
 
@@ -59,12 +61,25 @@ function statusChipClass(status: number) {
 }
 
 function RaceCard({ race, nowMs, tokenDecimals }: { race: AssetRaceViewModel; nowMs: number; tokenDecimals: number }) {
+  const navigate = useNavigate()
   const topBacked = [...race.assets].sort((a, b) => (a.pool > b.pool ? -1 : a.pool < b.pool ? 1 : 0))[0]
   const platform = race.origin === ASSET_RACE_ORIGIN.PLATFORM
   return (
-    <Link
-      to={`/onchain/races/${race.id}`}
-      className="group flex flex-col rounded-3xl border border-white/5 bg-[#241b2f] p-5 transition-all hover:-translate-y-0.5 hover:border-[#F2A65A]/40 hover:shadow-[0_24px_50px_-30px_rgba(237,143,58,0.7)]"
+    <div
+      role="link"
+      tabIndex={0}
+      aria-label={`Open ${race.title || `race #${race.id.toString()}`}`}
+      onClick={(event) => {
+        if ((event.target as HTMLElement).closest('a, button')) return
+        navigate(`/onchain/races/${race.id}`)
+      }}
+      onKeyDown={(event) => {
+        if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) {
+          event.preventDefault()
+          navigate(`/onchain/races/${race.id}`)
+        }
+      }}
+      className="group flex cursor-pointer flex-col rounded-3xl border border-white/5 bg-[#241b2f] p-5 transition-all hover:-translate-y-0.5 hover:border-[#F2A65A]/40 hover:shadow-[0_24px_50px_-30px_rgba(237,143,58,0.7)]"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
@@ -107,6 +122,19 @@ function RaceCard({ race, nowMs, tokenDecimals }: { race: AssetRaceViewModel; no
         )}
       </div>
 
+      <div className="mt-3 flex flex-wrap gap-1.5" aria-label="Asset price charts">
+        {race.assets.map((asset) => (
+          <PriceSourceLink
+            key={asset.assetIndex}
+            href={priceSourceUrlForAssetId(asset.assetId)}
+            symbol={asset.symbol}
+            tone="race"
+            label={`${asset.symbol} chart`}
+            className="bg-[#F2A65A]/10 px-2.5 py-1 text-[10px]"
+          />
+        ))}
+      </div>
+
       {race.status !== ASSET_RACE_STATUS.LOBBY && (
         <div className="mt-4 space-y-2">
           {race.assets.map((asset) => (
@@ -137,7 +165,7 @@ function RaceCard({ race, nowMs, tokenDecimals }: { race: AssetRaceViewModel; no
           <span className="transition-transform group-hover:translate-x-0.5">→</span>
         </span>
       </div>
-    </Link>
+    </div>
   )
 }
 
