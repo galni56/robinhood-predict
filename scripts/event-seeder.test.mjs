@@ -1,0 +1,226 @@
+import assert from 'node:assert/strict'
+import test from 'node:test'
+import { stringToHex } from 'viem'
+import {
+  OpenItemTracker,
+  arenaTitleFor,
+  buildCommunityRacePayload,
+  isOpenNow,
+  nextAssetToSeed,
+  pickCommunityRaceAssetIds,
+  readSeederConfig,
+  targetPriceFromSnapshot,
+} from './event-seeder.mjs'
+
+function withEnv(overrides, fn) {
+  const saved = new Map(Object.keys(overrides).map((key) => [key, process.env[key]]))
+  try {
+    for (const [key, value] of Object.entries(overrides)) {
+      if (value === undefined) delete process.env[key]
+      else process.env[key] = value
+    }
+    return fn()
+  } finally {
+    for (const [key, value] of saved) {
+      if (value === undefined) delete process.env[key]
+      else process.env[key] = value
+    }
+  }
+}
+
+test('config requires an RPC URL', () => {
+  withEnv({ EVENT_SEEDER_RPC_URL: undefined, PREDICTION_MARKET_RPC_URL: undefined }, () => {
+    assert.throws(() => readSeederConfig(), /EVENT_SEEDER_RPC_URL is required/)
+  })
+})
+
+test('config falls back to the prediction-market RPC/address envs', () => {
+  withEnv({
+    EVENT_SEEDER_RPC_URL: undefined,
+    PREDICTION_MARKET_RPC_URL: 'https://rpc.invalid',
+    EVENT_SEEDER_MARKET_ADDRESS: undefined,
+    PREDICTION_MARKET_ADDRESS: '0x1111111111111111111111111111111111111111',
+    EVENT_SEEDER_ARENA_ADDRESS: undefined,
+    PRICE_ARENA_ADDRESS: '0x2222222222222222222222222222222222222222',
+  }, () => {
+    const config = readSeederConfig()
+    assert.equal(config.rpcUrl, 'https://rpc.invalid')
+    assert.equal(config.marketAddress, '0x1111111111111111111111111111111111111111')
+    assert.equal(config.arenaAddress, '0x2222222222222222222222222222222222222222')
+    assert.equal(config.dryRun, true)
+  })
+})
+
+test('config rejects an unsupported arena duration', () => {
+  withEnv({
+    EVENT_SEEDER_RPC_URL: 'https://rpc.invalid',
+    EVENT_SEEDER_MARKET_ADDRESS: '0x1111111111111111111111111111111111111111',
+    EVENT_SEEDER_ARENA_ADDRESS: '0x2222222222222222222222222222222222222222',
+    EVENT_SEEDER_ARENA_DURATION_SECONDS: '123',
+  }, () => {
+    assert.throws(() => readSeederConfig(), /EVENT_SEEDER_ARENA_DURATION_SECONDS must be one of/)
+  })
+})
+
+test('config rejects max target-price offset below min', () => {
+  withEnv({
+    EVENT_SEEDER_RPC_URL: 'https://rpc.invalid',
+    EVENT_SEEDER_MARKET_ADDRESS: '0x1111111111111111111111111111111111111111',
+    EVENT_SEEDER_ARENA_ADDRESS: '0x2222222222222222222222222222222222222222',
+    EVENT_SEEDER_TARGET_PRICE_MIN_BP: '300',
+    EVENT_SEEDER_TARGET_PRICE_MAX_BP: '100',
+  }, () => {
+    assert.throws(() => readSeederConfig(), /EVENT_SEEDER_TARGET_PRICE_MAX_BP must be >=/)
+  })
+})
+
+test('config requires a private key outside dry-run', () => {
+  withEnv({
+    EVENT_SEEDER_RPC_URL: 'https://rpc.invalid',
+    EVENT_SEEDER_MARKET_ADDRESS: '0x1111111111111111111111111111111111111111',
+    EVENT_SEEDER_ARENA_ADDRESS: '0x2222222222222222222222222222222222222222',
+    DRY_RUN: 'false',
+    EVENT_SEEDER_PRIVATE_KEY: undefined,
+  }, () => {
+    assert.throws(() => readSeederConfig(), /EVENT_SEEDER_PRIVATE_KEY is required for live mode/)
+  })
+})
+
+test('isOpenNow requires OPEN status and a future deadline', () => {
+  assert.equal(isOpenNow(0, 1_000n, 999n), true)
+  assert.equal(isOpenNow(0, 1_000n, 1_000n), false)
+  assert.equal(isOpenNow(1, 1_000n, 999n), false)
+})
+
+function makeClient(rowsById) {
+  return {
+    async readContract({ functionName, args }) {
+      if (functionName !== 'getMarket' && functionName !== 'getArena') throw new Error(`unexpected call ${functionName}`)
+      const [id] = args
+      const row = rowsById.get(id)
+      if (!row) throw new Error(`no row for id ${id}`)
+      return row
+    },
+  }
+}
+
+test('OpenItemTracker only scans new ids and tracks open ones', async () => {
+  const rows = new Map([
+    [0n, { assetId: '0xaa', status: 0, deadline: 100n }],
+    [1n, { assetId: '0xbb', status: 3, deadline: 50n }], // already resolved/cancelled
+  ])
+  const client = makeClient(rows)
+  const tracker = new OpenItemTracker()
+
+  await tracker.discover(client, { getFn: 'getMarket', rowToItem: (row) => row }, 2n, 10n)
+  assert.equal(tracker.openCount(10n), 1)
+  assert.deepEqual(tracker.openAssetIdSet(10n), new Set(['0xaa']))
+
+  // A second discover with an unchanged count must not re-read anything.
+  const client2 = makeClient(new Map())
+  await tracker.discover(client2, { getFn: 'getMarket', rowToItem: (row) => row }, 2n, 10n)
+  assert.equal(tracker.openCount(10n), 1)
+})
+
+test('OpenItemTracker drops entries once their deadline passes, without a read', async () => {
+  const rows = new Map([[0n, { assetId: '0xaa', status: 0, deadline: 100n }]])
+  const tracker = new OpenItemTracker()
+  await tracker.discover(makeClient(rows), { getFn: 'getMarket', rowToItem: (row) => row }, 1n, 10n)
+  assert.equal(tracker.openCount(50n), 1)
+  tracker.prune(150n)
+  assert.equal(tracker.openCount(150n), 0)
+})
+
+test('nextAssetToSeed stops once the target open count is met', () => {
+  const configs = [{ assetId: 'NVDA' }, { assetId: 'TSLA' }]
+  assert.equal(nextAssetToSeed(configs, new Set(), 2, 2), undefined)
+})
+
+test('nextAssetToSeed skips assets that already have an open listing', () => {
+  const configs = [{ assetId: 'NVDA' }, { assetId: 'TSLA' }]
+  const openIds = new Set([stringToHex('NVDA', { size: 32 }).toLowerCase()])
+  const next = nextAssetToSeed(configs, openIds, 1, 3)
+  assert.equal(next.assetId, 'TSLA')
+})
+
+test('nextAssetToSeed returns undefined once every configured asset is already open', () => {
+  const configs = [{ assetId: 'NVDA' }]
+  const openIds = new Set([stringToHex('NVDA', { size: 32 }).toLowerCase()])
+  assert.equal(nextAssetToSeed(configs, openIds, 1, 5), undefined)
+})
+
+test('targetPriceFromSnapshot stays within the configured band, in either direction', () => {
+  const priceRaw = 1_000_000n
+  const up = targetPriceFromSnapshot(priceRaw, { minBp: 100, maxBp: 300, random: () => 0 })
+  assert.equal(up, priceRaw + (priceRaw * 100n) / 10_000n) // random()=0 -> min offset, sign call also 0 -> positive
+
+  let call = 0
+  const sequence = [0.999, 0.999] // max offset, sign>=0.5 -> negative
+  const down = targetPriceFromSnapshot(priceRaw, { minBp: 100, maxBp: 300, random: () => sequence[call++] })
+  assert.equal(down, priceRaw - (priceRaw * 300n) / 10_000n)
+})
+
+test('targetPriceFromSnapshot rejects a non-positive price', () => {
+  assert.throws(() => targetPriceFromSnapshot(0n), /InvalidPriceForTargetOffset/)
+})
+
+test('arenaTitleFor formats minute and hour durations and stays under the byte cap', () => {
+  assert.equal(arenaTitleFor({ assetId: 'NVDA' }, 900), 'NVDA 15m Arena')
+  assert.equal(arenaTitleFor({ assetId: 'NVDA' }, 3_600), 'NVDA 1h Arena')
+})
+
+test('pickCommunityRaceAssetIds takes the first N configs in registry order', () => {
+  const configs = [{ assetId: 'NVDA' }, { assetId: 'TSLA' }, { assetId: 'AAPL' }]
+  const picked = pickCommunityRaceAssetIds(configs, 2)
+  assert.deepEqual(picked, [stringToHex('NVDA', { size: 32 }), stringToHex('TSLA', { size: 32 })])
+})
+
+test('pickCommunityRaceAssetIds throws if there are not enough approved assets', () => {
+  assert.throws(() => pickCommunityRaceAssetIds([{ assetId: 'NVDA' }], 2), /NotEnoughApprovedAssetsForRace/)
+})
+
+function racePayloadInputs(overrides = {}) {
+  const approvedAssetIds = [stringToHex('NVDA', { size: 32 }), stringToHex('TSLA', { size: 32 })]
+  return {
+    title: 'NVDA vs TSLA',
+    category: 0,
+    raceDuration: 300,
+    assetIds: approvedAssetIds,
+    approvedDurations: [60, 300, 900],
+    approvedAssetIds,
+    ...overrides,
+  }
+}
+
+test('buildCommunityRacePayload accepts a valid configuration', () => {
+  const payload = buildCommunityRacePayload(racePayloadInputs())
+  assert.equal(payload.functionName, 'createCommunityRace')
+  assert.deepEqual(payload.args, ['NVDA vs TSLA', 0, 300n, racePayloadInputs().assetIds])
+})
+
+test('buildCommunityRacePayload rejects an empty or whitespace-only title', () => {
+  assert.throws(() => buildCommunityRacePayload(racePayloadInputs({ title: '' })), /InvalidTitle/)
+  assert.throws(() => buildCommunityRacePayload(racePayloadInputs({ title: '   ' })), /InvalidTitle/)
+})
+
+test('buildCommunityRacePayload rejects a title over 64 bytes', () => {
+  assert.throws(() => buildCommunityRacePayload(racePayloadInputs({ title: 'x'.repeat(65) })), /InvalidTitle/)
+})
+
+test('buildCommunityRacePayload rejects a duration outside the approved set', () => {
+  assert.throws(() => buildCommunityRacePayload(racePayloadInputs({ raceDuration: 120 })), /DurationNotApproved/)
+})
+
+test('buildCommunityRacePayload rejects too few or too many assets', () => {
+  const [nvda] = racePayloadInputs().assetIds
+  assert.throws(() => buildCommunityRacePayload(racePayloadInputs({ assetIds: [nvda] })), /InvalidCandidateCount/)
+  assert.throws(() => buildCommunityRacePayload(racePayloadInputs({ assetIds: Array(7).fill(nvda) })), /InvalidCandidateCount/)
+})
+
+test('buildCommunityRacePayload rejects an asset the contract has not approved', () => {
+  const unapproved = stringToHex('ZZZZ', { size: 32 })
+  assert.throws(
+    () => buildCommunityRacePayload(racePayloadInputs({ assetIds: [racePayloadInputs().assetIds[0], unapproved] })),
+    /AssetNotApproved/,
+  )
+})
