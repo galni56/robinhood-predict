@@ -72,7 +72,7 @@ export function WhitepaperPage() {
             <ModeCard title="Races" accent="text-[#F2A65A]" link="/onchain/races">
               Back one of 2–6 assets. The highest percentage return wins the race.
             </ModeCard>
-            <ModeCard title="Arena" accent="text-emerald-300" link="/onchain/arenas">
+            <ModeCard title="Arena" accent="text-[#B7CEFF]" link="/onchain/arenas">
               Enter an exact price prediction. The closest 50% share the losing half&apos;s stakes.
             </ModeCard>
           </div>
