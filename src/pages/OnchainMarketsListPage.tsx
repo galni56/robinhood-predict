@@ -128,7 +128,7 @@ export function OnchainMarketsListPage() {
       if (filter === 'ALL') return status !== MarketStatusOnchain.Cancelled
       if (filter === 'OPEN') return status === MarketStatusOnchain.Open
       if (filter === 'RESOLVED') return status === MarketStatusOnchain.Resolved
-      return status === MarketStatusOnchain.Cancelled
+      return status === MarketStatusOnchain.Cancelled && market.poolYes + market.poolNo > 0n
     })
     // Newest first -- a higher id was created later. Otherwise a market
     // created today can land at the very end of a long list, indistinguishable
@@ -344,7 +344,7 @@ export function OnchainMarketsListPage() {
         </div>
 
         <aside className="hidden lg:block w-72 shrink-0 sticky top-20">
-          <OnchainMarketsSidebar />
+          <OnchainMarketsSidebar tickerByMarketId={tickerByMarketId} />
         </aside>
       </div>
     </div>

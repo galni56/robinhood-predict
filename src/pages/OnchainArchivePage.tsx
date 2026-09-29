@@ -1,98 +1,223 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { formatEther, formatUnits } from 'viem'
-import { useReadContract, useReadContracts } from 'wagmi'
 import { CancelledBadge, SideBadge } from '@/components/Pills'
-import {
-  MarketSideOnchain,
-  MarketStatusOnchain,
-  PREDICTION_MARKET_ADDRESS,
-  PREDICTION_MARKET_CONFIGURED,
-  predictionMarketAbi,
-} from '@/chain/contracts'
-import { tickerForPredictionAssetId } from '@/chain/predictionMarketAssets'
-import { priceSourceUrlForSymbol } from '@/chain/assetRaceRegistry'
-import { useTokenLogos } from '@/chain/robinhoodApi'
 import { PriceSourceLink } from '@/components/PriceSourceLink'
 import { TokenLogo } from '@/components/TokenLogo'
+import {
+  ASSET_RACE_CATEGORY,
+  ASSET_RACE_STATUS,
+  assetRaceStatusLabel,
+  formatStakeRaw,
+  type AssetRaceViewModel,
+} from '@/chain/assetRaces'
+import { priceSourceUrlForAssetId, priceSourceUrlForSymbol } from '@/chain/assetRaceRegistry'
+import { MarketSideOnchain, MarketStatusOnchain } from '@/chain/contracts'
+import {
+  useAssetRaceArchivePage,
+  usePredictionArchivePage,
+  usePriceArenaArchivePage,
+  type PredictionArchiveMarket,
+} from '@/chain/useGameArchive'
+import { tickerForPredictionAssetId } from '@/chain/predictionMarketAssets'
+import {
+  PRICE_ARENA_CATEGORY,
+  PRICE_ARENA_PHASE,
+  arenaPhaseLabel,
+  type PriceArenaViewModel,
+} from '@/chain/priceArena'
+import { useTokenLogos } from '@/chain/robinhoodApi'
 import { formatCompactEth, formatUsd, timeAgo } from '@/lib/format'
 
-export function OnchainArchivePage() {
+type ArchiveMode = 'markets' | 'races' | 'arenas'
+
+const archiveModes: { key: ArchiveMode; label: string; accent: string }[] = [
+  { key: 'markets', label: 'Prediction Markets', accent: '#8B7CF7' },
+  { key: 'races', label: 'Asset Races', accent: '#F2A65A' },
+  { key: 'arenas', label: 'Price Arena', accent: '#7A9FF0' },
+]
+
+function MarketArchiveCard({ market }: { market: PredictionArchiveMarket }) {
   const logos = useTokenLogos()
-  const marketCount = useReadContract({
-    address: PREDICTION_MARKET_ADDRESS,
-    abi: predictionMarketAbi,
-    functionName: 'marketCount',
-    query: { enabled: PREDICTION_MARKET_CONFIGURED },
-  })
-  const count = marketCount.data != null ? Number(marketCount.data) : 0
-  const ids = Array.from({ length: count }, (_, i) => BigInt(i))
-
-  const markets = useReadContracts({
-    contracts: ids.map((id) => ({ address: PREDICTION_MARKET_ADDRESS, abi: predictionMarketAbi, functionName: 'getMarket', args: [id] }) as const),
-    query: { enabled: count > 0 },
-  })
-
-  const settled = ids
-    .map((id, i) => {
-      const r = markets.data?.[i]
-      if (!r || r.status !== 'success') return null
-      if (r.result.status === MarketStatusOnchain.Open) return null
-      return { id, m: r.result }
-    })
-    .filter((x): x is { id: bigint; m: NonNullable<typeof x>['m'] } => x != null)
-    .sort((a, b) => Number(b.m.deadline - a.m.deadline))
+  const ticker = tickerForPredictionAssetId(market.assetId) ?? '…'
+  const targetUsd = Number(formatUnits(market.targetPrice, market.priceDecimals))
+  const totalPool = market.poolYes + market.poolNo
+  const yesPct = totalPool > 0n ? Number((market.poolYes * 10_000n) / totalPool) / 100 : 50
+  const cancelled = market.status === MarketStatusOnchain.Cancelled
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
-      <div>
-        <p className="text-sm font-bold text-[#B3A7FA] mb-1">The record</p>
-        <h1 className="font-display text-3xl sm:text-4xl font-bold tracking-tight mb-2">Settled markets</h1>
-        <p className="text-white/50 text-sm">
-          Every on-chain market that's already resolved or cancelled - real outcomes, real pools, read straight from
-          the contract. Nothing here is mock data.
+    <article className="rounded-2xl border border-white/5 bg-[#241b2f] p-4 transition-colors hover:border-[#8B7CF7]/40">
+      <div className="flex min-w-0 items-start justify-between gap-3">
+        <Link to={`/onchain/${market.id}`} className="flex min-w-0 items-center gap-3">
+          <TokenLogo ticker={ticker} logoUrl={logos.get(ticker)} className="h-10 w-10 rounded-xl" />
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-display text-lg font-bold">{ticker}</span>
+              <span className="text-xs text-white/35">Market #{market.id.toString()}</span>
+            </div>
+            <p className="truncate text-sm text-white/55">At or above {formatUsd(targetUsd)} at deadline?</p>
+          </div>
+        </Link>
+        {cancelled ? <CancelledBadge /> : <SideBadge side={market.outcome === MarketSideOnchain.YES ? 'YES' : 'NO'} />}
+      </div>
+      <div className="mt-4 grid grid-cols-3 gap-2 rounded-xl bg-black/10 p-3 text-xs">
+        <div><div className="text-white/30">Pool split</div><div className="mt-1 font-mono">{yesPct.toFixed(1)}% / {(100 - yesPct).toFixed(1)}%</div></div>
+        <div className="min-w-0"><div className="text-white/30">Pool</div><div title={`${formatEther(totalPool)} ETH`} className="mt-1 truncate font-mono">{formatCompactEth(totalPool)}</div></div>
+        <div className="text-right"><div className="text-white/30">Closed</div><div className="mt-1">{timeAgo(Number(market.deadline) * 1_000)}</div></div>
+      </div>
+      <div className="mt-3 flex items-center justify-between gap-3">
+        <PriceSourceLink href={priceSourceUrlForSymbol(ticker)} symbol={ticker} tone="market" className="bg-[#8B7CF7]/10 px-2.5 py-1" />
+        <Link to={`/onchain/${market.id}`} className="text-sm font-bold text-[#B3A7FA]">View result →</Link>
+      </div>
+    </article>
+  )
+}
+
+function RaceArchiveCard({ race }: { race: AssetRaceViewModel }) {
+  const terminalTime = race.resolvedAt || race.raceEndTime || race.bettingEndTime
+  const category = race.category === ASSET_RACE_CATEGORY.MEME ? 'Meme' : 'Stock'
+  return (
+    <article className="rounded-2xl border border-white/5 bg-[#241b2f] p-4 transition-colors hover:border-[#F2A65A]/40">
+      <div className="flex min-w-0 items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="text-xs font-bold uppercase tracking-[0.14em] text-[#F2A65A]">{category} race · #{race.id.toString()}</div>
+          <Link to={`/onchain/races/${race.id}`} className="mt-1 block truncate font-display text-lg font-bold hover:text-[#F2A65A]">
+            {race.title || race.assets.map((asset) => asset.symbol).join(' · ')}
+          </Link>
+        </div>
+        <span className="shrink-0 rounded-full bg-white/5 px-2.5 py-1 text-xs font-bold text-white/55">{assetRaceStatusLabel(race.status)}</span>
+      </div>
+      <div className="mt-4 flex flex-wrap gap-1.5">
+        {race.assets.map((asset) => (
+          <span key={asset.assetIndex} className="inline-flex items-center gap-1.5 rounded-full bg-white/5 py-1 pl-1 pr-2.5 text-xs font-bold">
+            <TokenLogo ticker={asset.symbol} className="h-5 w-5 rounded-md" />{asset.symbol}
+          </span>
+        ))}
+      </div>
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        {race.assets.map((asset) => (
+          <PriceSourceLink key={asset.assetIndex} href={priceSourceUrlForAssetId(asset.assetId)} symbol={asset.symbol} tone="race" label={`${asset.symbol} chart`} className="bg-[#F2A65A]/10 px-2.5 py-1 text-[10px]" />
+        ))}
+      </div>
+      <div className="mt-4 flex items-end justify-between gap-3 border-t border-white/5 pt-3 text-xs">
+        <div><div className="text-white/30">Final pool</div><div title={`${formatEther(race.totalPool)} ETH`} className="mt-1 font-mono">{formatStakeRaw(race.totalPool)} ETH</div></div>
+        <div className="text-right text-white/40">{terminalTime > 0n ? timeAgo(Number(terminalTime) * 1_000) : 'Terminal'}</div>
+        <Link to={`/onchain/races/${race.id}`} className="shrink-0 text-sm font-bold text-[#F2A65A]">View result →</Link>
+      </div>
+    </article>
+  )
+}
+
+function ArenaArchiveCard({ arena }: { arena: PriceArenaViewModel }) {
+  const terminalTime = arena.resolvedAt || arena.deadline
+  const category = arena.category === PRICE_ARENA_CATEGORY.MEME ? 'Meme' : 'Stock'
+  return (
+    <article className="rounded-2xl border border-white/5 bg-[#241b2f] p-4 transition-colors hover:border-[#7A9FF0]/45">
+      <div className="flex min-w-0 items-start justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <TokenLogo ticker={arena.asset?.symbol} className="h-10 w-10 rounded-xl" />
+          <div className="min-w-0">
+            <div className="text-xs font-bold uppercase tracking-[0.14em] text-[#B7CEFF]">{category} arena · #{arena.id.toString()}</div>
+            <Link to={`/onchain/arenas/${arena.id}`} className="mt-1 block truncate font-display text-lg font-bold hover:text-[#B7CEFF]">{arena.title}</Link>
+          </div>
+        </div>
+        <span className="shrink-0 rounded-full bg-white/5 px-2.5 py-1 text-xs font-bold text-white/55">{arenaPhaseLabel(arena.phase)}</span>
+      </div>
+      <div className="mt-4 grid grid-cols-3 gap-2 rounded-xl bg-black/10 p-3 text-xs">
+        <div><div className="text-white/30">Asset</div><div className="mt-1 font-bold">{arena.asset?.symbol ?? '—'}</div></div>
+        <div><div className="text-white/30">Players</div><div className="mt-1 font-mono">{arena.participantCount}</div></div>
+        <div className="min-w-0 text-right"><div className="text-white/30">Pool</div><div title={`${formatEther(arena.totalPool)} ETH`} className="mt-1 truncate font-mono">{formatCompactEth(arena.totalPool)}</div></div>
+      </div>
+      <div className="mt-3 flex items-center justify-between gap-3">
+        <PriceSourceLink href={arena.asset?.priceUrl} symbol={arena.asset?.symbol} tone="arena" className="bg-[#7A9FF0]/10 px-2.5 py-1" />
+        <span className="text-xs text-white/35">{terminalTime > 0n ? timeAgo(Number(terminalTime) * 1_000) : 'Terminal'}</span>
+        <Link to={`/onchain/arenas/${arena.id}`} className="shrink-0 text-sm font-bold text-[#B7CEFF]">View result →</Link>
+      </div>
+    </article>
+  )
+}
+
+export function OnchainArchivePage() {
+  const [mode, setMode] = useState<ArchiveMode>('markets')
+  const [page, setPage] = useState(0)
+  const markets = usePredictionArchivePage(page, mode === 'markets')
+  const races = useAssetRaceArchivePage(page, mode === 'races')
+  const arenas = usePriceArenaArchivePage(page, mode === 'arenas')
+  const counts = { markets: markets.count, races: races.count, arenas: arenas.count }
+  const active = mode === 'markets' ? markets : mode === 'races' ? races : arenas
+
+  // Auto-seeded games routinely cancel without ever attracting a player.
+  // They remain onchain and addressable by ID, but add no useful history for
+  // users. Keep cancelled entries only when at least one real stake reached
+  // the pool; resolved/void games always remain part of the archive.
+  const terminalMarkets = markets.items.filter((market) => (
+    market.status === MarketStatusOnchain.Resolved
+    || (market.status === MarketStatusOnchain.Cancelled && market.poolYes + market.poolNo > 0n)
+  ))
+  const terminalRaces = races.items.filter((race) => (
+    race.status === ASSET_RACE_STATUS.RESOLVED
+    || race.status === ASSET_RACE_STATUS.VOID
+    || (race.status === ASSET_RACE_STATUS.CANCELLED && race.totalPool > 0n)
+  ))
+  const terminalArenas = arenas.items.filter((arena) => (
+    arena.phase === PRICE_ARENA_PHASE.RESOLVED
+    || (arena.phase === PRICE_ARENA_PHASE.CANCELLED && arena.totalPool > 0n)
+  ))
+  const visibleCount = mode === 'markets' ? terminalMarkets.length : mode === 'races' ? terminalRaces.length : terminalArenas.length
+  const accent = archiveModes.find((item) => item.key === mode)!.accent
+
+  return (
+    <div className="mx-auto max-w-6xl space-y-7 px-4 py-8">
+      <header className="max-w-3xl">
+        <p className="mb-1 text-sm font-bold text-[#B3A7FA]">The onchain record</p>
+        <h1 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">Every finished game, one archive.</h1>
+        <p className="mt-2 text-sm leading-relaxed text-white/50">
+          Browse resolved, cancelled and void Prediction Markets, Asset Races and Price Arenas directly from their contracts. History loads twelve IDs at a time so the archive stays complete without hammering the public RPC.
         </p>
+      </header>
+
+      <nav className="grid gap-2 sm:grid-cols-3" aria-label="Archive products">
+        {archiveModes.map((item) => (
+          <button
+            key={item.key}
+            onClick={() => {
+              setMode(item.key)
+              setPage(0)
+            }}
+            className={`flex items-center justify-between rounded-2xl border px-4 py-3 text-left transition-colors ${mode === item.key ? 'border-white/20 bg-[#2d223a]' : 'border-white/5 bg-[#241b2f] text-white/55 hover:border-white/15 hover:text-white'}`}
+          >
+            <span className="font-display font-bold" style={mode === item.key ? { color: item.accent } : undefined}>{item.label}</span>
+            <span className="rounded-full bg-white/5 px-2.5 py-1 font-mono text-xs">{counts[item.key]} created</span>
+          </button>
+        ))}
+      </nav>
+
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/5 bg-[#1f1829] px-4 py-3 text-xs text-white/45">
+        <span>Newest IDs first · resolved games and cancellations with real stakes</span>
+        <span className="font-mono">Page {page + 1} / {active.pageCount}{active.ids.length > 0 ? ` · IDs ${active.ids.at(-1)}–${active.ids[0]}` : ''}</span>
       </div>
 
-      <div className="space-y-2">
-        {settled.map(({ id, m }) => {
-          const ticker = tickerForPredictionAssetId(m.assetId) ?? '…'
-          const targetUsd = Number(formatUnits(m.targetPrice, m.priceDecimals))
-          const totalPool = m.poolYes + m.poolNo
-          const yesPct = totalPool > 0n ? Number((m.poolYes * 10000n) / totalPool) / 100 : 50
-          const cancelled = m.status === MarketStatusOnchain.Cancelled
+      {active.isLoading ? (
+        <p className="py-16 text-center text-sm text-white/40">Loading contract history…</p>
+      ) : active.error ? (
+        <div className="rounded-2xl border border-rose-500/25 bg-rose-500/10 p-5 text-sm text-rose-300">Could not read this contract history. Try the page again.</div>
+      ) : visibleCount === 0 ? (
+        <div className="rounded-3xl border border-dashed border-white/10 bg-[#241b2f]/50 px-5 py-14 text-center">
+          <p className="font-display text-xl font-bold">No played games in this ID range.</p>
+          <p className="mt-2 text-sm text-white/40">Empty cancellations are hidden. Use Older to continue to the next part of the contract record.</p>
+        </div>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2">
+          {mode === 'markets' && terminalMarkets.map((market) => <MarketArchiveCard key={market.id.toString()} market={market} />)}
+          {mode === 'races' && terminalRaces.map((race) => <RaceArchiveCard key={race.id.toString()} race={race} />)}
+          {mode === 'arenas' && terminalArenas.map((arena) => <ArenaArchiveCard key={arena.id.toString()} arena={arena} />)}
+        </div>
+      )}
 
-          return (
-            <div
-              key={id.toString()}
-              className="flex flex-wrap items-center gap-3 text-sm bg-[#241b2f] border border-white/5 rounded-xl px-4 py-3 hover:border-[#8B7CF7]/40 transition-colors"
-            >
-              <Link to={`/onchain/${id.toString()}`} className="flex min-w-0 flex-1 flex-wrap items-center gap-3">
-                <TokenLogo ticker={ticker} logoUrl={logos.get(ticker)} className="w-7 h-7 rounded-lg text-sm" />
-                <span className="font-bold min-w-14">{ticker}</span>
-                <span className="text-white/50 flex-1 min-w-40">At or above {formatUsd(targetUsd)} at deadline?</span>
-                {cancelled ? <CancelledBadge /> : <SideBadge side={m.outcome === MarketSideOnchain.YES ? 'YES' : 'NO'} />}
-                <span className="text-white/40 text-xs w-28 text-right">
-                  {yesPct.toFixed(1)}% / {(100 - yesPct).toFixed(1)}%
-                </span>
-                <span title={`${formatEther(totalPool)} ETH`} className="w-28 shrink-0 truncate text-right text-xs font-mono text-white/40 tabular-nums">
-                  pool {formatCompactEth(totalPool)}
-                </span>
-                <span className="text-white/30 text-xs w-20 text-right">{timeAgo(Number(m.deadline) * 1000)}</span>
-              </Link>
-              <PriceSourceLink
-                href={priceSourceUrlForSymbol(ticker)}
-                symbol={ticker}
-                tone="market"
-                className="bg-[#8B7CF7]/10 px-2.5 py-1"
-              />
-            </div>
-          )
-        })}
-        {settled.length === 0 && (
-          <p className="text-white/30 text-sm text-center py-12">
-            No settled markets yet - this fills in as open markets resolve or cancel.
-          </p>
-        )}
+      <div className="flex items-center justify-between gap-3 border-t border-white/5 pt-5">
+        <button disabled={page === 0} onClick={() => setPage((current) => Math.max(0, current - 1))} className="rounded-full border border-white/10 px-4 py-2 text-sm font-bold text-white/65 disabled:cursor-not-allowed disabled:opacity-30">← Newer</button>
+        <span className="h-1.5 w-20 rounded-full" style={{ backgroundColor: accent }} />
+        <button disabled={page + 1 >= active.pageCount} onClick={() => setPage((current) => current + 1)} className="rounded-full border border-white/10 px-4 py-2 text-sm font-bold text-white/65 disabled:cursor-not-allowed disabled:opacity-30">Older →</button>
       </div>
     </div>
   )

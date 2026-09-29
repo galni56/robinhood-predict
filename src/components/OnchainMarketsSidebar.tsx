@@ -5,6 +5,7 @@ import { usePublicClient } from 'wagmi'
 import { AddressLabel } from '@/components/AddressLabel'
 import { BoltIcon, TrophyIcon } from '@/components/icons'
 import { SideBadge } from '@/components/Pills'
+import { TokenLogo } from '@/components/TokenLogo'
 import { robinhoodMainnet } from '@/chain/config'
 import { useBetLogs } from '@/chain/betLogs'
 import { DEMO_MARKET_IDS, demoBetLogs, demoClaimLogs, isDemoMode, loadDemoLeaderboard } from '@/chain/demo'
@@ -25,7 +26,7 @@ interface UserStats {
  * MarketsSidebar (top-5 mini leaderboard + recent-bets feed) but built from
  * the contract's own BetPlaced/Claimed events via getLogs -- same technique
  * as OnchainLeaderboardPage, just condensed. Real data, not simulated. */
-export function OnchainMarketsSidebar() {
+export function OnchainMarketsSidebar({ tickerByMarketId }: { tickerByMarketId: Map<string, string> }) {
   const client = usePublicClient()
   const betLogs = useBetLogs()
   const [stats, setStats] = useState<UserStats[] | null>(null)
@@ -123,7 +124,13 @@ export function OnchainMarketsSidebar() {
       ? demoSaved.recent.slice(0, 8)
       : betLogs.data == null
         ? null
-        : [...betLogs.data].sort((a, b) => (a.amount > b.amount ? -1 : a.amount < b.amount ? 1 : 0)).slice(0, 8)
+        : [...betLogs.data].sort((a, b) => (a.blockNumber > b.blockNumber ? -1 : a.blockNumber < b.blockNumber ? 1 : 0)).slice(0, 8)
+  const latestTickerByUser = new Map<string, string>()
+  for (const log of [...(betLogs.data ?? [])].sort((a, b) => (a.blockNumber > b.blockNumber ? -1 : a.blockNumber < b.blockNumber ? 1 : 0))) {
+    const key = log.user.toLowerCase()
+    const ticker = tickerByMarketId.get(log.id.toString())
+    if (ticker && !latestTickerByUser.has(key)) latestTickerByUser.set(key, ticker)
+  }
 
   return (
     <div className="space-y-5">
@@ -151,9 +158,10 @@ export function OnchainMarketsSidebar() {
                   href={`${robinhoodMainnet.blockExplorers.default.url}/address/${s.address}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="grid min-w-0 grid-cols-[1rem_minmax(0,1fr)_auto] items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition-colors hover:bg-white/5"
+                  className="grid min-w-0 grid-cols-[1rem_auto_minmax(0,1fr)_auto] items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition-colors hover:bg-white/5"
                 >
                   <span className="w-4 text-white/30 text-xs font-mono text-center">{i + 1}</span>
+                  <TokenLogo ticker={latestTickerByUser.get(s.address.toLowerCase())} className="h-5 w-5 rounded-md" />
                   <AddressLabel address={s.address} link={false} className="min-w-0 truncate font-mono text-xs" />
                   <span
                     title={isDemoMode() ? undefined : `${formatEther(net)} ETH`}
@@ -180,10 +188,15 @@ export function OnchainMarketsSidebar() {
           ) : recent.length === 0 ? (
             <p className="text-white/30 text-xs text-center py-4">No bets yet</p>
           ) : (
-            recent.map((log) => (
-              <div key={log.txHash + log.id.toString()} className="rounded-xl bg-white/5 px-2.5 py-2 text-xs">
+            recent.map((log) => {
+              const ticker = tickerByMarketId.get(log.id.toString())
+              return <div key={log.txHash + log.id.toString()} className="rounded-xl bg-white/5 px-2.5 py-2 text-xs">
                 <div className="flex min-w-0 items-center justify-between gap-2">
-                  <SideBadge side={log.side === MarketSideOnchain.YES ? 'YES' : 'NO'} />
+                  <div className="flex min-w-0 items-center gap-1.5">
+                    <TokenLogo ticker={ticker} className="h-6 w-6 rounded-md" />
+                    <span className="min-w-0 truncate font-bold text-white/75">{ticker ?? `market #${log.id}`}</span>
+                    <SideBadge side={log.side === MarketSideOnchain.YES ? 'YES' : 'NO'} />
+                  </div>
                   <span
                     title={isDemoMode() ? undefined : `${formatEther(log.amount)} ETH`}
                     className="whitespace-nowrap text-right font-mono text-white/70 tabular-nums"
@@ -203,7 +216,7 @@ export function OnchainMarketsSidebar() {
                   </a>
                 </div>
               </div>
-            ))
+            })
           )}
         </div>
       </div>

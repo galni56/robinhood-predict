@@ -189,7 +189,8 @@ export function OnchainRacesListPage() {
     if (filter === 'BETTING') return race.status === ASSET_RACE_STATUS.BETTING
     if (filter === 'RUNNING') return race.status === ASSET_RACE_STATUS.RUNNING
     if (filter === 'FINISHED') return race.status === ASSET_RACE_STATUS.RESOLVED
-    return isDead(race.status)
+    return race.status === ASSET_RACE_STATUS.VOID
+      || (race.status === ASSET_RACE_STATUS.CANCELLED && race.totalPool > 0n)
   })
   const featured = filtered.filter((race) => race.origin === ASSET_RACE_ORIGIN.PLATFORM)
   const community = filtered
@@ -306,10 +307,7 @@ export function OnchainRacesListPage() {
       <p className="mt-8 text-xs text-white/30">Crowd backing shows pool share, not probability or guaranteed odds.</p>
         </main>
         <aside className="sticky top-20 hidden w-72 shrink-0 lg:block">
-          <GameActivitySidebar
-            kind="race"
-            symbolFor={(gameId, assetIndex) => races.find((race) => race.id === gameId)?.assets.find((asset) => asset.assetIndex === assetIndex)?.symbol}
-          />
+          <GameActivitySidebar kind="race" />
         </aside>
       </div>
     </div>

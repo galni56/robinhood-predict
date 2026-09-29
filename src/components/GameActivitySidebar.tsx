@@ -9,10 +9,8 @@ import { shortHash } from '@/lib/hash'
 
 export function GameActivitySidebar({
   kind,
-  symbolFor,
 }: {
   kind: GameActivityKind
-  symbolFor: (gameId: bigint, assetIndex?: number) => string | undefined
 }) {
   const activity = useGameActivity(kind)
   const leaderboard = activity.data?.leaderboard
@@ -30,8 +28,13 @@ export function GameActivitySidebar({
             : !leaderboard?.length ? <p className="py-4 text-center text-xs text-white/30">No bets placed yet</p>
               : leaderboard.map((stats, index) => {
                 const net = stats.claimed - stats.staked
-                return <a key={stats.address} href={`${robinhoodMainnet.blockExplorers.default.url}/address/${stats.address}`} target="_blank" rel="noreferrer" className="grid min-w-0 grid-cols-[1rem_minmax(0,1fr)_auto] items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition-colors hover:bg-white/5">
+                return <a key={stats.address} href={`${robinhoodMainnet.blockExplorers.default.url}/address/${stats.address}`} target="_blank" rel="noreferrer" className="grid min-w-0 grid-cols-[1rem_auto_minmax(0,1fr)_auto] items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition-colors hover:bg-white/5">
                   <span className="w-4 text-center font-mono text-xs text-white/30">{index + 1}</span>
+                  <span className="flex -space-x-1" title={stats.symbols.join(', ') || 'Asset pending'}>
+                    {(stats.symbols.length > 0 ? stats.symbols : [undefined]).map((symbol, symbolIndex) => (
+                      <TokenLogo key={`${symbol ?? 'unknown'}:${symbolIndex}`} ticker={symbol} className="h-5 w-5 rounded-md ring-1 ring-[#241b2f]" />
+                    ))}
+                  </span>
                   <AddressLabel address={stats.address} link={false} className="min-w-0 truncate font-mono text-xs" />
                   <span title={`${formatEther(net)} ETH`} className={`whitespace-nowrap text-right font-mono text-[0.7rem] tabular-nums ${net >= 0n ? accentText : 'text-rose-400'}`}>{net >= 0n ? '+' : ''}{formatCompactEth(net)}</span>
                 </a>
@@ -47,7 +50,7 @@ export function GameActivitySidebar({
           {activity.isLoading ? <p className="py-4 text-center text-xs text-white/30">Scanning chain…</p>
             : !recent?.length ? <p className="py-4 text-center text-xs text-white/30">No bets yet</p>
               : recent.map((bet) => {
-                const symbol = symbolFor(bet.gameId, bet.assetIndex)
+                const symbol = bet.symbol
                 return <div key={`${bet.txHash}:${bet.gameId}`} className="rounded-xl bg-white/5 px-2.5 py-2 text-xs">
                   <div className="flex min-w-0 items-center justify-between gap-2">
                     <div className="flex min-w-0 items-center gap-1.5">

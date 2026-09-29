@@ -91,7 +91,7 @@ export function OnchainArenasListPage() {
       : filter === 'LOBBY' ? arena.phase === PRICE_ARENA_PHASE.LOBBY
         : filter === 'LIVE' ? arena.phase === PRICE_ARENA_PHASE.RUNNING
           : filter === 'FINISHED' ? arena.phase === PRICE_ARENA_PHASE.RESOLVED
-            : arena.phase === PRICE_ARENA_PHASE.CANCELLED
+            : arena.phase === PRICE_ARENA_PHASE.CANCELLED && arena.totalPool > 0n
   ))
 
   return (
@@ -122,7 +122,7 @@ export function OnchainArenasListPage() {
                 : <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">{visible.map((arena) => <ArenaCard key={arena.id.toString()} arena={arena} nowMs={nowMs} />)}</div>}
         </main>
         <aside className="sticky top-20 hidden w-72 shrink-0 lg:block">
-          <GameActivitySidebar kind="arena" symbolFor={(gameId) => arenas.find((arena) => arena.id === gameId)?.asset?.symbol} />
+          <GameActivitySidebar kind="arena" />
         </aside>
       </div>
     </div>

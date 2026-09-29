@@ -1,9 +1,19 @@
 import { useQuery } from '@tanstack/react-query'
 import { parseAbiItem, type Address, type Hash } from 'viem'
 import { usePublicClient } from 'wagmi'
-import { ASSET_RACE_ADDRESS } from '@/chain/assetRaces'
+import {
+  ASSET_RACE_ADDRESS,
+  assetRaceAbi,
+  normalizeRaceAssets,
+  type AssetRaceAsset,
+} from '@/chain/assetRaces'
 import { isLocalAssetRace } from '@/chain/config'
-import { PRICE_ARENA_ADDRESS } from '@/chain/priceArena'
+import {
+  PRICE_ARENA_ADDRESS,
+  priceArenaAbi,
+  priceArenaAsset,
+  type PriceArenaData,
+} from '@/chain/priceArena'
 
 const RACE_BET_EVENT = parseAbiItem(
   'event RaceBetPlaced(uint256 indexed raceId, address indexed user, uint8 indexed assetIndex, uint256 amount, uint256 totalUserStake)',
@@ -26,6 +36,7 @@ export interface GameBetActivity {
   txHash: Hash
   blockNumber: bigint
   assetIndex?: number
+  symbol?: string
 }
 
 export interface GameUserActivity {
@@ -33,6 +44,7 @@ export interface GameUserActivity {
   staked: bigint
   claimed: bigint
   bets: number
+  symbols: string[]
 }
 
 export interface GameActivity {
@@ -98,7 +110,7 @@ export function useGameActivity(kind: GameActivityKind) {
         const key = user.toLowerCase()
         const existing = byUser.get(key)
         if (existing) return existing
-        const created = { address: user, staked: 0n, claimed: 0n, bets: 0 }
+        const created = { address: user, staked: 0n, claimed: 0n, bets: 0, symbols: [] }
         byUser.set(key, created)
         return created
       }
@@ -116,11 +128,75 @@ export function useGameActivity(kind: GameActivityKind) {
           return aNet === bNet ? 0 : aNet > bNet ? -1 : 1
         })
         .slice(0, 5)
-      const recent = [...bets]
+      const betsByNewest = [...bets]
         .sort((a, b) => a.blockNumber === b.blockNumber ? 0 : a.blockNumber > b.blockNumber ? -1 : 1)
-        .slice(0, 8)
+      const recent = betsByNewest.slice(0, 8)
 
-      return { leaderboard, recent }
+      // Live list pages deliberately keep only a small window of cards. Asset
+      // identity for the side rail must not depend on that window: recent bets
+      // and each leaderboard wallet's latest bet may point to much older IDs.
+      // Resolve only those referenced games in one bounded multicall.
+      const metadataBets = [...recent]
+      for (const stats of leaderboard) {
+        const latest = betsByNewest.find((bet) => bet.user.toLowerCase() === stats.address.toLowerCase())
+        if (latest) metadataBets.push(latest)
+      }
+      const gameIds = [...new Set(metadataBets.map((bet) => bet.gameId.toString()))].map(BigInt)
+      const symbolsByGame = new Map<string, string[]>()
+
+      if (gameIds.length > 0) {
+        if (kind === 'race') {
+          const results = await client.multicall({
+            contracts: gameIds.map((gameId) => ({
+              address,
+              abi: assetRaceAbi,
+              functionName: 'getRaceAssets',
+              args: [gameId],
+            }) as const),
+            allowFailure: true,
+          })
+          results.forEach((result, index) => {
+            if (result.status !== 'success') return
+            const assets = normalizeRaceAssets(
+              result.result as readonly Omit<AssetRaceAsset, 'assetIndex' | 'symbol' | 'feedAddress'>[],
+            )
+            symbolsByGame.set(gameIds[index].toString(), assets.map((asset) => asset.symbol))
+          })
+        } else {
+          const results = await client.multicall({
+            contracts: gameIds.map((gameId) => ({
+              address,
+              abi: priceArenaAbi,
+              functionName: 'getArena',
+              args: [gameId],
+            }) as const),
+            allowFailure: true,
+          })
+          results.forEach((result, index) => {
+            if (result.status !== 'success') return
+            const arena = result.result as unknown as PriceArenaData
+            const symbol = priceArenaAsset(arena.assetId)?.symbol
+            if (symbol) symbolsByGame.set(gameIds[index].toString(), [symbol])
+          })
+        }
+      }
+
+      const withSymbol = (bet: GameBetActivity): GameBetActivity => ({
+        ...bet,
+        symbol: symbolsByGame.get(bet.gameId.toString())?.[bet.assetIndex ?? 0],
+      })
+      const enrichedRecent = recent.map(withSymbol)
+      const enrichedLeaderboard = leaderboard.map((stats) => {
+        const symbols = betsByNewest
+          .filter((bet) => bet.user.toLowerCase() === stats.address.toLowerCase())
+          .map((bet) => symbolsByGame.get(bet.gameId.toString())?.[bet.assetIndex ?? 0])
+          .filter((symbol): symbol is string => !!symbol)
+          .filter((symbol, index, all) => all.indexOf(symbol) === index)
+          .slice(0, 3)
+        return { ...stats, symbols }
+      })
+
+      return { leaderboard: enrichedLeaderboard, recent: enrichedRecent }
     },
   })
 }
