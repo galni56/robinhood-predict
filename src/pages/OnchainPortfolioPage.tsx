@@ -19,6 +19,7 @@ import {
 import { priceSourceUrlForSymbol } from '@/chain/assetRaceRegistry'
 import { tickerForPredictionAssetId } from '@/chain/predictionMarketAssets'
 import { useNickname } from '@/chain/nicknames'
+import { formatCompactEth } from '@/lib/format'
 import type { MarketSide } from '@/types'
 
 const CLAIMED_EVENT = parseAbiItem('event Claimed(uint256 indexed id, address indexed user, uint256 payout)')
@@ -33,11 +34,11 @@ interface Position {
   hasClaimed: boolean
 }
 
-function StatCard({ label, value, valueClassName = '' }: { label: string; value: string; valueClassName?: string }) {
+function StatCard({ label, value, valueClassName = '', title }: { label: string; value: string; valueClassName?: string; title?: string }) {
   return (
-    <div className="rounded-2xl border border-white/5 bg-[#241b2f] p-4">
+    <div className="min-w-0 rounded-2xl border border-white/5 bg-[#241b2f] p-4">
       <div className="text-white/40 text-xs font-bold mb-1">{label}</div>
-      <div className={`text-xl font-mono font-semibold ${valueClassName}`}>{value}</div>
+      <div title={title} className={`truncate text-xl font-mono font-semibold tabular-nums ${valueClassName}`}>{value}</div>
     </div>
   )
 }
@@ -180,15 +181,16 @@ export function OnchainPortfolioPage() {
       {nicknameModalOpen && <SetNicknameModal onClose={() => setNicknameModalOpen(false)} />}
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <StatCard label="Native balance" value={balance.data != null ? `${formatEther(balance.data.value)} ETH` : '…'} />
+        <StatCard label="Native balance" value={balance.data != null ? formatCompactEth(balance.data.value) : '…'} title={balance.data != null ? `${formatEther(balance.data.value)} ETH` : undefined} />
         <StatCard label="Wallet" value={address ? (nickname.data || truncateAddress(address)) : '-'} />
         <StatCard label="Win rate" value={winRate != null ? `${winRate.toFixed(0)}%` : '-'} />
         <StatCard label="Current streak" value={streakWon == null ? '-' : `${currentStreak}${streakWon ? 'W' : 'L'}`} />
-        <StatCard label="Total wagered" value={`${formatEther(totalWagered)} ETH`} />
-        <StatCard label="Total won" value={totalClaimed != null ? `${formatEther(totalClaimed)} ETH` : '…'} />
+        <StatCard label="Total wagered" value={formatCompactEth(totalWagered)} title={`${formatEther(totalWagered)} ETH`} />
+        <StatCard label="Total won" value={totalClaimed != null ? formatCompactEth(totalClaimed) : '…'} title={totalClaimed != null ? `${formatEther(totalClaimed)} ETH` : undefined} />
         <StatCard
           label="Net P&L"
-          value={netPnl != null ? `${netPnl >= 0n ? '+' : ''}${formatEther(netPnl)} ETH` : '…'}
+          value={netPnl != null ? `${netPnl >= 0n ? '+' : ''}${formatCompactEth(netPnl)}` : '…'}
+          title={netPnl != null ? `${netPnl >= 0n ? '+' : ''}${formatEther(netPnl)} ETH` : undefined}
           valueClassName={netPnl == null ? '' : netPnl >= 0n ? 'text-[#B3A7FA]' : 'text-rose-400'}
         />
         <StatCard label="Total bets" value={String(positions.length)} />
@@ -223,13 +225,13 @@ function PositionList({ positions }: { positions: Position[] }) {
             {p.yesStake > 0n && (
               <span className="flex items-center gap-1.5">
                 <SideBadge side="YES" />
-                <span className="font-mono text-xs">{formatEther(p.yesStake)} ETH</span>
+                <span title={`${formatEther(p.yesStake)} ETH`} className="whitespace-nowrap font-mono text-xs tabular-nums">{formatCompactEth(p.yesStake)}</span>
               </span>
             )}
             {p.noStake > 0n && (
               <span className="flex items-center gap-1.5">
                 <SideBadge side="NO" />
-                <span className="font-mono text-xs">{formatEther(p.noStake)} ETH</span>
+                <span title={`${formatEther(p.noStake)} ETH`} className="whitespace-nowrap font-mono text-xs tabular-nums">{formatCompactEth(p.noStake)}</span>
               </span>
             )}
             <span className="ml-auto text-xs">

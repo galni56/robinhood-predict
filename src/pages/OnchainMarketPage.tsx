@@ -36,7 +36,7 @@ import {
   type FrozenNativeStakeQuote,
   type StakeInputUnit,
 } from '@/chain/ethUsd'
-import { formatCountdown, formatUsd, shortTxError } from '@/lib/format'
+import { formatCompactEth, formatCountdown, formatUsd, shortTxError } from '@/lib/format'
 import { shortHash } from '@/lib/hash'
 
 const MARKET_CREATED_EVENT = parseAbiItem(
@@ -487,7 +487,7 @@ export function OnchainMarketPage() {
       )}
 
       <div className="grid lg:grid-cols-[1fr_400px] gap-8 items-start mt-2">
-        <div>
+        <div className="min-w-0">
       {/* Market data is a public read - shown regardless of wallet connection. */}
       {market.isLoading ? (
         <div className="rounded-3xl border border-white/5 bg-[#241b2f] p-5 space-y-3 mb-5 animate-pulse">
@@ -572,8 +572,8 @@ export function OnchainMarketPage() {
           </div>
           <div className="flex justify-between text-xs font-bold">
             <span className="text-[#B3A7FA]">YES {yesPct.toFixed(1)}%</span>
-            <span className="text-white/40">
-              {formatEther(pools.poolYes)} vs {formatEther(pools.poolNo)} ETH
+            <span title={`${formatEther(pools.poolYes)} vs ${formatEther(pools.poolNo)} ETH`} className="min-w-0 truncate px-2 text-white/40 tabular-nums">
+              {formatCompactEth(pools.poolYes).replace(/ ETH$/, '')} vs {formatCompactEth(pools.poolNo)}
             </span>
             <span className="text-[#F2A65A]">NO {(100 - yesPct).toFixed(1)}%</span>
           </div>
@@ -600,7 +600,7 @@ export function OnchainMarketPage() {
               >
                 <SideBadge side={b.side === MarketSideOnchain.YES ? 'YES' : 'NO'} />
                 <AddressLabel address={b.user} className="font-mono text-white/70 hover:text-white" />
-                <span className="font-mono text-white/50">{formatEther(b.amount)} ETH</span>
+                <span title={`${formatEther(b.amount)} ETH`} className="min-w-0 truncate font-mono text-white/50 tabular-nums">{formatCompactEth(b.amount)}</span>
                 <a
                   href={`${robinhoodMainnet.blockExplorers.default.url}/tx/${b.txHash}`}
                   target="_blank"
@@ -616,7 +616,7 @@ export function OnchainMarketPage() {
       </div>
         </div>
 
-        <div className="lg:sticky lg:top-24 space-y-4">
+        <div className="min-w-0 lg:sticky lg:top-24 space-y-4">
           <div className="rounded-3xl border border-white/5 bg-[#241b2f] p-5 flex items-center gap-4">
             <img
               src={`${import.meta.env.BASE_URL}brand/mascot-small.png`}
@@ -714,7 +714,7 @@ export function OnchainMarketPage() {
                   ) : (
                     <div className="rounded-3xl border border-white/5 bg-[#241b2f] p-4 space-y-3">
                       <div className="flex items-center justify-between text-xs text-white/50 font-medium">
-                        <span>Your balance: {nativeBalance.data ? formatEther(nativeBalance.data.value) : '…'} ETH</span>
+                        <span title={nativeBalance.data ? `${formatEther(nativeBalance.data.value)} ETH` : undefined}>Your balance: {nativeBalance.data ? formatCompactEth(nativeBalance.data.value) : '…'}</span>
                         {liveWeightBp != null && (
                           <span className="font-bold text-[#B3A7FA]">
                             Early-bet bonus: {(Number(liveWeightBp) / Number(BP_DENOMINATOR)).toFixed(2)}x

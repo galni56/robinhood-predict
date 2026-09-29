@@ -16,7 +16,7 @@ import { AddressLabel } from '@/components/AddressLabel'
 import { GameActivitySidebar } from '@/components/GameActivitySidebar'
 import { PriceSourceLink } from '@/components/PriceSourceLink'
 import { TokenLogo } from '@/components/TokenLogo'
-import { formatCountdown } from '@/lib/format'
+import { formatCompactEth, formatCountdown } from '@/lib/format'
 
 const FILTERS = ['ALL', 'LOBBY', 'LIVE', 'FINISHED'] as const
 
@@ -55,9 +55,9 @@ function ArenaCard({ arena, nowMs }: { arena: PriceArenaViewModel; nowMs: number
         <span className="rounded-full bg-white/5 px-2.5 py-1 text-xs font-bold text-white/60">{arenaPhaseLabel(arena.phase)}</span>
       </div>
       <div className="mt-5 grid grid-cols-3 gap-3 rounded-2xl bg-black/10 p-3 text-sm">
-        <div><div className="text-xs text-white/30">Asset</div><div className="mt-1 flex items-center gap-2 font-bold"><TokenLogo ticker={arena.asset?.symbol} className="h-7 w-7 rounded-lg" />{arena.asset?.symbol ?? '—'}</div></div>
-        <div><div className="text-xs text-white/30">Players</div><div className="mt-1 font-mono font-bold">{arena.participantCount} / 20</div></div>
-        <div><div className="text-xs text-white/30">Prize pool</div><div className="mt-1 font-mono font-bold">{formatEther(arena.totalPool)} ETH</div></div>
+        <div className="min-w-0"><div className="text-xs text-white/30">Asset</div><div className="mt-1 flex min-w-0 items-center gap-2 font-bold"><TokenLogo ticker={arena.asset?.symbol} className="h-7 w-7 shrink-0 rounded-lg" /><span className="truncate">{arena.asset?.symbol ?? '—'}</span></div></div>
+        <div className="min-w-0"><div className="text-xs text-white/30">Players</div><div className="mt-1 truncate font-mono font-bold tabular-nums">{arena.participantCount} / 20</div></div>
+        <div className="min-w-0"><div className="text-xs text-white/30">Prize pool</div><div title={`${formatEther(arena.totalPool)} ETH`} className="mt-1 truncate font-mono text-[0.78rem] font-bold tabular-nums">{formatCompactEth(arena.totalPool, 3)}</div></div>
       </div>
       <div className="mt-4 flex items-center justify-between text-xs">
         <span className="text-white/40">{arenaDurationLabel(arena.duration)} round · {countdown(arena, nowMs)}</span>

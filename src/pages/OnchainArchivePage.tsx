@@ -14,7 +14,7 @@ import { priceSourceUrlForSymbol } from '@/chain/assetRaceRegistry'
 import { useTokenLogos } from '@/chain/robinhoodApi'
 import { PriceSourceLink } from '@/components/PriceSourceLink'
 import { TokenLogo } from '@/components/TokenLogo'
-import { formatUsd, timeAgo } from '@/lib/format'
+import { formatCompactEth, formatUsd, timeAgo } from '@/lib/format'
 
 export function OnchainArchivePage() {
   const logos = useTokenLogos()
@@ -74,8 +74,8 @@ export function OnchainArchivePage() {
                 <span className="text-white/40 text-xs w-28 text-right">
                   {yesPct.toFixed(1)}% / {(100 - yesPct).toFixed(1)}%
                 </span>
-                <span className="text-white/40 text-xs w-24 text-right">
-                  pool {formatEther(totalPool)} ETH
+                <span title={`${formatEther(totalPool)} ETH`} className="w-28 shrink-0 truncate text-right text-xs font-mono text-white/40 tabular-nums">
+                  pool {formatCompactEth(totalPool)}
                 </span>
                 <span className="text-white/30 text-xs w-20 text-right">{timeAgo(Number(m.deadline) * 1000)}</span>
               </Link>
