@@ -118,10 +118,14 @@ export function OnchainMarketsListPage() {
 
   const filteredIds = ids
     .filter((_id, i) => {
-      if (filter === 'ALL') return true
       const market = marketAt(i)
       if (!market) return false
       const status = market.status
+      // "All" deliberately excludes cancelled markets -- an auto-seeded
+      // market that never got a counter-bet cancels itself, and without
+      // this the list fills up with dead cards. Cancelled ones stay fully
+      // visible, just one tab over, not hidden from the chain.
+      if (filter === 'ALL') return status !== MarketStatusOnchain.Cancelled
       if (filter === 'OPEN') return status === MarketStatusOnchain.Open
       if (filter === 'RESOLVED') return status === MarketStatusOnchain.Resolved
       return status === MarketStatusOnchain.Cancelled

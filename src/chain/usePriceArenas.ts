@@ -16,18 +16,18 @@ export function usePriceArenas() {
   const enabled = !!PRICE_ARENA_ADDRESS
   const countQuery = useReadContract({
     address, chainId: assetRaceChain.id, abi: priceArenaAbi, functionName: 'arenaCount',
-    query: { enabled, refetchInterval: 5_000 },
+    query: { enabled, refetchInterval: 15_000 },
   })
   const count = Number(countQuery.data ?? 0n)
   const firstId = Math.max(0, count - MAX_ARENAS_TO_LIST)
   const ids = useMemo(() => Array.from({ length: count - firstId }, (_, i) => BigInt(firstId + i)).reverse(), [count, firstId])
   const arenaQueries = useReadContracts({
     contracts: ids.map((id) => ({ address, chainId: assetRaceChain.id, abi: priceArenaAbi, functionName: 'getArena', args: [id] }) as const),
-    query: { enabled: enabled && ids.length > 0, refetchInterval: 5_000 },
+    query: { enabled: enabled && ids.length > 0, refetchInterval: 15_000 },
   })
   const phaseQueries = useReadContracts({
     contracts: ids.map((id) => ({ address, chainId: assetRaceChain.id, abi: priceArenaAbi, functionName: 'phase', args: [id] }) as const),
-    query: { enabled: enabled && ids.length > 0, refetchInterval: 5_000 },
+    query: { enabled: enabled && ids.length > 0, refetchInterval: 15_000 },
   })
   const arenas = ids.flatMap((id, index): PriceArenaViewModel[] => {
     const arenaResult = arenaQueries.data?.[index]

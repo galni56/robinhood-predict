@@ -18,7 +18,7 @@ import { PriceSourceLink } from '@/components/PriceSourceLink'
 import { TokenLogo } from '@/components/TokenLogo'
 import { formatCompactEth, formatCountdown } from '@/lib/format'
 
-const FILTERS = ['ALL', 'LOBBY', 'LIVE', 'FINISHED'] as const
+const FILTERS = ['ALL', 'LOBBY', 'LIVE', 'FINISHED', 'CANCELLED'] as const
 
 function countdown(arena: PriceArenaViewModel, nowMs: number) {
   if (!nowMs) return '…'
@@ -82,11 +82,16 @@ export function OnchainArenasListPage() {
   const category = mode === 'memes' ? PRICE_ARENA_CATEGORY.MEME : PRICE_ARENA_CATEGORY.STOCK
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>('ALL')
   const nowMs = useAssetRaceClock()
+  // "All" deliberately excludes cancelled arenas -- an auto-seeded arena
+  // that never reached 2 participants cancels itself, and without this the
+  // list fills up with dead cards. Cancelled ones stay fully visible, just
+  // one tab over, not hidden from the chain.
   const visible = arenas.filter((arena) => arena.category === category && (
-    filter === 'ALL'
-      || (filter === 'LOBBY' && arena.phase === PRICE_ARENA_PHASE.LOBBY)
-      || (filter === 'LIVE' && arena.phase === PRICE_ARENA_PHASE.RUNNING)
-      || (filter === 'FINISHED' && arena.phase >= PRICE_ARENA_PHASE.RESOLVED)
+    filter === 'ALL' ? arena.phase !== PRICE_ARENA_PHASE.CANCELLED
+      : filter === 'LOBBY' ? arena.phase === PRICE_ARENA_PHASE.LOBBY
+        : filter === 'LIVE' ? arena.phase === PRICE_ARENA_PHASE.RUNNING
+          : filter === 'FINISHED' ? arena.phase === PRICE_ARENA_PHASE.RESOLVED
+            : arena.phase === PRICE_ARENA_PHASE.CANCELLED
   ))
 
   return (
