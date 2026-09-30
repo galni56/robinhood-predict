@@ -6,6 +6,7 @@ import { useStableGameCount, useStableGameSnapshots } from '@/chain/useStableGam
 import {
   ACTIVE_GAME_POLL_INTERVAL_MS,
   ACTIVE_GAME_REFRESH_OPTIONS,
+  GAME_SNAPSHOT_MULTICALL_BATCH_SIZE,
   HISTORICAL_GAME_POLL_INTERVAL_MS,
   splitProgressiveGameIds,
 } from '@/chain/gameSnapshots'
@@ -41,6 +42,7 @@ export function usePriceArenas() {
     // Arena data and its derived phase must update together. Keeping both reads
     // in one multicall removes an extra round trip and avoids mixed old/new rows.
     contracts: readsFor(fastIds),
+    batchSize: GAME_SNAPSHOT_MULTICALL_BATCH_SIZE,
     query: {
       enabled: enabled && fastIds.length > 0,
       refetchInterval: ACTIVE_GAME_POLL_INTERVAL_MS,
@@ -53,6 +55,7 @@ export function usePriceArenas() {
   )
   const historyQueries = useReadContracts({
     contracts: readsFor(historyIds),
+    batchSize: GAME_SNAPSHOT_MULTICALL_BATCH_SIZE,
     query: {
       enabled: enabled && fastScanComplete && historyIds.length > 0,
       refetchInterval: HISTORICAL_GAME_POLL_INTERVAL_MS,

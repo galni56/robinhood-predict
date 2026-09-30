@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router-dom'
 import { formatEther, formatUnits, parseUnits, type Address } from 'viem'
 import { waitForTransactionReceipt } from 'wagmi/actions'
@@ -96,6 +97,7 @@ export function OnchainArenaPage() {
   const chainId = useChainId()
   const { switchChain, isPending: isSwitching } = useSwitchChain()
   const { writeContractAsync } = useWriteContract()
+  const queryClient = useQueryClient()
   const [prediction, setPrediction] = useState('')
   const [amount, setAmount] = useState('')
   const [stakeInputUnit, setStakeInputUnit] = useState<StakeInputUnit>('USD')
@@ -193,7 +195,12 @@ export function OnchainArenaPage() {
       setTxLabel(`Confirm ${functionName}…`)
       const hash = await writeContractAsync({ address: PRICE_ARENA_ADDRESS, chainId: assetRaceChain.id, abi: priceArenaAbi, functionName, args: [arenaId] })
       await waitForTransactionReceipt(wagmiConfig, { hash, chainId: assetRaceChain.id })
-      setTxLabel(null); await refetch()
+      setTxLabel(null)
+      await Promise.all([
+        refetch(),
+        balanceQuery.refetch(),
+        queryClient.invalidateQueries({ queryKey: ['game-activity', 'arena'] }),
+      ])
     } catch (cause) { setTxLabel(null); setError(shortTxError(cause)) }
   }
 

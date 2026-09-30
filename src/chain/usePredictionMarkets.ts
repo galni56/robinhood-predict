@@ -12,6 +12,7 @@ import { useStableGameCount, useStableGameSnapshots } from '@/chain/useStableGam
 import {
   ACTIVE_GAME_POLL_INTERVAL_MS,
   ACTIVE_GAME_REFRESH_OPTIONS,
+  GAME_SNAPSHOT_MULTICALL_BATCH_SIZE,
   HISTORICAL_GAME_POLL_INTERVAL_MS,
   splitProgressiveGameIds,
 } from '@/chain/gameSnapshots'
@@ -82,6 +83,7 @@ export function usePredictionMarkets({ includeSettlements = false }: { includeSe
     // useReadContracts hooks briefly reused incompatible cached rows in
     // production, which put getMarket.assetId into the resolved-price slot.
     contracts: readsFor(fastIds),
+    batchSize: GAME_SNAPSHOT_MULTICALL_BATCH_SIZE,
     query: {
       enabled: enabled && fastIds.length > 0,
       refetchInterval: ACTIVE_GAME_POLL_INTERVAL_MS,
@@ -94,6 +96,7 @@ export function usePredictionMarkets({ includeSettlements = false }: { includeSe
   )
   const historyQueries = useReadContracts({
     contracts: readsFor(historyIds),
+    batchSize: GAME_SNAPSHOT_MULTICALL_BATCH_SIZE,
     query: {
       enabled: enabled && fastScanComplete && historyIds.length > 0,
       refetchInterval: HISTORICAL_GAME_POLL_INTERVAL_MS,

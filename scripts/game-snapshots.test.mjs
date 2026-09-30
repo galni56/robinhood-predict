@@ -3,6 +3,7 @@ import test from 'node:test'
 import {
   ACTIVE_GAME_POLL_INTERVAL_MS,
   ACTIVE_GAME_REFRESH_OPTIONS,
+  GAME_SNAPSHOT_MULTICALL_BATCH_SIZE,
   clearSessionGameSnapshots,
   isActiveOnchainStatus,
   readSessionGameSnapshots,
@@ -56,6 +57,7 @@ test('active game queries always refresh on route activation, focus, and reconne
   assert.equal(ACTIVE_GAME_REFRESH_OPTIONS.refetchIntervalInBackground, false)
   assert.equal(ACTIVE_GAME_REFRESH_OPTIONS.staleTime, 0)
   assert.equal(ACTIVE_GAME_POLL_INTERVAL_MS, 1_000)
+  assert.equal(GAME_SNAPSHOT_MULTICALL_BATCH_SIZE, 0)
 })
 
 test('bounded product snapshots survive route unmount and remount in the SPA session', () => {

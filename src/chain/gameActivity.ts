@@ -14,6 +14,7 @@ import {
   priceArenaAsset,
   type PriceArenaData,
 } from '@/chain/priceArena'
+import { settledGameUserStats, type SettledGameClaim, type SettledGameStake } from '@/chain/gameActivityAccounting'
 
 const RACE_BET_EVENT = parseAbiItem(
   'event RaceBetPlaced(uint256 indexed raceId, address indexed user, uint8 indexed assetIndex, uint256 amount, uint256 totalUserStake)',
@@ -23,6 +24,9 @@ const ARENA_ENTRY_EVENT = parseAbiItem(
   'event EntryChanged(uint256 indexed arenaId, address indexed player, uint256 totalStake, uint256 predictionUpdatedAt, bool predictionChanged)',
 )
 const ARENA_CLAIM_EVENT = parseAbiItem('event Claimed(uint256 indexed arenaId, address indexed player, uint256 payout)')
+const ARENA_RESOLVED_EVENT = parseAbiItem(
+  'event ArenaResolved(uint256 indexed arenaId, uint256 finalPrice, uint256 winnerCount, uint256 protocolFee, bytes32 observationId)',
+)
 
 const RACE_DEPLOY_BLOCK = 72_253_652n
 const ARENA_DEPLOY_BLOCK = 72_262_224n
@@ -66,7 +70,8 @@ export function useGameActivity(kind: GameActivityKind) {
       const fromBlock = isLocalAssetRace ? 0n : kind === 'race' ? RACE_DEPLOY_BLOCK : ARENA_DEPLOY_BLOCK
 
       let bets: GameBetActivity[]
-      let claims: { user: Address; payout: bigint }[]
+      let claims: { gameId: bigint; user: Address; payout: bigint }[]
+      let arenaSettledStats: Omit<GameUserActivity, 'symbols'>[] | undefined
 
       if (kind === 'race') {
         const [betLogs, claimLogs] = await Promise.all([
@@ -79,30 +84,39 @@ export function useGameActivity(kind: GameActivityKind) {
           return [{ gameId: raceId, user, assetIndex, amount, txHash: log.transactionHash, blockNumber: log.blockNumber }]
         })
         claims = claimLogs.flatMap((log) => {
-          const { user, payout } = log.args
-          return user && payout != null ? [{ user, payout }] : []
+          const { raceId, user, payout } = log.args
+          return raceId != null && user && payout != null ? [{ gameId: raceId, user, payout }] : []
         })
       } else {
-        const [entryLogs, claimLogs] = await Promise.all([
+        const [entryLogs, claimLogs, resolvedLogs] = await Promise.all([
           client.getLogs({ address, event: ARENA_ENTRY_EVENT, fromBlock, toBlock: 'latest' }),
           client.getLogs({ address, event: ARENA_CLAIM_EVENT, fromBlock, toBlock: 'latest' }),
+          client.getLogs({ address, event: ARENA_RESOLVED_EVENT, fromBlock, toBlock: 'latest' }),
         ])
-        const totals = new Map<string, bigint>()
+        const totals = new Map<string, SettledGameStake<Address>>()
         bets = [...entryLogs]
           .sort((a, b) => a.blockNumber === b.blockNumber ? Number((a.logIndex ?? 0) - (b.logIndex ?? 0)) : a.blockNumber < b.blockNumber ? -1 : 1)
           .flatMap((log) => {
             const { arenaId, player, totalStake } = log.args
             if (arenaId == null || !player || totalStake == null) return []
             const key = `${arenaId}:${player.toLowerCase()}`
-            const previous = totals.get(key) ?? 0n
-            totals.set(key, totalStake)
+            const previous = totals.get(key)?.stake ?? 0n
+            totals.set(key, { gameId: arenaId, user: player, stake: totalStake })
             const amount = totalStake > previous ? totalStake - previous : 0n
             return amount > 0n ? [{ gameId: arenaId, user: player, amount, txHash: log.transactionHash, blockNumber: log.blockNumber }] : []
           })
         claims = claimLogs.flatMap((log) => {
-          const { player, payout } = log.args
-          return player && payout != null ? [{ user: player, payout }] : []
+          const { arenaId, player, payout } = log.args
+          return arenaId != null && player && payout != null ? [{ gameId: arenaId, user: player, payout }] : []
         })
+        const resolvedGameIds = new Set(
+          resolvedLogs.flatMap((log) => log.args.arenaId == null ? [] : [log.args.arenaId.toString()]),
+        )
+        arenaSettledStats = settledGameUserStats(
+          [...totals.values()],
+          claims as SettledGameClaim<Address>[],
+          resolvedGameIds,
+        )
       }
 
       const byUser = new Map<string, GameUserActivity>()
@@ -114,12 +128,21 @@ export function useGameActivity(kind: GameActivityKind) {
         byUser.set(key, created)
         return created
       }
-      for (const bet of bets) {
-        const stats = userStats(bet.user)
-        stats.staked += bet.amount
-        stats.bets += 1
+      if (arenaSettledStats) {
+        for (const settled of arenaSettledStats) {
+          const stats = userStats(settled.address)
+          stats.staked = settled.staked
+          stats.claimed = settled.claimed
+          stats.bets = settled.bets
+        }
+      } else {
+        for (const bet of bets) {
+          const stats = userStats(bet.user)
+          stats.staked += bet.amount
+          stats.bets += 1
+        }
+        for (const claim of claims) userStats(claim.user).claimed += claim.payout
       }
-      for (const claim of claims) userStats(claim.user).claimed += claim.payout
 
       const leaderboard = [...byUser.values()]
         .sort((a, b) => {

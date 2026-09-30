@@ -6,6 +6,7 @@ import { useStableGameCount, useStableGameSnapshots } from '@/chain/useStableGam
 import {
   ACTIVE_GAME_POLL_INTERVAL_MS,
   ACTIVE_GAME_REFRESH_OPTIONS,
+  GAME_SNAPSHOT_MULTICALL_BATCH_SIZE,
   HISTORICAL_GAME_POLL_INTERVAL_MS,
   splitProgressiveGameIds,
 } from '@/chain/gameSnapshots'
@@ -53,6 +54,7 @@ export function useAssetRaces() {
     // One ordered multicall keeps each race and its asset grid on the same
     // refresh cycle and halves the HTTP round trips used by the old split reads.
     contracts: readsFor(fastIds),
+    batchSize: GAME_SNAPSHOT_MULTICALL_BATCH_SIZE,
     query: {
       enabled: !isPreview && fastIds.length > 0,
       refetchInterval: ACTIVE_GAME_POLL_INTERVAL_MS,
@@ -65,6 +67,7 @@ export function useAssetRaces() {
   )
   const historyQueries = useReadContracts({
     contracts: readsFor(historyIds),
+    batchSize: GAME_SNAPSHOT_MULTICALL_BATCH_SIZE,
     query: {
       enabled: !isPreview && fastScanComplete && historyIds.length > 0,
       refetchInterval: HISTORICAL_GAME_POLL_INTERVAL_MS,

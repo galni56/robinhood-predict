@@ -77,6 +77,14 @@ export const ACTIVE_GAME_REFRESH_OPTIONS = {
 export const ACTIVE_GAME_POLL_INTERVAL_MS = 1_000
 export const HISTORICAL_GAME_POLL_INTERVAL_MS = 5_000
 
+// Keep each product snapshot in one aggregate3 call. The production RPC proxy
+// has returned a cached response for the wrong same-sized viem chunk when a
+// large useReadContracts request was split into several concurrent eth_calls.
+// That silently attached old race rows to new ids and made cards flicker or
+// appear duplicated. A zero batch size disables viem's internal chunk split;
+// the product windows are deliberately bounded, so one multicall stays small.
+export const GAME_SNAPSHOT_MULTICALL_BATCH_SIZE = 0
+
 /**
  * Split a bounded onchain id window into a small first request and a deferred
  * historical request. The active auto-created games are always among the

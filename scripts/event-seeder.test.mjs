@@ -141,9 +141,11 @@ test('OpenItemTracker drops entries once their deadline passes, without a read',
 test('OpenItemTracker restores large histories with bounded multicalls instead of sequential RPC reads', async () => {
   const count = BigInt(DISCOVERY_MULTICALL_BATCH_SIZE * 2 + 5)
   const batchSizes = []
+  const rpcBatchSizes = []
   const client = {
-    async multicall({ contracts }) {
+    async multicall({ contracts, batchSize }) {
       batchSizes.push(contracts.length)
+      rpcBatchSizes.push(batchSize)
       return contracts.map(({ args }) => ({
         status: 'success',
         result: { assetId: `asset-${args[0]}`, status: 0, deadline: 1_000n },
@@ -157,6 +159,7 @@ test('OpenItemTracker restores large histories with bounded multicalls instead o
   await tracker.discover(client, { address: '0x1', abi: [], getFn: 'getMarket', rowToItem: (row) => row }, count, 10n)
 
   assert.deepEqual(batchSizes, [DISCOVERY_MULTICALL_BATCH_SIZE, DISCOVERY_MULTICALL_BATCH_SIZE, 5])
+  assert.deepEqual(rpcBatchSizes, [0, 0, 0])
   assert.equal(tracker.nextId, count)
   assert.equal(tracker.openCount(10n), Number(count))
 })
@@ -320,17 +323,18 @@ test('isRaceOpenNow treats LOBBY/BETTING/RUNNING as open and RESOLVED/CANCELLED/
   assert.equal(isRaceOpenNow(2, 1_000n, 999n), false) // RESOLVED
   assert.equal(isRaceOpenNow(3, 1_000n, 999n), false) // CANCELLED
   assert.equal(isRaceOpenNow(4, 1_000n, 999n), false) // VOID
-  assert.equal(isRaceOpenNow(5, 1_000n, 1_000n), false) // past occupiedUntil
+  assert.equal(isRaceOpenNow(5, 1_000n, 1_000n), true) // time alone is not terminal
 })
 
 test('OpenItemTracker accepts a custom open predicate for races', async () => {
   const rows = new Map([[0n, { assetId: '0xaa', status: 5, deadline: 1_000n }]]) // LOBBY
-  const tracker = new OpenItemTracker(0n, isRaceOpenNow)
+  const tracker = new OpenItemTracker(0n, isRaceOpenNow, { expireByDeadline: false })
   await tracker.discover(makeClient(rows), { getFn: 'getRace', rowToItem: (row) => row }, 1n, 10n)
   assert.equal(tracker.openCount(10n), 1)
-  assert.equal(tracker.openCount(1_000n), 0)
+  tracker.prune(1_000n)
+  assert.equal(tracker.openCount(1_000n), 1)
   assert.deepEqual(tracker.openIds(10n), [0n])
-  assert.deepEqual(tracker.openIds(1_000n), [])
+  assert.deepEqual(tracker.openIds(1_000n), [0n])
 })
 
 test('OpenItemTracker refresh releases a race slot after an early cancellation', async () => {
@@ -351,7 +355,7 @@ test('OpenItemTracker refresh releases a race slot after an early cancellation',
     deadline: race.lobbyEndTime + race.bettingWindow + race.startGrace + race.raceDuration + race.resolutionGrace,
   })
   const read = { address: '0x0000000000000000000000000000000000000001', abi: [], getFn: 'getRace', rowToItem }
-  const tracker = new OpenItemTracker(0n, isRaceOpenNow)
+  const tracker = new OpenItemTracker(0n, isRaceOpenNow, { expireByDeadline: false })
 
   await tracker.discover(client, read, 1n, 50n)
   assert.equal(tracker.openCount(50n), 1)
@@ -362,7 +366,7 @@ test('OpenItemTracker refresh releases a race slot after an early cancellation',
 })
 
 test('OpenItemTracker refresh retains a tracked race across a transient RPC failure', async () => {
-  const tracker = new OpenItemTracker(0n, isRaceOpenNow)
+  const tracker = new OpenItemTracker(0n, isRaceOpenNow, { expireByDeadline: false })
   const read = { getFn: 'getRace', rowToItem: (row) => row }
   const initialRows = new Map([[0n, { assetId: 'race', status: 1, deadline: 500n }]])
 

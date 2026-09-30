@@ -191,12 +191,12 @@ export function isOpenNow(status, deadline, now) {
 }
 
 /** Races have no single OPEN status (LOBBY/BETTING/RUNNING are all
- * non-terminal) and no single deadline field -- so `deadline` here is a
- * conservative "occupiedUntil" computed from the immutable lifecycle fields.
- * Tracked races are also refreshed so early terminal transitions win over this
- * upper bound immediately. */
-export function isRaceOpenNow(status, occupiedUntil, now) {
-  return !RACE_TERMINAL_STATUSES.has(Number(status)) && BigInt(occupiedUntil) > BigInt(now)
+ * non-terminal). Local lifecycle time is not authoritative: a delayed keeper
+ * can leave a race non-terminal after its expected grace window. The seeder
+ * must keep that slot occupied until an onchain terminal status is observed,
+ * otherwise it can create an equivalent race alongside the still-open one. */
+export function isRaceOpenNow(status) {
+  return !RACE_TERMINAL_STATUSES.has(Number(status))
 }
 
 /** Incrementally scans new ids since the last discover() call, tracking
@@ -205,10 +205,11 @@ export function isRaceOpenNow(status, occupiedUntil, now) {
  * keepers) so RPC read volume stays bounded by "how many new items
  * appeared", not by the contract's ever-growing total item count. */
 export class OpenItemTracker {
-  constructor(scanFrom = 0n, isOpen = isOpenNow) {
+  constructor(scanFrom = 0n, isOpen = isOpenNow, { expireByDeadline = true } = {}) {
     this.nextId = BigInt(scanFrom)
     this.items = new Map()
     this.isOpen = isOpen
+    this.expireByDeadline = expireByDeadline
   }
 
   async discover(publicClient, { address, abi, getFn, rowToItem }, count, now) {
@@ -223,6 +224,7 @@ export class OpenItemTracker {
         ? await publicClient.multicall({
             contracts: ids.map((id) => ({ address, abi, functionName: getFn, args: [id] })),
             allowFailure: true,
+            batchSize: 0,
           }).then((results) => results.map((result, index) => {
             if (result.status !== 'success') throw new Error(`DiscoveryReadFailed:${ids[index]}`)
             return result.result
@@ -265,24 +267,29 @@ export class OpenItemTracker {
   /** Drops entries whose deadline has passed -- purely a local memory
    * cleanup, no RPC involved (see isOpenNow's comment). */
   prune(now) {
+    if (!this.expireByDeadline) return
     for (const [id, item] of this.items) if (item.deadline <= BigInt(now)) this.items.delete(id)
+  }
+
+  isTrackedOpen(item, now) {
+    return !this.expireByDeadline || item.deadline > BigInt(now)
   }
 
   openCount(now) {
     let count = 0
-    for (const item of this.items.values()) if (item.deadline > BigInt(now)) count += 1
+    for (const item of this.items.values()) if (this.isTrackedOpen(item, now)) count += 1
     return count
   }
 
   openAssetIdSet(now) {
     const set = new Set()
-    for (const item of this.items.values()) if (item.deadline > BigInt(now)) set.add(item.assetId.toLowerCase())
+    for (const item of this.items.values()) if (this.isTrackedOpen(item, now)) set.add(item.assetId.toLowerCase())
     return set
   }
 
   openIds(now) {
     return [...this.items.entries()]
-      .filter(([, item]) => item.deadline > BigInt(now))
+      .filter(([, item]) => this.isTrackedOpen(item, now))
       .map(([id]) => id)
   }
 }
@@ -297,8 +304,8 @@ function arenaRowToItem(arena) {
 
 /** A race has several candidate assets, not one -- assetId here is an
  * unused placeholder (openAssetIdSet() is never called for races, only
- * openCount()). deadline is the conservative occupiedUntil described on
- * isRaceOpenNow. */
+ * openCount()). occupiedUntil remains useful diagnostic lifecycle metadata;
+ * race trackers deliberately do not expire from it. */
 function raceRowToItem(race) {
   const occupiedUntil = BigInt(race.lobbyEndTime) + BigInt(race.bettingWindow) + BigInt(race.startGrace)
     + BigInt(race.raceDuration) + BigInt(race.resolutionGrace)
@@ -554,7 +561,9 @@ async function main() {
   // re-reads terminal history during the process lifetime.
   const marketTracker = new OpenItemTracker(0n)
   const arenaTracker = new OpenItemTracker(0n)
-  const raceTracker = config.assetRaceEnabled ? new OpenItemTracker(0n, isRaceOpenNow) : undefined
+  const raceTracker = config.assetRaceEnabled
+    ? new OpenItemTracker(0n, isRaceOpenNow, { expireByDeadline: false })
+    : undefined
   if (config.assetRaceEnabled) {
     const [communityPolicyConfigured, approvedRaceDurations] = await Promise.all([
       publicClient.readContract({ address: config.raceAddress, abi: assetRaceCommunityAbi, functionName: 'communityPolicyConfigured' }),
@@ -653,6 +662,7 @@ async function main() {
         },
       ]),
       allowFailure: true,
+      batchSize: 0,
     })
     if (assetResults.some((result) => result.status !== 'success')) {
       throw new Error('OpenRaceAssetReadFailed')
