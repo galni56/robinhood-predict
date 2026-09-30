@@ -8,6 +8,7 @@ import {
   readSessionGameSnapshots,
   reconcileGameSnapshots,
   reconcileGameSnapshotsWhenReady,
+  selectMonotonicGameCount,
   writeSessionGameSnapshots,
 } from '../src/chain/gameSnapshots.ts'
 
@@ -51,8 +52,9 @@ test('active game queries always refresh on route activation, focus, and reconne
   assert.equal(ACTIVE_GAME_REFRESH_OPTIONS.refetchOnMount, 'always')
   assert.equal(ACTIVE_GAME_REFRESH_OPTIONS.refetchOnWindowFocus, 'always')
   assert.equal(ACTIVE_GAME_REFRESH_OPTIONS.refetchOnReconnect, 'always')
+  assert.equal(ACTIVE_GAME_REFRESH_OPTIONS.refetchIntervalInBackground, false)
   assert.equal(ACTIVE_GAME_REFRESH_OPTIONS.staleTime, 0)
-  assert.equal(ACTIVE_GAME_POLL_INTERVAL_MS, 3_000)
+  assert.equal(ACTIVE_GAME_POLL_INTERVAL_MS, 1_000)
 })
 
 test('bounded product snapshots survive route unmount and remount in the SPA session', () => {
@@ -65,4 +67,12 @@ test('bounded product snapshots survive route unmount and remount in the SPA ses
   restored.length = 0
   assert.deepEqual(readSessionGameSnapshots(key), active)
   clearSessionGameSnapshots(key)
+})
+
+test('append-only game counts ignore stale lower-block RPC responses', () => {
+  assert.equal(selectMonotonicGameCount(168n, undefined), 168n)
+  assert.equal(selectMonotonicGameCount(168n, 0n), 168n)
+  assert.equal(selectMonotonicGameCount(168n, 139n), 168n)
+  assert.equal(selectMonotonicGameCount(168n, 168n), 168n)
+  assert.equal(selectMonotonicGameCount(168n, 169n), 169n)
 })

@@ -22,6 +22,7 @@ import {
   type PriceArenaData,
   type PriceArenaViewModel,
 } from '@/chain/priceArena'
+import { isCoherentPriceArenaSnapshot } from '@/chain/priceArenaSnapshot'
 
 export const GAME_ARCHIVE_PAGE_SIZE = 12
 
@@ -139,26 +140,30 @@ export function usePriceArenaArchivePage(page: number, enabled: boolean) {
   const count = Number(countQuery.data ?? 0n)
   const ids = useMemo(() => descendingPageIds(count, page), [count, page])
   const arenaQueries = useReadContracts({
-    contracts: ids.map((id) => ({ address, chainId: assetRaceChain.id, abi: priceArenaAbi, functionName: 'getArena', args: [id] }) as const),
-    query: { enabled: configured && enabled && ids.length > 0 },
-  })
-  const phaseQueries = useReadContracts({
-    contracts: ids.map((id) => ({ address, chainId: assetRaceChain.id, abi: priceArenaAbi, functionName: 'phase', args: [id] }) as const),
+    // Keep data and phase in one ordered result so an archive page change
+    // cannot pair a fresh Arena tuple with an older phase array.
+    contracts: ids.flatMap((id) => [
+      ({ address, chainId: assetRaceChain.id, abi: priceArenaAbi, functionName: 'getArena', args: [id] }) as const,
+      ({ address, chainId: assetRaceChain.id, abi: priceArenaAbi, functionName: 'phase', args: [id] }) as const,
+    ]),
     query: { enabled: configured && enabled && ids.length > 0 },
   })
   const items = ids.flatMap((id, index): PriceArenaViewModel[] => {
-    const arenaResult = arenaQueries.data?.[index]
-    const phaseResult = phaseQueries.data?.[index]
+    const arenaResult = arenaQueries.data?.[index * 2]
+    const phaseResult = arenaQueries.data?.[index * 2 + 1]
     if (arenaResult?.status !== 'success' || phaseResult?.status !== 'success') return []
     const arena = arenaResult.result as unknown as PriceArenaData
-    return [{ ...arena, id, phase: Number(phaseResult.result), asset: priceArenaAsset(arena.assetId) }]
+    const phase = Number(phaseResult.result)
+    const asset = priceArenaAsset(arena.assetId)
+    if (!isCoherentPriceArenaSnapshot(arena, phase, asset?.category)) return []
+    return [{ ...arena, id, phase, asset }]
   })
   return {
     count,
     pageCount: pageCount(count),
     ids,
     items,
-    isLoading: countQuery.isLoading || (enabled && (arenaQueries.isLoading || phaseQueries.isLoading)),
-    error: countQuery.error ?? arenaQueries.error ?? phaseQueries.error,
+    isLoading: countQuery.isLoading || (enabled && arenaQueries.isLoading),
+    error: countQuery.error ?? arenaQueries.error,
   }
 }

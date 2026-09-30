@@ -152,6 +152,7 @@ const ownerAbi = [{
 }]
 
 const PROOF_TYPE = { NONE: 0, CHAINLINK_ROUND_PAIR: 1, SIGNED_POOL_BLOCK_PAIR: 2 }
+export const DEFAULT_ASSET_RACE_IDLE_POLL_INTERVAL_MS = 5_000
 
 class KeeperConfigError extends Error {}
 
@@ -179,7 +180,7 @@ Explicit configuration:
                                                     retry spacing right after a
                                                     race becomes due or a
                                                     transition attempt fails
-  IDLE_POLL_INTERVAL_MS=20000                      cap while no tracked race is
+  IDLE_POLL_INTERVAL_MS=5000                       cap while no tracked race is
                                                     due soon -- still bounded
                                                     well inside every configured
                                                     start/resolution grace
@@ -306,7 +307,7 @@ function resolveConfig() {
     endpointCacheFile,
     localFallback: !explicitRpcUrl,
     pollIntervalMs: readNonNegativeInteger('POLL_INTERVAL_MS', collectorEnabled ? 1_000 : 15_000, 500),
-    idlePollIntervalMs: readNonNegativeInteger('IDLE_POLL_INTERVAL_MS', 20_000, 1_000),
+    idlePollIntervalMs: readNonNegativeInteger('IDLE_POLL_INTERVAL_MS', DEFAULT_ASSET_RACE_IDLE_POLL_INTERVAL_MS, 1_000),
     privateKey,
     priceSignerPrivateKey,
     poolRpcUrl,

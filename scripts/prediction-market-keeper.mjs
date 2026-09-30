@@ -20,6 +20,9 @@ import { PoolPriceEngine, poolChainContracts, poolConfigsFromRegistry } from './
 import { withRpcRateLimit } from './asset-race-rpc-budget.mjs'
 import { nextSleepMs } from './keeper-poll-schedule.mjs'
 
+export const DEFAULT_PREDICTION_MARKET_POLL_INTERVAL_MS = 1_000
+export const DEFAULT_PREDICTION_MARKET_IDLE_POLL_INTERVAL_MS = 5_000
+
 const OPEN = 0
 const SIGNED_POOL_BLOCK_PAIR = 2
 
@@ -120,8 +123,8 @@ export function readKeeperConfig() {
     allowLive: boolEnv('PREDICTION_MARKET_ALLOW_LIVE', false),
     dryRun,
     expectedChainId: uintEnv('PREDICTION_MARKET_CHAIN_ID', 4663, 1),
-    pollIntervalMs: uintEnv('PREDICTION_MARKET_POLL_INTERVAL_MS', 5_000, 500),
-    idlePollIntervalMs: uintEnv('PREDICTION_MARKET_IDLE_POLL_INTERVAL_MS', 20_000, 1_000),
+    pollIntervalMs: uintEnv('PREDICTION_MARKET_POLL_INTERVAL_MS', DEFAULT_PREDICTION_MARKET_POLL_INTERVAL_MS, 500),
+    idlePollIntervalMs: uintEnv('PREDICTION_MARKET_IDLE_POLL_INTERVAL_MS', DEFAULT_PREDICTION_MARKET_IDLE_POLL_INTERVAL_MS, 1_000),
     archiveMinIntervalMs: uintEnv('PREDICTION_MARKET_ARCHIVE_MIN_INTERVAL_MS', 150, 50),
     realtimeEndpointWindowSeconds: uintEnv('PREDICTION_MARKET_REALTIME_ENDPOINT_WINDOW_SECONDS', 30),
     endpointCacheFile: process.env.PREDICTION_MARKET_ENDPOINT_CACHE_FILE?.trim()

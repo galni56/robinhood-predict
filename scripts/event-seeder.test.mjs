@@ -3,15 +3,18 @@ import test from 'node:test'
 import { stringToHex } from 'viem'
 import {
   OpenItemTracker,
+  DISCOVERY_MULTICALL_BATCH_SIZE,
   arenaTitleFor,
   buildCommunityRacePayload,
   communityRaceTitleFor,
   isOpenNow,
   isRaceOpenNow,
   nextAssetToSeed,
+  nextRaceConfigsToSeed,
   pickCommunityRaceAssetIds,
   pickCommunityRaceAssetIdsFrom,
   readSeederConfig,
+  raceCombinationKey,
   rotateConfigs,
   targetPriceFromSnapshot,
 } from './event-seeder.mjs'
@@ -133,6 +136,46 @@ test('OpenItemTracker drops entries once their deadline passes, without a read',
   assert.equal(tracker.openCount(50n), 1)
   tracker.prune(150n)
   assert.equal(tracker.openCount(150n), 0)
+})
+
+test('OpenItemTracker restores large histories with bounded multicalls instead of sequential RPC reads', async () => {
+  const count = BigInt(DISCOVERY_MULTICALL_BATCH_SIZE * 2 + 5)
+  const batchSizes = []
+  const client = {
+    async multicall({ contracts }) {
+      batchSizes.push(contracts.length)
+      return contracts.map(({ args }) => ({
+        status: 'success',
+        result: { assetId: `asset-${args[0]}`, status: 0, deadline: 1_000n },
+      }))
+    },
+    async readContract() {
+      throw new Error('sequential read should not be used')
+    },
+  }
+  const tracker = new OpenItemTracker()
+  await tracker.discover(client, { address: '0x1', abi: [], getFn: 'getMarket', rowToItem: (row) => row }, count, 10n)
+
+  assert.deepEqual(batchSizes, [DISCOVERY_MULTICALL_BATCH_SIZE, DISCOVERY_MULTICALL_BATCH_SIZE, 5])
+  assert.equal(tracker.nextId, count)
+  assert.equal(tracker.openCount(10n), Number(count))
+})
+
+test('OpenItemTracker does not advance its cursor past a failed discovery batch', async () => {
+  const tracker = new OpenItemTracker()
+  const client = { async multicall() {
+    return [
+      { status: 'success', result: { assetId: 'first', status: 0, deadline: 1_000n } },
+      { status: 'failure', error: new Error('temporary RPC error') },
+    ]
+  } }
+
+  await assert.rejects(
+    tracker.discover(client, { address: '0x1', abi: [], getFn: 'getMarket', rowToItem: (row) => row }, 2n, 10n),
+    /DiscoveryReadFailed:1/,
+  )
+  assert.equal(tracker.nextId, 0n)
+  assert.equal(tracker.openCount(10n), 0)
 })
 
 test('nextAssetToSeed stops once the target open count is met', () => {
@@ -286,6 +329,8 @@ test('OpenItemTracker accepts a custom open predicate for races', async () => {
   await tracker.discover(makeClient(rows), { getFn: 'getRace', rowToItem: (row) => row }, 1n, 10n)
   assert.equal(tracker.openCount(10n), 1)
   assert.equal(tracker.openCount(1_000n), 0)
+  assert.deepEqual(tracker.openIds(10n), [0n])
+  assert.deepEqual(tracker.openIds(1_000n), [])
 })
 
 test('OpenItemTracker refresh releases a race slot after an early cancellation', async () => {
@@ -332,6 +377,32 @@ test('rotateConfigs wraps around the registry and starts at the given offset', (
   assert.deepEqual(rotateConfigs(configs, 2, 0), [{ assetId: 'NVDA' }, { assetId: 'TSLA' }])
   assert.deepEqual(rotateConfigs(configs, 2, 1), [{ assetId: 'TSLA' }, { assetId: 'AAPL' }])
   assert.deepEqual(rotateConfigs(configs, 2, 3), [{ assetId: 'NVDA' }, { assetId: 'TSLA' }]) // wraps
+})
+
+test('race combination keys ignore asset order', () => {
+  const nvda = stringToHex('NVDA', { size: 32 })
+  const tsla = stringToHex('TSLA', { size: 32 })
+  assert.equal(raceCombinationKey([nvda, tsla]), raceCombinationKey([tsla, nvda]))
+})
+
+test('race selection resumes after the newest onchain pair and skips an already-open combination', () => {
+  const configs = [
+    { assetId: 'NVDA' }, { assetId: 'TSLA' }, { assetId: 'AAPL' },
+    { assetId: 'META' }, { assetId: 'MSFT' }, { assetId: 'GOOGL' },
+  ]
+  const encoded = (symbols) => symbols.map((symbol) => stringToHex(symbol, { size: 32 }))
+  const newest = encoded(['MSFT', 'GOOGL'])
+
+  assert.deepEqual(
+    nextRaceConfigsToSeed(configs, 2, newest, new Set()),
+    [{ assetId: 'NVDA' }, { assetId: 'TSLA' }],
+  )
+
+  const blocked = new Set([raceCombinationKey(encoded(['NVDA', 'TSLA']))])
+  assert.deepEqual(
+    nextRaceConfigsToSeed(configs, 2, newest, blocked),
+    [{ assetId: 'AAPL' }, { assetId: 'META' }],
+  )
 })
 
 test('pickCommunityRaceAssetIdsFrom encodes the rotated selection', () => {

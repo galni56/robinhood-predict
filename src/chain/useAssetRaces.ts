@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { zeroAddress } from 'viem'
 import { useReadContract, useReadContracts } from 'wagmi'
 import { assetRaceChain } from '@/chain/config'
-import { useStableGameSnapshots } from '@/chain/useStableGameSnapshots'
+import { useStableGameCount, useStableGameSnapshots } from '@/chain/useStableGameSnapshots'
 import { ACTIVE_GAME_POLL_INTERVAL_MS, ACTIVE_GAME_REFRESH_OPTIONS } from '@/chain/gameSnapshots'
 import {
   ASSET_RACE_ADDRESS,
@@ -29,7 +29,7 @@ export function useAssetRaces() {
     query: { enabled: !isPreview, refetchInterval: ACTIVE_GAME_POLL_INTERVAL_MS, ...ACTIVE_GAME_REFRESH_OPTIONS },
   })
 
-  const count = countQuery.data == null ? 0 : Number(countQuery.data)
+  const count = Number(useStableGameCount('asset-race-count', countQuery.data))
   const firstId = Math.max(0, count - MAX_RACES_TO_LIST)
   const ids = useMemo(
     () => Array.from({ length: count - firstId }, (_, index) => BigInt(firstId + index)).reverse(),

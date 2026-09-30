@@ -19,6 +19,7 @@ import { priceSourceUrlForAssetId } from '@/chain/assetRaceRegistry'
 import { AddressLabel } from '@/components/AddressLabel'
 import { ClockIcon } from '@/components/icons'
 import { GameActivitySidebar } from '@/components/GameActivitySidebar'
+import { GameListLoadingGrid } from '@/components/GameListLoadingGrid'
 import { PriceSourceLink } from '@/components/PriceSourceLink'
 import { TokenLogo } from '@/components/TokenLogo'
 import { formatCountdown } from '@/lib/format'
@@ -264,9 +265,9 @@ export function OnchainRacesListPage() {
       </div>
 
       <div className="flex items-start gap-6">
-        <main className="min-w-0 flex-1">
+        <main className="min-h-[32rem] min-w-0 flex-1">
       {isLoading ? (
-        <p className="py-16 text-center text-sm text-white/40">Loading races…</p>
+        <GameListLoadingGrid accent="orange" />
       ) : error && featured.length === 0 && community.length === 0 ? (
         <div className="rounded-2xl border border-rose-500/25 bg-rose-500/10 p-5 text-sm text-rose-300">Could not read the AssetRace contract.</div>
       ) : featured.length === 0 && community.length === 0 ? (

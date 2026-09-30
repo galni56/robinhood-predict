@@ -8,7 +8,7 @@ import {
 } from '@/chain/contracts'
 import { isDemoMode } from '@/chain/demo'
 import { predictionSettlementPrice } from '@/chain/predictionMarketSettlement'
-import { useStableGameSnapshots } from '@/chain/useStableGameSnapshots'
+import { useStableGameCount, useStableGameSnapshots } from '@/chain/useStableGameSnapshots'
 import { ACTIVE_GAME_POLL_INTERVAL_MS, ACTIVE_GAME_REFRESH_OPTIONS } from '@/chain/gameSnapshots'
 
 export const MAX_MARKETS_TO_LIST = 60
@@ -44,7 +44,7 @@ export function usePredictionMarkets({ includeSettlements = false }: { includeSe
     functionName: 'marketCount',
     query: { enabled, refetchInterval: ACTIVE_GAME_POLL_INTERVAL_MS, ...ACTIVE_GAME_REFRESH_OPTIONS },
   })
-  const totalMarketCount = Number(countQuery.data ?? 0n)
+  const totalMarketCount = Number(useStableGameCount('prediction-market-count', countQuery.data))
   const firstId = Math.max(0, totalMarketCount - MAX_MARKETS_TO_LIST)
   const ids = useMemo(
     () => Array.from({ length: totalMarketCount - firstId }, (_, index) => BigInt(firstId + index)),

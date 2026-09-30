@@ -4,6 +4,7 @@ import { useReadContract, useReadContracts } from 'wagmi'
 import { aggregatorV3Abi } from '@/chain/contracts'
 import { assetRaceChain, isLocalAssetRace } from '@/chain/config'
 import { useFeedSnapshot } from '@/chain/feedCache'
+import { ACTIVE_GAME_POLL_INTERVAL_MS, ACTIVE_GAME_REFRESH_OPTIONS } from '@/chain/gameSnapshots'
 import { useAssetRaceLiveDisplay } from '@/chain/useAssetRaceLiveDisplay'
 import {
   ASSET_RACE_ADDRESS,
@@ -48,7 +49,11 @@ export function useAssetRace(raceId: bigint | null, walletAddress?: Address) {
     abi: assetRaceAbi,
     functionName: 'getRace',
     args: raceId == null ? undefined : [raceId],
-    query: { enabled: !isPreview && raceId != null, refetchInterval: 5_000 },
+    query: {
+      enabled: !isPreview && raceId != null,
+      refetchInterval: ACTIVE_GAME_POLL_INTERVAL_MS,
+      ...ACTIVE_GAME_REFRESH_OPTIONS,
+    },
   })
 
   const assetsQuery = useReadContract({
@@ -57,7 +62,11 @@ export function useAssetRace(raceId: bigint | null, walletAddress?: Address) {
     abi: assetRaceAbi,
     functionName: 'getRaceAssets',
     args: raceId == null ? undefined : [raceId],
-    query: { enabled: !isPreview && raceId != null, refetchInterval: 5_000 },
+    query: {
+      enabled: !isPreview && raceId != null,
+      refetchInterval: ACTIVE_GAME_POLL_INTERVAL_MS,
+      ...ACTIVE_GAME_REFRESH_OPTIONS,
+    },
   })
 
   const positionQuery = useReadContract({
@@ -66,7 +75,11 @@ export function useAssetRace(raceId: bigint | null, walletAddress?: Address) {
     abi: assetRaceAbi,
     functionName: 'getPosition',
     args: raceId != null && walletAddress ? [raceId, walletAddress] : undefined,
-    query: { enabled: !isPreview && raceId != null && !!walletAddress, refetchInterval: 5_000 },
+    query: {
+      enabled: !isPreview && raceId != null && !!walletAddress,
+      refetchInterval: ACTIVE_GAME_POLL_INTERVAL_MS,
+      ...ACTIVE_GAME_REFRESH_OPTIONS,
+    },
   })
 
   const normalizedAssets = useMemo(() => {

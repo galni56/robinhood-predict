@@ -2,6 +2,10 @@ export interface GameSnapshotWithId {
   id: bigint
 }
 
+export function selectMonotonicGameCount(previous: bigint, observed: bigint | undefined) {
+  return observed != null && observed > previous ? observed : previous
+}
+
 const sessionGameSnapshotCache = new Map<string, GameSnapshotWithId[]>()
 
 export function readSessionGameSnapshots<T extends GameSnapshotWithId>(cacheKey: string): T[] {
@@ -63,13 +67,14 @@ export const ACTIVE_GAME_REFRESH_OPTIONS = {
   refetchOnMount: 'always',
   refetchOnWindowFocus: 'always',
   refetchOnReconnect: 'always',
+  refetchIntervalInBackground: false,
   staleTime: 0,
 } as const
 
-// The production RPC proxy caches identical request bodies for two seconds.
-// Polling every three seconds keeps discovery close to the next fresh proxy
-// response without sending duplicate upstream reads inside that cache window.
-export const ACTIVE_GAME_POLL_INTERVAL_MS = 3_000
+// Active game reads are batched per product and React Query pauses interval
+// polling while the tab is hidden. A one-second cadence keeps the UI within one
+// block/RPC round trip of the chain without creating one request per card.
+export const ACTIVE_GAME_POLL_INTERVAL_MS = 1_000
 
 export function isActiveOnchainStatus(status: number, terminalStatuses: readonly number[]) {
   return !terminalStatuses.includes(status)

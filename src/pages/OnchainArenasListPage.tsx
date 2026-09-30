@@ -15,6 +15,7 @@ import {
 } from '@/chain/priceArena'
 import { AddressLabel } from '@/components/AddressLabel'
 import { GameActivitySidebar } from '@/components/GameActivitySidebar'
+import { GameListLoadingGrid } from '@/components/GameListLoadingGrid'
 import { PriceSourceLink } from '@/components/PriceSourceLink'
 import { TokenLogo } from '@/components/TokenLogo'
 import { formatCompactEth, formatCountdown } from '@/lib/format'
@@ -24,7 +25,14 @@ const FILTERS = ['ALL', 'LOBBY', 'LIVE', 'FINISHED', 'CANCELLED'] as const
 function countdown(arena: PriceArenaViewModel, nowMs: number) {
   if (!nowMs) return '…'
   const target = arena.phase === PRICE_ARENA_PHASE.LOBBY ? arena.startsAt : arena.phase === PRICE_ARENA_PHASE.RUNNING ? arena.deadline : 0n
-  return target > 0n && Number(target) * 1_000 > nowMs ? formatCountdown(Number(target) * 1_000 - nowMs) : arenaPhaseLabel(arena.phase)
+  if (target > 0n && Number(target) * 1_000 > nowMs) return formatCountdown(Number(target) * 1_000 - nowMs)
+  return arena.phase === PRICE_ARENA_PHASE.RUNNING ? 'Awaiting settlement' : arenaPhaseLabel(arena.phase)
+}
+
+function displayPhase(arena: PriceArenaViewModel, nowMs: number) {
+  return arena.phase === PRICE_ARENA_PHASE.RUNNING && Number(arena.deadline) * 1_000 <= nowMs
+    ? 'Settling'
+    : arenaPhaseLabel(arena.phase)
 }
 
 function ArenaCard({ arena, nowMs }: { arena: PriceArenaViewModel; nowMs: number }) {
@@ -53,7 +61,7 @@ function ArenaCard({ arena, nowMs }: { arena: PriceArenaViewModel; nowMs: number
           <h2 className="mt-2 font-display text-xl font-bold">{arena.title}</h2>
           <p className="mt-1 text-xs text-white/35">by <AddressLabel address={arena.creator} className="text-white/50" /></p>
         </div>
-        <span className="rounded-full bg-white/5 px-2.5 py-1 text-xs font-bold text-white/60">{arenaPhaseLabel(arena.phase)}</span>
+        <span className="rounded-full bg-white/5 px-2.5 py-1 text-xs font-bold text-white/60">{displayPhase(arena, nowMs)}</span>
       </div>
       <div className="mt-5 grid grid-cols-3 gap-3 rounded-2xl bg-black/10 p-3 text-sm">
         <div className="min-w-0"><div className="text-xs text-white/30">Asset</div><div className="mt-1 flex min-w-0 items-center gap-2 font-bold"><TokenLogo ticker={arena.asset?.symbol} className="h-7 w-7 shrink-0 rounded-lg" /><span className="truncate">{arena.asset?.symbol ?? '—'}</span></div></div>
@@ -112,8 +120,8 @@ export function OnchainArenasListPage() {
       </div>
 
       <div className="mt-6 flex items-start gap-6">
-        <main className="min-w-0 flex-1">
-          {isLoading ? <p className="py-20 text-center text-white/40">Loading arenas…</p>
+        <main className="min-h-[32rem] min-w-0 flex-1">
+          {isLoading ? <GameListLoadingGrid accent="blue" />
             : error && visible.length === 0 ? <div className="rounded-2xl border border-rose-500/25 bg-rose-500/10 p-5 text-rose-300">Could not read Price Arena.</div>
               : visible.length === 0 ? <p className="py-20 text-center text-white/35">No {mode} arenas yet.</p>
                 : <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">{visible.map((arena) => <ArenaCard key={arena.id.toString()} arena={arena} nowMs={nowMs} />)}</div>}

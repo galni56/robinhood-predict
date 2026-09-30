@@ -24,6 +24,8 @@ const PRICE_ARENA_SUPPORTED_DURATIONS = [60, 300, 900, 3_600]
 // contracts/src/AssetRace.sol:34-41 (RaceStatus) -- a race stops occupying
 // a "slot" once it reaches one of these.
 const RACE_TERMINAL_STATUSES = new Set([2, 3, 4]) // RESOLVED, CANCELLED, VOID
+export const DEFAULT_EVENT_SEEDER_POLL_INTERVAL_MS = 5_000
+export const DISCOVERY_MULTICALL_BATCH_SIZE = 100
 
 export class SeederConfigError extends Error {}
 
@@ -94,7 +96,9 @@ export function readSeederConfig() {
     arenaDurationSeconds,
     targetPriceMinBp,
     targetPriceMaxBp,
-    pollIntervalMs: uintEnv('EVENT_SEEDER_POLL_INTERVAL_MS', 120_000, 1_000),
+    // Fast refill profile: this loop only creates when a configured target has
+    // an open slot, so the shorter cadence increases reads rather than supply.
+    pollIntervalMs: uintEnv('EVENT_SEEDER_POLL_INTERVAL_MS', DEFAULT_EVENT_SEEDER_POLL_INTERVAL_MS, 1_000),
     marketScanFrom: BigInt(uintEnv('EVENT_SEEDER_MARKET_SCAN_FROM', 0)),
     arenaScanFrom: BigInt(uintEnv('EVENT_SEEDER_ARENA_SCAN_FROM', 0)),
     assetRaceEnabled,
@@ -209,12 +213,30 @@ export class OpenItemTracker {
 
   async discover(publicClient, { address, abi, getFn, rowToItem }, count, now) {
     if (count < this.nextId) return
-    for (let id = this.nextId; id < count; id += 1n) {
-      const row = await publicClient.readContract({ address, abi, functionName: getFn, args: [id] })
-      const item = rowToItem(row)
-      if (this.isOpen(item.status, item.deadline, now)) this.items.set(id, { assetId: item.assetId, deadline: BigInt(item.deadline) })
+    while (this.nextId < count) {
+      const remaining = count - this.nextId
+      const size = Number(remaining > BigInt(DISCOVERY_MULTICALL_BATCH_SIZE)
+        ? BigInt(DISCOVERY_MULTICALL_BATCH_SIZE)
+        : remaining)
+      const ids = Array.from({ length: size }, (_, index) => this.nextId + BigInt(index))
+      const rows = typeof publicClient.multicall === 'function'
+        ? await publicClient.multicall({
+            contracts: ids.map((id) => ({ address, abi, functionName: getFn, args: [id] })),
+            allowFailure: true,
+          }).then((results) => results.map((result, index) => {
+            if (result.status !== 'success') throw new Error(`DiscoveryReadFailed:${ids[index]}`)
+            return result.result
+          }))
+        : await Promise.all(ids.map((id) => publicClient.readContract({ address, abi, functionName: getFn, args: [id] })))
+
+      rows.forEach((row, index) => {
+        const item = rowToItem(row)
+        if (this.isOpen(item.status, item.deadline, now)) {
+          this.items.set(ids[index], { assetId: item.assetId, deadline: BigInt(item.deadline) })
+        }
+      })
+      this.nextId += BigInt(size)
     }
-    this.nextId = count
   }
 
   /**
@@ -256,6 +278,12 @@ export class OpenItemTracker {
     const set = new Set()
     for (const item of this.items.values()) if (item.deadline > BigInt(now)) set.add(item.assetId.toLowerCase())
     return set
+  }
+
+  openIds(now) {
+    return [...this.items.entries()]
+      .filter(([, item]) => item.deadline > BigInt(now))
+      .map(([id]) => id)
   }
 }
 
@@ -378,6 +406,22 @@ export const assetRaceCommunityAbi = [
     }],
   },
   {
+    type: 'function', name: 'getRaceAssets', stateMutability: 'view', inputs: [{ name: 'raceId', type: 'uint256' }],
+    outputs: [{
+      type: 'tuple[]',
+      components: [
+        { name: 'assetId', type: 'bytes32' }, { name: 'oracle', type: 'address' },
+        { name: 'oracleId', type: 'bytes32' }, { name: 'expectedDecimals', type: 'uint8' },
+        { name: 'maxPriceAge', type: 'uint64' }, { name: 'maxEndpointLag', type: 'uint64' },
+        { name: 'active', type: 'bool' }, { name: 'pool', type: 'uint256' },
+        { name: 'startPrice', type: 'uint256' }, { name: 'endPrice', type: 'uint256' },
+        { name: 'startOracleUpdatedAt', type: 'uint256' }, { name: 'endOracleUpdatedAt', type: 'uint256' },
+        { name: 'startObservationId', type: 'bytes32' }, { name: 'endObservationId', type: 'bytes32' },
+        { name: 'returnValue', type: 'int256' },
+      ],
+    }],
+  },
+  {
     type: 'function', name: 'createCommunityRace', stateMutability: 'nonpayable',
     inputs: [
       { name: 'title', type: 'string' },
@@ -408,6 +452,33 @@ export function rotateConfigs(configsForCategory, count, offset) {
   if (n < count) throw new Error('NotEnoughApprovedAssetsForRace')
   const start = ((offset % n) + n) % n
   return configsForCategory.slice(start).concat(configsForCategory.slice(0, start)).slice(0, count)
+}
+
+export function raceCombinationKey(assetIds) {
+  return assetIds.map((assetId) => assetId.toLowerCase()).sort().join('|')
+}
+
+/** Choose the next rotation after the newest onchain race and skip every
+ * combination that is already open. This makes the sequence restart-safe:
+ * no process-local cursor is required, and an RPC/service restart cannot
+ * recreate the same active race pair. */
+export function nextRaceConfigsToSeed(
+  configsForCategory,
+  count,
+  newestRaceAssetIds = [],
+  openCombinationKeys = new Set(),
+) {
+  const configuredIds = configsForCategory.map((config) => stringToHex(config.assetId, { size: 32 }).toLowerCase())
+  const newestFirst = newestRaceAssetIds[0]?.toLowerCase()
+  const newestStart = newestFirst ? configuredIds.indexOf(newestFirst) : -1
+  const preferredOffset = newestStart >= 0 ? newestStart + count : 0
+
+  for (let attempt = 0; attempt < configsForCategory.length; attempt += 1) {
+    const selected = rotateConfigs(configsForCategory, count, preferredOffset + attempt * count)
+    const key = raceCombinationKey(selected.map((config) => stringToHex(config.assetId, { size: 32 })))
+    if (!openCombinationKeys.has(key)) return selected
+  }
+  return undefined
 }
 
 /** Same as pickCommunityRaceAssetIds, but starting `offset` positions into
@@ -476,8 +547,6 @@ async function main() {
   const marketTracker = new OpenItemTracker(config.marketScanFrom)
   const arenaTracker = new OpenItemTracker(config.arenaScanFrom)
   const raceTracker = config.assetRaceEnabled ? new OpenItemTracker(config.raceScanFrom, isRaceOpenNow) : undefined
-  let raceAssetOffset = 0
-
   if (config.assetRaceEnabled) {
     const [communityPolicyConfigured, approvedRaceDurations] = await Promise.all([
       publicClient.readContract({ address: config.raceAddress, abi: assetRaceCommunityAbi, functionName: 'communityPolicyConfigured' }),
@@ -554,8 +623,39 @@ async function main() {
     raceTracker.prune(now)
     if (raceTracker.openCount(now) >= config.raceTargetOpen) return
 
-    const selected = rotateConfigs(marketConfigs, config.raceAssetCount, raceAssetOffset)
-    raceAssetOffset += config.raceAssetCount
+    const openIds = raceTracker.openIds(now)
+    const newestId = count > 0n ? count - 1n : undefined
+    const assetReadIds = [...new Set([
+      ...openIds.map(String),
+      ...(newestId == null ? [] : [String(newestId)]),
+    ])].map(BigInt)
+    const assetResults = assetReadIds.length === 0 ? [] : await publicClient.multicall({
+      contracts: assetReadIds.map((raceId) => ({
+        address: config.raceAddress,
+        abi: assetRaceCommunityAbi,
+        functionName: 'getRaceAssets',
+        args: [raceId],
+      })),
+      allowFailure: true,
+    })
+    if (assetResults.some((result) => result.status !== 'success')) {
+      throw new Error('OpenRaceAssetReadFailed')
+    }
+    const assetIdsByRace = new Map(assetReadIds.map((raceId, index) => [
+      raceId.toString(),
+      assetResults[index].result.map((asset) => asset.assetId),
+    ]))
+    const openCombinationKeys = new Set(openIds.map((raceId) => (
+      raceCombinationKey(assetIdsByRace.get(raceId.toString()) ?? [])
+    )))
+    const newestRaceAssetIds = newestId == null ? [] : assetIdsByRace.get(newestId.toString()) ?? []
+    const selected = nextRaceConfigsToSeed(
+      marketConfigs,
+      config.raceAssetCount,
+      newestRaceAssetIds,
+      openCombinationKeys,
+    )
+    if (!selected) throw new Error('NoUniqueRaceCombinationAvailable')
     const picked = selected.map((c) => stringToHex(c.assetId, { size: 32 }))
     const title = communityRaceTitleFor(selected)
 

@@ -5,6 +5,7 @@ import { useAccount, useBalance, useChainId, usePublicClient, useReadContract, u
 import { waitForTransactionReceipt } from 'wagmi/actions'
 import { robinhoodMainnet, wagmiConfig } from '@/chain/config'
 import { DEMO_USERS, demoBetLogs, demoPools, isDemoMode } from '@/chain/demo'
+import { ACTIVE_GAME_POLL_INTERVAL_MS, ACTIVE_GAME_REFRESH_OPTIONS } from '@/chain/gameSnapshots'
 import { tickerForPredictionAssetId } from '@/chain/predictionMarketAssets'
 import { priceSourceUrlForSymbol } from '@/chain/assetRaceRegistry'
 import { useAssetRaceLiveDisplay } from '@/chain/useAssetRaceLiveDisplay'
@@ -190,7 +191,11 @@ export function OnchainMarketPage() {
     abi: predictionMarketAbi,
     functionName: 'getMarket',
     args: [MARKET_ID],
-    query: { enabled: PREDICTION_MARKET_CONFIGURED },
+    query: {
+      enabled: PREDICTION_MARKET_CONFIGURED,
+      refetchInterval: ACTIVE_GAME_POLL_INTERVAL_MS,
+      ...ACTIVE_GAME_REFRESH_OPTIONS,
+    },
   })
 
   const ticker = tickerForPredictionAssetId(market.data?.assetId)
@@ -217,7 +222,11 @@ export function OnchainMarketPage() {
     abi: predictionMarketAbi,
     functionName: 'participantCount',
     args: [MARKET_ID],
-    query: { enabled: PREDICTION_MARKET_CONFIGURED },
+    query: {
+      enabled: PREDICTION_MARKET_CONFIGURED,
+      refetchInterval: ACTIVE_GAME_POLL_INTERVAL_MS,
+      ...ACTIVE_GAME_REFRESH_OPTIONS,
+    },
   })
 
   const myStakeYes = useReadContract({
@@ -225,14 +234,22 @@ export function OnchainMarketPage() {
     abi: predictionMarketAbi,
     functionName: 'stakes',
     args: address ? [MARKET_ID, address, MarketSideOnchain.YES] : undefined,
-    query: { enabled: !!address && PREDICTION_MARKET_CONFIGURED },
+    query: {
+      enabled: !!address && PREDICTION_MARKET_CONFIGURED,
+      refetchInterval: ACTIVE_GAME_POLL_INTERVAL_MS,
+      ...ACTIVE_GAME_REFRESH_OPTIONS,
+    },
   })
   const myStakeNo = useReadContract({
     address: PREDICTION_MARKET_ADDRESS,
     abi: predictionMarketAbi,
     functionName: 'stakes',
     args: address ? [MARKET_ID, address, MarketSideOnchain.NO] : undefined,
-    query: { enabled: !!address && PREDICTION_MARKET_CONFIGURED },
+    query: {
+      enabled: !!address && PREDICTION_MARKET_CONFIGURED,
+      refetchInterval: ACTIVE_GAME_POLL_INTERVAL_MS,
+      ...ACTIVE_GAME_REFRESH_OPTIONS,
+    },
   })
 
   const hasClaimed = useReadContract({
@@ -240,7 +257,11 @@ export function OnchainMarketPage() {
     abi: predictionMarketAbi,
     functionName: 'claimed',
     args: address ? [MARKET_ID, address] : undefined,
-    query: { enabled: !!address && PREDICTION_MARKET_CONFIGURED },
+    query: {
+      enabled: !!address && PREDICTION_MARKET_CONFIGURED,
+      refetchInterval: ACTIVE_GAME_POLL_INTERVAL_MS,
+      ...ACTIVE_GAME_REFRESH_OPTIONS,
+    },
   })
 
   const settlement = useReadContract({
@@ -248,7 +269,11 @@ export function OnchainMarketPage() {
     abi: predictionMarketAbi,
     functionName: 'settlements',
     args: [MARKET_ID],
-    query: { enabled: PREDICTION_MARKET_CONFIGURED && market.data?.status === MarketStatusOnchain.Resolved },
+    query: {
+      enabled: PREDICTION_MARKET_CONFIGURED && market.data?.status === MarketStatusOnchain.Resolved,
+      refetchInterval: ACTIVE_GAME_POLL_INTERVAL_MS,
+      ...ACTIVE_GAME_REFRESH_OPTIONS,
+    },
   })
 
   const targetPriceUsd = useMemo(() => {

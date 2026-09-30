@@ -7,6 +7,7 @@ import { OnchainMarketsSidebar } from '@/components/OnchainMarketsSidebar'
 import { CancelledBadge } from '@/components/Pills'
 import { TokenBrowser } from '@/components/TokenBrowser'
 import { TokenLogo } from '@/components/TokenLogo'
+import { GameListLoadingGrid } from '@/components/GameListLoadingGrid'
 import {
   PREDICTION_MARKET_CONFIGURED,
   MarketStatusOnchain,
@@ -125,7 +126,7 @@ export function OnchainMarketsListPage() {
       )}
 
       <div className="flex gap-6 items-start">
-        <div className="flex-1 min-w-0">
+        <div className="min-h-[32rem] min-w-0 flex-1">
       <div className="mb-6 flex flex-wrap items-center justify-end gap-y-2">
         <div className="flex gap-1.5 overflow-x-auto pb-1">
           {STATUS_FILTERS.map((f) => (
@@ -145,7 +146,7 @@ export function OnchainMarketsListPage() {
       {!PREDICTION_MARKET_CONFIGURED && !isDemoMode() ? (
         <p className="py-16 text-center text-sm text-white/35">Prediction Markets are unavailable in this build.</p>
       ) : marketsLoading ? (
-        <p className="text-white/50 text-sm">Loading…</p>
+        <GameListLoadingGrid accent="purple" />
       ) : count === 0 ? (
         <div className="text-center py-16 text-white/40 text-sm">
           No markets yet.{' '}

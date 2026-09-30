@@ -184,19 +184,42 @@ function GameColumn({
       ? 'text-[#B7CEFF] bg-[#7A9FF0]/10'
       : 'text-[#B3A7FA] bg-[#8B7CF7]/10'
 
+  const skeletonAccent = accent === 'orange'
+    ? 'bg-[#F2A65A]/15'
+    : accent === 'blue'
+      ? 'bg-[#7A9FF0]/15'
+      : 'bg-[#8B7CF7]/15'
+
   return (
-    <div className="flex min-h-[18rem] flex-col rounded-[2rem] border border-white/5 bg-[#21182c] p-5 sm:p-6 lg:min-h-[28rem]">
+    <div className="flex min-h-[18rem] flex-col rounded-[2rem] border border-white/5 bg-[#21182c] p-5 sm:p-6 lg:min-h-[46rem]">
       <div className="flex items-start justify-between gap-4 border-b border-white/5 pb-5">
         <div>
           <p className={`inline-flex rounded-full px-2.5 py-1 text-[0.65rem] font-extrabold tracking-[0.16em] ${accentClass}`}>{eyebrow}</p>
           <h3 className="mt-2 font-display text-2xl font-bold">{title}</h3>
         </div>
-        <span className="grid h-9 min-w-9 place-items-center rounded-full bg-white/5 px-2 text-sm font-bold text-white/60">{count}</span>
+        <span className="grid h-9 min-w-9 place-items-center rounded-full bg-white/5 px-2 text-sm font-bold text-white/60">
+          {loading ? '…' : count}
+        </span>
       </div>
 
       <div className="flex flex-1 flex-col gap-3 py-4">
-        {loading && count === 0 ? (
-          <div className="grid flex-1 place-items-center rounded-2xl border border-dashed border-white/10 text-sm text-white/35">Loading open games…</div>
+        {loading ? (
+          <div aria-label={`Loading ${title}`} aria-busy="true" className="flex flex-1 flex-col gap-3">
+            {Array.from({ length: 3 }, (_, index) => (
+              <div key={index} className="min-h-36 animate-pulse rounded-2xl border border-white/5 bg-black/10 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div className={`h-5 w-24 rounded-full ${skeletonAccent}`} />
+                  <div className="h-6 w-16 rounded-full bg-white/5" />
+                </div>
+                <div className="mt-4 h-5 w-3/5 rounded bg-white/10" />
+                <div className="mt-3 h-4 w-2/5 rounded bg-white/5" />
+                <div className="mt-5 flex justify-between gap-4">
+                  <div className="h-4 w-24 rounded bg-white/5" />
+                  <div className={`h-5 w-20 rounded-full ${skeletonAccent}`} />
+                </div>
+              </div>
+            ))}
+          </div>
         ) : count === 0 ? (
           <div className="grid flex-1 place-items-center rounded-2xl border border-dashed border-white/10 px-6 text-center text-sm leading-relaxed text-white/35">{empty}</div>
         ) : children}
@@ -276,7 +299,14 @@ function RacePreviewCard({ race, nowMs }: { race: AssetRaceViewModel; nowMs: num
 function ArenaPreviewCard({ arena, nowMs }: { arena: PriceArenaViewModel; nowMs: number }) {
   const navigate = useNavigate()
   const inLobby = arena.phase === PRICE_ARENA_PHASE.LOBBY
+  const settling = arena.phase === PRICE_ARENA_PHASE.RUNNING && Number(arena.deadline) * 1_000 <= nowMs
   const target = inLobby ? arena.startsAt : arena.deadline
+  const phaseLabel = inLobby
+    ? `LOBBY · ${timeLeft(target, nowMs)}`
+    : settling
+      ? 'SETTLING'
+      : `LIVE · ${timeLeft(target, nowMs)}`
+  const actionLabel = inLobby ? 'Enter arena' : settling ? 'View arena' : 'Watch arena'
   return (
     <div
       role="link"
@@ -303,14 +333,14 @@ function ArenaPreviewCard({ arena, nowMs }: { arena: PriceArenaViewModel; nowMs:
           </div>
         </div>
         <span className="shrink-0 rounded-full bg-[#7A9FF0]/10 px-2.5 py-1 text-xs font-bold text-[#B7CEFF]">
-          {inLobby ? timeLeft(target, nowMs) : `LIVE · ${timeLeft(target, nowMs)}`}
+          {phaseLabel}
         </span>
       </div>
       <div className="mt-4 flex items-center justify-between gap-3 text-xs">
         <span className="text-white/35">{arena.participantCount} / {PRICE_ARENA_MAX_PARTICIPANTS} players · {compactEth(arena.totalPool)} pool</span>
         <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
           <PriceSourceLink href={arena.asset?.priceUrl} symbol={arena.asset?.symbol} tone="arena" className="bg-[#7A9FF0]/10 px-2 py-1" />
-          <span className="font-bold text-[#B7CEFF]">{inLobby ? 'Enter arena' : 'Watch arena'} →</span>
+          <span className="font-bold text-[#B7CEFF]">{actionLabel} →</span>
         </div>
       </div>
     </div>

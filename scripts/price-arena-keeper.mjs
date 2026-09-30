@@ -20,6 +20,9 @@ import { PoolPriceEngine, poolChainContracts, poolConfigsFromRegistry } from './
 import { withRpcRateLimit } from './asset-race-rpc-budget.mjs'
 import { nextSleepMs } from './keeper-poll-schedule.mjs'
 
+export const DEFAULT_PRICE_ARENA_POLL_INTERVAL_MS = 1_000
+export const DEFAULT_PRICE_ARENA_IDLE_POLL_INTERVAL_MS = 5_000
+
 const OPEN = 0
 const SIGNED_POOL_BLOCK_PAIR = 2
 
@@ -119,8 +122,8 @@ export function readKeeperConfig() {
     expectedChainId: uintEnv('PRICE_ARENA_CHAIN_ID', 4663, 1),
     allowLive: boolEnv('PRICE_ARENA_ALLOW_LIVE', false),
     dryRun,
-    pollIntervalMs: uintEnv('PRICE_ARENA_POLL_INTERVAL_MS', 5_000, 500),
-    idlePollIntervalMs: uintEnv('PRICE_ARENA_IDLE_POLL_INTERVAL_MS', 20_000, 1_000),
+    pollIntervalMs: uintEnv('PRICE_ARENA_POLL_INTERVAL_MS', DEFAULT_PRICE_ARENA_POLL_INTERVAL_MS, 500),
+    idlePollIntervalMs: uintEnv('PRICE_ARENA_IDLE_POLL_INTERVAL_MS', DEFAULT_PRICE_ARENA_IDLE_POLL_INTERVAL_MS, 1_000),
     archiveMinIntervalMs: uintEnv('PRICE_ARENA_ARCHIVE_MIN_INTERVAL_MS', 150, 50),
     realtimeEndpointWindowSeconds: uintEnv('PRICE_ARENA_REALTIME_ENDPOINT_WINDOW_SECONDS', 30),
     endpointCacheFile: process.env.PRICE_ARENA_ENDPOINT_CACHE_FILE?.trim()
