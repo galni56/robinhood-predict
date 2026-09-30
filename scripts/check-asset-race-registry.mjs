@@ -131,6 +131,8 @@ function validate() {
         assert(source.expectedDecimals === POOL_PRICE_DECIMALS, `${asset.assetId}: pool observations must use 18 decimals`)
         assert(source.validationProfile === 'SIGNED_POOL_BLOCK_PAIR_V1', `${asset.assetId}: wrong signed pool validation profile`)
         assert(isAddress(asset.canonicalTokenAddress ?? ''), `${asset.assetId}: canonical token address required`)
+        const chartPath = `#/onchain/charts/${encodeURIComponent(asset.symbol)}`
+        assert(/^#\/onchain\/charts\/[A-Za-z0-9_-]{1,32}$/.test(chartPath), `${asset.assetId}: invalid internal chart route`)
         if (asset.category === 'MEME') continue // Direct-pool LIVE derives from the same marketSource, not DEX Screener.
         const live = asset.liveDisplay
         assert(live?.type === 'DEXSCREENER_STOCK_TOKEN', `${asset.assetId}: DEX Screener live display required`)

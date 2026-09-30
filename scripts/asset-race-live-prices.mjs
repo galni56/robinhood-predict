@@ -227,6 +227,10 @@ export class StockLivePriceCollector {
     return { after: timestamp, assets }
   }
 
+  historySnapshot(assetId, maxPoints = 900) {
+    return buildHistorySnapshot(assetId, this.history[assetId], maxPoints)
+  }
+
   async poll() {
     this.upstreamRequestCount += 1
     const receivedAt = this.now()
@@ -259,14 +263,17 @@ export function poolLiveConfigsFromRegistry(registry) {
 /// @notice One process polls one fixed Robinhood block and fans the snapshot
 /// out to every SSE client. Settlement and live pricing share PoolPriceEngine.
 export class StockPoolLiveCollector {
-  constructor({ engine, ethUsdQuoteCache, now = Date.now, staleAfterMs = 5_000 }) {
+  constructor({ engine, ethUsdQuoteCache, historyLimit = 14_400, now = Date.now, staleAfterMs = 5_000 }) {
     if (!engine?.latestSnapshot || typeof now !== 'function') throw new Error('InvalidPoolLiveCollector')
+    if (!Number.isSafeInteger(historyLimit) || historyLimit < 1) throw new Error('InvalidHistoryLimit')
     if (!Number.isSafeInteger(staleAfterMs) || staleAfterMs < 1_000) throw new Error('InvalidStaleThreshold')
     this.engine = engine
     this.ethUsdQuoteCache = ethUsdQuoteCache
+    this.historyLimit = historyLimit
     this.now = now
     this.staleAfterMs = staleAfterMs
     this.assets = {}
+    this.history = {}
     this.errors = {}
     this.listeners = new Set()
     this.upstreamRequestCount = 0
@@ -292,6 +299,10 @@ export class StockPoolLiveCollector {
       ethUsd: ethUsd?.quote ? { ...ethUsd.quote, staleAfterMs: ethUsd.staleAfterMs } : undefined,
       errors: { ...this.errors, ...(ethUsd?.error ? { ethUsd: ethUsd.error } : {}) },
     }
+  }
+
+  historySnapshot(assetId, maxPoints = 900) {
+    return buildHistorySnapshot(assetId, this.history[assetId], maxPoints)
   }
 
   async poll() {
@@ -328,6 +339,9 @@ export class StockPoolLiveCollector {
         }
       }
       this.assets = nextAssets
+      for (const [assetId, entry] of Object.entries(nextAssets)) {
+        this.history[assetId] = [...(this.history[assetId] ?? []), entry].slice(-this.historyLimit)
+      }
       this.errors = {}
     } catch {
       // This snapshot is public SSE; RPC errors can contain provider credentials.
@@ -336,6 +350,30 @@ export class StockPoolLiveCollector {
     const snapshot = this.snapshot(this.now())
     for (const listener of this.listeners) listener(snapshot)
     return snapshot
+  }
+}
+
+function buildHistorySnapshot(assetId, history = [], maxPoints = 900) {
+  if (typeof assetId !== 'string' || !assetId || !Number.isSafeInteger(maxPoints) || maxPoints < 2 || maxPoints > 1_440) {
+    throw new Error('InvalidHistoryRequest')
+  }
+  const source = Array.isArray(history) ? history : []
+  const sampled = source.length <= maxPoints
+    ? source
+    : Array.from({ length: maxPoints }, (_, index) => source[Math.round(index * (source.length - 1) / (maxPoints - 1))])
+  const latest = source.at(-1)
+  return {
+    assetId,
+    quoteSymbol: latest?.quoteSymbol ?? (latest?.priceUsdG ? 'USDG' : undefined),
+    poolIdentifier: latest?.poolIdentifier ?? latest?.pairAddress,
+    protocol: latest?.protocol,
+    points: sampled.map((entry) => ({
+      priceRaw: entry.priceRaw,
+      decimals: entry.decimals,
+      receivedAt: entry.receivedAt,
+      blockTimestamp: entry.blockTimestamp,
+      blockNumber: entry.blockNumber,
+    })),
   }
 }
 import { formatUnits } from 'viem'

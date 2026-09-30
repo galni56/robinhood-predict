@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { formatUnits, type Hex } from 'viem'
-import { useReadContracts } from 'wagmi'
+import { formatUnits } from 'viem'
 import { ClockIcon } from '@/components/icons'
 import { LiveBetsTicker } from '@/components/LiveBetsTicker'
 import { OnchainMarketsSidebar } from '@/components/OnchainMarketsSidebar'
@@ -9,9 +8,7 @@ import { CancelledBadge } from '@/components/Pills'
 import { TokenBrowser } from '@/components/TokenBrowser'
 import { TokenLogo } from '@/components/TokenLogo'
 import {
-  PREDICTION_MARKET_ADDRESS,
   PREDICTION_MARKET_CONFIGURED,
-  predictionMarketAbi,
   MarketStatusOnchain,
   bettingWindowEndSeconds,
 } from '@/chain/contracts'
@@ -48,28 +45,13 @@ export function OnchainMarketsListPage() {
     markets,
     totalMarketCount: count,
     isLoading: marketsLoading,
-  } = usePredictionMarkets()
+  } = usePredictionMarkets({ includeSettlements: true })
   const marketById = new Map(markets.map((market) => [market.id.toString(), market]))
-
-  const settlements = useReadContracts({
-    contracts: ids.map((id) => ({
-        address: PREDICTION_MARKET_ADDRESS,
-        abi: predictionMarketAbi,
-        functionName: 'settlements',
-        args: [id],
-      }) as const),
-    query: { enabled: ids.length > 0, refetchInterval: 10_000 },
-  })
 
   const marketAt = (index: number) => {
     const id = ids[index]
     return id == null ? undefined : marketById.get(id.toString())
   }
-  const settlementPriceAt = (index: number) => {
-    const result = settlements.data?.[index]
-    return result?.status === 'success' ? (result.result as readonly [bigint, bigint, Hex])[0] : 0n
-  }
-
   const live = useAssetRaceLiveDisplay({ enabled: true })
 
   // Ticker per market id, resolved locally from the reviewed asset registry.
@@ -183,7 +165,7 @@ export function OnchainMarketsListPage() {
             const price = ticker ? live.assets[ticker] : undefined
             const targetUsd = Number(formatUnits(m.targetPrice, m.priceDecimals))
             const liveUsd = price && !price.stale ? Number(formatUnits(BigInt(price.priceRaw), price.decimals)) : null
-            const finalPriceRaw = settlementPriceAt(i)
+            const finalPriceRaw = m.settlementPrice ?? 0n
             const isResolved = m.status === MarketStatusOnchain.Resolved
             const displayedUsd = isResolved && finalPriceRaw > 0n
               ? Number(formatUnits(finalPriceRaw, m.priceDecimals))
@@ -217,22 +199,22 @@ export function OnchainMarketsListPage() {
                 }}
                 className="group relative rounded-3xl bg-[#241b2f] border border-white/5 p-5 hover:border-[#8B7CF7]/40 hover:-translate-y-0.5 hover:shadow-[0_20px_50px_-28px_rgba(106,90,224,0.8)] transition-all cursor-pointer"
               >
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-center gap-2.5">
+                <div className="flex min-w-0 items-start justify-between gap-3 mb-3">
+                  <div className="flex min-w-0 items-center gap-2.5">
                     <TokenLogo ticker={ticker} logoUrl={ticker ? logos.get(ticker) : undefined} className="w-9 h-9 rounded-xl text-lg" />
-                    <div>
-                      <div className="font-bold text-sm tracking-wide flex items-center gap-2">
-                        {ticker ?? '…'}
+                    <div className="min-w-0">
+                      <div className="min-w-0 font-bold text-sm tracking-wide flex items-center gap-2">
+                        <span className="truncate">{ticker ?? '…'}</span>
                         {m.status === MarketStatusOnchain.Cancelled && <CancelledBadge />}
                       </div>
                       <div className="text-white/35 text-xs font-medium">Market #{id.toString()}</div>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <div className={`font-mono font-semibold ${isResolved ? 'text-white/70' : tickedUp ? 'text-emerald-400' : 'text-rose-400'}`}>
+                  <div className="min-w-0 max-w-[48%] shrink text-right">
+                    <div title={displayedUsd != null ? formatUsd(displayedUsd) : undefined} className={`truncate font-mono font-semibold ${isResolved ? 'text-white/70' : tickedUp ? 'text-emerald-400' : 'text-rose-400'}`}>
                       {displayedUsd != null ? formatUsd(displayedUsd) : '…'}
                     </div>
-                    <div className="text-xs text-white/40">
+                    <div className="truncate text-xs text-white/40">
                       {isResolved ? 'final · ' : ''}{targetUsd != null ? `target ${formatUsd(targetUsd)}` : ''}
                     </div>
                   </div>

@@ -1,6 +1,15 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { isActiveOnchainStatus, reconcileGameSnapshots } from '../src/chain/gameSnapshots.ts'
+import {
+  ACTIVE_GAME_POLL_INTERVAL_MS,
+  ACTIVE_GAME_REFRESH_OPTIONS,
+  clearSessionGameSnapshots,
+  isActiveOnchainStatus,
+  readSessionGameSnapshots,
+  reconcileGameSnapshots,
+  reconcileGameSnapshotsWhenReady,
+  writeSessionGameSnapshots,
+} from '../src/chain/gameSnapshots.ts'
 
 test('partial refreshes retain the last complete snapshot by game id', () => {
   const previous = [
@@ -30,4 +39,30 @@ test('snapshots outside the bounded recent-id window are pruned', () => {
     reconcileGameSnapshots([{ id: 1n, status: 0 }, { id: 2n, status: 0 }], [2n, 3n], [null, null]),
     [{ id: 2n, status: 0 }],
   )
+})
+
+test('route remount keeps cached cards until the refreshed count is ready', () => {
+  const previous = [{ id: 11n, status: 0 }, { id: 10n, status: 1 }]
+  assert.deepEqual(reconcileGameSnapshotsWhenReady(previous, [], [], false), previous)
+  assert.deepEqual(reconcileGameSnapshotsWhenReady(previous, [12n, 11n], [null, null], true), [previous[0]])
+})
+
+test('active game queries always refresh on route activation, focus, and reconnect', () => {
+  assert.equal(ACTIVE_GAME_REFRESH_OPTIONS.refetchOnMount, 'always')
+  assert.equal(ACTIVE_GAME_REFRESH_OPTIONS.refetchOnWindowFocus, 'always')
+  assert.equal(ACTIVE_GAME_REFRESH_OPTIONS.refetchOnReconnect, 'always')
+  assert.equal(ACTIVE_GAME_REFRESH_OPTIONS.staleTime, 0)
+  assert.equal(ACTIVE_GAME_POLL_INTERVAL_MS, 3_000)
+})
+
+test('bounded product snapshots survive route unmount and remount in the SPA session', () => {
+  const key = 'test-races'
+  clearSessionGameSnapshots(key)
+  const active = [{ id: 15n, status: 1, title: 'AAPL vs META' }]
+  writeSessionGameSnapshots(key, active)
+  assert.deepEqual(readSessionGameSnapshots(key), active)
+  const restored = readSessionGameSnapshots(key)
+  restored.length = 0
+  assert.deepEqual(readSessionGameSnapshots(key), active)
+  clearSessionGameSnapshots(key)
 })

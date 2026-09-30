@@ -40,6 +40,7 @@ import { TermsPage } from '@/pages/TermsPage'
 import { TxDetailPage } from '@/pages/TxDetailPage'
 import { WhitepaperPage } from '@/pages/WhitepaperPage'
 import { RoadmapPage } from '@/pages/RoadmapPage'
+import { AssetPriceChartPage } from '@/pages/AssetPriceChartPage'
 import { isLocalAssetRace } from '@/chain/config'
 import { AssetRaceLiveDisplayProvider } from '@/chain/useAssetRaceLiveDisplay'
 
@@ -86,6 +87,7 @@ export default function App() {
             <Route path="portfolio" element={<OnchainPortfolioPage />} />
             <Route path="leaderboard" element={<OnchainLeaderboardPage />} />
             <Route path="archive" element={<OnchainArchivePage />} />
+            <Route path="charts/:symbol" element={<AssetPriceChartPage />} />
             <Route path="races" element={<OnchainRacesListPage />} />
             <Route path="races/create" element={<OnchainCreateRacePage />} />
             <Route path="races/:raceId" element={<OnchainRacePage />} />

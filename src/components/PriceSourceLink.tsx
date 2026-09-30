@@ -10,7 +10,7 @@ export function PriceSourceLink({
   href,
   symbol,
   tone,
-  label = 'View price',
+  label = 'View chart',
   className = '',
 }: {
   href?: string
@@ -26,7 +26,7 @@ export function PriceSourceLink({
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      aria-label={`View ${assetLabel}price from the exact settlement pool on DEX Screener (opens in a new tab)`}
+      aria-label={`View ${assetLabel}price chart from the reviewed settlement pool (opens in a new tab)`}
       onClick={(event) => event.stopPropagation()}
       className={`inline-flex items-center justify-center gap-1.5 rounded-full text-xs font-bold transition-colors ${TONE_CLASSES[tone]} ${className}`}
     >

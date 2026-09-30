@@ -379,3 +379,48 @@ test('direct pool collector fans one fixed-block engine snapshot out to every vi
   assert.equal(stale.assets.NVDA.stale, true)
   assert.equal(stale.errors.upstream, 'PoolRpcRequestFailed')
 })
+
+test('direct pool collector exposes bounded sampled history for internal charts', async () => {
+  let now = 1_000
+  let price = 100n
+  const engine = { latestSnapshot: async () => ({ assets: { NVDA: {
+    assetId: 'NVDA', oracleId: `0x${'11'.repeat(32)}`, priceRaw: price++, decimals: 18,
+    blockNumber: BigInt(now), blockHash: `0x${'22'.repeat(32)}`, blockTimestamp: BigInt(now / 1_000),
+    poolIdentifier: configs[0].pairAddress, protocol: 'UNISWAP_V3', provider: 'ROBINHOOD_POOL_RPC',
+    quoteSymbol: 'USDG', quoteUnit: 'USDG',
+  } } }) }
+  const collector = new StockPoolLiveCollector({ engine, historyLimit: 4, now: () => now })
+  for (let index = 0; index < 6; index += 1) {
+    await collector.poll()
+    now += 1_000
+  }
+  const history = collector.historySnapshot('NVDA', 3)
+  assert.equal(history.points.length, 3)
+  assert.equal(history.points[0].priceRaw, '102')
+  assert.equal(history.points.at(-1).priceRaw, '105')
+  assert.equal(history.quoteSymbol, 'USDG')
+  assert.equal(history.protocol, 'UNISWAP_V3')
+})
+
+test('LIVE history endpoint returns JSON without relying on third-party chart pages', async (t) => {
+  const collector = {
+    upstreamRequestCount: 0,
+    subscribe() { return () => {} },
+    snapshot() { return { provider: 'TEST', heartbeatAt: Date.now(), assets: {}, errors: {} } },
+    historySnapshot(assetId, limit) {
+      assert.equal(assetId, 'NVDA')
+      assert.equal(limit, 12)
+      return { assetId, quoteSymbol: 'USDG', points: [{ priceRaw: '225', decimals: 18, receivedAt: 1_000 }] }
+    },
+  }
+  const { server } = createAssetRaceLiveServer(collector)
+  server.listen(0, '127.0.0.1')
+  await once(server, 'listening')
+  t.after(() => new Promise((resolve) => server.close(resolve)))
+  const response = await fetch(`http://127.0.0.1:${server.address().port}/api/asset-race/live/history?asset=nvda&limit=12`)
+  assert.equal(response.status, 200)
+  assert.equal(response.headers.get('cache-control'), 'no-store')
+  const body = await response.json()
+  assert.equal(body.assetId, 'NVDA')
+  assert.equal(body.points.length, 1)
+})

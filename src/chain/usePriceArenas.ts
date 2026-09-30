@@ -3,6 +3,7 @@ import { zeroAddress } from 'viem'
 import { useReadContract, useReadContracts } from 'wagmi'
 import { assetRaceChain } from '@/chain/config'
 import { useStableGameSnapshots } from '@/chain/useStableGameSnapshots'
+import { ACTIVE_GAME_POLL_INTERVAL_MS, ACTIVE_GAME_REFRESH_OPTIONS } from '@/chain/gameSnapshots'
 import {
   MAX_ARENAS_TO_LIST,
   PRICE_ARENA_ADDRESS,
@@ -17,34 +18,42 @@ export function usePriceArenas() {
   const enabled = !!PRICE_ARENA_ADDRESS
   const countQuery = useReadContract({
     address, chainId: assetRaceChain.id, abi: priceArenaAbi, functionName: 'arenaCount',
-    query: { enabled, refetchInterval: 15_000 },
+    query: { enabled, refetchInterval: ACTIVE_GAME_POLL_INTERVAL_MS, ...ACTIVE_GAME_REFRESH_OPTIONS },
   })
   const count = Number(countQuery.data ?? 0n)
   const firstId = Math.max(0, count - MAX_ARENAS_TO_LIST)
   const ids = useMemo(() => Array.from({ length: count - firstId }, (_, i) => BigInt(firstId + i)).reverse(), [count, firstId])
   const arenaQueries = useReadContracts({
-    contracts: ids.map((id) => ({ address, chainId: assetRaceChain.id, abi: priceArenaAbi, functionName: 'getArena', args: [id] }) as const),
-    query: { enabled: enabled && ids.length > 0, refetchInterval: 15_000 },
-  })
-  const phaseQueries = useReadContracts({
-    contracts: ids.map((id) => ({ address, chainId: assetRaceChain.id, abi: priceArenaAbi, functionName: 'phase', args: [id] }) as const),
-    query: { enabled: enabled && ids.length > 0, refetchInterval: 15_000 },
+    // Arena data and its derived phase must update together. Keeping both reads
+    // in one multicall removes an extra round trip and avoids mixed old/new rows.
+    contracts: ids.flatMap((id) => [
+      ({ address, chainId: assetRaceChain.id, abi: priceArenaAbi, functionName: 'getArena', args: [id] }) as const,
+      ({ address, chainId: assetRaceChain.id, abi: priceArenaAbi, functionName: 'phase', args: [id] }) as const,
+    ]),
+    query: {
+      enabled: enabled && ids.length > 0,
+      refetchInterval: ACTIVE_GAME_POLL_INTERVAL_MS,
+      ...ACTIVE_GAME_REFRESH_OPTIONS,
+    },
   })
   const observedArenas = useMemo(() => ids.map((id, index): PriceArenaViewModel | null => {
-    const arenaResult = arenaQueries.data?.[index]
-    const phaseResult = phaseQueries.data?.[index]
+    const arenaResult = arenaQueries.data?.[index * 2]
+    const phaseResult = arenaQueries.data?.[index * 2 + 1]
     if (arenaResult?.status !== 'success' || phaseResult?.status !== 'success') return null
     const data = arenaResult.result as unknown as PriceArenaData
     return { ...data, id, phase: Number(phaseResult.result), asset: priceArenaAsset(data.assetId) }
-  }), [ids, arenaQueries.data, phaseQueries.data])
-  const arenas = useStableGameSnapshots(ids, observedArenas)
+  }), [ids, arenaQueries.data])
+  const arenas = useStableGameSnapshots(ids, observedArenas, {
+    cacheKey: 'price-arenas',
+    idsReady: countQuery.data != null,
+  })
 
   return {
     arenas,
     isConfigured: enabled,
     isLoading: enabled && arenas.length === 0
-      && (countQuery.isLoading || arenaQueries.isLoading || phaseQueries.isLoading),
-    error: countQuery.error ?? arenaQueries.error ?? phaseQueries.error,
-    refetch: async () => Promise.all([countQuery.refetch(), arenaQueries.refetch(), phaseQueries.refetch()]),
+      && (countQuery.isLoading || arenaQueries.isLoading),
+    error: countQuery.error ?? arenaQueries.error,
+    refetch: async () => Promise.all([countQuery.refetch(), arenaQueries.refetch()]),
   }
 }

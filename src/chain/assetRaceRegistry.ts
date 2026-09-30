@@ -1,5 +1,6 @@
 import { getAddress, isAddress, keccak256, padHex, stringToBytes, stringToHex, type Address, type Hex } from 'viem'
 import registryJson from '../../config/asset-race-assets.json'
+import { assetPriceChartUrl } from '@/chain/assetPriceHistory'
 
 export type AssetRaceNetworkKey = 'local' | 'robinhood-testnet' | 'robinhood-mainnet'
 export type AssetRaceCategoryName = 'STOCK' | 'MEME'
@@ -82,7 +83,11 @@ export function priceSourceUrlForCatalogAsset(asset?: AssetRaceCatalogAsset): st
     || !poolIdentifier
     || !EXACT_POOL_IDENTIFIER.test(poolIdentifier)
   ) return undefined
-  return `https://dexscreener.com/robinhood/${poolIdentifier.toLowerCase()}`
+  // Keep chart navigation on our own origin. Public third-party pool pages can
+  // be blocked by anti-bot interstitials even when the underlying pool is
+  // valid. The Prophet chart reads the same reviewed pool through our shared
+  // live-price service and therefore works from every product surface.
+  return assetPriceChartUrl(asset.symbol)
 }
 
 export function priceSourceUrlForAssetId(assetId?: string): string | undefined {

@@ -57,7 +57,8 @@ export function createAssetRaceLiveServer(collector, { pollIntervalMs } = {}) {
     for (const client of clients) client.write(message)
   })
   const server = createServer((request, response) => {
-    const pathname = new URL(request.url ?? '/', 'http://localhost').pathname
+    const url = new URL(request.url ?? '/', 'http://localhost')
+    const pathname = url.pathname
     if (request.method === 'GET' && pathname === '/api/asset-race/live') {
       response.writeHead(200, {
         'cache-control': 'no-cache, no-transform',
@@ -69,6 +70,24 @@ export function createAssetRaceLiveServer(collector, { pollIntervalMs } = {}) {
       response.write(`data: ${JSON.stringify(collector.snapshot())}\n\n`)
       request.on('close', () => removeClient(response))
       if (clients.size === 1) void pollWhileDemanded()
+      return
+    }
+    if (request.method === 'GET' && pathname === '/api/asset-race/live/history') {
+      const assetId = url.searchParams.get('asset')?.trim()
+      if (!assetId || !/^[A-Za-z0-9_-]{1,32}$/.test(assetId) || typeof collector.historySnapshot !== 'function') {
+        response.writeHead(400, { 'cache-control': 'no-store', 'content-type': 'application/json' })
+        response.end('{"error":"invalid asset"}\n')
+        return
+      }
+      try {
+        const limitValue = Number(url.searchParams.get('limit') || 900)
+        const history = collector.historySnapshot(assetId.toUpperCase(), limitValue)
+        response.writeHead(200, { 'cache-control': 'no-store', 'content-type': 'application/json' })
+        response.end(`${JSON.stringify(history)}\n`)
+      } catch {
+        response.writeHead(400, { 'cache-control': 'no-store', 'content-type': 'application/json' })
+        response.end('{"error":"invalid history request"}\n')
+      }
       return
     }
     if (request.method === 'GET' && pathname === '/health') {
