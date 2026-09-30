@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { zeroAddress } from 'viem'
 import { useReadContract, useReadContracts } from 'wagmi'
 import { assetRaceChain } from '@/chain/config'
+import { useStableGameSnapshots } from '@/chain/useStableGameSnapshots'
 import {
   MAX_ARENAS_TO_LIST,
   PRICE_ARENA_ADDRESS,
@@ -29,18 +30,20 @@ export function usePriceArenas() {
     contracts: ids.map((id) => ({ address, chainId: assetRaceChain.id, abi: priceArenaAbi, functionName: 'phase', args: [id] }) as const),
     query: { enabled: enabled && ids.length > 0, refetchInterval: 15_000 },
   })
-  const arenas = ids.flatMap((id, index): PriceArenaViewModel[] => {
+  const observedArenas = useMemo(() => ids.map((id, index): PriceArenaViewModel | null => {
     const arenaResult = arenaQueries.data?.[index]
     const phaseResult = phaseQueries.data?.[index]
-    if (arenaResult?.status !== 'success' || phaseResult?.status !== 'success') return []
+    if (arenaResult?.status !== 'success' || phaseResult?.status !== 'success') return null
     const data = arenaResult.result as unknown as PriceArenaData
-    return [{ ...data, id, phase: Number(phaseResult.result), asset: priceArenaAsset(data.assetId) }]
-  })
+    return { ...data, id, phase: Number(phaseResult.result), asset: priceArenaAsset(data.assetId) }
+  }), [ids, arenaQueries.data, phaseQueries.data])
+  const arenas = useStableGameSnapshots(ids, observedArenas)
 
   return {
     arenas,
     isConfigured: enabled,
-    isLoading: enabled && (countQuery.isLoading || arenaQueries.isLoading || phaseQueries.isLoading),
+    isLoading: enabled && arenas.length === 0
+      && (countQuery.isLoading || arenaQueries.isLoading || phaseQueries.isLoading),
     error: countQuery.error ?? arenaQueries.error ?? phaseQueries.error,
     refetch: async () => Promise.all([countQuery.refetch(), arenaQueries.refetch(), phaseQueries.refetch()]),
   }

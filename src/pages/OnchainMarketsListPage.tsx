@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { formatUnits, type Hex } from 'viem'
-import { useReadContract, useReadContracts } from 'wagmi'
+import { useReadContracts } from 'wagmi'
 import { ClockIcon } from '@/components/icons'
 import { LiveBetsTicker } from '@/components/LiveBetsTicker'
 import { OnchainMarketsSidebar } from '@/components/OnchainMarketsSidebar'
@@ -18,23 +18,14 @@ import {
 import { demoPools, isDemoMode } from '@/chain/demo'
 import { tickerForPredictionAssetId } from '@/chain/predictionMarketAssets'
 import { priceSourceUrlForSymbol } from '@/chain/assetRaceRegistry'
+import { isPlayedCancellation, isVisibleInAll } from '@/chain/gameVisibility'
 import { useAssetRaceLiveDisplay } from '@/chain/useAssetRaceLiveDisplay'
 import { useTokenLogos } from '@/chain/robinhoodApi'
+import { usePredictionMarkets } from '@/chain/usePredictionMarkets'
 import { PriceSourceLink } from '@/components/PriceSourceLink'
 import { formatCountdown, formatUsd } from '@/lib/format'
 
 type StatusFilter = 'ALL' | 'OPEN' | 'RESOLVED' | 'CANCELLED'
-
-interface MarketCardData {
-  assetId: Hex
-  priceDecimals: number
-  targetPrice: bigint
-  createdAt: bigint
-  deadline: bigint
-  poolYes: bigint
-  poolNo: bigint
-  status: number
-}
 
 const STATUS_FILTERS: { key: StatusFilter; label: string }[] = [
   { key: 'ALL', label: 'All' },
@@ -52,42 +43,30 @@ export function OnchainMarketsListPage() {
   // (not state) so updating it never itself triggers a re-render.
   const prevPriceByFeed = useRef<Map<string, number>>(new Map())
 
-  const marketCount = useReadContract({
-    address: PREDICTION_MARKET_ADDRESS,
-    abi: predictionMarketAbi,
-    functionName: 'marketCount',
-    query: { enabled: PREDICTION_MARKET_CONFIGURED || isDemoMode() },
-  })
+  const {
+    ids,
+    markets,
+    totalMarketCount: count,
+    isLoading: marketsLoading,
+  } = usePredictionMarkets()
+  const marketById = new Map(markets.map((market) => [market.id.toString(), market]))
 
-  const count = marketCount.data != null ? Number(marketCount.data) : 0
-  const ids = Array.from({ length: count }, (_, i) => BigInt(i))
-
-  const markets = useReadContracts({
-    // Market data and its immutable deadline settlement share one multicall,
-    // so resolved cards can show the final price without another RPC request.
-    contracts: ids.flatMap((id) => [
-      ({
-          address: PREDICTION_MARKET_ADDRESS,
-          abi: predictionMarketAbi,
-          functionName: 'getMarket',
-          args: [id],
-      }) as const,
-      ({
+  const settlements = useReadContracts({
+    contracts: ids.map((id) => ({
         address: PREDICTION_MARKET_ADDRESS,
         abi: predictionMarketAbi,
         functionName: 'settlements',
         args: [id],
-      }) as const,
-    ]),
-    query: { enabled: count > 0 },
+      }) as const),
+    query: { enabled: ids.length > 0, refetchInterval: 10_000 },
   })
 
   const marketAt = (index: number) => {
-    const result = markets.data?.[index * 2]
-    return result?.status === 'success' ? result.result as MarketCardData : undefined
+    const id = ids[index]
+    return id == null ? undefined : marketById.get(id.toString())
   }
   const settlementPriceAt = (index: number) => {
-    const result = markets.data?.[index * 2 + 1]
+    const result = settlements.data?.[index]
     return result?.status === 'success' ? (result.result as readonly [bigint, bigint, Hex])[0] : 0n
   }
 
@@ -121,14 +100,13 @@ export function OnchainMarketsListPage() {
       const market = marketAt(i)
       if (!market) return false
       const status = market.status
-      // "All" deliberately excludes cancelled markets -- an auto-seeded
-      // market that never got a counter-bet cancels itself, and without
-      // this the list fills up with dead cards. Cancelled ones stay fully
-      // visible, just one tab over, not hidden from the chain.
-      if (filter === 'ALL') return status !== MarketStatusOnchain.Cancelled
+      const totalPool = market.poolYes + market.poolNo
+      // Empty auto-seeded cancellations add no player history. A one-sided
+      // or otherwise played cancellation must remain discoverable in All.
+      if (filter === 'ALL') return isVisibleInAll(status, MarketStatusOnchain.Cancelled, totalPool)
       if (filter === 'OPEN') return status === MarketStatusOnchain.Open
       if (filter === 'RESOLVED') return status === MarketStatusOnchain.Resolved
-      return status === MarketStatusOnchain.Cancelled && market.poolYes + market.poolNo > 0n
+      return isPlayedCancellation(status, MarketStatusOnchain.Cancelled, totalPool)
     })
     // Newest first -- a higher id was created later. Otherwise a market
     // created today can land at the very end of a long list, indistinguishable
@@ -184,7 +162,7 @@ export function OnchainMarketsListPage() {
 
       {!PREDICTION_MARKET_CONFIGURED && !isDemoMode() ? (
         <p className="py-16 text-center text-sm text-white/35">Prediction Markets are unavailable in this build.</p>
-      ) : marketCount.isLoading ? (
+      ) : marketsLoading ? (
         <p className="text-white/50 text-sm">Loading…</p>
       ) : count === 0 ? (
         <div className="text-center py-16 text-white/40 text-sm">

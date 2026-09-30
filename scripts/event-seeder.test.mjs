@@ -288,6 +288,45 @@ test('OpenItemTracker accepts a custom open predicate for races', async () => {
   assert.equal(tracker.openCount(1_000n), 0)
 })
 
+test('OpenItemTracker refresh releases a race slot after an early cancellation', async () => {
+  let status = 5 // LOBBY
+  const client = {
+    readContract: async () => ({
+      status,
+      lobbyEndTime: 100n,
+      bettingWindow: 100n,
+      startGrace: 100n,
+      raceDuration: 100n,
+      resolutionGrace: 100n,
+    }),
+  }
+  const rowToItem = (race) => ({
+    assetId: `0x${'0'.repeat(64)}`,
+    status: race.status,
+    deadline: race.lobbyEndTime + race.bettingWindow + race.startGrace + race.raceDuration + race.resolutionGrace,
+  })
+  const read = { address: '0x0000000000000000000000000000000000000001', abi: [], getFn: 'getRace', rowToItem }
+  const tracker = new OpenItemTracker(0n, isRaceOpenNow)
+
+  await tracker.discover(client, read, 1n, 50n)
+  assert.equal(tracker.openCount(50n), 1)
+
+  status = 3 // CANCELLED well before occupiedUntil
+  await tracker.refresh(client, read, 50n)
+  assert.equal(tracker.openCount(50n), 0)
+})
+
+test('OpenItemTracker refresh retains a tracked race across a transient RPC failure', async () => {
+  const tracker = new OpenItemTracker(0n, isRaceOpenNow)
+  const read = { getFn: 'getRace', rowToItem: (row) => row }
+  const initialRows = new Map([[0n, { assetId: 'race', status: 1, deadline: 500n }]])
+
+  await tracker.discover(makeClient(initialRows), read, 1n, 50n)
+  await tracker.refresh({ readContract: async () => { throw new Error('temporary RPC error') } }, read, 50n)
+
+  assert.equal(tracker.openCount(50n), 1)
+})
+
 test('rotateConfigs wraps around the registry and starts at the given offset', () => {
   const configs = [{ assetId: 'NVDA' }, { assetId: 'TSLA' }, { assetId: 'AAPL' }]
   assert.deepEqual(rotateConfigs(configs, 2, 0), [{ assetId: 'NVDA' }, { assetId: 'TSLA' }])

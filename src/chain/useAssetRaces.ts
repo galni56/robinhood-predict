@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { zeroAddress } from 'viem'
 import { useReadContract, useReadContracts } from 'wagmi'
 import { assetRaceChain } from '@/chain/config'
+import { useStableGameSnapshots } from '@/chain/useStableGameSnapshots'
 import {
   ASSET_RACE_ADDRESS,
   ETH_DECIMALS,
@@ -46,16 +47,15 @@ export function useAssetRaces() {
     query: { enabled: !isPreview && ids.length > 0, refetchInterval: 10_000 },
   })
 
-  const onchainRaces = ids
-    .map((id, index): AssetRaceViewModel | null => {
-      const raceResult = raceQueries.data?.[index]
-      const assetsResult = assetQueries.data?.[index]
-      if (raceResult?.status !== 'success' || assetsResult?.status !== 'success') return null
-      const race = raceResult.result as AssetRaceData
-      const assets = normalizeRaceAssets(assetsResult.result as readonly Omit<AssetRaceAsset, 'assetIndex' | 'symbol' | 'feedAddress'>[])
-      return { ...race, id, assets, source: 'onchain' }
-    })
-    .filter((race): race is AssetRaceViewModel => race != null)
+  const observedRaces = useMemo(() => ids.map((id, index): AssetRaceViewModel | null => {
+    const raceResult = raceQueries.data?.[index]
+    const assetsResult = assetQueries.data?.[index]
+    if (raceResult?.status !== 'success' || assetsResult?.status !== 'success') return null
+    const race = raceResult.result as AssetRaceData
+    const assets = normalizeRaceAssets(assetsResult.result as readonly Omit<AssetRaceAsset, 'assetIndex' | 'symbol' | 'feedAddress'>[])
+    return { ...race, id, assets, source: 'onchain' }
+  }), [ids, raceQueries.data, assetQueries.data])
+  const onchainRaces = useStableGameSnapshots(ids, observedRaces)
 
   async function refetch() {
     await Promise.all([countQuery.refetch(), raceQueries.refetch(), assetQueries.refetch()])
@@ -67,7 +67,8 @@ export function useAssetRaces() {
     configuredAddress: ASSET_RACE_ADDRESS,
     tokenDecimals: ETH_DECIMALS,
     totalRaceCount: isPreview ? previewRaces.length : count,
-    isLoading: !isPreview && (countQuery.isLoading || raceQueries.isLoading || assetQueries.isLoading),
+    isLoading: !isPreview && onchainRaces.length === 0
+      && (countQuery.isLoading || raceQueries.isLoading || assetQueries.isLoading),
     error: countQuery.error ?? raceQueries.error ?? assetQueries.error,
     refetch,
   }

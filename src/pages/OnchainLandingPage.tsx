@@ -1,16 +1,12 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { formatEther, formatUnits } from 'viem'
-import { useReadContract, useReadContracts } from 'wagmi'
 import {
-  PREDICTION_MARKET_ADDRESS,
-  PREDICTION_MARKET_CONFIGURED,
-  predictionMarketAbi,
   BETTING_WINDOW_BP,
   BP_DENOMINATOR,
   MarketStatusOnchain,
 } from '@/chain/contracts'
-import { ASSET_RACE_ORIGIN, ASSET_RACE_STATUS, type AssetRaceViewModel } from '@/chain/assetRaces'
+import { ASSET_RACE_STATUS, type AssetRaceViewModel } from '@/chain/assetRaces'
 import { assetRaceCatalog, priceSourceUrlForAssetId, priceSourceUrlForCatalogAsset, priceSourceUrlForSymbol } from '@/chain/assetRaceRegistry'
 import { demoPools, isDemoMode } from '@/chain/demo'
 import { tickerForPredictionAssetId } from '@/chain/predictionMarketAssets'
@@ -19,7 +15,9 @@ import { useAssetRaceClock } from '@/chain/useAssetRaceClock'
 import { useAssetRaceLiveDisplay } from '@/chain/useAssetRaceLiveDisplay'
 import { useAssetRaces } from '@/chain/useAssetRaces'
 import { usePriceArenas } from '@/chain/usePriceArenas'
+import { usePredictionMarkets } from '@/chain/usePredictionMarkets'
 import { useTokenLogos } from '@/chain/robinhoodApi'
+import { isActiveOnchainStatus } from '@/chain/gameSnapshots'
 import { TokenLogo } from '@/components/TokenLogo'
 import { PriceSourceLink } from '@/components/PriceSourceLink'
 import { formatCountdown, formatUsd } from '@/lib/format'
@@ -215,7 +213,10 @@ function GameColumn({
 function RacePreviewCard({ race, nowMs }: { race: AssetRaceViewModel; nowMs: number }) {
   const navigate = useNavigate()
   const inLobby = race.status === ASSET_RACE_STATUS.LOBBY
-  const target = inLobby ? race.lobbyEndTime : race.bettingEndTime
+  const running = race.status === ASSET_RACE_STATUS.RUNNING
+  const target = inLobby ? race.lobbyEndTime : running ? race.raceEndTime : race.bettingEndTime
+  const phaseLabel = inLobby ? 'LOBBY OPEN' : running ? 'RACE LIVE' : 'BETTING OPEN'
+  const actionLabel = inLobby ? 'Add an asset' : running ? 'Watch race' : 'Bet now'
 
   return (
     <div
@@ -236,7 +237,7 @@ function RacePreviewCard({ race, nowMs }: { race: AssetRaceViewModel; nowMs: num
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="text-xs font-bold text-[#F2A65A]">{inLobby ? 'LOBBY OPEN' : 'BETTING OPEN'}</div>
+          <div className="text-xs font-bold text-[#F2A65A]">{phaseLabel}</div>
           <h4 className="mt-1 truncate font-display text-lg font-bold">{race.title || `Asset Race #${race.id}`}</h4>
         </div>
         <span className="shrink-0 rounded-full bg-[#F2A65A]/10 px-2.5 py-1 text-xs font-bold text-[#F2A65A]">{timeLeft(target, nowMs)}</span>
@@ -266,7 +267,7 @@ function RacePreviewCard({ race, nowMs }: { race: AssetRaceViewModel; nowMs: num
         <span className="text-white/35">
           {inLobby ? `${race.candidateCount} / 6 assets` : `${compactEth(race.totalPool)} pool`}
         </span>
-        <span className="shrink-0 font-bold text-[#F2A65A]">{inLobby ? 'Add an asset' : 'Bet now'} →</span>
+        <span className="shrink-0 font-bold text-[#F2A65A]">{actionLabel} →</span>
       </div>
     </div>
   )
@@ -274,6 +275,8 @@ function RacePreviewCard({ race, nowMs }: { race: AssetRaceViewModel; nowMs: num
 
 function ArenaPreviewCard({ arena, nowMs }: { arena: PriceArenaViewModel; nowMs: number }) {
   const navigate = useNavigate()
+  const inLobby = arena.phase === PRICE_ARENA_PHASE.LOBBY
+  const target = inLobby ? arena.startsAt : arena.deadline
   return (
     <div
       role="link"
@@ -299,13 +302,15 @@ function ArenaPreviewCard({ arena, nowMs }: { arena: PriceArenaViewModel; nowMs:
             <h4 className="mt-1 truncate font-display text-lg font-bold">{arena.title}</h4>
           </div>
         </div>
-        <span className="shrink-0 rounded-full bg-[#7A9FF0]/10 px-2.5 py-1 text-xs font-bold text-[#B7CEFF]">{timeLeft(arena.startsAt, nowMs)}</span>
+        <span className="shrink-0 rounded-full bg-[#7A9FF0]/10 px-2.5 py-1 text-xs font-bold text-[#B7CEFF]">
+          {inLobby ? timeLeft(target, nowMs) : `LIVE · ${timeLeft(target, nowMs)}`}
+        </span>
       </div>
       <div className="mt-4 flex items-center justify-between gap-3 text-xs">
         <span className="text-white/35">{arena.participantCount} / {PRICE_ARENA_MAX_PARTICIPANTS} players · {compactEth(arena.totalPool)} pool</span>
         <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
           <PriceSourceLink href={arena.asset?.priceUrl} symbol={arena.asset?.symbol} tone="arena" className="bg-[#7A9FF0]/10 px-2 py-1" />
-          <span className="font-bold text-[#B7CEFF]">Enter arena →</span>
+          <span className="font-bold text-[#B7CEFF]">{inLobby ? 'Enter arena' : 'Watch arena'} →</span>
         </div>
       </div>
     </div>
@@ -314,19 +319,7 @@ function ArenaPreviewCard({ arena, nowMs }: { arena: PriceArenaViewModel; nowMs:
 
 export function OnchainLandingPage() {
   const navigate = useNavigate()
-  const marketCount = useReadContract({
-    address: PREDICTION_MARKET_ADDRESS,
-    abi: predictionMarketAbi,
-    functionName: 'marketCount',
-    query: { enabled: PREDICTION_MARKET_CONFIGURED || isDemoMode() },
-  })
-  const count = marketCount.data != null ? Number(marketCount.data) : 0
-  const ids = Array.from({ length: count }, (_, i) => BigInt(i))
-
-  const markets = useReadContracts({
-    contracts: ids.map((id) => ({ address: PREDICTION_MARKET_ADDRESS, abi: predictionMarketAbi, functionName: 'getMarket', args: [id] }) as const),
-    query: { enabled: count > 0 },
-  })
+  const { markets, isLoading: marketsLoading } = usePredictionMarkets()
 
   const live = useAssetRaceLiveDisplay({ enabled: true })
   const { races, isPreview: racesPreview, isLoading: racesLoading } = useAssetRaces()
@@ -336,35 +329,24 @@ export function OnchainLandingPage() {
   const nowMs = clockMs || initialNowMs
   const nowSeconds = BigInt(Math.floor(nowMs / 1_000))
 
-  const openMarkets = ids
-    .map((id, i) => {
-      const r = markets.data?.[i]
-      return r?.status === 'success' ? { id, ...r.result } : null
-    })
-    .filter((m): m is NonNullable<typeof m> => m != null && m.status === MarketStatusOnchain.Open)
+  const activeMarkets = markets
+    .filter((market) => market.status === MarketStatusOnchain.Open)
     // Newest first -- a higher id was created later, since ids increment
     // sequentially. Otherwise the preview here always shows the same oldest
     // handful forever as more get created.
     .sort((a, b) => (a.id > b.id ? -1 : a.id < b.id ? 1 : 0))
 
-  const joinableMarkets = openMarkets.filter((market) => {
-    const bettingEnd = market.createdAt + ((market.deadline - market.createdAt) * BETTING_WINDOW_BP) / BP_DENOMINATOR
-    return nowSeconds < bettingEnd
-  })
-  const joinableRaces = (racesPreview ? [] : races).filter((race) => (
-    (race.status === ASSET_RACE_STATUS.LOBBY
-      && race.origin === ASSET_RACE_ORIGIN.COMMUNITY
-      && race.candidateCount < 6
-      && nowSeconds < race.lobbyEndTime)
-    || (race.status === ASSET_RACE_STATUS.BETTING
-      && nowSeconds >= race.bettingStartTime
-      && nowSeconds < race.bettingEndTime)
-  ))
-  const joinableArenas = arenas.filter((arena) => (
-    arena.phase === PRICE_ARENA_PHASE.LOBBY
-    && nowSeconds < arena.startsAt
-    && arena.participantCount < PRICE_ARENA_MAX_PARTICIPANTS
-  ))
+  // The contract status is authoritative. Local countdowns are display-only:
+  // removing cards from them made valid games vanish before keeper transitions.
+  const activeRaces = (racesPreview ? [] : races).filter((race) => isActiveOnchainStatus(race.status, [
+    ASSET_RACE_STATUS.RESOLVED,
+    ASSET_RACE_STATUS.CANCELLED,
+    ASSET_RACE_STATUS.VOID,
+  ]))
+  const activeArenas = arenas.filter((arena) => isActiveOnchainStatus(arena.phase, [
+    PRICE_ARENA_PHASE.RESOLVED,
+    PRICE_ARENA_PHASE.CANCELLED,
+  ]))
 
   const logos = useTokenLogos()
   const stepsReveal = useRevealOnScroll<HTMLDivElement>()
@@ -491,22 +473,22 @@ export function OnchainLandingPage() {
         </section>
       </div>
 
-      {/* A cross-product board containing only games that still accept entry. */}
+      {/* A stable cross-product board driven by authoritative onchain phases. */}
       <section className="mx-auto max-w-[1500px] px-4 pb-10 pt-14">
-        <p className="mb-2 text-sm font-bold text-[#B3A7FA]">Open now</p>
+        <p className="mb-2 text-sm font-bold text-[#B3A7FA]">Active now</p>
         <h2 className="mb-8 font-display text-3xl font-bold tracking-tight sm:text-4xl">Choose your game.</h2>
 
         <div className="grid gap-5 lg:grid-cols-3">
           <GameColumn
             eyebrow="YES / NO"
             title="Prediction Markets"
-            count={joinableMarkets.length}
+            count={activeMarkets.length}
             href="/onchain"
             accent="purple"
-            loading={marketCount.isLoading || (count > 0 && markets.isLoading)}
-            empty="No prediction markets are accepting bets right now."
+            loading={marketsLoading}
+            empty="No Prediction Markets are active right now."
           >
-            {joinableMarkets.slice(0, 3).map((market) => {
+            {activeMarkets.slice(0, 3).map((market) => {
               const ticker = tickerForPredictionAssetId(market.assetId)
               const price = ticker ? live.assets[ticker] : undefined
               const targetUsd = Number(formatUnits(market.targetPrice, market.priceDecimals))
@@ -514,6 +496,7 @@ export function OnchainLandingPage() {
               const pools = isDemoMode() ? demoPools(market.id) : { poolYes: market.poolYes, poolNo: market.poolNo }
               const totalPool = pools.poolYes + pools.poolNo
               const bettingEnd = market.createdAt + ((market.deadline - market.createdAt) * BETTING_WINDOW_BP) / BP_DENOMINATOR
+              const acceptingBets = nowSeconds < bettingEnd
 
               return (
                 <div
@@ -542,7 +525,7 @@ export function OnchainLandingPage() {
                       </div>
                     </div>
                     <span className="shrink-0 rounded-full bg-[#8B7CF7]/15 px-2.5 py-1 text-xs font-bold text-[#B3A7FA]">
-                      {timeLeft(bettingEnd, nowMs)}
+                      {acceptingBets ? timeLeft(bettingEnd, nowMs) : `SETTLES · ${timeLeft(market.deadline, nowMs)}`}
                     </span>
                   </div>
                   <h3 className="mt-3 font-display text-lg font-bold leading-snug transition-colors group-hover:text-[#B3A7FA]">
@@ -552,7 +535,7 @@ export function OnchainLandingPage() {
                     <span className="text-white/35">{compactEth(totalPool)} pool{currentUsd != null ? ` · now ${formatUsd(currentUsd)}` : ''}</span>
                     <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
                       <PriceSourceLink href={priceSourceUrlForSymbol(ticker)} symbol={ticker} tone="market" className="bg-[#8B7CF7]/10 px-2 py-1" />
-                      <span className="font-bold text-[#B3A7FA]">Place a bet →</span>
+                      <span className="font-bold text-[#B3A7FA]">{acceptingBets ? 'Place a bet' : 'View market'} →</span>
                     </div>
                   </div>
                 </div>
@@ -563,13 +546,13 @@ export function OnchainLandingPage() {
           <GameColumn
             eyebrow="FASTEST MOVER"
             title="Asset Races"
-            count={joinableRaces.length}
+            count={activeRaces.length}
             href="/onchain/races"
             accent="orange"
             loading={racesLoading}
-            empty="No Asset Races can be joined right now."
+            empty="No Asset Races are active right now."
           >
-            {joinableRaces.slice(0, 3).map((race) => (
+            {activeRaces.slice(0, 3).map((race) => (
               <RacePreviewCard key={race.id.toString()} race={race} nowMs={nowMs} />
             ))}
           </GameColumn>
@@ -577,13 +560,13 @@ export function OnchainLandingPage() {
           <GameColumn
             eyebrow="CLOSEST PRICE"
             title="Price Arena"
-            count={joinableArenas.length}
+            count={activeArenas.length}
             href="/onchain/arenas"
             accent="blue"
             loading={arenasLoading}
-            empty="No Price Arenas are accepting players right now."
+            empty="No Price Arenas are active right now."
           >
-            {joinableArenas.slice(0, 3).map((arena) => (
+            {activeArenas.slice(0, 3).map((arena) => (
               <ArenaPreviewCard key={arena.id.toString()} arena={arena} nowMs={nowMs} />
             ))}
           </GameColumn>

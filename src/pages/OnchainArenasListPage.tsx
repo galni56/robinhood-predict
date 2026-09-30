@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { formatEther } from 'viem'
 import { useAssetRaceClock } from '@/chain/useAssetRaceClock'
+import { isPlayedCancellation, isVisibleInAll } from '@/chain/gameVisibility'
 import { usePriceArenas } from '@/chain/usePriceArenas'
 import {
   PRICE_ARENA_CATEGORY,
@@ -82,16 +83,12 @@ export function OnchainArenasListPage() {
   const category = mode === 'memes' ? PRICE_ARENA_CATEGORY.MEME : PRICE_ARENA_CATEGORY.STOCK
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>('ALL')
   const nowMs = useAssetRaceClock()
-  // "All" deliberately excludes cancelled arenas -- an auto-seeded arena
-  // that never reached 2 participants cancels itself, and without this the
-  // list fills up with dead cards. Cancelled ones stay fully visible, just
-  // one tab over, not hidden from the chain.
   const visible = arenas.filter((arena) => arena.category === category && (
-    filter === 'ALL' ? arena.phase !== PRICE_ARENA_PHASE.CANCELLED
+    filter === 'ALL' ? isVisibleInAll(arena.phase, PRICE_ARENA_PHASE.CANCELLED, arena.totalPool)
       : filter === 'LOBBY' ? arena.phase === PRICE_ARENA_PHASE.LOBBY
         : filter === 'LIVE' ? arena.phase === PRICE_ARENA_PHASE.RUNNING
           : filter === 'FINISHED' ? arena.phase === PRICE_ARENA_PHASE.RESOLVED
-            : arena.phase === PRICE_ARENA_PHASE.CANCELLED && arena.totalPool > 0n
+            : isPlayedCancellation(arena.phase, PRICE_ARENA_PHASE.CANCELLED, arena.totalPool)
   ))
 
   return (

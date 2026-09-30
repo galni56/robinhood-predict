@@ -12,6 +12,7 @@ import {
   type AssetRaceViewModel,
 } from '@/chain/assetRaces'
 import { priceSourceUrlForAssetId, priceSourceUrlForSymbol } from '@/chain/assetRaceRegistry'
+import { isPlayedCancellation } from '@/chain/gameVisibility'
 import { MarketSideOnchain, MarketStatusOnchain } from '@/chain/contracts'
 import {
   useAssetRaceArchivePage,
@@ -152,16 +153,16 @@ export function OnchainArchivePage() {
   // the pool; resolved/void games always remain part of the archive.
   const terminalMarkets = markets.items.filter((market) => (
     market.status === MarketStatusOnchain.Resolved
-    || (market.status === MarketStatusOnchain.Cancelled && market.poolYes + market.poolNo > 0n)
+    || isPlayedCancellation(market.status, MarketStatusOnchain.Cancelled, market.poolYes + market.poolNo)
   ))
   const terminalRaces = races.items.filter((race) => (
     race.status === ASSET_RACE_STATUS.RESOLVED
     || race.status === ASSET_RACE_STATUS.VOID
-    || (race.status === ASSET_RACE_STATUS.CANCELLED && race.totalPool > 0n)
+    || isPlayedCancellation(race.status, ASSET_RACE_STATUS.CANCELLED, race.totalPool)
   ))
   const terminalArenas = arenas.items.filter((arena) => (
     arena.phase === PRICE_ARENA_PHASE.RESOLVED
-    || (arena.phase === PRICE_ARENA_PHASE.CANCELLED && arena.totalPool > 0n)
+    || isPlayedCancellation(arena.phase, PRICE_ARENA_PHASE.CANCELLED, arena.totalPool)
   ))
   const visibleCount = mode === 'markets' ? terminalMarkets.length : mode === 'races' ? terminalRaces.length : terminalArenas.length
   const accent = archiveModes.find((item) => item.key === mode)!.accent

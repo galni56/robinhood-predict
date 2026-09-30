@@ -188,11 +188,9 @@ export function isOpenNow(status, deadline, now) {
 
 /** Races have no single OPEN status (LOBBY/BETTING/RUNNING are all
  * non-terminal) and no single deadline field -- so `deadline` here is a
- * conservative "occupiedUntil" computed once at discovery from the race's
- * own (immutable) lobby/betting/start-grace/duration/resolution-grace
- * fields (see raceRowToItem). A race that actually finishes earlier than
- * that worst case is simply over-counted as "open" for a few extra
- * minutes -- safe, just conservative, not a correctness issue. */
+ * conservative "occupiedUntil" computed from the immutable lifecycle fields.
+ * Tracked races are also refreshed so early terminal transitions win over this
+ * upper bound immediately. */
 export function isRaceOpenNow(status, occupiedUntil, now) {
   return !RACE_TERMINAL_STATUSES.has(Number(status)) && BigInt(occupiedUntil) > BigInt(now)
 }
@@ -217,6 +215,29 @@ export class OpenItemTracker {
       if (this.isOpen(item.status, item.deadline, now)) this.items.set(id, { assetId: item.assetId, deadline: BigInt(item.deadline) })
     }
     this.nextId = count
+  }
+
+  /**
+   * Re-read only the small tracked-open set and discard authoritative terminal
+   * transitions. Races can cancel before their conservative occupiedUntil;
+   * without this refresh the seeder incorrectly considers that empty slot
+   * occupied and leaves the public board without a replacement race.
+   */
+  async refresh(publicClient, { address, abi, getFn, rowToItem }, now) {
+    for (const id of [...this.items.keys()]) {
+      try {
+        const row = await publicClient.readContract({ address, abi, functionName: getFn, args: [id] })
+        const item = rowToItem(row)
+        if (this.isOpen(item.status, item.deadline, now)) {
+          this.items.set(id, { assetId: item.assetId, deadline: BigInt(item.deadline) })
+        } else {
+          this.items.delete(id)
+        }
+      } catch {
+        // A transient RPC failure is not an authoritative lifecycle update.
+        // Retain the tracked row and let the next seeder pass retry it.
+      }
+    }
   }
 
   /** Drops entries whose deadline has passed -- purely a local memory
@@ -527,7 +548,9 @@ async function main() {
 
   async function seedRaceIfNeeded(now) {
     const count = await publicClient.readContract({ address: config.raceAddress, abi: assetRaceCommunityAbi, functionName: 'raceCount' })
-    await raceTracker.discover(publicClient, { address: config.raceAddress, abi: assetRaceCommunityAbi, getFn: 'getRace', rowToItem: raceRowToItem }, count, now)
+    const raceRead = { address: config.raceAddress, abi: assetRaceCommunityAbi, getFn: 'getRace', rowToItem: raceRowToItem }
+    await raceTracker.discover(publicClient, raceRead, count, now)
+    await raceTracker.refresh(publicClient, raceRead, now)
     raceTracker.prune(now)
     if (raceTracker.openCount(now) >= config.raceTargetOpen) return
 
