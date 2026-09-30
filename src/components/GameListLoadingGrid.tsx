@@ -17,10 +17,14 @@ const accentClass = {
 export function GameListLoadingGrid({ accent = 'purple', cards = 6 }: GameListLoadingGridProps) {
   return (
     <div
-      aria-label="Loading games"
+      aria-label="Searching for active games"
       aria-busy="true"
       className="grid min-h-[32rem] grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3"
     >
+      <div className="col-span-full flex h-8 items-center gap-2 text-sm font-medium text-white/45">
+        <span className={`h-2 w-2 animate-pulse rounded-full ${accentClass[accent]}`} />
+        Searching for active games…
+      </div>
       {Array.from({ length: cards }, (_, index) => (
         <div
           key={index}

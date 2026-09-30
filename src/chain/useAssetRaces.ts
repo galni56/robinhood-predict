@@ -3,7 +3,12 @@ import { zeroAddress } from 'viem'
 import { useReadContract, useReadContracts } from 'wagmi'
 import { assetRaceChain } from '@/chain/config'
 import { useStableGameCount, useStableGameSnapshots } from '@/chain/useStableGameSnapshots'
-import { ACTIVE_GAME_POLL_INTERVAL_MS, ACTIVE_GAME_REFRESH_OPTIONS } from '@/chain/gameSnapshots'
+import {
+  ACTIVE_GAME_POLL_INTERVAL_MS,
+  ACTIVE_GAME_REFRESH_OPTIONS,
+  HISTORICAL_GAME_POLL_INTERVAL_MS,
+  splitProgressiveGameIds,
+} from '@/chain/gameSnapshots'
 import {
   ASSET_RACE_ADDRESS,
   ETH_DECIMALS,
@@ -36,35 +41,63 @@ export function useAssetRaces() {
     [count, firstId],
   )
 
-  const raceQueries = useReadContracts({
+  const { fastIds, historyIds } = useMemo(
+    () => splitProgressiveGameIds(ids, 12, true),
+    [ids],
+  )
+  const readsFor = (queryIds: readonly bigint[]) => queryIds.flatMap((id) => [
+    ({ address: readAddress, chainId: assetRaceChain.id, abi: assetRaceAbi, functionName: 'getRace', args: [id] }) as const,
+    ({ address: readAddress, chainId: assetRaceChain.id, abi: assetRaceAbi, functionName: 'getRaceAssets', args: [id] }) as const,
+  ])
+  const fastQueries = useReadContracts({
     // One ordered multicall keeps each race and its asset grid on the same
     // refresh cycle and halves the HTTP round trips used by the old split reads.
-    contracts: ids.flatMap((id) => [
-      ({ address: readAddress, chainId: assetRaceChain.id, abi: assetRaceAbi, functionName: 'getRace', args: [id] }) as const,
-      ({ address: readAddress, chainId: assetRaceChain.id, abi: assetRaceAbi, functionName: 'getRaceAssets', args: [id] }) as const,
-    ]),
+    contracts: readsFor(fastIds),
     query: {
-      enabled: !isPreview && ids.length > 0,
+      enabled: !isPreview && fastIds.length > 0,
       refetchInterval: ACTIVE_GAME_POLL_INTERVAL_MS,
       ...ACTIVE_GAME_REFRESH_OPTIONS,
     },
   })
+  const countScanComplete = countQuery.data != null || countQuery.isError
+  const fastScanComplete = countScanComplete && (
+    fastIds.length === 0 || fastQueries.data != null || fastQueries.isError
+  )
+  const historyQueries = useReadContracts({
+    contracts: readsFor(historyIds),
+    query: {
+      enabled: !isPreview && fastScanComplete && historyIds.length > 0,
+      refetchInterval: HISTORICAL_GAME_POLL_INTERVAL_MS,
+      ...ACTIVE_GAME_REFRESH_OPTIONS,
+    },
+  })
+  const historyScanComplete = fastScanComplete && (
+    historyIds.length === 0 || historyQueries.data != null || historyQueries.isError
+  )
 
-  const observedRaces = useMemo(() => ids.map((id, index): AssetRaceViewModel | null => {
-    const raceResult = raceQueries.data?.[index * 2]
-    const assetsResult = raceQueries.data?.[index * 2 + 1]
-    if (raceResult?.status !== 'success' || assetsResult?.status !== 'success') return null
-    const race = raceResult.result as AssetRaceData
-    const assets = normalizeRaceAssets(assetsResult.result as readonly Omit<AssetRaceAsset, 'assetIndex' | 'symbol' | 'feedAddress'>[])
-    return { ...race, id, assets, source: 'onchain' }
-  }), [ids, raceQueries.data])
+  const observedRaces = useMemo(() => {
+    const byId = new Map<string, AssetRaceViewModel>()
+    const collect = (queryIds: readonly bigint[], data: typeof fastQueries.data) => {
+      queryIds.forEach((id, index) => {
+        const raceResult = data?.[index * 2]
+        const assetsResult = data?.[index * 2 + 1]
+        if (raceResult?.status !== 'success' || assetsResult?.status !== 'success') return
+        const race = raceResult.result as AssetRaceData
+        const assets = normalizeRaceAssets(assetsResult.result as readonly Omit<AssetRaceAsset, 'assetIndex' | 'symbol' | 'feedAddress'>[])
+        byId.set(id.toString(), { ...race, id, assets, source: 'onchain' })
+      })
+    }
+    collect(fastIds, fastQueries.data)
+    collect(historyIds, historyQueries.data)
+    return ids.map((id) => byId.get(id.toString()) ?? null)
+  }, [fastIds, fastQueries.data, historyIds, historyQueries.data, ids])
   const onchainRaces = useStableGameSnapshots(ids, observedRaces, {
     cacheKey: 'asset-races',
     idsReady: isPreview || countQuery.data != null,
   })
 
   async function refetch() {
-    await Promise.all([countQuery.refetch(), raceQueries.refetch()])
+    await Promise.all([countQuery.refetch(), fastQueries.refetch(), historyQueries.refetch()])
   }
 
   return {
@@ -73,9 +106,8 @@ export function useAssetRaces() {
     configuredAddress: ASSET_RACE_ADDRESS,
     tokenDecimals: ETH_DECIMALS,
     totalRaceCount: isPreview ? previewRaces.length : count,
-    isLoading: !isPreview && onchainRaces.length === 0
-      && (countQuery.isLoading || raceQueries.isLoading),
-    error: countQuery.error ?? raceQueries.error,
+    isLoading: !isPreview && !historyScanComplete,
+    error: countQuery.error ?? fastQueries.error ?? historyQueries.error,
     refetch,
   }
 }

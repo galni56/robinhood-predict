@@ -3,7 +3,12 @@ import { zeroAddress } from 'viem'
 import { useReadContract, useReadContracts } from 'wagmi'
 import { assetRaceChain } from '@/chain/config'
 import { useStableGameCount, useStableGameSnapshots } from '@/chain/useStableGameSnapshots'
-import { ACTIVE_GAME_POLL_INTERVAL_MS, ACTIVE_GAME_REFRESH_OPTIONS } from '@/chain/gameSnapshots'
+import {
+  ACTIVE_GAME_POLL_INTERVAL_MS,
+  ACTIVE_GAME_REFRESH_OPTIONS,
+  HISTORICAL_GAME_POLL_INTERVAL_MS,
+  splitProgressiveGameIds,
+} from '@/chain/gameSnapshots'
 import {
   MAX_ARENAS_TO_LIST,
   PRICE_ARENA_ADDRESS,
@@ -24,29 +29,57 @@ export function usePriceArenas() {
   const count = Number(useStableGameCount('price-arena-count', countQuery.data))
   const firstId = Math.max(0, count - MAX_ARENAS_TO_LIST)
   const ids = useMemo(() => Array.from({ length: count - firstId }, (_, i) => BigInt(firstId + i)).reverse(), [count, firstId])
-  const arenaQueries = useReadContracts({
+  const { fastIds, historyIds } = useMemo(
+    () => splitProgressiveGameIds(ids, 8, true),
+    [ids],
+  )
+  const readsFor = (queryIds: readonly bigint[]) => queryIds.flatMap((id) => [
+    ({ address, chainId: assetRaceChain.id, abi: priceArenaAbi, functionName: 'getArena', args: [id] }) as const,
+    ({ address, chainId: assetRaceChain.id, abi: priceArenaAbi, functionName: 'phase', args: [id] }) as const,
+  ])
+  const fastQueries = useReadContracts({
     // Arena data and its derived phase must update together. Keeping both reads
     // in one multicall removes an extra round trip and avoids mixed old/new rows.
-    contracts: ids.flatMap((id) => [
-      ({ address, chainId: assetRaceChain.id, abi: priceArenaAbi, functionName: 'getArena', args: [id] }) as const,
-      ({ address, chainId: assetRaceChain.id, abi: priceArenaAbi, functionName: 'phase', args: [id] }) as const,
-    ]),
+    contracts: readsFor(fastIds),
     query: {
-      enabled: enabled && ids.length > 0,
+      enabled: enabled && fastIds.length > 0,
       refetchInterval: ACTIVE_GAME_POLL_INTERVAL_MS,
       ...ACTIVE_GAME_REFRESH_OPTIONS,
     },
   })
-  const observedArenas = useMemo(() => ids.map((id, index): PriceArenaViewModel | null => {
-    const arenaResult = arenaQueries.data?.[index * 2]
-    const phaseResult = arenaQueries.data?.[index * 2 + 1]
-    if (arenaResult?.status !== 'success' || phaseResult?.status !== 'success') return null
-    const data = arenaResult.result as unknown as PriceArenaData
-    const phase = Number(phaseResult.result)
-    const asset = priceArenaAsset(data.assetId)
-    if (!isCoherentPriceArenaSnapshot(data, phase, asset?.category)) return null
-    return { ...data, id, phase, asset }
-  }), [ids, arenaQueries.data])
+  const countScanComplete = countQuery.data != null || countQuery.isError
+  const fastScanComplete = countScanComplete && (
+    fastIds.length === 0 || fastQueries.data != null || fastQueries.isError
+  )
+  const historyQueries = useReadContracts({
+    contracts: readsFor(historyIds),
+    query: {
+      enabled: enabled && fastScanComplete && historyIds.length > 0,
+      refetchInterval: HISTORICAL_GAME_POLL_INTERVAL_MS,
+      ...ACTIVE_GAME_REFRESH_OPTIONS,
+    },
+  })
+  const historyScanComplete = fastScanComplete && (
+    historyIds.length === 0 || historyQueries.data != null || historyQueries.isError
+  )
+  const observedArenas = useMemo(() => {
+    const byId = new Map<string, PriceArenaViewModel>()
+    const collect = (queryIds: readonly bigint[], data: typeof fastQueries.data) => {
+      queryIds.forEach((id, index) => {
+        const arenaResult = data?.[index * 2]
+        const phaseResult = data?.[index * 2 + 1]
+        if (arenaResult?.status !== 'success' || phaseResult?.status !== 'success') return
+        const arena = arenaResult.result as unknown as PriceArenaData
+        const phase = Number(phaseResult.result)
+        const asset = priceArenaAsset(arena.assetId)
+        if (!isCoherentPriceArenaSnapshot(arena, phase, asset?.category)) return
+        byId.set(id.toString(), { ...arena, id, phase, asset })
+      })
+    }
+    collect(fastIds, fastQueries.data)
+    collect(historyIds, historyQueries.data)
+    return ids.map((id) => byId.get(id.toString()) ?? null)
+  }, [fastIds, fastQueries.data, historyIds, historyQueries.data, ids])
   const stableArenas = useStableGameSnapshots(ids, observedArenas, {
     // v2 intentionally drops Arena rows captured before structural validation.
     cacheKey: 'price-arenas-v2',
@@ -59,9 +92,8 @@ export function usePriceArenas() {
   return {
     arenas,
     isConfigured: enabled,
-    isLoading: enabled && arenas.length === 0
-      && (countQuery.isLoading || arenaQueries.isLoading),
-    error: countQuery.error ?? arenaQueries.error,
-    refetch: async () => Promise.all([countQuery.refetch(), arenaQueries.refetch()]),
+    isLoading: enabled && !historyScanComplete,
+    error: countQuery.error ?? fastQueries.error ?? historyQueries.error,
+    refetch: async () => Promise.all([countQuery.refetch(), fastQueries.refetch(), historyQueries.refetch()]),
   }
 }

@@ -266,7 +266,7 @@ export function OnchainRacesListPage() {
 
       <div className="flex items-start gap-6">
         <main className="min-h-[32rem] min-w-0 flex-1">
-      {isLoading ? (
+      {isLoading && featured.length === 0 && community.length === 0 ? (
         <GameListLoadingGrid accent="orange" />
       ) : error && featured.length === 0 && community.length === 0 ? (
         <div className="rounded-2xl border border-rose-500/25 bg-rose-500/10 p-5 text-sm text-rose-300">Could not read the AssetRace contract.</div>

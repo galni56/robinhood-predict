@@ -145,7 +145,7 @@ export function OnchainMarketsListPage() {
 
       {!PREDICTION_MARKET_CONFIGURED && !isDemoMode() ? (
         <p className="py-16 text-center text-sm text-white/35">Prediction Markets are unavailable in this build.</p>
-      ) : marketsLoading ? (
+      ) : marketsLoading && filteredIds.length === 0 ? (
         <GameListLoadingGrid accent="purple" />
       ) : count === 0 ? (
         <div className="text-center py-16 text-white/40 text-sm">

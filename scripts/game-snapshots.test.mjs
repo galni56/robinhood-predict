@@ -9,6 +9,7 @@ import {
   reconcileGameSnapshots,
   reconcileGameSnapshotsWhenReady,
   selectMonotonicGameCount,
+  splitProgressiveGameIds,
   writeSessionGameSnapshots,
 } from '../src/chain/gameSnapshots.ts'
 
@@ -75,4 +76,18 @@ test('append-only game counts ignore stale lower-block RPC responses', () => {
   assert.equal(selectMonotonicGameCount(168n, 139n), 168n)
   assert.equal(selectMonotonicGameCount(168n, 168n), 168n)
   assert.equal(selectMonotonicGameCount(168n, 169n), 169n)
+})
+
+test('progressive discovery reads newest ids first without dropping history', () => {
+  const ascending = [10n, 11n, 12n, 13n, 14n]
+  assert.deepEqual(splitProgressiveGameIds(ascending, 2), {
+    fastIds: [13n, 14n],
+    historyIds: [10n, 11n, 12n],
+  })
+
+  const descending = [...ascending].reverse()
+  assert.deepEqual(splitProgressiveGameIds(descending, 2, true), {
+    fastIds: [14n, 13n],
+    historyIds: [12n, 11n, 10n],
+  })
 })

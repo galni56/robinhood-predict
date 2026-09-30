@@ -121,7 +121,7 @@ export function OnchainArenasListPage() {
 
       <div className="mt-6 flex items-start gap-6">
         <main className="min-h-[32rem] min-w-0 flex-1">
-          {isLoading ? <GameListLoadingGrid accent="blue" />
+          {isLoading && visible.length === 0 ? <GameListLoadingGrid accent="blue" />
             : error && visible.length === 0 ? <div className="rounded-2xl border border-rose-500/25 bg-rose-500/10 p-5 text-rose-300">Could not read Price Arena.</div>
               : visible.length === 0 ? <p className="py-20 text-center text-white/35">No {mode} arenas yet.</p>
                 : <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">{visible.map((arena) => <ArenaCard key={arena.id.toString()} arena={arena} nowMs={nowMs} />)}</div>}

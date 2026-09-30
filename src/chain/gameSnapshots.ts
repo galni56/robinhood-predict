@@ -75,6 +75,25 @@ export const ACTIVE_GAME_REFRESH_OPTIONS = {
 // polling while the tab is hidden. A one-second cadence keeps the UI within one
 // block/RPC round trip of the chain without creating one request per card.
 export const ACTIVE_GAME_POLL_INTERVAL_MS = 1_000
+export const HISTORICAL_GAME_POLL_INTERVAL_MS = 5_000
+
+/**
+ * Split a bounded onchain id window into a small first request and a deferred
+ * historical request. The active auto-created games are always among the
+ * newest ids, so this lets useful cards render without waiting for dozens of
+ * terminal rows. The historical half still hydrates immediately afterwards,
+ * preserving long-running community games and the archive/list filters.
+ */
+export function splitProgressiveGameIds(
+  ids: readonly bigint[],
+  fastWindowSize: number,
+  newestFirst = false,
+) {
+  const fastSize = Math.min(Math.max(0, fastWindowSize), ids.length)
+  return newestFirst
+    ? { fastIds: ids.slice(0, fastSize), historyIds: ids.slice(fastSize) }
+    : { fastIds: ids.slice(ids.length - fastSize), historyIds: ids.slice(0, ids.length - fastSize) }
+}
 
 export function isActiveOnchainStatus(status: number, terminalStatuses: readonly number[]) {
   return !terminalStatuses.includes(status)

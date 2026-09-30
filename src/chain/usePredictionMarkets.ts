@@ -9,9 +9,15 @@ import {
 import { isDemoMode } from '@/chain/demo'
 import { predictionSettlementPrice } from '@/chain/predictionMarketSettlement'
 import { useStableGameCount, useStableGameSnapshots } from '@/chain/useStableGameSnapshots'
-import { ACTIVE_GAME_POLL_INTERVAL_MS, ACTIVE_GAME_REFRESH_OPTIONS } from '@/chain/gameSnapshots'
+import {
+  ACTIVE_GAME_POLL_INTERVAL_MS,
+  ACTIVE_GAME_REFRESH_OPTIONS,
+  HISTORICAL_GAME_POLL_INTERVAL_MS,
+  splitProgressiveGameIds,
+} from '@/chain/gameSnapshots'
 
 export const MAX_MARKETS_TO_LIST = 60
+const FAST_MARKET_WINDOW_SIZE = 10
 
 export interface PredictionMarketViewModel {
   id: bigint
@@ -51,43 +57,72 @@ export function usePredictionMarkets({ includeSettlements = false }: { includeSe
     [totalMarketCount, firstId],
   )
 
-  const marketQueries = useReadContracts({
+  const { fastIds, historyIds } = useMemo(
+    () => splitProgressiveGameIds(ids, FAST_MARKET_WINDOW_SIZE),
+    [ids],
+  )
+  const readsFor = (queryIds: readonly bigint[]) => queryIds.flatMap((id) => {
+    const market = ({
+      address: PREDICTION_MARKET_ADDRESS,
+      abi: predictionMarketAbi,
+      functionName: 'getMarket',
+      args: [id],
+    }) as const
+    if (!includeSettlements) return [market]
+    return [market, ({
+      address: PREDICTION_MARKET_ADDRESS,
+      abi: predictionMarketAbi,
+      functionName: 'settlements',
+      args: [id],
+    }) as const]
+  })
+
+  const fastQueries = useReadContracts({
     // Keep market and settlement reads in one ordered multicall. Two separate
     // useReadContracts hooks briefly reused incompatible cached rows in
     // production, which put getMarket.assetId into the resolved-price slot.
-    contracts: ids.flatMap((id) => {
-      const market = ({
-        address: PREDICTION_MARKET_ADDRESS,
-        abi: predictionMarketAbi,
-        functionName: 'getMarket',
-        args: [id],
-      }) as const
-      if (!includeSettlements) return [market]
-      return [market, ({
-        address: PREDICTION_MARKET_ADDRESS,
-        abi: predictionMarketAbi,
-        functionName: 'settlements',
-        args: [id],
-      }) as const]
-    }),
+    contracts: readsFor(fastIds),
     query: {
-      enabled: enabled && ids.length > 0,
+      enabled: enabled && fastIds.length > 0,
       refetchInterval: ACTIVE_GAME_POLL_INTERVAL_MS,
       ...ACTIVE_GAME_REFRESH_OPTIONS,
     },
   })
+  const countScanComplete = countQuery.data != null || countQuery.isError
+  const fastScanComplete = countScanComplete && (
+    fastIds.length === 0 || fastQueries.data != null || fastQueries.isError
+  )
+  const historyQueries = useReadContracts({
+    contracts: readsFor(historyIds),
+    query: {
+      enabled: enabled && fastScanComplete && historyIds.length > 0,
+      refetchInterval: HISTORICAL_GAME_POLL_INTERVAL_MS,
+      ...ACTIVE_GAME_REFRESH_OPTIONS,
+    },
+  })
+  const historyScanComplete = fastScanComplete && (
+    historyIds.length === 0 || historyQueries.data != null || historyQueries.isError
+  )
 
-  const observedMarkets = useMemo(() => ids.map((id, index): PredictionMarketViewModel | null => {
+  const observedMarkets = useMemo(() => {
     const stride = includeSettlements ? 2 : 1
-    const marketResult = marketQueries.data?.[index * stride]
-    const settlementResult = includeSettlements ? marketQueries.data?.[index * stride + 1] : undefined
-    if (marketResult?.status !== 'success') return null
-    const market = marketResult.result as Omit<PredictionMarketViewModel, 'id' | 'settlementPrice'>
-    const settlementPrice = settlementResult?.status === 'success'
-      ? predictionSettlementPrice(settlementResult.result)
-      : undefined
-    return { id, ...market, settlementPrice }
-  }), [ids, includeSettlements, marketQueries.data])
+    const byId = new Map<string, PredictionMarketViewModel>()
+    const collect = (queryIds: readonly bigint[], data: typeof fastQueries.data) => {
+      queryIds.forEach((id, index) => {
+        const marketResult = data?.[index * stride]
+        const settlementResult = includeSettlements ? data?.[index * stride + 1] : undefined
+        if (marketResult?.status !== 'success') return
+        const market = marketResult.result as Omit<PredictionMarketViewModel, 'id' | 'settlementPrice'>
+        const settlementPrice = settlementResult?.status === 'success'
+          ? predictionSettlementPrice(settlementResult.result)
+          : undefined
+        byId.set(id.toString(), { id, ...market, settlementPrice })
+      })
+    }
+    collect(fastIds, fastQueries.data)
+    collect(historyIds, historyQueries.data)
+    return ids.map((id) => byId.get(id.toString()) ?? null)
+  }, [fastIds, fastQueries.data, historyIds, historyQueries.data, ids, includeSettlements])
   const markets = useStableGameSnapshots(ids, observedMarkets, {
     cacheKey: includeSettlements ? 'prediction-markets-with-settlements' : 'prediction-markets',
     idsReady: countQuery.data != null,
@@ -97,8 +132,8 @@ export function usePredictionMarkets({ includeSettlements = false }: { includeSe
     ids,
     markets,
     totalMarketCount,
-    isLoading: enabled && markets.length === 0 && (countQuery.isLoading || marketQueries.isLoading),
-    error: countQuery.error ?? marketQueries.error,
-    refetch: async () => Promise.all([countQuery.refetch(), marketQueries.refetch()]),
+    isLoading: enabled && !historyScanComplete,
+    error: countQuery.error ?? fastQueries.error ?? historyQueries.error,
+    refetch: async () => Promise.all([countQuery.refetch(), fastQueries.refetch(), historyQueries.refetch()]),
   }
 }

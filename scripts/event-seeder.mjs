@@ -467,6 +467,7 @@ export function nextRaceConfigsToSeed(
   count,
   newestRaceAssetIds = [],
   openCombinationKeys = new Set(),
+  openTitles = new Set(),
 ) {
   const configuredIds = configsForCategory.map((config) => stringToHex(config.assetId, { size: 32 }).toLowerCase())
   const newestFirst = newestRaceAssetIds[0]?.toLowerCase()
@@ -476,7 +477,8 @@ export function nextRaceConfigsToSeed(
   for (let attempt = 0; attempt < configsForCategory.length; attempt += 1) {
     const selected = rotateConfigs(configsForCategory, count, preferredOffset + attempt * count)
     const key = raceCombinationKey(selected.map((config) => stringToHex(config.assetId, { size: 32 })))
-    if (!openCombinationKeys.has(key)) return selected
+    const title = communityRaceTitleFor(selected).toLowerCase()
+    if (!openCombinationKeys.has(key) && !openTitles.has(title)) return selected
   }
   return undefined
 }
@@ -544,9 +546,15 @@ async function main() {
   const account = config.privateKey ? privateKeyToAccount(config.privateKey) : undefined
   const walletClient = config.dryRun ? undefined : createWalletClient({ account, chain, transport: http(config.rpcUrl) })
 
-  const marketTracker = new OpenItemTracker(config.marketScanFrom)
-  const arenaTracker = new OpenItemTracker(config.arenaScanFrom)
-  const raceTracker = config.assetRaceEnabled ? new OpenItemTracker(config.raceScanFrom, isRaceOpenNow) : undefined
+  // Duplicate prevention must see every still-open item after a service
+  // restart. A configured historical cursor can sit ahead of a long-running
+  // game (this happened in production and allowed the same race pair to be
+  // seeded twice), so bootstrap from zero once and remain incremental after
+  // that initial batched scan. Counts are append-only and discover() never
+  // re-reads terminal history during the process lifetime.
+  const marketTracker = new OpenItemTracker(0n)
+  const arenaTracker = new OpenItemTracker(0n)
+  const raceTracker = config.assetRaceEnabled ? new OpenItemTracker(0n, isRaceOpenNow) : undefined
   if (config.assetRaceEnabled) {
     const [communityPolicyConfigured, approvedRaceDurations] = await Promise.all([
       publicClient.readContract({ address: config.raceAddress, abi: assetRaceCommunityAbi, functionName: 'communityPolicyConfigured' }),
@@ -630,12 +638,20 @@ async function main() {
       ...(newestId == null ? [] : [String(newestId)]),
     ])].map(BigInt)
     const assetResults = assetReadIds.length === 0 ? [] : await publicClient.multicall({
-      contracts: assetReadIds.map((raceId) => ({
-        address: config.raceAddress,
-        abi: assetRaceCommunityAbi,
-        functionName: 'getRaceAssets',
-        args: [raceId],
-      })),
+      contracts: assetReadIds.flatMap((raceId) => [
+        {
+          address: config.raceAddress,
+          abi: assetRaceCommunityAbi,
+          functionName: 'getRace',
+          args: [raceId],
+        },
+        {
+          address: config.raceAddress,
+          abi: assetRaceCommunityAbi,
+          functionName: 'getRaceAssets',
+          args: [raceId],
+        },
+      ]),
       allowFailure: true,
     })
     if (assetResults.some((result) => result.status !== 'success')) {
@@ -643,17 +659,23 @@ async function main() {
     }
     const assetIdsByRace = new Map(assetReadIds.map((raceId, index) => [
       raceId.toString(),
-      assetResults[index].result.map((asset) => asset.assetId),
+      assetResults[index * 2 + 1].result.map((asset) => asset.assetId),
+    ]))
+    const titlesByRace = new Map(assetReadIds.map((raceId, index) => [
+      raceId.toString(),
+      assetResults[index * 2].result.title.trim().toLowerCase(),
     ]))
     const openCombinationKeys = new Set(openIds.map((raceId) => (
       raceCombinationKey(assetIdsByRace.get(raceId.toString()) ?? [])
     )))
     const newestRaceAssetIds = newestId == null ? [] : assetIdsByRace.get(newestId.toString()) ?? []
+    const openTitles = new Set(openIds.map((raceId) => titlesByRace.get(raceId.toString()) ?? ''))
     const selected = nextRaceConfigsToSeed(
       marketConfigs,
       config.raceAssetCount,
       newestRaceAssetIds,
       openCombinationKeys,
+      openTitles,
     )
     if (!selected) throw new Error('NoUniqueRaceCombinationAvailable')
     const picked = selected.map((c) => stringToHex(c.assetId, { size: 32 }))

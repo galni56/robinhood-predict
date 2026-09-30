@@ -205,6 +205,10 @@ function GameColumn({
       <div className="flex flex-1 flex-col gap-3 py-4">
         {loading ? (
           <div aria-label={`Loading ${title}`} aria-busy="true" className="flex flex-1 flex-col gap-3">
+            <div className="flex items-center gap-2 pb-1 text-xs font-medium text-white/40">
+              <span className={`h-2 w-2 animate-pulse rounded-full ${skeletonAccent}`} />
+              Searching for active games…
+            </div>
             {Array.from({ length: 3 }, (_, index) => (
               <div key={index} className="min-h-36 animate-pulse rounded-2xl border border-white/5 bg-black/10 p-4">
                 <div className="flex items-center justify-between gap-3">
@@ -349,11 +353,11 @@ function ArenaPreviewCard({ arena, nowMs }: { arena: PriceArenaViewModel; nowMs:
 
 export function OnchainLandingPage() {
   const navigate = useNavigate()
-  const { markets, isLoading: marketsLoading } = usePredictionMarkets()
+  const { markets, isLoading: marketsLoading, error: marketsError } = usePredictionMarkets()
 
   const live = useAssetRaceLiveDisplay({ enabled: true })
-  const { races, isPreview: racesPreview, isLoading: racesLoading } = useAssetRaces()
-  const { arenas, isLoading: arenasLoading } = usePriceArenas()
+  const { races, isPreview: racesPreview, isLoading: racesLoading, error: racesError } = useAssetRaces()
+  const { arenas, isLoading: arenasLoading, error: arenasError } = usePriceArenas()
   const clockMs = useAssetRaceClock()
   const [initialNowMs] = useState(() => Date.now())
   const nowMs = clockMs || initialNowMs
@@ -515,7 +519,7 @@ export function OnchainLandingPage() {
             count={activeMarkets.length}
             href="/onchain"
             accent="purple"
-            loading={marketsLoading}
+            loading={(marketsLoading || !!marketsError) && activeMarkets.length === 0}
             empty="No Prediction Markets are active right now."
           >
             {activeMarkets.slice(0, 3).map((market) => {
@@ -579,7 +583,7 @@ export function OnchainLandingPage() {
             count={activeRaces.length}
             href="/onchain/races"
             accent="orange"
-            loading={racesLoading}
+            loading={(racesLoading || !!racesError) && activeRaces.length === 0}
             empty="No Asset Races are active right now."
           >
             {activeRaces.slice(0, 3).map((race) => (
@@ -593,7 +597,7 @@ export function OnchainLandingPage() {
             count={activeArenas.length}
             href="/onchain/arenas"
             accent="blue"
-            loading={arenasLoading}
+            loading={(arenasLoading || !!arenasError) && activeArenas.length === 0}
             empty="No Price Arenas are active right now."
           >
             {activeArenas.slice(0, 3).map((arena) => (

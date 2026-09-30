@@ -405,6 +405,24 @@ test('race selection resumes after the newest onchain pair and skips an already-
   )
 })
 
+test('race selection also blocks a repeated open title after lobby assets expand', () => {
+  const configs = [
+    { assetId: 'NVDA' }, { assetId: 'TSLA' }, { assetId: 'AAPL' }, { assetId: 'META' },
+  ]
+  const encoded = (symbols) => symbols.map((symbol) => stringToHex(symbol, { size: 32 }))
+
+  assert.deepEqual(
+    nextRaceConfigsToSeed(
+      configs,
+      2,
+      encoded(['AAPL', 'META']),
+      new Set([raceCombinationKey(encoded(['NVDA', 'TSLA', 'AAPL']))]),
+      new Set(['nvda vs tsla']),
+    ),
+    [{ assetId: 'AAPL' }, { assetId: 'META' }],
+  )
+})
+
 test('pickCommunityRaceAssetIdsFrom encodes the rotated selection', () => {
   const configs = [{ assetId: 'NVDA' }, { assetId: 'TSLA' }, { assetId: 'AAPL' }]
   assert.deepEqual(
