@@ -26,7 +26,7 @@ export function PriceSourceLink({
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      aria-label={`View ${assetLabel}price chart from the reviewed settlement pool (opens in a new tab)`}
+      aria-label={`View ${assetLabel}price chart for the exact reviewed settlement pool on Uniswap (opens in a new tab)`}
       onClick={(event) => event.stopPropagation()}
       className={`inline-flex items-center justify-center gap-1.5 rounded-full text-xs font-bold transition-colors ${TONE_CLASSES[tone]} ${className}`}
     >

@@ -28,7 +28,7 @@ const roadmapPhases: readonly RoadmapPhase[] = [
     items: [
       'More supported Stock Tokens',
       'More high-liquidity meme assets',
-      'Embedded exact-pool price charts',
+      'Direct exact-pool price charts',
       'Targets, history and settlement markers',
       'Public source and liquidity information',
     ],

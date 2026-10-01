@@ -137,8 +137,9 @@ function validate() {
         assert(source.expectedDecimals === POOL_PRICE_DECIMALS, `${asset.assetId}: pool observations must use 18 decimals`)
         assert(source.validationProfile === 'SIGNED_POOL_BLOCK_PAIR_V1', `${asset.assetId}: wrong signed pool validation profile`)
         assert(isAddress(asset.canonicalTokenAddress ?? ''), `${asset.assetId}: canonical token address required`)
-        const chartPath = `#/onchain/charts/${encodeURIComponent(asset.symbol)}`
-        assert(/^#\/onchain\/charts\/[A-Za-z0-9_-]{1,32}$/.test(chartPath), `${asset.assetId}: invalid internal chart route`)
+        assert(pairIdPattern.test(asset.marketSource?.poolIdentifier ?? ''), `${asset.assetId}: exact chart pool identifier required`)
+        const chartUrl = `https://app.uniswap.org/explore/pools/robinhood/${asset.marketSource.poolIdentifier}`
+        assert(/^https:\/\/app\.uniswap\.org\/explore\/pools\/robinhood\/0x(?:[0-9a-fA-F]{40}|[0-9a-fA-F]{64})$/.test(chartUrl), `${asset.assetId}: invalid external exact-pool chart URL`)
         if (asset.category !== 'STOCK') continue // Meme and Crypto LIVE derive from the same direct pool source.
         const live = asset.liveDisplay
         assert(live?.type === 'DEXSCREENER_STOCK_TOKEN', `${asset.assetId}: DEX Screener live display required`)

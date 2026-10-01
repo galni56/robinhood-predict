@@ -1,6 +1,6 @@
 import { getAddress, isAddress, keccak256, padHex, stringToBytes, stringToHex, type Address, type Hex } from 'viem'
 import registryJson from '../../config/asset-race-assets.json'
-import { assetPriceChartUrl } from '@/chain/assetPriceHistory'
+import { uniswapRobinhoodPoolUrl } from '@/chain/priceSourceLinks'
 
 export type AssetRaceNetworkKey = 'local' | 'robinhood-testnet' | 'robinhood-mainnet'
 export type AssetRaceCategoryName = 'STOCK' | 'MEME' | 'CRYPTO'
@@ -72,8 +72,6 @@ export const assetRaceCatalogById = new Map(
   assetRaceCatalog.map((asset) => [stringToHex(asset.assetId, { size: 32 }).toLowerCase(), asset]),
 )
 
-const EXACT_POOL_IDENTIFIER = /^0x(?:[0-9a-fA-F]{40}|[0-9a-fA-F]{64})$/
-
 export function priceSourceUrlForCatalogAsset(asset?: AssetRaceCatalogAsset): string | undefined {
   if (!asset) return undefined
   const network = asset.networks['robinhood-mainnet']
@@ -81,14 +79,8 @@ export function priceSourceUrlForCatalogAsset(asset?: AssetRaceCatalogAsset): st
   if (
     !network.enabled
     || network.oracle?.type !== 'SIGNED_POOL_BLOCK_PAIR'
-    || !poolIdentifier
-    || !EXACT_POOL_IDENTIFIER.test(poolIdentifier)
   ) return undefined
-  // Keep chart navigation on our own origin. Public third-party pool pages can
-  // be blocked by anti-bot interstitials even when the underlying pool is
-  // valid. The Prophet chart reads the same reviewed pool through our shared
-  // live-price service and therefore works from every product surface.
-  return assetPriceChartUrl(asset.symbol)
+  return uniswapRobinhoodPoolUrl(poolIdentifier)
 }
 
 export function priceSourceUrlForAssetId(assetId?: string): string | undefined {

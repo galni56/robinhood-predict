@@ -32,6 +32,7 @@
     "live:asset-race": "node scripts/asset-race-live-server.mjs",
     "test:asset-race-live": "node --experimental-strip-types --test scripts/asset-race-live-prices.test.mjs scripts/asset-race-live-display.test.mjs",
     "test:asset-price-history": "node --experimental-strip-types --test scripts/asset-price-history.test.mjs",
+    "test:price-source-links": "node --experimental-strip-types --test scripts/price-source-links.test.mjs",
     "lint": "oxlint",
     "preview": "vite preview"
   },

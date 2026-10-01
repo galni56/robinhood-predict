@@ -935,7 +935,7 @@ export function OnchainLandingPage() {
                         href={priceUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        aria-label={`View ${asset.symbol} price from the exact settlement pool on DEX Screener (opens in a new tab)`}
+                        aria-label={`View ${asset.symbol} price from the exact settlement pool on Uniswap (opens in a new tab)`}
                         className="group/asset flex min-w-0 items-center gap-2.5 rounded-2xl border border-[#241a33]/[0.07] bg-white/75 p-2.5 transition-all hover:-translate-y-0.5 hover:border-[#241a33]/20 hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-2"
                         style={{ outlineColor: group.accent }}
                         title={`View ${asset.symbol} exact pool chart`}
