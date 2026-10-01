@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useAccount, useWriteContract } from 'wagmi'
 import { waitForTransactionReceipt } from 'wagmi/actions'
 import { wagmiConfig } from '@/chain/config'
@@ -39,7 +40,11 @@ export function SetNicknameModal({ onClose }: { onClose: () => void }) {
     }
   }
 
-  return (
+  return createPortal(
+    // Portaled to <body>: this modal opens from inside the navbar, whose
+    // backdrop-blur makes the header the containing block for fixed
+    // descendants - without the portal the overlay gets trapped inside
+    // the header strip and the ticker tape paints over the input.
     // The backdrop itself scrolls (rather than just centering with no
     // overflow handling) so the modal stays fully reachable on a short
     // viewport instead of its top clipping off-screen with no way to get
@@ -83,6 +88,7 @@ export function SetNicknameModal({ onClose }: { onClose: () => void }) {
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
