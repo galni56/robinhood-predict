@@ -56,8 +56,10 @@ export function RaceTelemetry({ assets }: { assets: readonly MotionAsset[] }) {
     }
 
     function laneY(lane: number) {
-      const top = 36
-      const bottom = 30
+      // Leave room above lane 0 for the flag + mascot stack so the top
+      // runner never collides with the kicker label.
+      const top = 50
+      const bottom = 26
       return top + ((lane + 0.5) * (height - top - bottom)) / laneCount
     }
 
@@ -136,7 +138,7 @@ export function RaceTelemetry({ assets }: { assets: readonly MotionAsset[] }) {
 
         const chip = chipRefs.current[lane]
         if (chip) {
-          chip.style.transform = `translate3d(${x - 6}px, ${y}px, 0) translateY(-50%)`
+          chip.style.transform = `translate3d(${x}px, ${y + 5}px, 0) translate(-50%, -100%)`
           if ((chip.dataset.leader === 'true') !== isLeader) chip.dataset.leader = String(isLeader)
         }
         const delta = deltaRefs.current[lane]
@@ -193,14 +195,22 @@ export function RaceTelemetry({ assets }: { assets: readonly MotionAsset[] }) {
             chipRefs.current[lane] = node
           }}
         >
-          <TokenLogo ticker={asset.symbol} logoUrl={asset.logoUrl} className="h-6 w-6 rounded-lg" />
-          <span className="race-tele-sym">{asset.symbol}</span>
-          <span
-            className="race-tele-delta"
-            ref={(node) => {
-              deltaRefs.current[lane] = node
-            }}
-          />
+          <div className="race-flag">
+            <TokenLogo ticker={asset.symbol} logoUrl={asset.logoUrl} className="h-4 w-4 rounded" />
+            <span className="race-tele-sym">{asset.symbol}</span>
+            <span
+              className="race-tele-delta"
+              ref={(node) => {
+                deltaRefs.current[lane] = node
+              }}
+            />
+          </div>
+          <i className="race-flag-pole" />
+          <div className="race-chud-wrap">
+            <i className="race-chud-leg race-chud-leg--left" />
+            <i className="race-chud-leg race-chud-leg--right" />
+            <img src={`${import.meta.env.BASE_URL}brand/mascot-small.png`} alt="" className="race-chud" />
+          </div>
         </div>
       ))}
     </div>
