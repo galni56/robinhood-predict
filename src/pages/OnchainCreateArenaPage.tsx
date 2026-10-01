@@ -61,7 +61,7 @@ export function OnchainCreateArenaPage() {
       navigate(`/onchain/arenas${mode === 'memes' ? '?mode=memes' : ''}`)
     } catch (cause) {
       setTxLabel(null)
-      setError(shortTxError(cause))
+      setError(shortTxError(cause, 'create-arena'))
     }
   }
 

@@ -355,7 +355,7 @@ export function OnchainMarketPage({ legacy = false }: { legacy?: boolean }) {
     } catch (e) {
       setTx(null)
       setFrozenBetQuote(null)
-      setError(nativeStakeQuoteErrorMessage(e) ?? shortTxError(e))
+      setError(nativeStakeQuoteErrorMessage(e) ?? shortTxError(e, 'market-bet'))
     }
   }
 
@@ -386,7 +386,7 @@ export function OnchainMarketPage({ legacy = false }: { legacy?: boolean }) {
       await refetchAll()
     } catch (e) {
       setTx(null)
-      setError(shortTxError(e))
+      setError(shortTxError(e, 'market-resolve'))
     }
   }
 
@@ -408,7 +408,7 @@ export function OnchainMarketPage({ legacy = false }: { legacy?: boolean }) {
       await refetchAll()
     } catch (e) {
       setTx(null)
-      setError(shortTxError(e))
+      setError(shortTxError(e, 'market-claim-refund'))
     }
   }
 
@@ -426,7 +426,7 @@ export function OnchainMarketPage({ legacy = false }: { legacy?: boolean }) {
       await refetchAll()
     } catch (e) {
       setTx(null)
-      setError(shortTxError(e))
+      setError(shortTxError(e, 'creator-fees'))
     }
   }
 

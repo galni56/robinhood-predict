@@ -180,7 +180,7 @@ export function OnchainLeaderboardPage() {
           setRecent([...demoBets].sort((a, b) => (a.blockNumber > b.blockNumber ? -1 : a.blockNumber < b.blockNumber ? 1 : 0)).slice(0, 15))
           return
         }
-        setError(shortTxError(e))
+        setError(shortTxError(e, 'leaderboard-scan'))
       }
     }
 

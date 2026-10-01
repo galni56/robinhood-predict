@@ -70,16 +70,62 @@ const REVERT_MESSAGES: Record<string, string> = {
 // placeholder; showing that verbatim tells the user nothing.
 const GENERIC_WALLET_ERROR = /^(unexpected error|internal (json-rpc )?error|an internal error was received\.?|unknown error)$/i
 
-export function shortTxError(e: unknown): string {
+// The most common real-world failure: the wallet sits on another network
+// (usually Ethereum mainnet) while every Prophet contract lives on
+// Robinhood Chain. Every write pins chainId, so wagmi raises
+// ChainMismatchError before the wallet even opens; recognize that whole
+// error family and tell the user what to actually do.
+const WRONG_NETWORK_TEXT = /chain mismatch|does not match the target chain|chain not configured|unrecognized chain|unsupported chain/i
+const WRONG_NETWORK_NAMES = new Set(['ChainMismatchError', 'SwitchChainError', 'ChainNotConfiguredError', 'ChainDisconnectedError'])
+
+function isWrongNetworkError(e: unknown): boolean {
+  let current: unknown = e
+  for (let depth = 0; depth < 8 && current instanceof Error; depth++) {
+    if (WRONG_NETWORK_NAMES.has(current.name)) return true
+    const { shortMessage, details } = current as { shortMessage?: string; details?: string }
+    if (WRONG_NETWORK_TEXT.test([shortMessage, details, current.message].filter(Boolean).join(' '))) return true
+    current = current.cause
+  }
+  return false
+}
+
+/** Walks the error's `cause` chain (viem nests the actual revert several
+ * levels deep) and returns the most specific single-line message found,
+ * skipping generic wallet placeholders. */
+function mostSpecificErrorDetail(e: unknown): string | undefined {
+  let current: unknown = e
+  let best: string | undefined
+  for (let depth = 0; depth < 8 && current instanceof Error; depth++) {
+    const withExtras = current as { details?: string; shortMessage?: string }
+    const candidate = withExtras.details ?? withExtras.shortMessage ?? current.message
+    const trimmed = candidate?.replace(/\s+/g, ' ').trim()
+    if (trimmed && !GENERIC_WALLET_ERROR.test(trimmed)) best = trimmed
+    current = current.cause
+  }
+  if (!best) return undefined
+  return best.length > 160 ? `${best.slice(0, 157)}…` : best
+}
+
+export function shortTxError(e: unknown, context = 'transaction'): string {
   const raw = e instanceof Error ? ((e as { shortMessage?: string }).shortMessage ?? e.message) : String(e)
+  // A wallet rejection is a normal user action, not an error worth logging.
   if (/rejected/i.test(raw)) return 'Rejected in wallet'
+  // The UI shows a short message; the console keeps the complete error
+  // object (viem errors expand to args, cause chain and docs link there),
+  // so failures stay debuggable instead of collapsing to one phrase.
+  console.error(`[tx:${context}]`, e)
+  if (isWrongNetworkError(e)) {
+    return 'Wrong network: check your wallet - it must be on Robinhood Chain, not Ethereum. Prophet runs only on Robinhood Chain for now.'
+  }
   const reasonMatch = raw.match(/reason:\s*\n?\s*"?([^"\n]+)"?/i)
   if (reasonMatch) {
     const reason = reasonMatch[1].trim()
     if (GENERIC_WALLET_ERROR.test(reason)) return 'Transaction would fail, but the wallet did not say why. Check the values and try again.'
     return REVERT_MESSAGES[reason.toLowerCase()] ?? reason
   }
-  return 'Transaction failed'
+  const detail = mostSpecificErrorDetail(e)
+  const networkHint = 'Check your wallet network: Prophet runs only on Robinhood Chain for now, not Ethereum.'
+  return detail ? `Transaction failed: ${detail}` : `Transaction failed. ${networkHint}`
 }
 
 export function formatCountdown(msRemaining: number): string {

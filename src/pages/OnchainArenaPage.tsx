@@ -186,7 +186,7 @@ export function OnchainArenaPage({ legacy = false }: { legacy?: boolean }) {
     } catch (cause) {
       setTxLabel(null)
       setFrozenEntryQuote(null)
-      setError(nativeStakeQuoteErrorMessage(cause) ?? (cause instanceof Error && !cause.message.includes('\n') ? cause.message : shortTxError(cause)))
+      setError(nativeStakeQuoteErrorMessage(cause) ?? (cause instanceof Error && !cause.message.includes('\n') ? cause.message : shortTxError(cause, 'arena-join')))
     }
   }
 
@@ -203,7 +203,7 @@ export function OnchainArenaPage({ legacy = false }: { legacy?: boolean }) {
         balanceQuery.refetch(),
         queryClient.invalidateQueries({ queryKey: ['game-activity', 'arena'] }),
       ])
-    } catch (cause) { setTxLabel(null); setError(shortTxError(cause)) }
+    } catch (cause) { setTxLabel(null); setError(shortTxError(cause, 'arena-settlement')) }
   }
 
   if (arenaId == null) return <div className="mx-auto max-w-4xl px-4 py-12 text-rose-300">Invalid arena ID.</div>

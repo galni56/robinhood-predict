@@ -33,7 +33,7 @@ export function SetNicknameModal({ onClose }: { onClose: () => void }) {
       await current.refetch()
       onClose()
     } catch (e) {
-      setError(shortTxError(e))
+      setError(shortTxError(e, 'set-nickname'))
     } finally {
       setPending(false)
     }
