@@ -14,6 +14,7 @@ import {
   type PriceArenaMode,
 } from '@/chain/priceArena'
 import { CompactAssetSelector } from '@/components/CompactAssetSelector'
+import { FilterChips, GAME_MODE_CHIP_OPTIONS } from '@/components/FilterChips'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
 import { GameLifecycleGuide } from '@/components/GameLifecycleGuide'
 import { GameModeMotion } from '@/components/GameModeMotion'
@@ -72,16 +73,7 @@ export function OnchainCreateArenaPage() {
           <p className="text-sm font-bold text-[#B7CEFF]">Create Price Arena</p>
           <h1 className="mt-1 font-display text-3xl font-bold sm:text-4xl">Set the stage.</h1>
           <div className="mt-3 flex gap-1.5">
-            {(['stocks', 'memes'] as const).map((item) => (
-              <button
-                key={item}
-                type="button"
-                onClick={() => selectMode(item)}
-                className={`rounded-full px-4 py-1.5 text-sm font-bold transition-colors ${mode === item ? (item === 'memes' ? 'bg-[#F2A65A] text-[#3b2416]' : 'bg-[#f7f1e3] text-[#241a33]') : 'text-white/50 hover:bg-white/5 hover:text-white'}`}
-              >
-                {item === 'stocks' ? 'Stocks' : 'Memes'}
-              </button>
-            ))}
+            <FilterChips size="sm" options={GAME_MODE_CHIP_OPTIONS} value={mode} onChange={selectMode} />
           </div>
 
           <div className="mt-4 flex-1">

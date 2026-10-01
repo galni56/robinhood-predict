@@ -35,6 +35,7 @@ import { AssetRaceLiveView } from '@/components/AssetRaceLiveView'
 import { AssetRaceLobbyView } from '@/components/AssetRaceLobbyView'
 import { AssetRaceResultView } from '@/components/AssetRaceResultView'
 import { AddressLabel } from '@/components/AddressLabel'
+import { InfoBanner } from '@/components/InfoBanner'
 import { PriceSourceLink } from '@/components/PriceSourceLink'
 import { ShareInviteButton } from '@/components/ShareInviteButton'
 import { TokenLogo } from '@/components/TokenLogo'
@@ -201,21 +202,21 @@ export function OnchainRacePage({ legacy = false }: { legacy?: boolean }) {
   return (
     <div className="mx-auto max-w-[1200px] px-4 py-8">
       {legacy && (
-        <div className="mb-5 rounded-2xl border border-[#8A72F8]/25 bg-[#8A72F8]/10 px-4 py-3 text-sm font-medium text-[#B3A7FA]">
+        <InfoBanner tone="info" className="mb-5">
           Legacy Asset Race - new bets are disabled. Existing claims and refunds remain available here.
-        </div>
+        </InfoBanner>
       )}
       {isPreview ? (
-        <div className="mb-5 rounded-2xl border border-[#F2A65A]/25 bg-[#F2A65A]/10 px-4 py-3 text-sm font-medium text-[#F2A65A]">
+        <InfoBanner tone="warning" className="mb-5">
           Preview race - not onchain, no wallet transaction will be sent.
           {ASSET_RACE_CONFIG_ERROR && <span className="mt-1 block text-rose-300">{ASSET_RACE_CONFIG_ERROR}</span>}
-        </div>
+        </InfoBanner>
       ) : (
-        <div className="mb-5 rounded-2xl border border-[#F2A65A]/25 bg-[#F2A65A]/10 px-4 py-3 text-sm font-medium text-[#F2A65A]">
+        <InfoBanner tone="warning" className="mb-5">
           {isLocalAssetRace
             ? 'Local test network - contract state and transactions come from this Mac’s Anvil chain using local ETH.'
             : 'Live Asset Race on Robinhood Chain. Enter the stake in USD or ETH; your wallet sends native ETH directly.'}
-        </div>
+        </InfoBanner>
       )}
 
       <Link to={legacy ? '/onchain/legacy?mode=races' : `/onchain/races${race ? `?mode=${raceModeForCategory(race.category)}` : ''}`} className="text-sm font-bold text-white/40 transition-colors hover:text-white/70">← {legacy ? 'Legacy games' : 'All races'}</Link>

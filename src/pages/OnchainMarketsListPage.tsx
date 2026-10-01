@@ -7,6 +7,7 @@ import { OnchainMarketsSidebar } from '@/components/OnchainMarketsSidebar'
 import { CancelledBadge } from '@/components/Pills'
 import { TokenBrowser } from '@/components/TokenBrowser'
 import { TokenLogo } from '@/components/TokenLogo'
+import { FilterChips } from '@/components/FilterChips'
 import { GameListLoadingGrid } from '@/components/GameListLoadingGrid'
 import {
   PREDICTION_MARKET_CONFIGURED,
@@ -128,19 +129,7 @@ export function OnchainMarketsListPage() {
       <div className="flex gap-6 items-start">
         <div className="min-h-[32rem] min-w-0 flex-1">
       <div className="mb-6 flex flex-wrap items-center justify-end gap-y-2">
-        <div className="flex gap-1.5 overflow-x-auto pb-1">
-          {STATUS_FILTERS.map((f) => (
-            <button
-              key={f.key}
-              onClick={() => setFilter(f.key)}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition-colors ${
-                filter === f.key ? 'bg-[#8B7CF7] text-[#f7f1e3]' : 'text-white/50 hover:text-white hover:bg-white/5'
-              }`}
-            >
-              {f.label}
-            </button>
-          ))}
-        </div>
+        <FilterChips options={STATUS_FILTERS} value={filter} onChange={setFilter} accent="market" className="overflow-x-auto pb-1" />
       </div>
 
       {!PREDICTION_MARKET_CONFIGURED && !isDemoMode() ? (
