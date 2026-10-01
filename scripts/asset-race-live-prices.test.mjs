@@ -15,6 +15,7 @@ import {
   EthUsdQuoteCache,
   StockPoolLiveCollector,
   StockLivePriceCollector,
+  buildHistorySnapshot,
   buildDexScreenerPairsUrl,
   decimalToUnits,
   liveStockConfigsFromRegistry,
@@ -400,6 +401,21 @@ test('direct pool collector exposes bounded sampled history for internal charts'
   assert.equal(history.points.at(-1).priceRaw, '105')
   assert.equal(history.quoteSymbol, 'USDG')
   assert.equal(history.protocol, 'UNISWAP_V3')
+})
+
+test('chart history keeps recent short-timeframe observations at full resolution', () => {
+  const source = Array.from({ length: 2_000 }, (_, index) => ({
+    priceRaw: String(index + 1),
+    decimals: 18,
+    receivedAt: (index + 1) * 2_000,
+  }))
+  const history = buildHistorySnapshot('NVDA', source, 1_440)
+  assert.equal(history.points.length, 1_440)
+  assert.equal(history.points[0].priceRaw, '1')
+  assert.deepEqual(
+    history.points.slice(-900).map((point) => point.priceRaw),
+    source.slice(-900).map((point) => point.priceRaw),
+  )
 })
 
 test('LIVE history endpoint returns JSON without relying on third-party chart pages', async (t) => {

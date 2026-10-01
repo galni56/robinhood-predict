@@ -65,6 +65,11 @@ GET /api/asset-race/live
 GET /api/asset-race/live/history?asset=NVDA&limit=900
 ```
 
+For the 1M, 5M and 15M chart windows, a 1,440-point response preserves the
+newest 900 observations without sampling (about 30 minutes at the normal
+two-second cadence). The remaining response budget samples older observations,
+so longer windows keep their overall shape without sacrificing recent detail.
+
 The VPS reverse proxy must disable buffering and caching for this endpoint:
 
 ```nginx
