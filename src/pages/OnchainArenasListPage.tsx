@@ -14,6 +14,7 @@ import {
   type PriceArenaViewModel,
 } from '@/chain/priceArena'
 import { AddressLabel } from '@/components/AddressLabel'
+import { FilterChips, GAME_MODE_CHIP_OPTIONS } from '@/components/FilterChips'
 import { GameActivitySidebar } from '@/components/GameActivitySidebar'
 import { GameListLoadingGrid } from '@/components/GameListLoadingGrid'
 import { PriceSourceLink } from '@/components/PriceSourceLink'
@@ -21,6 +22,7 @@ import { TokenLogo } from '@/components/TokenLogo'
 import { formatCompactEth, formatCountdown } from '@/lib/format'
 
 const FILTERS = ['ALL', 'LOBBY', 'LIVE', 'FINISHED', 'CANCELLED'] as const
+const FILTER_OPTIONS = FILTERS.map((filter) => ({ key: filter, label: filter.charAt(0) + filter.slice(1).toLowerCase() }))
 
 function countdown(arena: PriceArenaViewModel, nowMs: number) {
   if (!nowMs) return '…'
@@ -114,10 +116,8 @@ export function OnchainArenasListPage() {
       {!isConfigured && <div className="mt-6 rounded-2xl border border-amber-400/25 bg-amber-400/10 p-4 text-sm text-amber-100">Price Arena is not configured in this build. {PRICE_ARENA_CONFIG_ERROR}</div>}
 
       <div className="mt-8 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex gap-1.5">
-          {(['stocks', 'memes'] as const).map((item) => <button key={item} onClick={() => setParams(item === 'memes' ? { mode: 'memes' } : {})} className={`rounded-full px-4 py-1.5 text-sm font-bold ${mode === item ? (item === 'memes' ? 'bg-[#F2A65A] text-[#3b2416]' : 'bg-[#f7f1e3] text-[#241a33]') : 'text-white/50 hover:bg-white/5'}`}>{item === 'stocks' ? 'Stocks' : 'Memes'}</button>)}
-        </div>
-        <div className="flex gap-1.5">{FILTERS.map((item) => <button key={item} onClick={() => setFilter(item)} className={`rounded-full px-3.5 py-1.5 text-xs font-bold ${filter === item ? 'bg-[#7A9FF0] text-[#152447]' : 'text-white/50 hover:bg-white/5'}`}>{item.charAt(0) + item.slice(1).toLowerCase()}</button>)}</div>
+        <FilterChips size="sm" options={GAME_MODE_CHIP_OPTIONS} value={mode} onChange={(item) => setParams(item === 'memes' ? { mode: 'memes' } : {})} />
+        <FilterChips options={FILTER_OPTIONS} value={filter} onChange={setFilter} accent="arena" />
       </div>
 
       {terminalFilter && (

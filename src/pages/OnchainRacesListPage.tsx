@@ -17,6 +17,7 @@ import { useAssetRaceClock } from '@/chain/useAssetRaceClock'
 import { isPlayedCancellation, isVisibleInAll } from '@/chain/gameVisibility'
 import { priceSourceUrlForAssetId } from '@/chain/assetRaceRegistry'
 import { AddressLabel } from '@/components/AddressLabel'
+import { FilterChips, GAME_MODE_CHIP_OPTIONS } from '@/components/FilterChips'
 import { InfoBanner } from '@/components/InfoBanner'
 import { ClockIcon } from '@/components/icons'
 import { GameActivitySidebar } from '@/components/GameActivitySidebar'
@@ -31,6 +32,8 @@ type RaceFilter = (typeof FILTERS)[number]
 function filterLabel(filter: RaceFilter) {
   return filter.charAt(0) + filter.slice(1).toLowerCase()
 }
+
+const FILTER_OPTIONS = FILTERS.map((filter) => ({ key: filter, label: filterLabel(filter) }))
 
 function raceTargetTime(race: AssetRaceViewModel) {
   if (race.status === ASSET_RACE_STATUS.LOBBY) return race.lobbyEndTime
@@ -231,36 +234,13 @@ export function OnchainRacesListPage() {
       </div>
 
       <div className="mb-6 flex flex-wrap items-center justify-between gap-y-3">
-        <div className="flex gap-1.5">
-          {(['stocks', 'memes'] as const).map((item) => (
-            <button
-              key={item}
-              onClick={() => setSearchParams(item === 'memes' ? { mode: 'memes' } : {})}
-              className={`rounded-full px-4 py-1.5 text-sm font-bold transition-colors ${
-                mode === item
-                  ? item === 'memes'
-                    ? 'bg-[#F2A65A] text-[#3b2416]'
-                    : 'bg-[#f7f1e3] text-[#241a33]'
-                  : 'text-white/50 hover:bg-white/5 hover:text-white'
-              }`}
-            >
-              {item === 'stocks' ? 'Stocks' : 'Memes'}
-            </button>
-          ))}
-        </div>
-        <div className="flex gap-1.5 overflow-x-auto pb-1">
-          {FILTERS.map((item) => (
-            <button
-              key={item}
-              onClick={() => setFilter(item)}
-              className={`whitespace-nowrap rounded-full px-3.5 py-1.5 text-xs font-bold transition-colors ${
-                filter === item ? 'bg-[#ED8F3A] text-[#3b2416]' : 'text-white/50 hover:bg-white/5 hover:text-white'
-              }`}
-            >
-              {filterLabel(item)}
-            </button>
-          ))}
-        </div>
+        <FilterChips
+          size="sm"
+          options={GAME_MODE_CHIP_OPTIONS}
+          value={mode}
+          onChange={(item) => setSearchParams(item === 'memes' ? { mode: 'memes' } : {})}
+        />
+        <FilterChips options={FILTER_OPTIONS} value={filter} onChange={setFilter} accent="race" className="overflow-x-auto pb-1" />
       </div>
 
       <div className="flex items-start gap-6">
