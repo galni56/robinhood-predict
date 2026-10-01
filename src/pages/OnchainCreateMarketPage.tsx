@@ -208,7 +208,7 @@ export function OnchainCreateMarketPage() {
                 {
                   title: 'Claim or receive a refund',
                   timing: 'After resolution',
-                  body: 'A valid market needs funded YES and NO pools and at least two distinct wallets. Winners claim principal plus their weighted share of the losing pool; the 2% fee applies only to that profit. If eligibility or price rules fail, every position can reclaim its full stake.',
+                  body: 'A valid market needs funded YES and NO pools and at least two distinct wallets. Winners claim principal plus their weighted share of the losing pool; the 2% fee applies only to that profit and is split equally between the creator and Prophet. If eligibility or price rules fail, every position can reclaim its full stake.',
                 },
               ]}
               note={durationPreset.submissionBufferSeconds > 0
@@ -237,6 +237,9 @@ export function OnchainCreateMarketPage() {
           />
           <p className="text-[11px] text-white/30 mt-1.5">
             Ten reviewed tokenized stocks have an onchain price source enabled for market settlement.
+          </p>
+          <p className="mt-2 rounded-xl border border-[#8B7CF7]/20 bg-[#8B7CF7]/10 px-3 py-2 text-[11px] font-medium text-[#B3A7FA]">
+            Create & earn: you receive 1% of the losing-pool contribution when winners claim. Prophet receives the other 1%; cancelled markets charge no fee.
           </p>
         </div>
 

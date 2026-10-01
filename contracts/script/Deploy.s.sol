@@ -29,6 +29,7 @@ contract Deploy is Script {
         uint256 maxSeedLiquidityWei = vm.envUint("MAX_SEED_LIQUIDITY_WEI");
         uint256 maxStakePerSideWei = vm.envUint("MAX_STAKE_PER_SIDE_WEI");
         uint256 feeBp = vm.envOr("FEE_BP", uint256(200));
+        require(feeBp == 200, "release fee must be 2%");
 
         NativeEthDeploymentSafety.validateSigningOwner(vm.addr(deployerKey), expectedOwner);
         NativeEthDeploymentSafety.validateReleaseRoles(expectedOwner, address(endpointOracle), priceSigner);
@@ -42,12 +43,14 @@ contract Deploy is Script {
         vm.stopBroadcast();
 
         NativeEthDeploymentSafety.validateContractOwner(predictionMarket.owner(), expectedOwner);
+        require(predictionMarket.CREATOR_FEE_SHARE_BP() == 5_000, "wrong creator fee share");
 
         console.log("PredictionMarket deployed at:", address(predictionMarket));
         console.log("Signed pool endpoint oracle:", address(predictionMarket.endpointOracle()));
         console.log("Max seed liquidity (wei):", maxSeedLiquidityWei);
         console.log("Max stake per side (wei):", maxStakePerSideWei);
         console.log("Fee (bp):", feeBp);
+        console.log("Creator share of fee (bp):", predictionMarket.CREATOR_FEE_SHARE_BP());
         console.log("Owner:", predictionMarket.owner());
     }
 }

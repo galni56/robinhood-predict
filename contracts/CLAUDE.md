@@ -1,10 +1,13 @@
-## Status right now (2026-09-25)
+## Status right now (2026-10-01)
 
 **Earlier USDG contracts contain owner mainnet tests and have no supported UI in
 the release. Their current VPS automation remains unchanged until the approved
-cutover. The corrected native deadline-settlement replacement is deployed and
-configured at `0x4bfd0efc15C3198fe3AFf4741FF121AB2F38060e`; all three native product
-canaries passed and only public binding remains pending. There is no audit.**
+cutover. Native V1 remains deployed at
+`0x4bfd0efc15C3198fe3AFf4741FF121AB2F38060e` for existing claims/refunds.
+Creator-revenue V2 is deployed and configured at
+`0xF62CF5Db594c4b706555584ccEC9Fb9a61541D4a`, but its lifecycle canary has
+not transitioned after the deadline, so keeper/frontend production cutover is
+still blocked. There is no audit.**
 `forge build` and `forge test` are green:
 
 - Deployed USDG deadline `PredictionMarket`:
@@ -53,6 +56,15 @@ are mappings on the new address and nothing carries over automatically.
   back in full. Snapshotted into `Market.feeBp` at creation, so a later fee
   change never retroactively affects an already-open market. Collected fees
   sit in `accumulatedFees` until the owner calls `withdrawFees(to)`.
+- **Creator revenue V2:** the new PredictionMarket deployment records
+  `Market.creator` and splits every actually collected fee 50/50. Creator
+  balances are pull payments via `withdrawCreatorFees()` and are excluded from
+  `accumulatedFees`, so a creator receiver cannot block a winner and the owner
+  cannot withdraw creator liability. The production deploy script pins the
+  release fee to 200 bp. Seeder and keeper now fail closed unless the target
+  has V2 bytecode, 200 bp fee, 5000 bp creator share, the reviewed oracle, and
+  all ten reviewed asset bindings. See
+  `../docs/PREDICTION_MARKET_CREATOR_REVENUE_RELEASE.md` before any V2 cutover.
 
 **Time-weighted early-bet mechanic added 2026-09-06** (see `ROADMAP.md`
 §3.5 for the product motivation and the AMM alternative parked in §3.6):

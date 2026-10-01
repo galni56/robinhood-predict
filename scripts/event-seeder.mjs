@@ -10,9 +10,11 @@ import {
   http,
   isAddress,
   stringToHex,
+  zeroAddress,
 } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import { PoolPriceEngine, poolChainContracts, poolConfigsFromRegistry } from './asset-race-pool-price-engine.mjs'
+import { verifyPredictionMarketRelease } from './prediction-market-release.mjs'
 
 const OPEN = 0
 const MIN_ASSETS_PER_RACE = 2
@@ -49,9 +51,18 @@ export function readSeederConfig() {
   const rpcUrl = process.env.EVENT_SEEDER_RPC_URL?.trim() || process.env.PREDICTION_MARKET_RPC_URL?.trim()
   if (!rpcUrl) throw new SeederConfigError('EVENT_SEEDER_RPC_URL is required')
 
+  const marketEnabled = boolEnv('EVENT_SEEDER_MARKET_ENABLED', true)
   const rawMarketAddress = process.env.EVENT_SEEDER_MARKET_ADDRESS?.trim()
     || process.env.PREDICTION_MARKET_ADDRESS?.trim()
-  if (!rawMarketAddress || !isAddress(rawMarketAddress)) throw new SeederConfigError('EVENT_SEEDER_MARKET_ADDRESS is invalid')
+  if (marketEnabled && (!rawMarketAddress || !isAddress(rawMarketAddress))) {
+    throw new SeederConfigError('EVENT_SEEDER_MARKET_ADDRESS is invalid')
+  }
+  const rawMarketOracleAddress = process.env.EVENT_SEEDER_MARKET_ORACLE_ADDRESS?.trim()
+    || process.env.PREDICTION_MARKET_SIGNED_POOL_ORACLE_ADDRESS?.trim()
+    || process.env.ASSET_RACE_SIGNED_POOL_ORACLE_ADDRESS?.trim()
+  if (marketEnabled && (!rawMarketOracleAddress || !isAddress(rawMarketOracleAddress))) {
+    throw new SeederConfigError('EVENT_SEEDER_MARKET_ORACLE_ADDRESS is invalid')
+  }
 
   const rawArenaAddress = process.env.EVENT_SEEDER_ARENA_ADDRESS?.trim() || process.env.PRICE_ARENA_ADDRESS?.trim()
   if (!rawArenaAddress || !isAddress(rawArenaAddress)) throw new SeederConfigError('EVENT_SEEDER_ARENA_ADDRESS is invalid')
@@ -82,7 +93,11 @@ export function readSeederConfig() {
 
   return {
     rpcUrl,
-    marketAddress: getAddress(rawMarketAddress),
+    marketEnabled,
+    marketAddress: rawMarketAddress && isAddress(rawMarketAddress) ? getAddress(rawMarketAddress) : undefined,
+    marketOracleAddress: rawMarketOracleAddress && isAddress(rawMarketOracleAddress)
+      ? getAddress(rawMarketOracleAddress)
+      : undefined,
     arenaAddress: getAddress(rawArenaAddress),
     privateKey,
     dryRun,
@@ -130,6 +145,7 @@ export const predictionMarketAbi = [
         { name: 'status', type: 'uint8' },
         { name: 'outcome', type: 'uint8' },
         { name: 'feeBp', type: 'uint256' },
+        { name: 'creator', type: 'address' },
       ],
     }],
   },
@@ -547,8 +563,13 @@ async function main() {
   const arenaConfigs = productionArenaConfigs(registry)
   if (arenaConfigs.length !== 23) throw new SeederConfigError('Registry must expose exactly 23 production pools')
 
-  const engine = new PoolPriceEngine({ client: publicClient, configs: marketConfigs })
-  await engine.verify()
+  const engine = config.marketEnabled ? new PoolPriceEngine({ client: publicClient, configs: marketConfigs }) : undefined
+  if (config.marketEnabled) {
+    await verifyPredictionMarketRelease(publicClient, config.marketAddress, marketConfigs, {
+      expectedOracleAddress: config.marketOracleAddress,
+    })
+    await engine.verify()
+  }
 
   const account = config.privateKey ? privateKeyToAccount(config.privateKey) : undefined
   const walletClient = config.dryRun ? undefined : createWalletClient({ account, chain, transport: http(config.rpcUrl) })
@@ -559,7 +580,7 @@ async function main() {
   // seeded twice), so bootstrap from zero once and remain incremental after
   // that initial batched scan. Counts are append-only and discover() never
   // re-reads terminal history during the process lifetime.
-  const marketTracker = new OpenItemTracker(0n)
+  const marketTracker = config.marketEnabled ? new OpenItemTracker(0n) : undefined
   const arenaTracker = new OpenItemTracker(0n)
   const raceTracker = config.assetRaceEnabled
     ? new OpenItemTracker(0n, isRaceOpenNow, { expireByDeadline: false })
@@ -580,6 +601,7 @@ async function main() {
   process.once('SIGTERM', () => { stopping = true })
 
   async function seedMarketIfNeeded(now) {
+    if (!config.marketEnabled || !marketTracker || !engine) return
     const count = await publicClient.readContract({ address: config.marketAddress, abi: predictionMarketAbi, functionName: 'marketCount' })
     await marketTracker.discover(publicClient, { address: config.marketAddress, abi: predictionMarketAbi, getFn: 'getMarket', rowToItem: marketRowToItem }, count, now)
     marketTracker.prune(now)
@@ -593,14 +615,17 @@ async function main() {
     const deadline = BigInt(now) + BigInt(config.marketDurationSeconds)
     const assetIdHex = stringToHex(next.assetId, { size: 32 })
 
-    if (config.dryRun) {
-      console.log(`[dry-run] would create market on ${next.assetId} target=${targetPrice} deadline=${deadline}`)
-      return
-    }
     const simulation = await publicClient.simulateContract({
-      account, address: config.marketAddress, abi: predictionMarketAbi, functionName: 'createMarket',
+      account: account || zeroAddress,
+      address: config.marketAddress,
+      abi: predictionMarketAbi,
+      functionName: 'createMarket',
       args: [assetIdHex, targetPrice, deadline, 0n, 0n],
     })
+    if (config.dryRun) {
+      console.log(`[dry-run] createMarket simulation passed for ${next.assetId} target=${targetPrice} deadline=${deadline}`)
+      return
+    }
     const hash = await walletClient.writeContract(simulation.request)
     const receipt = await publicClient.waitForTransactionReceipt({ hash })
     if (receipt.status !== 'success') throw new Error('TransactionReverted')
@@ -707,7 +732,9 @@ async function main() {
 
   do {
     const block = await publicClient.getBlock({ blockTag: 'latest' })
-    try { await seedMarketIfNeeded(block.timestamp) } catch (error) { console.error(`[event-seeder] market seeding failed (${safeErrorName(error)}); continuing`) }
+    if (config.marketEnabled) {
+      try { await seedMarketIfNeeded(block.timestamp) } catch (error) { console.error(`[event-seeder] market seeding failed (${safeErrorName(error)}); continuing`) }
+    }
     try { await seedArenaIfNeeded(block.timestamp) } catch (error) { console.error(`[event-seeder] arena seeding failed (${safeErrorName(error)}); continuing`) }
     if (config.assetRaceEnabled) {
       try { await seedRaceIfNeeded(block.timestamp) } catch (error) { console.error(`[event-seeder] race seeding failed (${safeErrorName(error)}); continuing`) }

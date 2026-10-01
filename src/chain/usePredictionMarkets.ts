@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { useReadContract, useReadContracts } from 'wagmi'
-import type { Hex } from 'viem'
+import type { Address, Hex } from 'viem'
 import {
   PREDICTION_MARKET_ADDRESS,
   PREDICTION_MARKET_CONFIGURED,
@@ -16,8 +16,8 @@ import {
   HISTORICAL_GAME_POLL_INTERVAL_MS,
   splitProgressiveGameIds,
 } from '@/chain/gameSnapshots'
+import { usePredictionMarketHistoryIndex, visibleIdsThroughCount } from '@/chain/gameHistory'
 
-export const MAX_MARKETS_TO_LIST = 60
 const FAST_MARKET_WINDOW_SIZE = 10
 
 export interface PredictionMarketViewModel {
@@ -35,13 +35,14 @@ export interface PredictionMarketViewModel {
   status: number
   outcome: number
   feeBp: bigint
+  creator: Address
   settlementPrice?: bigint
 }
 
 /**
- * Polls the bounded recent market window and keeps the last complete row for
- * each id while a newer multicall is incomplete. This makes newly seeded
- * markets appear without requiring a reload and prevents refresh flicker.
+ * Polls every market kept by the event-history index and retains the last
+ * complete row for each id while a newer multicall is incomplete. This makes
+ * newly seeded markets appear without a reload and prevents refresh flicker.
  */
 export function usePredictionMarkets({ includeSettlements = false }: { includeSettlements?: boolean } = {}) {
   const enabled = PREDICTION_MARKET_CONFIGURED || isDemoMode()
@@ -52,10 +53,14 @@ export function usePredictionMarkets({ includeSettlements = false }: { includeSe
     query: { enabled, refetchInterval: ACTIVE_GAME_POLL_INTERVAL_MS, ...ACTIVE_GAME_REFRESH_OPTIONS },
   })
   const totalMarketCount = Number(useStableGameCount('prediction-market-count', countQuery.data))
-  const firstId = Math.max(0, totalMarketCount - MAX_MARKETS_TO_LIST)
+  const historyIndex = usePredictionMarketHistoryIndex(PREDICTION_MARKET_CONFIGURED)
   const ids = useMemo(
-    () => Array.from({ length: totalMarketCount - firstId }, (_, index) => BigInt(firstId + index)),
-    [totalMarketCount, firstId],
+    () => historyIndex.data
+      ? visibleIdsThroughCount(historyIndex.data, totalMarketCount, false)
+      : historyIndex.isError || !PREDICTION_MARKET_CONFIGURED
+        ? Array.from({ length: totalMarketCount }, (_, index) => BigInt(index))
+        : [],
+    [historyIndex.data, historyIndex.isError, totalMarketCount],
   )
 
   const { fastIds, historyIds } = useMemo(
@@ -90,7 +95,8 @@ export function usePredictionMarkets({ includeSettlements = false }: { includeSe
       ...ACTIVE_GAME_REFRESH_OPTIONS,
     },
   })
-  const countScanComplete = countQuery.data != null || countQuery.isError
+  const indexScanComplete = historyIndex.data != null || historyIndex.isError || !PREDICTION_MARKET_CONFIGURED
+  const countScanComplete = (countQuery.data != null || countQuery.isError) && indexScanComplete
   const fastScanComplete = countScanComplete && (
     fastIds.length === 0 || fastQueries.data != null || fastQueries.isError
   )
@@ -128,7 +134,7 @@ export function usePredictionMarkets({ includeSettlements = false }: { includeSe
   }, [fastIds, fastQueries.data, historyIds, historyQueries.data, ids, includeSettlements])
   const markets = useStableGameSnapshots(ids, observedMarkets, {
     cacheKey: includeSettlements ? 'prediction-markets-with-settlements' : 'prediction-markets',
-    idsReady: countQuery.data != null,
+    idsReady: countQuery.data != null && indexScanComplete,
   })
 
   return {
@@ -136,7 +142,7 @@ export function usePredictionMarkets({ includeSettlements = false }: { includeSe
     markets,
     totalMarketCount,
     isLoading: enabled && !historyScanComplete,
-    error: countQuery.error ?? fastQueries.error ?? historyQueries.error,
-    refetch: async () => Promise.all([countQuery.refetch(), fastQueries.refetch(), historyQueries.refetch()]),
+    error: countQuery.error ?? historyIndex.error ?? fastQueries.error ?? historyQueries.error,
+    refetch: async () => Promise.all([historyIndex.refetch(), countQuery.refetch(), fastQueries.refetch(), historyQueries.refetch()]),
   }
 }

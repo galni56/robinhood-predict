@@ -10,10 +10,10 @@ import {
   HISTORICAL_GAME_POLL_INTERVAL_MS,
   splitProgressiveGameIds,
 } from '@/chain/gameSnapshots'
+import { useAssetRaceHistoryIndex, visibleIdsThroughCount } from '@/chain/gameHistory'
 import {
   ASSET_RACE_ADDRESS,
   ETH_DECIMALS,
-  MAX_RACES_TO_LIST,
   assetRaceAbi,
   buildPreviewRaces,
   normalizeRaceAssets,
@@ -36,10 +36,14 @@ export function useAssetRaces() {
   })
 
   const count = Number(useStableGameCount('asset-race-count', countQuery.data))
-  const firstId = Math.max(0, count - MAX_RACES_TO_LIST)
+  const historyIndex = useAssetRaceHistoryIndex(!isPreview)
   const ids = useMemo(
-    () => Array.from({ length: count - firstId }, (_, index) => BigInt(firstId + index)).reverse(),
-    [count, firstId],
+    () => historyIndex.data
+      ? visibleIdsThroughCount(historyIndex.data, count)
+      : historyIndex.isError
+        ? Array.from({ length: count }, (_, index) => BigInt(index)).reverse()
+        : [],
+    [count, historyIndex.data, historyIndex.isError],
   )
 
   const { fastIds, historyIds } = useMemo(
@@ -61,7 +65,8 @@ export function useAssetRaces() {
       ...ACTIVE_GAME_REFRESH_OPTIONS,
     },
   })
-  const countScanComplete = countQuery.data != null || countQuery.isError
+  const indexScanComplete = isPreview || historyIndex.data != null || historyIndex.isError
+  const countScanComplete = (countQuery.data != null || countQuery.isError) && indexScanComplete
   const fastScanComplete = countScanComplete && (
     fastIds.length === 0 || fastQueries.data != null || fastQueries.isError
   )
@@ -96,11 +101,11 @@ export function useAssetRaces() {
   }, [fastIds, fastQueries.data, historyIds, historyQueries.data, ids])
   const onchainRaces = useStableGameSnapshots(ids, observedRaces, {
     cacheKey: 'asset-races',
-    idsReady: isPreview || countQuery.data != null,
+    idsReady: isPreview || (countQuery.data != null && indexScanComplete),
   })
 
   async function refetch() {
-    await Promise.all([countQuery.refetch(), fastQueries.refetch(), historyQueries.refetch()])
+    await Promise.all([historyIndex.refetch(), countQuery.refetch(), fastQueries.refetch(), historyQueries.refetch()])
   }
 
   return {
@@ -110,7 +115,7 @@ export function useAssetRaces() {
     tokenDecimals: ETH_DECIMALS,
     totalRaceCount: isPreview ? previewRaces.length : count,
     isLoading: !isPreview && !historyScanComplete,
-    error: countQuery.error ?? fastQueries.error ?? historyQueries.error,
+    error: countQuery.error ?? historyIndex.error ?? fastQueries.error ?? historyQueries.error,
     refetch,
   }
 }

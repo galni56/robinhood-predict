@@ -1,5 +1,10 @@
 # Prediction Market deadline settlement
 
+> This is the V1 settlement record. V1 remains online only so funded positions
+> can resolve, claim, or refund. New market creation belongs on creator-revenue
+> V2 after the separate gate in
+> `PREDICTION_MARKET_CREATOR_REVENUE_RELEASE.md` passes.
+
 Status: the corrected native-ETH PredictionMarket is deployed/configured at
 `0x4bfd0efc15C3198fe3AFf4741FF121AB2F38060e`; its two-market tiny-value canary
 passed resolve/claim and cancel/two-refund with exact accounting. Persistent
@@ -81,6 +86,8 @@ Required environment (root-only file outside the repository):
 PREDICTION_MARKET_RPC_URL=<lifecycle-rpc>
 PREDICTION_MARKET_POOL_RPC_URL=<archive-rpc>
 PREDICTION_MARKET_ADDRESS=<new-market-address>
+PREDICTION_MARKET_LEGACY_ADDRESS=<optional-settlement-only-v1-address>
+PREDICTION_MARKET_LEGACY_SCAN_FROM=0
 PREDICTION_MARKET_CHAIN_ID=4663
 PREDICTION_MARKET_POLL_INTERVAL_MS=1000
 PREDICTION_MARKET_IDLE_POLL_INTERVAL_MS=5000
@@ -108,6 +115,12 @@ new markets and open markets whose deadline has arrived. Future markets are
 scheduled in memory rather than reread on every poll. The five-second default
 poll interval affects only how soon settlement is submitted after the deadline;
 the signed proof still fixes the price at the exact deadline block boundary.
+During the creator-revenue migration, one keeper process may service reviewed
+V2 plus the pinned native-ETH V1 address. It validates the two generations with
+their exact ABIs and writes sequentially, so the same transaction keeper can be
+reused without two processes competing for its nonce. V1 remains
+settlement-only; the event seeder must point only to V2 once market generation
+is re-enabled.
 
 ## Tiny-value canary
 

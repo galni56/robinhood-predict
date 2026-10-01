@@ -19,10 +19,16 @@ import {
   targetPriceFromSnapshot,
 } from './event-seeder.mjs'
 
+const TEST_MARKET_ORACLE = '0x4444444444444444444444444444444444444444'
+
 function withEnv(overrides, fn) {
-  const saved = new Map(Object.keys(overrides).map((key) => [key, process.env[key]]))
+  const effectiveOverrides = {
+    PREDICTION_MARKET_SIGNED_POOL_ORACLE_ADDRESS: TEST_MARKET_ORACLE,
+    ...overrides,
+  }
+  const saved = new Map(Object.keys(effectiveOverrides).map((key) => [key, process.env[key]]))
   try {
-    for (const [key, value] of Object.entries(overrides)) {
+    for (const [key, value] of Object.entries(effectiveOverrides)) {
       if (value === undefined) delete process.env[key]
       else process.env[key] = value
     }
@@ -53,8 +59,41 @@ test('config falls back to the prediction-market RPC/address envs', () => {
     const config = readSeederConfig()
     assert.equal(config.rpcUrl, 'https://rpc.invalid')
     assert.equal(config.marketAddress, '0x1111111111111111111111111111111111111111')
+    assert.equal(config.marketOracleAddress, TEST_MARKET_ORACLE)
     assert.equal(config.arenaAddress, '0x2222222222222222222222222222222222222222')
     assert.equal(config.dryRun, true)
+  })
+})
+
+test('config requires the reviewed PredictionMarket oracle address', () => {
+  withEnv({
+    EVENT_SEEDER_RPC_URL: 'https://rpc.invalid',
+    EVENT_SEEDER_MARKET_ADDRESS: '0x1111111111111111111111111111111111111111',
+    EVENT_SEEDER_ARENA_ADDRESS: '0x2222222222222222222222222222222222222222',
+    EVENT_SEEDER_MARKET_ORACLE_ADDRESS: undefined,
+    PREDICTION_MARKET_SIGNED_POOL_ORACLE_ADDRESS: undefined,
+    ASSET_RACE_SIGNED_POOL_ORACLE_ADDRESS: undefined,
+  }, () => {
+    assert.throws(() => readSeederConfig(), /EVENT_SEEDER_MARKET_ORACLE_ADDRESS is invalid/)
+  })
+})
+
+test('market seeding can be disabled without stopping race or arena configuration', () => {
+  withEnv({
+    EVENT_SEEDER_RPC_URL: 'https://rpc.invalid',
+    EVENT_SEEDER_MARKET_ENABLED: 'false',
+    EVENT_SEEDER_MARKET_ADDRESS: undefined,
+    PREDICTION_MARKET_ADDRESS: undefined,
+    EVENT_SEEDER_MARKET_ORACLE_ADDRESS: undefined,
+    PREDICTION_MARKET_SIGNED_POOL_ORACLE_ADDRESS: undefined,
+    ASSET_RACE_SIGNED_POOL_ORACLE_ADDRESS: undefined,
+    EVENT_SEEDER_ARENA_ADDRESS: '0x2222222222222222222222222222222222222222',
+  }, () => {
+    const config = readSeederConfig()
+    assert.equal(config.marketEnabled, false)
+    assert.equal(config.marketAddress, undefined)
+    assert.equal(config.marketOracleAddress, undefined)
+    assert.equal(config.arenaAddress, '0x2222222222222222222222222222222222222222')
   })
 })
 

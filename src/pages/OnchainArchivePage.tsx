@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { formatEther, formatUnits } from 'viem'
 import { CancelledBadge, SideBadge } from '@/components/Pills'
 import { PriceSourceLink } from '@/components/PriceSourceLink'
@@ -139,12 +139,18 @@ function ArenaArchiveCard({ arena }: { arena: PriceArenaViewModel }) {
 }
 
 export function OnchainArchivePage() {
-  const [mode, setMode] = useState<ArchiveMode>('markets')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const requestedMode = searchParams.get('mode')
+  const mode: ArchiveMode = requestedMode === 'races' || requestedMode === 'arenas' ? requestedMode : 'markets'
   const [page, setPage] = useState(0)
-  const markets = usePredictionArchivePage(page, mode === 'markets')
-  const races = useAssetRaceArchivePage(page, mode === 'races')
-  const arenas = usePriceArenaArchivePage(page, mode === 'arenas')
-  const counts = { markets: markets.count, races: races.count, arenas: arenas.count }
+  const markets = usePredictionArchivePage(page, mode === 'markets', true)
+  const races = useAssetRaceArchivePage(page, mode === 'races', true)
+  const arenas = usePriceArenaArchivePage(page, mode === 'arenas', true)
+  const historyCounts = {
+    markets: markets.historyCount,
+    races: races.historyCount,
+    arenas: arenas.historyCount,
+  }
   const active = mode === 'markets' ? markets : mode === 'races' ? races : arenas
 
   // Auto-seeded games routinely cancel without ever attracting a player.
@@ -173,8 +179,11 @@ export function OnchainArchivePage() {
         <p className="mb-1 text-sm font-bold text-[#B3A7FA]">The onchain record</p>
         <h1 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">Every finished game, one archive.</h1>
         <p className="mt-2 text-sm leading-relaxed text-white/50">
-          Browse resolved, cancelled and void Prediction Markets, Asset Races and Price Arenas directly from their contracts. History loads twelve IDs at a time so the archive stays complete without hammering the public RPC.
+          Browse resolved, cancelled and void Prediction Markets, Asset Races and Price Arenas directly from their contracts. Played history is indexed from contract events and rendered twelve games at a time.
         </p>
+        <Link to="/onchain/legacy" className="mt-3 inline-flex text-sm font-bold text-[#B3A7FA] hover:text-white">
+          Open funded V1 markets for claim or refund →
+        </Link>
       </header>
 
       <nav className="grid gap-2 sm:grid-cols-3" aria-label="Archive products">
@@ -182,19 +191,21 @@ export function OnchainArchivePage() {
           <button
             key={item.key}
             onClick={() => {
-              setMode(item.key)
+              setSearchParams(item.key === 'markets' ? {} : { mode: item.key })
               setPage(0)
             }}
             className={`flex items-center justify-between rounded-2xl border px-4 py-3 text-left transition-colors ${mode === item.key ? 'border-white/20 bg-[#2d223a]' : 'border-white/5 bg-[#241b2f] text-white/55 hover:border-white/15 hover:text-white'}`}
           >
             <span className="font-display font-bold" style={mode === item.key ? { color: item.accent } : undefined}>{item.label}</span>
-            <span className="rounded-full bg-white/5 px-2.5 py-1 font-mono text-xs">{counts[item.key]} created</span>
+            <span className="rounded-full bg-white/5 px-2.5 py-1 font-mono text-xs">
+              {historyCounts[item.key]} played
+            </span>
           </button>
         ))}
       </nav>
 
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/5 bg-[#1f1829] px-4 py-3 text-xs text-white/45">
-        <span>Newest IDs first · resolved games and cancellations with real stakes</span>
+        <span>Newest played games first · empty cancellations stay hidden</span>
         <span className="font-mono">Page {page + 1} / {active.pageCount}{active.ids.length > 0 ? ` · IDs ${active.ids.at(-1)}–${active.ids[0]}` : ''}</span>
       </div>
 
@@ -204,8 +215,8 @@ export function OnchainArchivePage() {
         <div className="rounded-2xl border border-rose-500/25 bg-rose-500/10 p-5 text-sm text-rose-300">Could not read this contract history. Try the page again.</div>
       ) : visibleCount === 0 ? (
         <div className="rounded-3xl border border-dashed border-white/10 bg-[#241b2f]/50 px-5 py-14 text-center">
-          <p className="font-display text-xl font-bold">No played games in this ID range.</p>
-          <p className="mt-2 text-sm text-white/40">Empty cancellations are hidden. Use Older to continue to the next part of the contract record.</p>
+          <p className="font-display text-xl font-bold">No played games yet.</p>
+          <p className="mt-2 text-sm text-white/40">Resolved games and cancellations with real stakes will appear here automatically.</p>
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2">

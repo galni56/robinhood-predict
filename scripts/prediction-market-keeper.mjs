@@ -11,7 +11,6 @@ import {
   getAddress,
   http,
   isAddress,
-  stringToHex,
   zeroAddress,
 } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
@@ -19,12 +18,18 @@ import { JsonEndpointProofCache, PoolEndpointCollector } from './asset-race-pool
 import { PoolPriceEngine, poolChainContracts, poolConfigsFromRegistry } from './asset-race-pool-price-engine.mjs'
 import { withRpcRateLimit } from './asset-race-rpc-budget.mjs'
 import { nextSleepMs } from './keeper-poll-schedule.mjs'
+import {
+  REVIEWED_LEGACY_PREDICTION_MARKET_ADDRESS,
+  verifyLegacyPredictionMarketRelease,
+  verifyPredictionMarketRelease,
+} from './prediction-market-release.mjs'
 
 export const DEFAULT_PREDICTION_MARKET_POLL_INTERVAL_MS = 1_000
 export const DEFAULT_PREDICTION_MARKET_IDLE_POLL_INTERVAL_MS = 5_000
 
 const OPEN = 0
 const SIGNED_POOL_BLOCK_PAIR = 2
+export { REVIEWED_LEGACY_PREDICTION_MARKET_ADDRESS }
 
 export const predictionMarketKeeperAbi = [
   { type: 'function', name: 'marketCount', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
@@ -50,6 +55,7 @@ export const predictionMarketKeeperAbi = [
         { name: 'status', type: 'uint8' },
         { name: 'outcome', type: 'uint8' },
         { name: 'feeBp', type: 'uint256' },
+        { name: 'creator', type: 'address' },
       ],
     }],
   },
@@ -68,6 +74,17 @@ export const predictionMarketKeeperAbi = [
     inputs: [{ name: 'id', type: 'uint256' }, { name: 'endpointProof', type: 'bytes' }], outputs: [],
   },
 ]
+
+// V1 exposes the same lifecycle selectors, but its getMarket tuple ends at
+// feeBp. A separate decoder is required; decoding V1 with the V2 tuple is not
+// safe merely because resolve(uint256,bytes) happens to share a selector.
+export const predictionMarketKeeperV1Abi = predictionMarketKeeperAbi.map((item) => {
+  if (item.name !== 'getMarket') return item
+  return {
+    ...item,
+    outputs: [{ ...item.outputs[0], components: item.outputs[0].components.slice(0, -1) }],
+  }
+})
 
 const signedPoolOracleAbi = [
   { type: 'function', name: 'TRUSTED_SIGNER', stateMutability: 'view', inputs: [], outputs: [{ type: 'address' }] },
@@ -106,6 +123,14 @@ export function readKeeperConfig() {
   if (!rpcUrl) throw new KeeperConfigError('PREDICTION_MARKET_RPC_URL is required')
   if (!rawAddress || !isAddress(rawAddress)) throw new KeeperConfigError('PREDICTION_MARKET_ADDRESS is invalid')
   if (!rawOracle || !isAddress(rawOracle)) throw new KeeperConfigError('PREDICTION_MARKET_SIGNED_POOL_ORACLE_ADDRESS is invalid')
+  const rawLegacyAddress = process.env.PREDICTION_MARKET_LEGACY_ADDRESS?.trim()
+  if (rawLegacyAddress && !isAddress(rawLegacyAddress)) {
+    throw new KeeperConfigError('PREDICTION_MARKET_LEGACY_ADDRESS is invalid')
+  }
+  const legacyAddress = rawLegacyAddress ? getAddress(rawLegacyAddress) : undefined
+  if (legacyAddress && legacyAddress.toLowerCase() !== REVIEWED_LEGACY_PREDICTION_MARKET_ADDRESS.toLowerCase()) {
+    throw new KeeperConfigError('PREDICTION_MARKET_LEGACY_ADDRESS is not the reviewed V1 contract')
+  }
 
   const dryRun = boolEnv('DRY_RUN', true)
   const keeperKeyValue = process.env.PREDICTION_MARKET_KEEPER_PRIVATE_KEY?.trim()
@@ -119,6 +144,7 @@ export function readKeeperConfig() {
 
   return {
     address: getAddress(rawAddress),
+    legacyAddress,
     signedOracleAddress: getAddress(rawOracle),
     allowLive: boolEnv('PREDICTION_MARKET_ALLOW_LIVE', false),
     dryRun,
@@ -138,6 +164,7 @@ export function readKeeperConfig() {
     rpcUrl,
     runOnce: boolEnv('RUN_ONCE', false),
     scanFrom: BigInt(uintEnv('MARKET_SCAN_FROM', 0)),
+    legacyScanFrom: BigInt(uintEnv('PREDICTION_MARKET_LEGACY_SCAN_FROM', 0)),
   }
 }
 
@@ -147,20 +174,11 @@ function productionStockPoolConfigs() {
 }
 
 export async function verifyConfiguredAssets(publicClient, marketAddress, configs) {
-  const bindings = await Promise.all(configs.map((config) => publicClient.readContract({
-    address: marketAddress,
-    abi: predictionMarketKeeperAbi,
-    functionName: 'approvedAssets',
-    args: [stringToHex(config.assetId, { size: 32 })],
-  })))
-  for (let index = 0; index < configs.length; index += 1) {
-    const [oracleId, decimals, allowed] = bindings[index]
-    const config = configs[index]
-    if (!allowed || oracleId.toLowerCase() !== config.oracleId.toLowerCase() || Number(decimals) !== 18) {
-      throw new KeeperConfigError(`PredictionMarket asset binding mismatch: ${config.assetId}`)
-    }
-  }
-  return true
+  return verifyPredictionMarketRelease(publicClient, marketAddress, configs)
+}
+
+export async function verifyLegacyConfiguredAssets(publicClient, marketAddress, configs, options) {
+  return verifyLegacyPredictionMarketRelease(publicClient, marketAddress, configs, options)
 }
 
 export function transitionForMarket(market, now) {
@@ -188,12 +206,12 @@ export class ActiveMarketTracker {
     this.markets.set(marketId, { deadline: BigInt(market.deadline) })
   }
 
-  async discover(publicClient, contractAddress, marketCount) {
+  async discover(publicClient, contractAddress, marketCount, abi = predictionMarketKeeperAbi) {
     if (marketCount < this.nextMarketId) return
     for (let marketId = this.nextMarketId; marketId < marketCount; marketId += 1n) {
       const market = await publicClient.readContract({
         address: contractAddress,
-        abi: predictionMarketKeeperAbi,
+        abi,
         functionName: 'getMarket',
         args: [marketId],
       })
@@ -209,10 +227,10 @@ export class ActiveMarketTracker {
       .sort((left, right) => left < right ? -1 : left > right ? 1 : 0)
   }
 
-  async refresh(publicClient, contractAddress, marketId) {
+  async refresh(publicClient, contractAddress, marketId, abi = predictionMarketKeeperAbi) {
     const market = await publicClient.readContract({
       address: contractAddress,
-      abi: predictionMarketKeeperAbi,
+      abi,
       functionName: 'getMarket',
       args: [marketId],
     })
@@ -247,6 +265,62 @@ export async function endpointProofForMarket(collector, market) {
 function safeErrorName(error) {
   if (error instanceof Error) return error.shortMessage || error.message.split('\n')[0]
   return 'UnknownError'
+}
+
+export async function pollMarketContexts({
+  account,
+  blockTimestamp,
+  collector,
+  contexts,
+  dryRun,
+  logger = console,
+  publicClient,
+  walletClient,
+}) {
+  const marketCounts = await Promise.all(contexts.map((context) => publicClient.readContract({
+    address: context.address,
+    abi: context.abi,
+    functionName: 'marketCount',
+  })))
+  for (let index = 0; index < contexts.length; index += 1) {
+    const context = contexts[index]
+    await context.tracker.discover(publicClient, context.address, marketCounts[index], context.abi)
+    // Writes remain strictly sequential across V2 and V1. This lets both
+    // lifecycle queues safely share one keeper EOA without competing nonces.
+    for (const marketId of context.tracker.dueMarketIds(blockTimestamp)) {
+      try {
+        const market = await context.tracker.refresh(publicClient, context.address, marketId, context.abi)
+        const participantCount = await publicClient.readContract({
+          address: context.address,
+          abi: context.abi,
+          functionName: 'participantCount',
+          args: [marketId],
+        })
+        const marketState = { ...market, participantCount }
+        const transition = transitionForMarket(marketState, blockTimestamp)
+        if (!transition) continue
+        const endpointProof = await endpointProofForMarket(collector, marketState)
+        const simulation = await publicClient.simulateContract({
+          account: account || zeroAddress,
+          address: context.address,
+          abi: context.abi,
+          functionName: 'resolve',
+          args: [marketId, endpointProof],
+        })
+        if (dryRun) {
+          logger.log(`[dry-run:${context.label}] market #${marketId}: resolve -> ${transition.outcome}`)
+          continue
+        }
+        const hash = await walletClient.writeContract(simulation.request)
+        const receipt = await publicClient.waitForTransactionReceipt({ hash })
+        if (receipt.status !== 'success') throw new Error('TransactionReverted')
+        context.tracker.complete(marketId)
+        logger.log(`[keeper:${context.label}] market #${marketId}: resolve submitted (${hash})`)
+      } catch (error) {
+        logger.error(`[keeper:${context.label}] market #${marketId}: resolve failed (${safeErrorName(error)}); continuing`)
+      }
+    }
+  }
 }
 
 async function main() {
@@ -284,7 +358,14 @@ async function main() {
 
   const configs = productionStockPoolConfigs()
   if (configs.length !== 10) throw new KeeperConfigError('Registry must expose exactly 10 production Stock pools')
-  await verifyConfiguredAssets(publicClient, config.address, configs)
+  await verifyPredictionMarketRelease(publicClient, config.address, configs, {
+    expectedOracleAddress: config.signedOracleAddress,
+  })
+  if (config.legacyAddress) {
+    await verifyLegacyPredictionMarketRelease(publicClient, config.legacyAddress, configs, {
+      expectedOracleAddress: config.signedOracleAddress,
+    })
+  }
   const engine = new PoolPriceEngine({ client: publicClient, configs })
   let fallbackEngine
   if (config.poolRpcUrl !== config.rpcUrl) {
@@ -314,53 +395,43 @@ async function main() {
     throw new KeeperConfigError('Transaction keeper and pool price signer must be separate accounts')
   }
   const walletClient = config.dryRun ? undefined : createWalletClient({ account, chain, transport: http(config.rpcUrl) })
-  const tracker = new ActiveMarketTracker(config.scanFrom)
+  const marketContexts = [{
+    abi: predictionMarketKeeperAbi,
+    address: config.address,
+    label: 'v2',
+    tracker: new ActiveMarketTracker(config.scanFrom),
+  }]
+  if (config.legacyAddress) {
+    marketContexts.push({
+      abi: predictionMarketKeeperV1Abi,
+      address: config.legacyAddress,
+      label: 'v1',
+      tracker: new ActiveMarketTracker(config.legacyScanFrom),
+    })
+  }
   let stopping = false
   process.once('SIGINT', () => { stopping = true })
   process.once('SIGTERM', () => { stopping = true })
 
   async function poll() {
-    const [block, marketCount] = await Promise.all([
-      publicClient.getBlock({ blockTag: 'latest' }),
-      publicClient.readContract({ address: config.address, abi: predictionMarketKeeperAbi, functionName: 'marketCount' }),
-    ])
-    await tracker.discover(publicClient, config.address, marketCount)
-    for (const marketId of tracker.dueMarketIds(block.timestamp)) {
-      try {
-        const market = await tracker.refresh(publicClient, config.address, marketId)
-        const participantCount = await publicClient.readContract({
-          address: config.address,
-          abi: predictionMarketKeeperAbi,
-          functionName: 'participantCount',
-          args: [marketId],
-        })
-        const marketState = { ...market, participantCount }
-        const transition = transitionForMarket(marketState, block.timestamp)
-        if (!transition) continue
-        const endpointProof = await endpointProofForMarket(collector, marketState)
-        const simulation = await publicClient.simulateContract({
-          account: account || zeroAddress,
-          address: config.address,
-          abi: predictionMarketKeeperAbi,
-          functionName: 'resolve',
-          args: [marketId, endpointProof],
-        })
-        if (config.dryRun) { console.log(`[dry-run] market #${marketId}: resolve -> ${transition.outcome}`); continue }
-        const hash = await walletClient.writeContract(simulation.request)
-        const receipt = await publicClient.waitForTransactionReceipt({ hash })
-        if (receipt.status !== 'success') throw new Error('TransactionReverted')
-        tracker.complete(marketId)
-        console.log(`[keeper] market #${marketId}: resolve submitted (${hash})`)
-      } catch (error) {
-        console.error(`[keeper] market #${marketId}: resolve failed (${safeErrorName(error)}); continuing`)
-      }
-    }
+    const block = await publicClient.getBlock({ blockTag: 'latest' })
+    await pollMarketContexts({
+      account,
+      blockTimestamp: block.timestamp,
+      collector,
+      contexts: marketContexts,
+      dryRun: config.dryRun,
+      publicClient,
+      walletClient,
+    })
   }
 
   do {
     try { await poll() } catch (error) { console.error(`[keeper] poll failed (${safeErrorName(error)}); continuing`) }
     if (config.runOnce || stopping) break
-    const sleepMs = nextSleepMs(tracker.earliestDueAt(), config.pollIntervalMs, config.idlePollIntervalMs)
+    const deadlines = marketContexts.map(({ tracker }) => tracker.earliestDueAt()).filter((value) => value !== undefined)
+    const earliestDueAt = deadlines.reduce((earliest, value) => earliest === undefined || value < earliest ? value : earliest, undefined)
+    const sleepMs = nextSleepMs(earliestDueAt, config.pollIntervalMs, config.idlePollIntervalMs)
     await new Promise((resolve) => setTimeout(resolve, sleepMs))
   } while (!stopping)
 }

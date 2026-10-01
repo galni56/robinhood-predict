@@ -17,12 +17,20 @@ contract RejectingPredictionReceiver {
         market.bet{value: msg.value}(id, side, msg.value);
     }
 
+    function createMarket(bytes32 assetId, int256 targetPrice, uint256 deadline) external returns (uint256) {
+        return market.createMarket(assetId, targetPrice, deadline, 0, 0);
+    }
+
     function claim(uint256 id) external {
         market.claim(id);
     }
 
     function refund(uint256 id, PredictionMarket.Side side) external {
         market.refund(id, side);
+    }
+
+    function withdrawCreatorFees() external {
+        market.withdrawCreatorFees();
     }
 
     receive() external payable {
@@ -113,6 +121,7 @@ contract PredictionMarketTest is Test {
         assertEq(m.oracleId, ORACLE_ID);
         assertEq(m.priceDecimals, PRICE_DECIMALS);
         assertEq(m.targetPrice, TARGET_PRICE);
+        assertEq(m.creator, alice);
     }
 
     function test_CreateMarket_RevertsForNonApprovedAsset() public {
@@ -538,7 +547,8 @@ contract PredictionMarketTest is Test {
         assertFalse(receiver.reentrySucceeded());
         assertTrue(market.claimed(id, address(receiver)));
         assertEq(address(receiver).balance, 49.8e18);
-        assertEq(market.accumulatedFees(), 0.2e18);
+        assertEq(market.accumulatedFees(), 0.1e18);
+        assertEq(market.creatorEarnings(owner), 0.1e18);
         assertEq(address(market).balance, 0.2e18);
     }
 
@@ -659,8 +669,11 @@ contract PredictionMarketTest is Test {
         market.claim(id);
         assertEq(alice.balance - balBefore, 49.8e18);
 
-        // fee = 40e18 * 10e18 * 200 / (40e18 * 10000) = 0.2e18
-        assertEq(market.accumulatedFees(), 0.2e18);
+        // Total fee is 0.2 ETH: 0.1 ETH for the creator and 0.1 ETH for Prophet.
+        assertEq(market.accumulatedFees(), 0.1e18);
+        assertEq(market.creatorEarnings(owner), 0.1e18);
+        assertEq(market.marketCreatorFees(id), 0.1e18);
+        assertEq(market.totalCreatorEarningsLiability(), 0.1e18);
         assertEq(address(market).balance, 0.2e18);
     }
 
@@ -696,6 +709,7 @@ contract PredictionMarketTest is Test {
 
     function test_WithdrawFees_OnlyOwnerAndTransfersBalance() public {
         market.setFeeBp(200);
+        vm.prank(alice);
         uint256 id = market.createMarket(ASSET_ID, TARGET_PRICE, block.timestamp + 1 days, 0, 0);
 
         vm.prank(alice);
@@ -715,8 +729,16 @@ contract PredictionMarketTest is Test {
 
         uint256 balBefore = charlie.balance;
         market.withdrawFees(charlie);
-        assertEq(charlie.balance - balBefore, 0.2e18);
+        assertEq(charlie.balance - balBefore, 0.1e18);
         assertEq(market.accumulatedFees(), 0);
+        assertEq(address(market).balance, 0.1e18);
+
+        balBefore = alice.balance;
+        vm.prank(alice);
+        market.withdrawCreatorFees();
+        assertEq(alice.balance - balBefore, 0.1e18);
+        assertEq(market.creatorEarnings(alice), 0);
+        assertEq(market.totalCreatorEarningsLiability(), 0);
         assertEq(address(market).balance, 0);
     }
 
@@ -737,8 +759,58 @@ contract PredictionMarketTest is Test {
         vm.expectRevert("ETH transfer failed");
         market.withdrawFees(address(rejector));
 
-        assertEq(market.accumulatedFees(), 0.2e18);
+        assertEq(market.accumulatedFees(), 0.1e18);
         assertEq(address(market).balance, 0.2e18);
+    }
+
+    function test_Claim_CreatorReceiverCannotBlockWinner() public {
+        market.setFeeBp(200);
+        RejectingPredictionReceiver creator = new RejectingPredictionReceiver(market);
+        uint256 id = creator.createMarket(ASSET_ID, TARGET_PRICE, block.timestamp + 1 days);
+
+        vm.prank(alice);
+        market.bet{value: 40e18}(id, PredictionMarket.Side.YES, 40e18);
+        vm.prank(bob);
+        market.bet{value: 10e18}(id, PredictionMarket.Side.NO, 10e18);
+
+        vm.warp(block.timestamp + 1 days + 1);
+        _resolve(id);
+
+        uint256 balBefore = alice.balance;
+        vm.prank(alice);
+        market.claim(id);
+
+        assertEq(alice.balance - balBefore, 49.8e18);
+        assertEq(market.creatorEarnings(address(creator)), 0.1e18);
+        assertEq(market.accumulatedFees(), 0.1e18);
+    }
+
+    function test_WithdrawCreatorFees_FailedReceiverRollsBackAccounting() public {
+        market.setFeeBp(200);
+        RejectingPredictionReceiver creator = new RejectingPredictionReceiver(market);
+        uint256 id = creator.createMarket(ASSET_ID, TARGET_PRICE, block.timestamp + 1 days);
+
+        vm.prank(alice);
+        market.bet{value: 40e18}(id, PredictionMarket.Side.YES, 40e18);
+        vm.prank(bob);
+        market.bet{value: 10e18}(id, PredictionMarket.Side.NO, 10e18);
+        vm.warp(block.timestamp + 1 days + 1);
+        _resolve(id);
+        vm.prank(alice);
+        market.claim(id);
+
+        vm.expectRevert("ETH transfer failed");
+        creator.withdrawCreatorFees();
+
+        assertEq(market.creatorEarnings(address(creator)), 0.1e18);
+        assertEq(market.totalCreatorEarningsLiability(), 0.1e18);
+        assertEq(address(market).balance, 0.2e18);
+    }
+
+    function test_WithdrawCreatorFees_RevertsWhenNothingAccrued() public {
+        vm.prank(alice);
+        vm.expectRevert("no creator fees");
+        market.withdrawCreatorFees();
     }
 
     // --- early-bet weight decay + betting window ---

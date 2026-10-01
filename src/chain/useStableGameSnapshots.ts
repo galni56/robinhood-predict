@@ -17,7 +17,7 @@ interface StableSnapshotOptions {
 /**
  * Contract game counts are append-only. Some public RPC nodes can briefly
  * answer from an older block after navigation or endpoint failover; accepting
- * that lower count prunes valid cards from the recent-id window. Keep the
+ * that lower count prunes valid cards from the visible id set. Keep the
  * session high-water mark so stale reads can never make games disappear.
  */
 export function useStableGameCount(cacheKey: string, observed: bigint | undefined) {

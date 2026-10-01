@@ -5,7 +5,7 @@ import { pathToFileURL } from 'node:url'
 import { createPublicClient, defineChain, formatUnits, hexToString, http, isAddress } from 'viem'
 
 const DEFAULT_ORIGIN = 'https://prophetmarkets.fun'
-const DEFAULT_MARKET_ADDRESS = '0x4bfd0efc15C3198fe3AFf4741FF121AB2F38060e'
+const DEFAULT_MARKET_ADDRESS = '0xF62CF5Db594c4b706555584ccEC9Fb9a61541D4a'
 const DEFAULT_RACE_ADDRESS = '0x02F030Bd9D9DC86d713CDF0772ae4d1E3b81f235'
 const DEFAULT_ARENA_ADDRESS = '0x383840a8Ca00dcB4b6cAc17e746c793426fE2f05'
 
@@ -20,6 +20,7 @@ const marketAbi = [
       { name: 'poolYes', type: 'uint256' }, { name: 'poolNo', type: 'uint256' },
       { name: 'weightedPoolYes', type: 'uint256' }, { name: 'weightedPoolNo', type: 'uint256' },
       { name: 'status', type: 'uint8' }, { name: 'outcome', type: 'uint8' }, { name: 'feeBp', type: 'uint256' },
+      { name: 'creator', type: 'address' },
     ] }],
   },
 ]

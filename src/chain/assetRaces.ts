@@ -17,7 +17,6 @@ export const ASSET_RACE_ORIGIN = { PLATFORM: 0, COMMUNITY: 1 } as const
 export const ETH_DECIMALS = 18
 export const RETURN_SCALE = 10n ** 18n
 export const BP_DENOMINATOR = 10_000n
-export const MAX_RACES_TO_LIST = 50
 export const ASSET_RACE_TOKEN_LABEL = isLocalAssetRace ? 'local ETH' : 'ETH'
 
 const configuredAddress = import.meta.env.VITE_ASSET_RACE_ADDRESS?.trim()

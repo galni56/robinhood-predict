@@ -37,6 +37,8 @@ contract ConfigurePredictionMarket is Script {
         NativeEthDeploymentSafety.validateOracle(
             address(oracle), expectedOracle, oracle.TRUSTED_SIGNER(), expectedPriceSigner
         );
+        require(market.feeBp() == 200, "release fee must be 2%");
+        require(market.CREATOR_FEE_SHARE_BP() == 5_000, "wrong creator fee share");
 
         vm.startBroadcast(ownerKey);
         for (uint256 i = 0; i < symbols.length; i++) {

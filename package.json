@@ -14,6 +14,7 @@
     "test:asset-race-keeper": "node --test scripts/asset-race-keeper.test.mjs",
     "keeper:prediction-market": "node scripts/prediction-market-keeper.mjs",
     "test:prediction-market-keeper": "node --test scripts/prediction-market-keeper.test.mjs",
+    "preflight:prediction-market-v2": "node scripts/prediction-market-release-status.mjs --require-complete",
     "keeper:price-arena": "node scripts/price-arena-keeper.mjs",
     "test:price-arena-keeper": "node --test scripts/price-arena-keeper.test.mjs",
     "seeder:event": "node scripts/event-seeder.mjs",

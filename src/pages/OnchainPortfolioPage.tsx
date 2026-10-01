@@ -1,7 +1,17 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { formatEther, parseAbiItem } from 'viem'
-import { useAccount, useBalance, usePublicClient, useReadContract, useReadContracts } from 'wagmi'
+import { waitForTransactionReceipt } from 'wagmi/actions'
+import {
+  useAccount,
+  useBalance,
+  useChainId,
+  usePublicClient,
+  useReadContract,
+  useReadContracts,
+  useSwitchChain,
+  useWriteContract,
+} from 'wagmi'
 import { truncateAddress } from '@/components/AddressLabel'
 import { SideBadge, StatusBadge } from '@/components/Pills'
 import { SetNicknameModal } from '@/components/SetNicknameModal'
@@ -18,9 +28,21 @@ import {
 } from '@/chain/contracts'
 import { priceSourceUrlForSymbol } from '@/chain/assetRaceRegistry'
 import { tickerForPredictionAssetId } from '@/chain/predictionMarketAssets'
+import { robinhoodMainnet, wagmiConfig } from '@/chain/config'
+import { ACTIVE_GAME_POLL_INTERVAL_MS, ACTIVE_GAME_REFRESH_OPTIONS } from '@/chain/gameSnapshots'
 import { useNickname } from '@/chain/nicknames'
-import { formatCompactEth } from '@/lib/format'
+import { formatCompactEth, shortTxError } from '@/lib/format'
 import type { MarketSide } from '@/types'
+import {
+  ASSET_RACE_STATUS,
+  assetRaceStatusLabel,
+} from '@/chain/assetRaces'
+import { PRICE_ARENA_PHASE, arenaPhaseLabel } from '@/chain/priceArena'
+import {
+  useWalletGamePositions,
+  type WalletArenaPosition,
+  type WalletRacePosition,
+} from '@/chain/useWalletGamePositions'
 
 const CLAIMED_EVENT = parseAbiItem('event Claimed(uint256 indexed id, address indexed user, uint256 payout)')
 
@@ -45,8 +67,16 @@ function StatCard({ label, value, valueClassName = '', title }: { label: string;
 
 export function OnchainPortfolioPage() {
   const { address, isConnected } = useAccount()
+  const chainId = useChainId()
+  const { switchChain, isPending: isSwitching } = useSwitchChain()
+  const { writeContractAsync } = useWriteContract()
   const nickname = useNickname(address)
   const [nicknameModalOpen, setNicknameModalOpen] = useState(false)
+  const [creatorTxLabel, setCreatorTxLabel] = useState<string | null>(null)
+  const [creatorError, setCreatorError] = useState<string | null>(null)
+  const [creatorSuccess, setCreatorSuccess] = useState<string | null>(null)
+  const gamePositions = useWalletGamePositions(address)
+  const onRightChain = chainId === robinhoodMainnet.id
 
   const marketCount = useReadContract({
     address: PREDICTION_MARKET_ADDRESS,
@@ -72,6 +102,19 @@ export function OnchainPortfolioPage() {
   const claimedFlags = useReadContracts({
     contracts: ids.map((id) => ({ address: PREDICTION_MARKET_ADDRESS, abi: predictionMarketAbi, functionName: 'claimed', args: [id, address ?? '0x0'] }) as const),
     query: { enabled: count > 0 && !!address },
+  })
+
+  const creatorEarnings = useReadContract({
+    address: PREDICTION_MARKET_ADDRESS,
+    abi: predictionMarketAbi,
+    functionName: 'creatorEarnings',
+    args: address ? [address] : undefined,
+    chainId: robinhoodMainnet.id,
+    query: {
+      enabled: PREDICTION_MARKET_CONFIGURED && !!address,
+      refetchInterval: ACTIVE_GAME_POLL_INTERVAL_MS,
+      ...ACTIVE_GAME_REFRESH_OPTIONS,
+    },
   })
 
   const balance = useBalance({ address, query: { enabled: !!address } })
@@ -110,7 +153,7 @@ export function OnchainPortfolioPage() {
       <div className="max-w-2xl mx-auto px-4 py-8">
         <p className="text-sm font-bold text-[#B3A7FA] mb-1">Your account</p>
         <h1 className="font-display text-3xl sm:text-4xl font-bold tracking-tight mb-1">Your market portfolio</h1>
-        <p className="text-white/40 text-sm mb-6">Connect a wallet to see your YES/NO Prediction Market positions.</p>
+        <p className="text-white/40 text-sm mb-6">Connect a wallet to see your Prediction Market, Asset Race and Price Arena positions.</p>
         <WalletOptionsList />
       </div>
     )
@@ -160,8 +203,34 @@ export function OnchainPortfolioPage() {
   // you've actually called claim().
   const netPnl = totalClaimed != null ? totalClaimed - totalWagered : null
 
+  async function withdrawCreatorEarnings() {
+    if (!address || !PREDICTION_MARKET_CONFIGURED || !onRightChain || !creatorEarnings.data) return
+    setCreatorError(null)
+    setCreatorSuccess(null)
+    setCreatorTxLabel('Confirm withdrawal in your wallet…')
+    try {
+      const hash = await writeContractAsync({
+        address: PREDICTION_MARKET_ADDRESS,
+        abi: predictionMarketAbi,
+        functionName: 'withdrawCreatorFees',
+      })
+      setCreatorTxLabel('Sending earnings to your wallet…')
+      const receipt = await waitForTransactionReceipt(wagmiConfig, {
+        hash,
+        chainId: robinhoodMainnet.id,
+      })
+      if (receipt.status !== 'success') throw new Error('The withdrawal transaction reverted.')
+      await Promise.all([creatorEarnings.refetch(), balance.refetch()])
+      setCreatorSuccess('Creator earnings were sent to your connected wallet.')
+    } catch (error) {
+      setCreatorError(shortTxError(error))
+    } finally {
+      setCreatorTxLabel(null)
+    }
+  }
+
   return (
-    <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
+    <div className="mx-auto max-w-5xl space-y-6 px-4 py-8">
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
           <p className="text-sm font-bold text-[#B3A7FA] mb-1">Your account</p>
@@ -180,31 +249,207 @@ export function OnchainPortfolioPage() {
 
       {nicknameModalOpen && <SetNicknameModal onClose={() => setNicknameModalOpen(false)} />}
 
+      <Link
+        to="/onchain/legacy"
+        className="flex items-center justify-between gap-3 rounded-2xl border border-[#8B7CF7]/25 bg-[#8B7CF7]/10 px-4 py-3 text-sm transition-colors hover:border-[#8B7CF7]/50"
+      >
+        <span>
+          <span className="block font-bold text-[#B3A7FA]">Legacy Prediction Markets</span>
+          <span className="mt-0.5 block text-xs text-white/45">Claim or refund positions created before the V2 upgrade.</span>
+        </span>
+        <span className="shrink-0 font-bold text-[#B3A7FA]">Open →</span>
+      </Link>
+
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <StatCard label="Native balance" value={balance.data != null ? formatCompactEth(balance.data.value) : '…'} title={balance.data != null ? `${formatEther(balance.data.value)} ETH` : undefined} />
         <StatCard label="Wallet" value={address ? (nickname.data || truncateAddress(address)) : '-'} />
         <StatCard label="Win rate" value={winRate != null ? `${winRate.toFixed(0)}%` : '-'} />
         <StatCard label="Current streak" value={streakWon == null ? '-' : `${currentStreak}${streakWon ? 'W' : 'L'}`} />
-        <StatCard label="Total wagered" value={formatCompactEth(totalWagered)} title={`${formatEther(totalWagered)} ETH`} />
-        <StatCard label="Total won" value={totalClaimed != null ? formatCompactEth(totalClaimed) : '…'} title={totalClaimed != null ? `${formatEther(totalClaimed)} ETH` : undefined} />
+        <StatCard label="Markets wagered" value={formatCompactEth(totalWagered)} title={`${formatEther(totalWagered)} ETH`} />
+        <StatCard label="Markets claimed" value={totalClaimed != null ? formatCompactEth(totalClaimed) : '…'} title={totalClaimed != null ? `${formatEther(totalClaimed)} ETH` : undefined} />
         <StatCard
-          label="Net P&L"
+          label="Markets net P&L"
           value={netPnl != null ? `${netPnl >= 0n ? '+' : ''}${formatCompactEth(netPnl)}` : '…'}
           title={netPnl != null ? `${netPnl >= 0n ? '+' : ''}${formatEther(netPnl)} ETH` : undefined}
           valueClassName={netPnl == null ? '' : netPnl >= 0n ? 'text-[#B3A7FA]' : 'text-rose-400'}
         />
-        <StatCard label="Total bets" value={String(positions.length)} />
+        <StatCard label="All positions" value={String(positions.length + gamePositions.races.length + gamePositions.arenas.length)} />
       </div>
 
+      <section className="relative overflow-hidden rounded-3xl border border-[#8B7CF7]/30 bg-gradient-to-br from-[#2b2140] via-[#241b32] to-[#21192b] p-5 sm:p-6">
+        <div aria-hidden className="pointer-events-none absolute -right-20 -top-24 h-56 w-56 rounded-full bg-[#8B7CF7]/15 blur-3xl" />
+        <div className="relative grid gap-5 sm:grid-cols-[minmax(0,1fr)_minmax(260px,0.7fr)] sm:items-center">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#B3A7FA]">Creator revenue</p>
+            <h2 className="mt-2 font-display text-2xl font-bold">Your market earnings</h2>
+            <p className="mt-2 max-w-xl text-sm leading-6 text-white/55">
+              Your share from every Prediction Market you create is collected in one balance. Earnings stay available until you withdraw them.
+            </p>
+            <p className="mt-3 text-xs text-white/35">
+              Small balances can keep accumulating, so you can withdraw later in a single transaction and avoid spending gas repeatedly.
+            </p>
+          </div>
+
+          <div className="rounded-2xl border border-white/10 bg-black/15 p-4 sm:p-5">
+            <p className="text-xs font-bold text-white/45">Available to withdraw</p>
+            <div
+              className="mt-1 truncate font-mono text-2xl font-semibold tabular-nums text-[#C8BFFF]"
+              title={creatorEarnings.data != null ? `${formatEther(creatorEarnings.data)} ETH` : undefined}
+            >
+              {!PREDICTION_MARKET_CONFIGURED || creatorEarnings.isError
+                ? 'Unavailable'
+                : creatorEarnings.isPending
+                  ? 'Loading…'
+                  : creatorEarnings.data != null
+                    ? formatCompactEth(creatorEarnings.data)
+                    : '0 ETH'}
+            </div>
+
+            {!PREDICTION_MARKET_CONFIGURED ? (
+              <p className="mt-4 rounded-xl border border-amber-400/20 bg-amber-400/10 px-3 py-2 text-xs text-amber-200">
+                Creator withdrawals are not configured on this network.
+              </p>
+            ) : !onRightChain ? (
+              <button
+                type="button"
+                onClick={() => switchChain({ chainId: robinhoodMainnet.id })}
+                disabled={isSwitching}
+                className="mt-4 w-full rounded-xl bg-gradient-to-r from-[#8B7CF7] to-[#6E58E8] px-4 py-3 text-sm font-bold text-white shadow-[0_10px_30px_rgba(110,88,232,0.2)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isSwitching ? 'Switching network…' : `Switch to ${robinhoodMainnet.name}`}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={withdrawCreatorEarnings}
+                disabled={creatorEarnings.isPending || !!creatorTxLabel || !creatorEarnings.data}
+                className="mt-4 w-full rounded-xl bg-gradient-to-r from-[#8B7CF7] to-[#6E58E8] px-4 py-3 text-sm font-bold text-white shadow-[0_10px_30px_rgba(110,88,232,0.2)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {creatorTxLabel ?? (creatorEarnings.data ? 'Withdraw to wallet' : 'Nothing to withdraw')}
+              </button>
+            )}
+
+            {creatorError && <p className="mt-3 text-xs text-rose-300">{creatorError}</p>}
+            {creatorSuccess && <p className="mt-3 text-xs text-emerald-300">{creatorSuccess}</p>}
+          </div>
+        </div>
+      </section>
+
+      <section className="rounded-3xl border border-[#F2A65A]/15 bg-[#1f1829] p-5">
+        <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#F2A65A]">Asset Races</p>
+            <h2 className="mt-1 font-display text-xl font-bold">Your race positions ({gamePositions.races.length})</h2>
+          </div>
+          <Link to="/onchain/archive?mode=races" className="text-xs font-bold text-[#F2A65A] hover:text-white">Race history →</Link>
+        </div>
+        <RacePositionList positions={gamePositions.races} isLoading={gamePositions.isLoading} />
+      </section>
+
+      <section className="rounded-3xl border border-[#7A9FF0]/15 bg-[#1f1829] p-5">
+        <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#B7CEFF]">Price Arena</p>
+            <h2 className="mt-1 font-display text-xl font-bold">Your arena positions ({gamePositions.arenas.length})</h2>
+          </div>
+          <Link to="/onchain/archive?mode=arenas" className="text-xs font-bold text-[#B7CEFF] hover:text-white">Arena history →</Link>
+        </div>
+        <ArenaPositionList positions={gamePositions.arenas} isLoading={gamePositions.isLoading} />
+      </section>
+
+      {gamePositions.error && (
+        <p className="rounded-2xl border border-rose-500/20 bg-rose-500/10 p-3 text-sm text-rose-300">
+          Some Race or Arena positions could not be loaded. Refresh to retry.
+        </p>
+      )}
+
       <div>
-        <h2 className="font-display text-lg font-bold mb-3">Open positions ({openPositions.length})</h2>
+        <h2 className="font-display text-lg font-bold mb-3">Open Prediction Markets ({openPositions.length})</h2>
         <PositionList positions={openPositions} />
       </div>
 
       <div>
-        <h2 className="font-display text-lg font-bold mb-3">Settled ({settledPositions.length})</h2>
+        <h2 className="font-display text-lg font-bold mb-3">Settled Prediction Markets ({settledPositions.length})</h2>
         <PositionList positions={settledPositions} />
       </div>
+    </div>
+  )
+}
+
+function RacePositionList({ positions, isLoading }: { positions: WalletRacePosition[]; isLoading: boolean }) {
+  if (isLoading && positions.length === 0) return <p className="py-6 text-center text-sm text-white/35">Finding your race positions…</p>
+  if (positions.length === 0) return <p className="py-6 text-center text-sm text-white/30">No race positions for this wallet.</p>
+  const ordered = [...positions].sort((a, b) => {
+    const actionable = (item: WalletRacePosition) => !item.position.settled && (
+      item.race.status === ASSET_RACE_STATUS.CANCELLED
+      || item.race.status === ASSET_RACE_STATUS.VOID
+      || (item.race.status === ASSET_RACE_STATUS.RESOLVED && item.position.assetIndex === item.race.winningAssetIndex)
+    )
+    const priority = Number(actionable(b)) - Number(actionable(a))
+    return priority || (a.race.id === b.race.id ? 0 : a.race.id > b.race.id ? -1 : 1)
+  })
+  return (
+    <div className="space-y-2">
+      {ordered.map(({ race, position }) => {
+        const asset = race.assets[position.assetIndex]
+        const won = race.status === ASSET_RACE_STATUS.RESOLVED && position.assetIndex === race.winningAssetIndex
+        const refundable = race.status === ASSET_RACE_STATUS.CANCELLED || race.status === ASSET_RACE_STATUS.VOID
+        const action = position.settled
+          ? (refundable ? 'refunded' : 'claimed')
+          : refundable ? 'refund available'
+            : won ? 'won · claim now'
+              : race.status === ASSET_RACE_STATUS.RESOLVED ? 'finished · no payout'
+                : assetRaceStatusLabel(race.status)
+        const actionable = !position.settled && (refundable || won)
+        return (
+          <Link key={race.id.toString()} to={`/onchain/races/${race.id}`} className="flex flex-wrap items-center gap-3 rounded-xl border border-white/5 bg-[#241b2f] px-4 py-3 transition-colors hover:border-[#F2A65A]/40">
+            <TokenLogo ticker={asset?.symbol} className="h-8 w-8 rounded-lg" />
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2"><span className="font-bold">{race.title || race.assets.map((item) => item.symbol).join(' vs ')}</span><span className="font-mono text-xs text-white/35">#{race.id.toString()}</span></div>
+              <div className="mt-1 text-xs text-white/40">Backed {asset?.symbol ?? `asset ${position.assetIndex}`} · <span title={`${formatEther(position.stake)} ETH`} className="font-mono">{formatCompactEth(position.stake)} ETH</span></div>
+            </div>
+            <span className={`text-xs font-bold ${actionable ? 'text-[#F2A65A]' : 'text-white/45'}`}>{action} →</span>
+          </Link>
+        )
+      })}
+    </div>
+  )
+}
+
+function ArenaPositionList({ positions, isLoading }: { positions: WalletArenaPosition[]; isLoading: boolean }) {
+  if (isLoading && positions.length === 0) return <p className="py-6 text-center text-sm text-white/35">Finding your arena positions…</p>
+  if (positions.length === 0) return <p className="py-6 text-center text-sm text-white/30">No arena positions for this wallet.</p>
+  const ordered = [...positions].sort((a, b) => {
+    const actionable = (item: WalletArenaPosition) => !item.entry.settled && (
+      item.arena.phase === PRICE_ARENA_PHASE.CANCELLED
+      || (item.arena.phase === PRICE_ARENA_PHASE.RESOLVED && item.entry.payout > 0n)
+    )
+    const priority = Number(actionable(b)) - Number(actionable(a))
+    return priority || (a.arena.id === b.arena.id ? 0 : a.arena.id > b.arena.id ? -1 : 1)
+  })
+  return (
+    <div className="space-y-2">
+      {ordered.map(({ arena, entry }) => {
+        const refundable = arena.phase === PRICE_ARENA_PHASE.CANCELLED
+        const won = arena.phase === PRICE_ARENA_PHASE.RESOLVED && entry.payout > 0n
+        const action = entry.settled
+          ? (refundable ? 'refunded' : 'claimed')
+          : refundable ? 'refund available'
+            : won ? 'won · claim now'
+              : arena.phase === PRICE_ARENA_PHASE.RESOLVED ? 'finished · no payout'
+                : arenaPhaseLabel(arena.phase)
+        const actionable = !entry.settled && (refundable || won)
+        return (
+          <Link key={arena.id.toString()} to={`/onchain/arenas/${arena.id}`} className="flex flex-wrap items-center gap-3 rounded-xl border border-white/5 bg-[#241b2f] px-4 py-3 transition-colors hover:border-[#7A9FF0]/45">
+            <TokenLogo ticker={arena.asset?.symbol} className="h-8 w-8 rounded-lg" />
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2"><span className="truncate font-bold">{arena.title}</span><span className="font-mono text-xs text-white/35">#{arena.id.toString()}</span></div>
+              <div className="mt-1 text-xs text-white/40">{arena.asset?.symbol ?? 'Arena'} · stake <span title={`${formatEther(entry.stake)} ETH`} className="font-mono">{formatCompactEth(entry.stake)} ETH</span>{entry.payout > 0n ? <> · payout <span title={`${formatEther(entry.payout)} ETH`} className="font-mono">{formatCompactEth(entry.payout)} ETH</span></> : null}</div>
+            </div>
+            <span className={`text-xs font-bold ${actionable ? 'text-[#B7CEFF]' : 'text-white/45'}`}>{action} →</span>
+          </Link>
+        )
+      })}
     </div>
   )
 }

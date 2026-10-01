@@ -13,6 +13,10 @@ import {
   splitProgressiveGameIds,
   writeSessionGameSnapshots,
 } from '../src/chain/gameSnapshots.ts'
+import {
+  buildGameHistoryIndex,
+  visibleIdsThroughCount,
+} from '../src/chain/gameHistoryIndex.ts'
 
 test('partial refreshes retain the last complete snapshot by game id', () => {
   const previous = [
@@ -37,7 +41,7 @@ test('successful terminal updates replace stale active state without local-time 
   assert.equal(isActiveOnchainStatus(3, [2, 3, 4]), false)
 })
 
-test('snapshots outside the bounded recent-id window are pruned', () => {
+test('snapshots outside the current visible-id set are pruned', () => {
   assert.deepEqual(
     reconcileGameSnapshots([{ id: 1n, status: 0 }, { id: 2n, status: 0 }], [2n, 3n], [null, null]),
     [{ id: 2n, status: 0 }],
@@ -60,7 +64,7 @@ test('active game queries always refresh on route activation, focus, and reconne
   assert.equal(GAME_SNAPSHOT_MULTICALL_BATCH_SIZE, 0)
 })
 
-test('bounded product snapshots survive route unmount and remount in the SPA session', () => {
+test('visible product snapshots survive route unmount and remount in the SPA session', () => {
   const key = 'test-races'
   clearSessionGameSnapshots(key)
   const active = [{ id: 15n, status: 1, title: 'AAPL vs META' }]
@@ -92,4 +96,23 @@ test('progressive discovery reads newest ids first without dropping history', ()
     fastIds: [14n, 13n],
     historyIds: [12n, 11n, 10n],
   })
+})
+
+test('complete history keeps every game except an empty cancellation', () => {
+  const index = buildGameHistoryIndex(
+    [0n, 1n, 2n, 3n, 4n],
+    [0n, 1n],
+    [2n, 3n],
+    [0n, 2n, 4n],
+  )
+
+  assert.deepEqual(index.visibleIds, [4n, 2n, 1n, 0n])
+  assert.deepEqual(index.terminalIds, [2n, 1n, 0n])
+  assert.equal(index.indexedCount, 5)
+})
+
+test('new count tail appears before the slower history index refreshes', () => {
+  const index = buildGameHistoryIndex([0n, 1n], [], [], [])
+  assert.deepEqual(visibleIdsThroughCount(index, 5), [4n, 3n, 2n, 1n, 0n])
+  assert.deepEqual(visibleIdsThroughCount(index, 5, false), [0n, 1n, 2n, 3n, 4n])
 })

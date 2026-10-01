@@ -20,6 +20,8 @@ import { WalletOptionsList } from '@/components/WalletOptionsList'
 import {
   BP_DENOMINATOR,
   DEPLOY_BLOCK,
+  LEGACY_PREDICTION_MARKET_ADDRESS,
+  LEGACY_PREDICTION_MARKET_DEPLOY_BLOCK,
   MarketSideOnchain,
   MarketStatusOnchain,
   PREDICTION_MARKET_ADDRESS,
@@ -27,6 +29,7 @@ import {
   bettingWindowEndSeconds,
   currentWeightBp,
   predictionMarketAbi,
+  predictionMarketV1Abi,
 } from '@/chain/contracts'
 import {
   formatUsdCents,
@@ -40,9 +43,6 @@ import {
 import { formatCompactEth, formatCountdown, formatUsd, shortTxError } from '@/lib/format'
 import { shortHash } from '@/lib/hash'
 
-const MARKET_CREATED_EVENT = parseAbiItem(
-  'event MarketCreated(uint256 indexed id, bytes32 indexed assetId, bytes32 indexed oracleId, int256 targetPrice, uint256 deadline)',
-)
 const BET_PLACED_EVENT = parseAbiItem(
   'event BetPlaced(uint256 indexed id, address indexed user, uint8 side, uint256 amount, uint256 weightBp)',
 )
@@ -57,9 +57,13 @@ interface MarketBet {
 
 type TxState = { label: string } | null
 
-export function OnchainMarketPage() {
+export function OnchainMarketPage({ legacy = false }: { legacy?: boolean }) {
   const { id = '0' } = useParams()
   const MARKET_ID = BigInt(id)
+  const marketAddress = legacy ? LEGACY_PREDICTION_MARKET_ADDRESS : PREDICTION_MARKET_ADDRESS
+  const marketAbi = legacy ? predictionMarketV1Abi : predictionMarketAbi
+  const marketDeployBlock = legacy ? LEGACY_PREDICTION_MARKET_DEPLOY_BLOCK : DEPLOY_BLOCK
+  const marketConfigured = legacy || PREDICTION_MARKET_CONFIGURED
   const { address, isConnected } = useAccount()
   const chainId = useChainId()
   const { switchChain, isPending: isSwitching } = useSwitchChain()
@@ -83,13 +87,13 @@ export function OnchainMarketPage() {
   const publicClient = usePublicClient()
   const [marketBets, setMarketBets] = useState<MarketBet[] | null>(null)
   async function refetchMarketBets() {
-    if (!publicClient || !PREDICTION_MARKET_CONFIGURED) return
+    if (!publicClient || !marketConfigured) return
     try {
       const logs = await publicClient.getLogs({
-        address: PREDICTION_MARKET_ADDRESS,
+        address: marketAddress,
         event: BET_PLACED_EVENT,
         args: { id: MARKET_ID },
-        fromBlock: DEPLOY_BLOCK,
+        fromBlock: marketDeployBlock,
         toBlock: 'latest',
       })
       const real = logs
@@ -154,45 +158,15 @@ export function OnchainMarketPage() {
     }
   }, [id])
 
-  // MarketCreated doesn't carry a creator field (see PredictionMarket.sol),
-  // so the only way to know who created a market is the `from` of the
-  // transaction that emitted it -- one extra call beyond a plain log scan,
-  // but only once per market (not polled).
-  const [creator, setCreator] = useState<`0x${string}` | null | undefined>(undefined)
-  useEffect(() => {
-    if (!publicClient || !PREDICTION_MARKET_CONFIGURED) return
-    let cancelled = false
-    publicClient
-      .getLogs({
-        address: PREDICTION_MARKET_ADDRESS,
-        event: MARKET_CREATED_EVENT,
-        args: { id: MARKET_ID },
-        fromBlock: DEPLOY_BLOCK,
-        toBlock: 'latest',
-      })
-      .then(async (logs) => {
-        if (cancelled || logs.length === 0) return
-        const tx = await publicClient.getTransaction({ hash: logs[0].transactionHash })
-        if (!cancelled) setCreator(tx.from)
-      })
-      .catch(() => {
-        if (!cancelled) setCreator(null)
-      })
-    return () => {
-      cancelled = true
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [publicClient, id])
-
   const onRightChain = chainId === robinhoodMainnet.id
 
   const market = useReadContract({
-    address: PREDICTION_MARKET_ADDRESS,
-    abi: predictionMarketAbi,
+    address: marketAddress,
+    abi: marketAbi,
     functionName: 'getMarket',
     args: [MARKET_ID],
     query: {
-      enabled: PREDICTION_MARKET_CONFIGURED,
+      enabled: marketConfigured,
       refetchInterval: ACTIVE_GAME_POLL_INTERVAL_MS,
       ...ACTIVE_GAME_REFRESH_OPTIONS,
     },
@@ -207,70 +181,82 @@ export function OnchainMarketPage() {
   const nativeBalance = useBalance({
     address,
     chainId: robinhoodMainnet.id,
-    query: { enabled: !!address && PREDICTION_MARKET_CONFIGURED },
+    query: { enabled: !!address && marketConfigured },
   })
 
   const maxStakePerSide = useReadContract({
-    address: PREDICTION_MARKET_ADDRESS,
-    abi: predictionMarketAbi,
+    address: marketAddress,
+    abi: marketAbi,
     functionName: 'maxStakePerSideWei',
-    query: { enabled: PREDICTION_MARKET_CONFIGURED },
+    query: { enabled: marketConfigured },
   })
 
   const participantCount = useReadContract({
-    address: PREDICTION_MARKET_ADDRESS,
-    abi: predictionMarketAbi,
+    address: marketAddress,
+    abi: marketAbi,
     functionName: 'participantCount',
     args: [MARKET_ID],
     query: {
-      enabled: PREDICTION_MARKET_CONFIGURED,
+      enabled: marketConfigured,
       refetchInterval: ACTIVE_GAME_POLL_INTERVAL_MS,
       ...ACTIVE_GAME_REFRESH_OPTIONS,
     },
   })
 
   const myStakeYes = useReadContract({
-    address: PREDICTION_MARKET_ADDRESS,
-    abi: predictionMarketAbi,
+    address: marketAddress,
+    abi: marketAbi,
     functionName: 'stakes',
     args: address ? [MARKET_ID, address, MarketSideOnchain.YES] : undefined,
     query: {
-      enabled: !!address && PREDICTION_MARKET_CONFIGURED,
+      enabled: !!address && marketConfigured,
       refetchInterval: ACTIVE_GAME_POLL_INTERVAL_MS,
       ...ACTIVE_GAME_REFRESH_OPTIONS,
     },
   })
   const myStakeNo = useReadContract({
-    address: PREDICTION_MARKET_ADDRESS,
-    abi: predictionMarketAbi,
+    address: marketAddress,
+    abi: marketAbi,
     functionName: 'stakes',
     args: address ? [MARKET_ID, address, MarketSideOnchain.NO] : undefined,
     query: {
-      enabled: !!address && PREDICTION_MARKET_CONFIGURED,
+      enabled: !!address && marketConfigured,
       refetchInterval: ACTIVE_GAME_POLL_INTERVAL_MS,
       ...ACTIVE_GAME_REFRESH_OPTIONS,
     },
   })
 
   const hasClaimed = useReadContract({
-    address: PREDICTION_MARKET_ADDRESS,
-    abi: predictionMarketAbi,
+    address: marketAddress,
+    abi: marketAbi,
     functionName: 'claimed',
     args: address ? [MARKET_ID, address] : undefined,
     query: {
-      enabled: !!address && PREDICTION_MARKET_CONFIGURED,
+      enabled: !!address && marketConfigured,
+      refetchInterval: ACTIVE_GAME_POLL_INTERVAL_MS,
+      ...ACTIVE_GAME_REFRESH_OPTIONS,
+    },
+  })
+
+  const creatorEarnings = useReadContract({
+    address: PREDICTION_MARKET_ADDRESS,
+    abi: predictionMarketAbi,
+    functionName: 'creatorEarnings',
+    args: address ? [address] : undefined,
+    query: {
+      enabled: !legacy && !!address && PREDICTION_MARKET_CONFIGURED,
       refetchInterval: ACTIVE_GAME_POLL_INTERVAL_MS,
       ...ACTIVE_GAME_REFRESH_OPTIONS,
     },
   })
 
   const settlement = useReadContract({
-    address: PREDICTION_MARKET_ADDRESS,
-    abi: predictionMarketAbi,
+    address: marketAddress,
+    abi: marketAbi,
     functionName: 'settlements',
     args: [MARKET_ID],
     query: {
-      enabled: PREDICTION_MARKET_CONFIGURED && market.data?.status === MarketStatusOnchain.Resolved,
+      enabled: marketConfigured && market.data?.status === MarketStatusOnchain.Resolved,
       refetchInterval: ACTIVE_GAME_POLL_INTERVAL_MS,
       ...ACTIVE_GAME_REFRESH_OPTIONS,
     },
@@ -314,6 +300,7 @@ export function OnchainMarketPage() {
       myStakeYes.refetch(),
       myStakeNo.refetch(),
       hasClaimed.refetch(),
+      creatorEarnings.refetch(),
       settlement.refetch(),
       refetchMarketBets(),
     ])
@@ -322,6 +309,10 @@ export function OnchainMarketPage() {
   async function handleBet() {
     setError(null)
     try {
+      if (legacy) {
+        setError('Legacy markets are settlement-only. New bets use PredictionMarket V2.')
+        return
+      }
       if (bettingClosed) {
         setError('Betting on this market is already closed')
         return
@@ -330,7 +321,7 @@ export function OnchainMarketPage() {
         setError(`You already bet ${side === 'YES' ? 'YES' : 'NO'} on this market`)
         return
       }
-      if (!PREDICTION_MARKET_CONFIGURED) throw new Error('Native ETH market is not configured')
+      if (!marketConfigured) throw new Error('Native ETH market is not configured')
       if (!live.ethUsd) throw new Error('EthUsdQuoteStale')
       const frozenQuote = freezeNativeStakeQuote(amount, stakeInputUnit, live.ethUsd)
       const amountWei = frozenQuote.wei
@@ -349,8 +340,8 @@ export function OnchainMarketPage() {
 
       setTx({ label: 'Confirm bet in your wallet…' })
       const betHash = await writeContractAsync({
-        address: PREDICTION_MARKET_ADDRESS,
-        abi: predictionMarketAbi,
+        address: marketAddress,
+        abi: marketAbi,
         functionName: 'bet',
         args: [MARKET_ID, MarketSideOnchain[side], amountWei],
         value: amountWei,
@@ -385,8 +376,8 @@ export function OnchainMarketPage() {
       }
       setTx({ label: 'Confirm resolve in your wallet…' })
       const hash = await writeContractAsync({
-        address: PREDICTION_MARKET_ADDRESS,
-        abi: predictionMarketAbi,
+        address: marketAddress,
+        abi: marketAbi,
         functionName: 'resolve',
         args: [MARKET_ID, '0x'],
       })
@@ -409,9 +400,27 @@ export function OnchainMarketPage() {
       setTx({ label: `Confirm ${fn} in your wallet…` })
       const hash = await writeContractAsync(
         fn === 'claim'
-          ? { address: PREDICTION_MARKET_ADDRESS, abi: predictionMarketAbi, functionName: 'claim', args: [MARKET_ID] }
-          : { address: PREDICTION_MARKET_ADDRESS, abi: predictionMarketAbi, functionName: 'refund', args: [MARKET_ID, side!] },
+          ? { address: marketAddress, abi: marketAbi, functionName: 'claim', args: [MARKET_ID] }
+          : { address: marketAddress, abi: marketAbi, functionName: 'refund', args: [MARKET_ID, side!] },
       )
+      await waitForTransactionReceipt(wagmiConfig, { hash })
+      setTx(null)
+      await refetchAll()
+    } catch (e) {
+      setTx(null)
+      setError(shortTxError(e))
+    }
+  }
+
+  async function handleWithdrawCreatorFees() {
+    setError(null)
+    try {
+      setTx({ label: 'Confirm creator earnings withdrawal…' })
+      const hash = await writeContractAsync({
+        address: PREDICTION_MARKET_ADDRESS,
+        abi: predictionMarketAbi,
+        functionName: 'withdrawCreatorFees',
+      })
       await waitForTransactionReceipt(wagmiConfig, { hash })
       setTx(null)
       await refetchAll()
@@ -448,6 +457,8 @@ export function OnchainMarketPage() {
   const hasAnyStake = hasBetYes || hasBetNo
   const winningSide = market.data?.outcome === MarketSideOnchain.YES ? 'YES' : 'NO'
   const winningStake = market.data?.outcome === MarketSideOnchain.YES ? myStakeYes.data : myStakeNo.data
+  const creator = legacy ? undefined : market.data?.creator
+  const isCreator = !!address && !!creator && address.toLowerCase() === creator.toLowerCase()
   const positionReady = myStakeYes.data !== undefined && myStakeNo.data !== undefined && hasClaimed.data !== undefined
   let quotedBet: FrozenNativeStakeQuote | undefined
   try {
@@ -463,13 +474,19 @@ export function OnchainMarketPage() {
 
   return (
     <div className="max-w-[1200px] mx-auto px-4 py-8">
-      <Link to="/onchain" className="text-sm font-bold text-white/40 hover:text-white/70">
-        ← All on-chain markets
+      <Link to={legacy ? '/onchain/legacy' : '/onchain'} className="text-sm font-bold text-white/40 hover:text-white/70">
+        ← {legacy ? 'Legacy Prediction Markets' : 'All on-chain markets'}
       </Link>
 
-      {!PREDICTION_MARKET_CONFIGURED && (
+      {!marketConfigured && (
         <div className="mt-5 rounded-2xl border border-amber-400/25 bg-amber-400/10 p-4 text-sm text-amber-100">
           The native ETH PredictionMarket is not configured yet, so real market transactions are unavailable.
+        </div>
+      )}
+
+      {legacy && (
+        <div className="mt-5 rounded-2xl border border-[#8B7CF7]/25 bg-[#8B7CF7]/10 p-4 text-sm text-white/65">
+          Legacy V1 is settlement-only. Existing positions remain available for claim or refund; create and bet on new markets through V2.
         </div>
       )}
 
@@ -507,7 +524,29 @@ export function OnchainMarketPage() {
             />
             </div>
           </div>
-          <ShareInviteButton kind="market" id={MARKET_ID} />
+          {!legacy && <ShareInviteButton kind="market" id={MARKET_ID} />}
+        </div>
+      )}
+
+      {market.data && isCreator && (
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#8B7CF7]/25 bg-[#8B7CF7]/10 px-4 py-3">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#B3A7FA]">Creator earnings</p>
+            <p className="mt-1 text-sm text-white/55">
+              You receive 1% of the losing-pool contribution whenever this or another market you created pays winners.
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="font-mono text-sm font-bold text-white">{formatCompactEth(creatorEarnings.data ?? 0n)}</span>
+            <button
+              type="button"
+              onClick={handleWithdrawCreatorFees}
+              disabled={tx != null || (creatorEarnings.data ?? 0n) === 0n || !onRightChain}
+              className="rounded-full bg-[#8B7CF7] px-4 py-2 text-xs font-bold text-white transition-colors hover:bg-[#9A8DFF] disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Claim earnings
+            </button>
+          </div>
         </div>
       )}
 
@@ -807,7 +846,7 @@ export function OnchainMarketPage() {
                               <button
                                 onClick={handleBet}
                                 disabled={
-                                  !!tx || !PREDICTION_MARKET_CONFIGURED || displayedBetWei <= 0n
+                                  !!tx || legacy || !marketConfigured || displayedBetWei <= 0n
                                     || maxStakePerSide.data == null || !!betGuardrailViolation
                                 }
                                 className="w-full rounded-xl bg-gradient-to-r from-[#8B7CF7] to-[#6A5AE0] py-2.5 text-sm font-bold text-white transition-all hover:brightness-110 disabled:opacity-50"

@@ -24,12 +24,6 @@ export const PRICE_ARENA_MAX_PARTICIPANTS = 20
 export const PRICE_ARENA_MIN_STAKE = 1
 export const PRICE_ARENA_MAX_STAKE = 50
 export const PRICE_ARENA_TOKEN_DECIMALS = 18
-// Was 100 -- once the event seeder is creating arenas continuously,
-// arenaCount grows without bound and every visitor's tab was re-reading
-// (and re-decoding) up to 100 full Arena structs twice, every 5s. That's
-// the request-volume/lag spike this got capped to fix.
-export const MAX_ARENAS_TO_LIST = 24
-
 export type PriceArenaMode = 'stocks' | 'memes'
 
 export interface PriceArenaAsset {

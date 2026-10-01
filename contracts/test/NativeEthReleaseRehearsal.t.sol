@@ -93,7 +93,10 @@ contract NativeEthReleaseRehearsalTest is Test {
         assertEq(uint256(market.getMarket(predictionId).status), uint256(PredictionMarket.Status.Resolved));
         assertEq(address(race).balance, race.accumulatedFees());
         assertEq(address(arena).balance, arena.accumulatedFees());
-        assertEq(address(market).balance, market.accumulatedFees());
+        assertEq(
+            address(market).balance,
+            market.accumulatedFees() + market.totalCreatorEarningsLiability()
+        );
     }
 
     function test_AllNativeProductsCompleteCancellationAndRefundLifecycles() public {

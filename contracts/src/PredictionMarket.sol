@@ -11,8 +11,9 @@ import {IAssetRaceOracle} from "./interfaces/IAssetRaceOracle.sol";
 /// StockToken/USDG pool endpoint used by Asset Race.
 /// Stakes, payouts, refunds and protocol fees are all denominated in native ETH.
 ///
-/// @dev STATUS: this deadline-settlement revision is tested but not deployed.
-/// A legacy revision is live on mainnet. Neither revision has had an independent
+/// @dev STATUS: this creator-revenue revision is deployed as V2, but production
+/// cutover remains gated on its lifecycle canary. The funded V1 deployment must
+/// remain settlement-only and claimable. Neither revision has had an independent
 /// security review; see contracts/CLAUDE.md before any production rollout.
 contract PredictionMarket is ReentrancyGuard, Ownable {
     enum Side {
@@ -46,6 +47,9 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
         // `setFeeBp` call never retroactively changes the fee on a market
         // that's already open — bettors know the exact fee when they bet.
         uint256 feeBp;
+        // Immutable attribution for the wallet that opened this market. Half
+        // of the snapshotted fee is credited to this address as winners claim.
+        address creator;
     }
 
     struct Settlement {
@@ -75,6 +79,10 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
     /// never turn into a de facto rug on winners' payouts.
     uint256 public constant MAX_FEE_BP = 1000;
     uint256 private constant BP_DENOMINATOR = 10_000;
+    /// @notice Half of every collected market fee belongs to its creator.
+    /// With the production 2% fee this is 1 percentage point for the creator
+    /// and 1 percentage point for the protocol; the player's total fee stays 2%.
+    uint256 public constant CREATOR_FEE_SHARE_BP = 5_000;
 
     /// @dev Betting only stays open for the first slice of a market's life —
     /// closes at `createdAt + (deadline - createdAt) * BETTING_WINDOW_BP / 10000`,
@@ -119,6 +127,12 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
     /// until withdrawn — never auto-swept.
     uint256 public accumulatedFees;
 
+    /// @notice Pull-payment balances keep a creator contract that rejects ETH
+    /// from ever blocking a winner's claim.
+    mapping(address => uint256) public creatorEarnings;
+    mapping(uint256 => uint256) public marketCreatorFees;
+    uint256 public totalCreatorEarningsLiability;
+
     uint256 public marketCount;
     mapping(uint256 => Market) public markets;
     // marketId => user => side => raw amount staked (principal — always paid back in full)
@@ -141,6 +155,7 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
     event MarketCreated(
         uint256 indexed id, bytes32 indexed assetId, bytes32 indexed oracleId, int256 targetPrice, uint256 deadline
     );
+    event MarketCreatorAssigned(uint256 indexed id, address indexed creator);
     event BetPlaced(uint256 indexed id, address indexed user, Side side, uint256 amount, uint256 weightBp);
     event MarketResolved(uint256 indexed id, Side outcome, int256 settlePrice);
     event MarketVoided(uint256 indexed id, string reason);
@@ -149,6 +164,8 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
     event AssetConfigured(bytes32 indexed assetId, bytes32 indexed oracleId, uint8 decimals, bool allowed);
     event FeeBpUpdated(uint256 feeBp);
     event FeesWithdrawn(address indexed to, uint256 amount);
+    event CreatorFeeAccrued(uint256 indexed id, address indexed creator, uint256 amount);
+    event CreatorFeesWithdrawn(address indexed creator, uint256 amount);
 
     constructor(address _endpointOracle, uint256 _feeBp, uint256 _maxSeedLiquidityWei, uint256 _maxStakePerSideWei)
         Ownable(msg.sender)
@@ -241,7 +258,9 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
         m.deadline = deadline;
         m.status = Status.Open;
         m.feeBp = feeBp;
+        m.creator = msg.sender;
         emit MarketCreated(id, assetId, asset.oracleId, targetPrice, deadline);
+        emit MarketCreatorAssigned(id, msg.sender);
 
         // Seed liquidity lands at creation time (elapsed = 0), so it always
         // gets MAX_WEIGHT_BP — consistent with "earliest possible bet".
@@ -401,13 +420,33 @@ contract PredictionMarket is ReentrancyGuard, Ownable {
 
         uint256 losingShare = (userWeightedStake * losingPool) / weightedWinningPool;
         uint256 fee = (losingShare * m.feeBp) / BP_DENOMINATOR;
+        uint256 creatorFee = (fee * CREATOR_FEE_SHARE_BP) / BP_DENOMINATOR;
+        uint256 protocolFee = fee - creatorFee;
         uint256 winnings = losingShare - fee;
         uint256 payout = userStake + winnings;
 
-        accumulatedFees += fee;
+        accumulatedFees += protocolFee;
+        creatorEarnings[m.creator] += creatorFee;
+        marketCreatorFees[id] += creatorFee;
+        totalCreatorEarningsLiability += creatorFee;
         _sendEth(msg.sender, payout);
 
+        emit CreatorFeeAccrued(id, m.creator, creatorFee);
         emit Claimed(id, msg.sender, payout);
+    }
+
+    /// @notice Withdraw all creator fees accrued to the caller across markets.
+    /// Accounting is cleared before the external call and restored atomically
+    /// if the receiver rejects ETH.
+    function withdrawCreatorFees() external nonReentrant {
+        uint256 amount = creatorEarnings[msg.sender];
+        require(amount > 0, "no creator fees");
+
+        creatorEarnings[msg.sender] = 0;
+        totalCreatorEarningsLiability -= amount;
+        _sendEth(msg.sender, amount);
+
+        emit CreatorFeesWithdrawn(msg.sender, amount);
     }
 
     /// @notice Owner escape hatch for a market that can't resolve cleanly (e.g. the

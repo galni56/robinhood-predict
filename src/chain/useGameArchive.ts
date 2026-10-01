@@ -23,8 +23,15 @@ import {
   type PriceArenaViewModel,
 } from '@/chain/priceArena'
 import { isCoherentPriceArenaSnapshot } from '@/chain/priceArenaSnapshot'
+import { GAME_SNAPSHOT_MULTICALL_BATCH_SIZE } from '@/chain/gameSnapshots'
+import {
+  useTerminalAssetRaceIds,
+  useTerminalPredictionMarketIds,
+  useTerminalPriceArenaIds,
+} from '@/chain/gameHistory'
 
 export const GAME_ARCHIVE_PAGE_SIZE = 12
+const EMPTY_GAME_IDS: bigint[] = []
 
 export interface PredictionArchiveMarket {
   id: bigint
@@ -43,18 +50,11 @@ export interface PredictionArchiveMarket {
   feeBp: bigint
 }
 
-function descendingPageIds(count: number, page: number) {
-  const newestId = count - 1 - page * GAME_ARCHIVE_PAGE_SIZE
-  if (newestId < 0) return []
-  const length = Math.min(GAME_ARCHIVE_PAGE_SIZE, newestId + 1)
-  return Array.from({ length }, (_, index) => BigInt(newestId - index))
-}
-
 function pageCount(count: number) {
   return Math.max(1, Math.ceil(count / GAME_ARCHIVE_PAGE_SIZE))
 }
 
-export function usePredictionArchivePage(page: number, enabled: boolean) {
+export function usePredictionArchivePage(page: number, enabled: boolean, loadIndex = enabled) {
   const countQuery = useReadContract({
     address: PREDICTION_MARKET_ADDRESS,
     abi: predictionMarketAbi,
@@ -62,7 +62,12 @@ export function usePredictionArchivePage(page: number, enabled: boolean) {
     query: { enabled: PREDICTION_MARKET_CONFIGURED },
   })
   const count = Number(countQuery.data ?? 0n)
-  const ids = useMemo(() => descendingPageIds(count, page), [count, page])
+  const terminalIds = useTerminalPredictionMarketIds(loadIndex)
+  const allIds = terminalIds.data ?? EMPTY_GAME_IDS
+  const ids = useMemo(
+    () => allIds.slice(page * GAME_ARCHIVE_PAGE_SIZE, (page + 1) * GAME_ARCHIVE_PAGE_SIZE),
+    [allIds, page],
+  )
   const queries = useReadContracts({
     contracts: ids.map((id) => ({
       address: PREDICTION_MARKET_ADDRESS,
@@ -70,6 +75,7 @@ export function usePredictionArchivePage(page: number, enabled: boolean) {
       functionName: 'getMarket',
       args: [id],
     }) as const),
+    batchSize: GAME_SNAPSHOT_MULTICALL_BATCH_SIZE,
     query: { enabled: PREDICTION_MARKET_CONFIGURED && enabled && ids.length > 0 },
   })
   const items = ids.flatMap((id, index): PredictionArchiveMarket[] => {
@@ -80,15 +86,16 @@ export function usePredictionArchivePage(page: number, enabled: boolean) {
   })
   return {
     count,
-    pageCount: pageCount(count),
+    historyCount: allIds.length,
+    pageCount: pageCount(allIds.length),
     ids,
     items,
-    isLoading: countQuery.isLoading || (enabled && queries.isLoading),
-    error: countQuery.error ?? queries.error,
+    isLoading: countQuery.isLoading || (enabled && (terminalIds.isLoading || queries.isLoading)),
+    error: countQuery.error ?? terminalIds.error ?? queries.error,
   }
 }
 
-export function useAssetRaceArchivePage(page: number, enabled: boolean) {
+export function useAssetRaceArchivePage(page: number, enabled: boolean, loadIndex = enabled) {
   const address = ASSET_RACE_ADDRESS ?? zeroAddress
   const configured = !!ASSET_RACE_ADDRESS
   const countQuery = useReadContract({
@@ -99,13 +106,20 @@ export function useAssetRaceArchivePage(page: number, enabled: boolean) {
     query: { enabled: configured },
   })
   const count = Number(countQuery.data ?? 0n)
-  const ids = useMemo(() => descendingPageIds(count, page), [count, page])
+  const terminalIds = useTerminalAssetRaceIds(loadIndex)
+  const allIds = terminalIds.data ?? EMPTY_GAME_IDS
+  const ids = useMemo(
+    () => allIds.slice(page * GAME_ARCHIVE_PAGE_SIZE, (page + 1) * GAME_ARCHIVE_PAGE_SIZE),
+    [allIds, page],
+  )
   const raceQueries = useReadContracts({
     contracts: ids.map((id) => ({ address, chainId: assetRaceChain.id, abi: assetRaceAbi, functionName: 'getRace', args: [id] }) as const),
+    batchSize: GAME_SNAPSHOT_MULTICALL_BATCH_SIZE,
     query: { enabled: configured && enabled && ids.length > 0 },
   })
   const assetQueries = useReadContracts({
     contracts: ids.map((id) => ({ address, chainId: assetRaceChain.id, abi: assetRaceAbi, functionName: 'getRaceAssets', args: [id] }) as const),
+    batchSize: GAME_SNAPSHOT_MULTICALL_BATCH_SIZE,
     query: { enabled: configured && enabled && ids.length > 0 },
   })
   const items = ids.flatMap((id, index): AssetRaceViewModel[] => {
@@ -119,15 +133,16 @@ export function useAssetRaceArchivePage(page: number, enabled: boolean) {
   })
   return {
     count,
-    pageCount: pageCount(count),
+    historyCount: allIds.length,
+    pageCount: pageCount(allIds.length),
     ids,
     items,
-    isLoading: countQuery.isLoading || (enabled && (raceQueries.isLoading || assetQueries.isLoading)),
-    error: countQuery.error ?? raceQueries.error ?? assetQueries.error,
+    isLoading: countQuery.isLoading || (enabled && (terminalIds.isLoading || raceQueries.isLoading || assetQueries.isLoading)),
+    error: countQuery.error ?? terminalIds.error ?? raceQueries.error ?? assetQueries.error,
   }
 }
 
-export function usePriceArenaArchivePage(page: number, enabled: boolean) {
+export function usePriceArenaArchivePage(page: number, enabled: boolean, loadIndex = enabled) {
   const address = (PRICE_ARENA_ADDRESS ?? zeroAddress) as Address
   const configured = !!PRICE_ARENA_ADDRESS
   const countQuery = useReadContract({
@@ -138,7 +153,12 @@ export function usePriceArenaArchivePage(page: number, enabled: boolean) {
     query: { enabled: configured },
   })
   const count = Number(countQuery.data ?? 0n)
-  const ids = useMemo(() => descendingPageIds(count, page), [count, page])
+  const terminalIds = useTerminalPriceArenaIds(loadIndex)
+  const allIds = terminalIds.data ?? EMPTY_GAME_IDS
+  const ids = useMemo(
+    () => allIds.slice(page * GAME_ARCHIVE_PAGE_SIZE, (page + 1) * GAME_ARCHIVE_PAGE_SIZE),
+    [allIds, page],
+  )
   const arenaQueries = useReadContracts({
     // Keep data and phase in one ordered result so an archive page change
     // cannot pair a fresh Arena tuple with an older phase array.
@@ -146,6 +166,7 @@ export function usePriceArenaArchivePage(page: number, enabled: boolean) {
       ({ address, chainId: assetRaceChain.id, abi: priceArenaAbi, functionName: 'getArena', args: [id] }) as const,
       ({ address, chainId: assetRaceChain.id, abi: priceArenaAbi, functionName: 'phase', args: [id] }) as const,
     ]),
+    batchSize: GAME_SNAPSHOT_MULTICALL_BATCH_SIZE,
     query: { enabled: configured && enabled && ids.length > 0 },
   })
   const items = ids.flatMap((id, index): PriceArenaViewModel[] => {
@@ -160,10 +181,11 @@ export function usePriceArenaArchivePage(page: number, enabled: boolean) {
   })
   return {
     count,
-    pageCount: pageCount(count),
+    historyCount: allIds.length,
+    pageCount: pageCount(allIds.length),
     ids,
     items,
-    isLoading: countQuery.isLoading || (enabled && arenaQueries.isLoading),
-    error: countQuery.error ?? arenaQueries.error,
+    isLoading: countQuery.isLoading || (enabled && (terminalIds.isLoading || arenaQueries.isLoading)),
+    error: countQuery.error ?? terminalIds.error ?? arenaQueries.error,
   }
 }

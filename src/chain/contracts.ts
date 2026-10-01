@@ -20,6 +20,8 @@ export const PREDICTION_MARKET_ADDRESS = normalizedMarketAddress && !marketUsesD
   ? normalizedMarketAddress
   : zeroAddress
 export const PREDICTION_MARKET_CONFIGURED = PREDICTION_MARKET_ADDRESS !== zeroAddress
+export const LEGACY_PREDICTION_MARKET_ADDRESS = '0x4bfd0efc15C3198fe3AFf4741FF121AB2F38060e' as Address
+export const LEGACY_PREDICTION_MARKET_DEPLOY_BLOCK = 72_300_695n
 
 // Chainlink catalog retained for the existing token browser and Chainlink-backed
 // Asset Race adapters. The replacement
@@ -129,9 +131,24 @@ export const predictionMarketAbi = [
           { name: 'status', type: 'uint8' },
           { name: 'outcome', type: 'uint8' },
           { name: 'feeBp', type: 'uint256' },
+          { name: 'creator', type: 'address' },
         ],
       },
     ],
+  },
+  {
+    type: 'function',
+    name: 'creatorEarnings',
+    stateMutability: 'view',
+    inputs: [{ name: 'creator', type: 'address' }],
+    outputs: [{ type: 'uint256' }],
+  },
+  {
+    type: 'function',
+    name: 'marketCreatorFees',
+    stateMutability: 'view',
+    inputs: [{ name: 'id', type: 'uint256' }],
+    outputs: [{ type: 'uint256' }],
   },
   {
     type: 'function',
@@ -208,6 +225,13 @@ export const predictionMarketAbi = [
   },
   {
     type: 'function',
+    name: 'withdrawCreatorFees',
+    stateMutability: 'nonpayable',
+    inputs: [],
+    outputs: [],
+  },
+  {
+    type: 'function',
     name: 'bettingWindowEnd',
     stateMutability: 'view',
     inputs: [{ name: 'id', type: 'uint256' }],
@@ -252,6 +276,23 @@ export const predictionMarketAbi = [
   },
   {
     type: 'event',
+    name: 'MarketCreatorAssigned',
+    inputs: [
+      { name: 'id', type: 'uint256', indexed: true },
+      { name: 'creator', type: 'address', indexed: true },
+    ],
+  },
+  {
+    type: 'event',
+    name: 'CreatorFeeAccrued',
+    inputs: [
+      { name: 'id', type: 'uint256', indexed: true },
+      { name: 'creator', type: 'address', indexed: true },
+      { name: 'amount', type: 'uint256', indexed: false },
+    ],
+  },
+  {
+    type: 'event',
     name: 'MarketResolved',
     inputs: [
       { name: 'id', type: 'uint256', indexed: true },
@@ -260,6 +301,18 @@ export const predictionMarketAbi = [
     ],
   },
 ] as const
+
+// V1 and V2 share every transaction selector used by the detail page. V2 only
+// appends `creator` to getMarket's return tuple. Keeping this exact V1 decoder
+// preserves claim/refund access for funded legacy markets during the cutover.
+export const predictionMarketV1Abi = predictionMarketAbi.map((item) => {
+  if (!('name' in item) || item.name !== 'getMarket') return item
+  const output = item.outputs[0]
+  return {
+    ...item,
+    outputs: [{ ...output, components: output.components.slice(0, -1) }],
+  }
+}) as unknown as typeof predictionMarketAbi
 
 export const aggregatorV3Abi = [
   {

@@ -16,7 +16,6 @@ abstract contract PredictionMarketCanaryBase is Script {
     uint256 internal constant EXPECTED_MAX_STAKE = 0.1 ether;
     uint256 internal constant EXPECTED_FEE_BP = 200;
 
-    address internal constant MARKET_ADDRESS = 0x4bfd0efc15C3198fe3AFf4741FF121AB2F38060e;
     address internal constant EXPECTED_OWNER = 0x6d68157bEDa778346Dd27f8Ef4F917f69aD2Dc41;
     address internal constant EXPECTED_ORACLE = 0x5b0f7e62E0A5fF5C5C02Ad219Afcd086F2618Db7;
     address internal constant EXPECTED_SIGNER = 0x79F4991Ccc64Cbb8143fB61e4cBD49b8b64d3635;
@@ -25,8 +24,12 @@ abstract contract PredictionMarketCanaryBase is Script {
     bytes32 internal constant ASSET_ID = bytes32("TSLA");
     bytes32 internal constant EXPECTED_ORACLE_ID = 0x14e1dfbdefeb08594f0852a6449b41554f51dd277f968d2499f7666feebb4aeb;
 
-    function _market() internal pure returns (PredictionMarket) {
-        return PredictionMarket(payable(MARKET_ADDRESS));
+    function _marketAddress() internal view returns (address) {
+        return vm.envAddress("MARKET_ADDRESS");
+    }
+
+    function _market() internal view returns (PredictionMarket) {
+        return PredictionMarket(payable(_marketAddress()));
     }
 
     function _ownerKey() internal view returns (uint256 key) {
@@ -42,18 +45,19 @@ abstract contract PredictionMarketCanaryBase is Script {
         require(player != EXPECTED_ORACLE, "canary player must differ from oracle");
         require(player != EXPECTED_SIGNER, "canary player must differ from signer");
         require(player != EXPECTED_KEEPER, "canary player must differ from keeper");
-        require(player != MARKET_ADDRESS, "canary player must differ from market");
+        require(player != _marketAddress(), "canary player must differ from market");
     }
 
     function _validateDeployment(PredictionMarket market) internal view {
         require(block.chainid == ROBINHOOD_MAINNET_CHAIN_ID, "wrong chain");
-        require(MARKET_ADDRESS.code.length > 0, "market has no code");
+        require(address(market).code.length > 0, "market has no code");
         require(market.owner() == EXPECTED_OWNER, "wrong owner");
         require(address(market.endpointOracle()) == EXPECTED_ORACLE, "wrong oracle");
         require(SignedPoolRaceOracle(EXPECTED_ORACLE).TRUSTED_SIGNER() == EXPECTED_SIGNER, "wrong signer");
         require(market.maxSeedLiquidityWei() == EXPECTED_MAX_SEED, "wrong seed cap");
         require(market.maxStakePerSideWei() == EXPECTED_MAX_STAKE, "wrong stake cap");
         require(market.feeBp() == EXPECTED_FEE_BP, "wrong fee");
+        require(market.CREATOR_FEE_SHARE_BP() == 5_000, "wrong creator fee share");
         (bytes32 oracleId, uint8 decimals, bool allowed) = market.approvedAssets(ASSET_ID);
         require(allowed && oracleId == EXPECTED_ORACLE_ID && decimals == 18, "wrong TSLA binding");
     }
@@ -95,7 +99,7 @@ contract CreatePredictionMarketCanaries is PredictionMarketCanaryBase {
         require(market.participantCount(settlementMarketId) == 2, "settlement market needs two participants");
         require(market.participantCount(cancellationMarketId) == 1, "cancellation market needs one participant");
 
-        console.log("PredictionMarket canary address", MARKET_ADDRESS);
+        console.log("PredictionMarket canary address", address(market));
         console.log("Settlement market id", settlementMarketId);
         console.log("Cancellation market id", cancellationMarketId);
         console.log("Deadline", deadline);
@@ -138,23 +142,27 @@ contract FinalizePredictionMarketCanaries is PredictionMarketCanaryBase {
         require(userStake == CANARY_STAKE && weightedWinningPool > 0, "winner accounting mismatch");
         uint256 losingShare = (userWeightedStake * losingPool) / weightedWinningPool;
         uint256 fee = (losingShare * resolved.feeBp) / BP_DENOMINATOR;
+        uint256 creatorFee = (fee * market.CREATOR_FEE_SHARE_BP()) / BP_DENOMINATOR;
+        uint256 protocolFee = fee - creatorFee;
         uint256 expectedPayout = userStake + losingShare - fee;
 
         uint256 feesBefore = market.accumulatedFees();
-        uint256 balanceBeforeClaim = MARKET_ADDRESS.balance;
+        uint256 creatorFeesBefore = market.creatorEarnings(resolved.creator);
+        uint256 balanceBeforeClaim = address(market).balance;
         vm.startBroadcast(winnerKey);
         market.claim(SETTLEMENT_MARKET_ID);
         vm.stopBroadcast();
         require(market.claimed(SETTLEMENT_MARKET_ID, winner), "winner not marked claimed");
-        require(MARKET_ADDRESS.balance + expectedPayout == balanceBeforeClaim, "wrong claim ETH delta");
-        require(market.accumulatedFees() == feesBefore + fee, "wrong fee delta");
+        require(address(market).balance + expectedPayout == balanceBeforeClaim, "wrong claim ETH delta");
+        require(market.accumulatedFees() == feesBefore + protocolFee, "wrong protocol fee delta");
+        require(market.creatorEarnings(resolved.creator) == creatorFeesBefore + creatorFee, "wrong creator fee delta");
 
-        uint256 balanceBeforeRefunds = MARKET_ADDRESS.balance;
+        uint256 balanceBeforeRefunds = address(market).balance;
         vm.startBroadcast(ownerKey);
         market.refund(CANCELLATION_MARKET_ID, PredictionMarket.Side.YES);
         market.refund(CANCELLATION_MARKET_ID, PredictionMarket.Side.NO);
         vm.stopBroadcast();
-        require(MARKET_ADDRESS.balance + CANARY_STAKE * 2 == balanceBeforeRefunds, "wrong refund ETH delta");
+        require(address(market).balance + CANARY_STAKE * 2 == balanceBeforeRefunds, "wrong refund ETH delta");
         require(
             market.stakes(CANCELLATION_MARKET_ID, EXPECTED_OWNER, PredictionMarket.Side.YES) == 0
                 && market.stakes(CANCELLATION_MARKET_ID, EXPECTED_OWNER, PredictionMarket.Side.NO) == 0,
@@ -165,6 +173,8 @@ contract FinalizePredictionMarketCanaries is PredictionMarketCanaryBase {
         console.log("Winner", winner);
         console.log("Payout (wei)", expectedPayout);
         console.log("Fee (wei)", fee);
+        console.log("Creator fee (wei)", creatorFee);
+        console.log("Protocol fee (wei)", protocolFee);
         console.log("Refunded (wei)", CANARY_STAKE * 2);
     }
 }

@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
+import { Route, Routes, useLocation } from 'react-router-dom'
 import { AnimatedBackground } from '@/components/AnimatedBackground'
 import { ChainEngine } from '@/components/ChainEngine'
 import { DisclaimerBanner } from '@/components/DisclaimerBanner'
@@ -24,6 +24,7 @@ import { OnchainCreateMarketPage } from '@/pages/OnchainCreateMarketPage'
 import { OnchainArchivePage } from '@/pages/OnchainArchivePage'
 import { OnchainLeaderboardPage } from '@/pages/OnchainLeaderboardPage'
 import { OnchainMarketPage } from '@/pages/OnchainMarketPage'
+import { OnchainLegacyMarketsPage } from '@/pages/OnchainLegacyMarketsPage'
 import { OnchainMarketsListPage } from '@/pages/OnchainMarketsListPage'
 import { OnchainPortfolioPage } from '@/pages/OnchainPortfolioPage'
 import { OnchainRacePage } from '@/pages/OnchainRacePage'
@@ -94,7 +95,8 @@ export default function App() {
             <Route path="arenas" element={<OnchainArenasListPage />} />
             <Route path="arenas/create" element={<OnchainCreateArenaPage />} />
             <Route path="arenas/:arenaId" element={<OnchainArenaPage />} />
-            <Route path="legacy" element={<Navigate to="/onchain" replace />} />
+            <Route path="legacy" element={<OnchainLegacyMarketsPage />} />
+            <Route path="legacy/:id" element={<OnchainMarketPage legacy />} />
             <Route path=":id" element={<OnchainMarketPage />} />
           </Route>
 

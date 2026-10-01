@@ -10,8 +10,8 @@ import {
   HISTORICAL_GAME_POLL_INTERVAL_MS,
   splitProgressiveGameIds,
 } from '@/chain/gameSnapshots'
+import { usePriceArenaHistoryIndex, visibleIdsThroughCount } from '@/chain/gameHistory'
 import {
-  MAX_ARENAS_TO_LIST,
   PRICE_ARENA_ADDRESS,
   priceArenaAbi,
   priceArenaAsset,
@@ -28,8 +28,15 @@ export function usePriceArenas() {
     query: { enabled, refetchInterval: ACTIVE_GAME_POLL_INTERVAL_MS, ...ACTIVE_GAME_REFRESH_OPTIONS },
   })
   const count = Number(useStableGameCount('price-arena-count', countQuery.data))
-  const firstId = Math.max(0, count - MAX_ARENAS_TO_LIST)
-  const ids = useMemo(() => Array.from({ length: count - firstId }, (_, i) => BigInt(firstId + i)).reverse(), [count, firstId])
+  const historyIndex = usePriceArenaHistoryIndex(enabled)
+  const ids = useMemo(
+    () => historyIndex.data
+      ? visibleIdsThroughCount(historyIndex.data, count)
+      : historyIndex.isError
+        ? Array.from({ length: count }, (_, index) => BigInt(index)).reverse()
+        : [],
+    [count, historyIndex.data, historyIndex.isError],
+  )
   const { fastIds, historyIds } = useMemo(
     () => splitProgressiveGameIds(ids, 8, true),
     [ids],
@@ -49,7 +56,8 @@ export function usePriceArenas() {
       ...ACTIVE_GAME_REFRESH_OPTIONS,
     },
   })
-  const countScanComplete = countQuery.data != null || countQuery.isError
+  const indexScanComplete = historyIndex.data != null || historyIndex.isError || !enabled
+  const countScanComplete = (countQuery.data != null || countQuery.isError) && indexScanComplete
   const fastScanComplete = countScanComplete && (
     fastIds.length === 0 || fastQueries.data != null || fastQueries.isError
   )
@@ -86,7 +94,7 @@ export function usePriceArenas() {
   const stableArenas = useStableGameSnapshots(ids, observedArenas, {
     // v2 intentionally drops Arena rows captured before structural validation.
     cacheKey: 'price-arenas-v2',
-    idsReady: countQuery.data != null,
+    idsReady: countQuery.data != null && indexScanComplete,
   })
   const arenas = stableArenas.filter((arena) => (
     isCoherentPriceArenaSnapshot(arena, arena.phase, arena.asset?.category)
@@ -96,7 +104,7 @@ export function usePriceArenas() {
     arenas,
     isConfigured: enabled,
     isLoading: enabled && !historyScanComplete,
-    error: countQuery.error ?? fastQueries.error ?? historyQueries.error,
-    refetch: async () => Promise.all([countQuery.refetch(), fastQueries.refetch(), historyQueries.refetch()]),
+    error: countQuery.error ?? historyIndex.error ?? fastQueries.error ?? historyQueries.error,
+    refetch: async () => Promise.all([historyIndex.refetch(), countQuery.refetch(), fastQueries.refetch(), historyQueries.refetch()]),
   }
 }

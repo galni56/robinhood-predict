@@ -156,7 +156,8 @@ export function WhitepaperPage() {
             payout = stake + (weighted stake ÷ total weighted winning stake) × losing pool × 98%
           </Formula>
           <p>
-            The 2% protocol fee applies only to each winner&apos;s share of the losing pool. It is not charged on returned
+            The 2% fee applies only to each winner&apos;s share of the losing pool. One percentage point is credited to the
+            immutable market creator and one percentage point to Prophet. It is not charged on returned
             principal or refunds. Integer division can leave a small amount of rounding dust in the contract.
           </p>
           <p>

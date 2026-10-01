@@ -36,7 +36,7 @@ const GAME_GUIDES = [
       ['Choose the question', 'Open a market—or create one with a reviewed stock, target price and deadline.'],
       ['Take YES or NO', 'Enter a stake in USD or ETH. Your wallet sends the exact amount as native ETH in one transaction.'],
       ['Bet before the cutoff', 'Earlier bets carry more pool-share weight. Betting closes before the final price deadline.'],
-      ['Settle the pool', 'The last valid price before the deadline decides it. Both sides and two wallets are required; otherwise every stake is refundable. Winners recover principal and split the losing pool, with a 2% fee only on profit.'],
+      ['Settle the pool', 'The last valid price before the deadline decides it. Both sides and two wallets are required; otherwise every stake is refundable. Winners recover principal and split the losing pool. The 2% profit fee is split equally between the market creator and Prophet.'],
     ],
   },
   {

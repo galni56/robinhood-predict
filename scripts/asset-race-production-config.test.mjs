@@ -21,6 +21,8 @@ const nativeSimulationScript = readFileSync(
   'utf8',
 )
 const appSource = readFileSync(new URL('../src/App.tsx', import.meta.url), 'utf8')
+const legacyMarketsSource = readFileSync(new URL('../src/pages/OnchainLegacyMarketsPage.tsx', import.meta.url), 'utf8')
+const marketPageSource = readFileSync(new URL('../src/pages/OnchainMarketPage.tsx', import.meta.url), 'utf8')
 const navbarSource = readFileSync(new URL('../src/components/RealNavbar.tsx', import.meta.url), 'utf8')
 const footerSource = readFileSync(new URL('../src/components/Footer.tsx', import.meta.url), 'utf8')
 const contractsSource = readFileSync(new URL('../src/chain/contracts.ts', import.meta.url), 'utf8')
@@ -122,10 +124,14 @@ test('native-ETH builds reject every known USDG contract binding', () => {
   })
 })
 
-test('supported frontend exposes no legacy USDG transaction surface', () => {
+test('legacy access is native-ETH settlement-only and exposes no legacy USDG transaction surface', () => {
   assert.equal(existsSync(new URL('../src/pages/LegacyUsdRecoveryPage.tsx', import.meta.url)), false)
   assert.doesNotMatch(appSource, /LegacyUsdRecoveryPage/)
-  assert.match(appSource, /path="legacy" element={<Navigate to="\/onchain" replace \/>}/)
+  assert.match(appSource, /path="legacy" element={<OnchainLegacyMarketsPage \/>}/)
+  assert.match(appSource, /path="legacy\/:id" element={<OnchainMarketPage legacy \/>}/)
+  assert.match(legacyMarketsSource, /V1 no longer accepts new bets/)
+  assert.match(marketPageSource, /if \(legacy\)[\s\S]*Legacy markets are settlement-only/)
+  assert.match(marketPageSource, /disabled={[\s\S]*legacy \|\| !marketConfigured/)
   assert.doesNotMatch(navbarSource, /onchain\/legacy|Legacy/)
   assert.doesNotMatch(footerSource, /onchain\/legacy|Legacy USDG/)
   assert.doesNotMatch(contractsSource, /export const erc20Abi|LEGACY_USDG_ADDRESS/)

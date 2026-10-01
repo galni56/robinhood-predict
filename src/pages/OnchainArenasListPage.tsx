@@ -90,6 +90,7 @@ export function OnchainArenasListPage() {
   const mode: PriceArenaMode = params.get('mode') === 'memes' ? 'memes' : 'stocks'
   const category = mode === 'memes' ? PRICE_ARENA_CATEGORY.MEME : PRICE_ARENA_CATEGORY.STOCK
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>('ALL')
+  const terminalFilter = filter === 'FINISHED' || filter === 'CANCELLED'
   const nowMs = useAssetRaceClock()
   const visible = arenas.filter((arena) => arena.category === category && (
     filter === 'ALL' ? isVisibleInAll(arena.phase, PRICE_ARENA_PHASE.CANCELLED, arena.totalPool)
@@ -118,6 +119,14 @@ export function OnchainArenasListPage() {
         </div>
         <div className="flex gap-1.5">{FILTERS.map((item) => <button key={item} onClick={() => setFilter(item)} className={`rounded-full px-3.5 py-1.5 text-xs font-bold ${filter === item ? 'bg-[#7A9FF0] text-[#152447]' : 'text-white/50 hover:bg-white/5'}`}>{item.charAt(0) + item.slice(1).toLowerCase()}</button>)}</div>
       </div>
+
+      {terminalFilter && (
+        <div className="mt-4 flex justify-end">
+          <Link to="/onchain/archive?mode=arenas" className="text-xs font-bold text-[#B7CEFF] hover:text-white">
+            Open complete Arena history →
+          </Link>
+        </div>
+      )}
 
       <div className="mt-6 flex items-start gap-6">
         <main className="min-h-[32rem] min-w-0 flex-1">
