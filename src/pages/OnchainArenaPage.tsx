@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { formatEther, formatUnits, parseUnits, type Address } from 'viem'
 import { waitForTransactionReceipt } from 'wagmi/actions'
 import { useAccount, useBalance, useChainId, useSwitchChain, useWriteContract } from 'wagmi'
@@ -19,10 +19,10 @@ import { useAssetRaceLiveDisplay } from '@/chain/useAssetRaceLiveDisplay'
 import { usePriceArena } from '@/chain/usePriceArena'
 import {
   PRICE_ARENA_ADDRESS,
-  LEGACY_PRICE_ARENA_ADDRESS,
   PRICE_ARENA_PHASE,
   arenaDurationLabel,
   arenaPhaseLabel,
+  legacyPriceArenaAddress,
   modeForArenaCategory,
   priceArenaAbi,
   type PriceArenaEntry,
@@ -84,6 +84,10 @@ function ArenaBoard({ rows, referencePrice, decimals, quote, resolved, winnerCou
 
 export function OnchainArenaPage({ legacy = false }: { legacy?: boolean }) {
   const arenaId = parseId(useParams().arenaId)
+  const [searchParams] = useSearchParams()
+  const arenaContractAddress = legacy
+    ? legacyPriceArenaAddress(searchParams.get('contract'))
+    : PRICE_ARENA_ADDRESS
   const { address, isConnected } = useAccount()
   const {
     arena,
@@ -94,8 +98,7 @@ export function OnchainArenaPage({ legacy = false }: { legacy?: boolean }) {
     isLoading,
     error: readError,
     refetch,
-  } = usePriceArena(arenaId, address, legacy ? LEGACY_PRICE_ARENA_ADDRESS : PRICE_ARENA_ADDRESS)
-  const arenaContractAddress = legacy ? LEGACY_PRICE_ARENA_ADDRESS : PRICE_ARENA_ADDRESS
+  } = usePriceArena(arenaId, address, arenaContractAddress)
   const chainId = useChainId()
   const { switchChain, isPending: isSwitching } = useSwitchChain()
   const { writeContractAsync } = useWriteContract()

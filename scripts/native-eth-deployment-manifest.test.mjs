@@ -12,7 +12,7 @@ test('deployment manifest derives every product binding from one registry', () =
     oracleAddress: ORACLE,
     priceSignerAddress: SIGNER,
   })
-  assert.equal(manifest.schemaVersion, 3)
+  assert.equal(manifest.schemaVersion, 5)
   assert.equal(manifest.chain.chainId, 4663)
   assert.equal(manifest.chain.nativeCurrency, 'ETH')
   assert.equal(manifest.chain.stockPriceQuote, 'USDG')
@@ -23,23 +23,26 @@ test('deployment manifest derives every product binding from one registry', () =
     signedPoolOracleAddress: ORACLE,
     priceSignerAddress: SIGNER,
   })
-  assert.equal(manifest.predictionMarket.assets.length, 10)
+  assert.equal(manifest.predictionMarket.assets.length, 25)
   assert.equal(manifest.assetRace.stockAssets.length, 10)
   assert.equal(manifest.assetRace.memeAssets.length, 13)
+  assert.equal(manifest.assetRace.cryptoAssets.length, 2)
   assert.equal(manifest.assetRace.policy.maxPriceAgeSeconds, 60)
   assert.equal(manifest.assetRace.policy.maxEndpointLagSeconds, 0)
   assert.deepEqual(manifest.priceArena.stockAssets, manifest.assetRace.stockAssets)
   assert.deepEqual(manifest.priceArena.memeAssets, manifest.assetRace.memeAssets)
+  assert.deepEqual(manifest.priceArena.cryptoAssets, manifest.assetRace.cryptoAssets)
   assert.deepEqual(
     manifest.predictionMarket.assets.map(({ assetId, oracleId }) => [assetId, oracleId]),
-    manifest.assetRace.stockAssets.map(({ assetId, oracleId }) => [assetId, oracleId]),
+    [...manifest.assetRace.stockAssets, ...manifest.assetRace.memeAssets, ...manifest.assetRace.cryptoAssets]
+      .map(({ assetId, oracleId }) => [assetId, oracleId]),
   )
   assert.deepEqual(manifest.assetRace.policy.durationPresetsSeconds, [60, 300, 900])
   assert.equal(manifest.assetRace.policy.minStakeWei, manifest.priceArena.constructor.minStakeWei)
   assert.equal(manifest.assetRace.policy.maxStakePerWalletWei, manifest.priceArena.constructor.maxStakeWei)
-  const allAssets = [...manifest.assetRace.stockAssets, ...manifest.assetRace.memeAssets]
-  assert.equal(new Set(allAssets.map(({ assetId }) => assetId)).size, 23)
-  assert.equal(new Set(allAssets.map(({ oracleId }) => oracleId)).size, 23)
+  const allAssets = [...manifest.assetRace.stockAssets, ...manifest.assetRace.memeAssets, ...manifest.assetRace.cryptoAssets]
+  assert.equal(new Set(allAssets.map(({ assetId }) => assetId)).size, 25)
+  assert.equal(new Set(allAssets.map(({ oracleId }) => oracleId)).size, 25)
   assert.ok(allAssets.every(({ oracleId }) => /^0x[0-9a-f]{64}$/i.test(oracleId)))
 })
 

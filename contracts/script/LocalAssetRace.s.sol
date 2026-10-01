@@ -25,7 +25,8 @@ abstract contract LocalAssetRaceBase is Script {
     {
         string[] memory stockSymbols = _stockSymbols();
         string[] memory memeSymbols = _memeSymbols();
-        candidates = new AssetRace.CandidateInput[](stockSymbols.length + memeSymbols.length);
+        string[] memory cryptoSymbols = _cryptoSymbols();
+        candidates = new AssetRace.CandidateInput[](stockSymbols.length + memeSymbols.length + cryptoSymbols.length);
         for (uint256 i = 0; i < stockSymbols.length; ++i) {
             candidates[i] = _candidate(
                 AssetRace.RaceCategory.STOCK, _assetId(stockSymbols[i]), oracle, _stockOracleId(stockSymbols[i])
@@ -34,6 +35,11 @@ abstract contract LocalAssetRaceBase is Script {
         for (uint256 i = 0; i < memeSymbols.length; ++i) {
             candidates[stockSymbols.length + i] = _candidate(
                 AssetRace.RaceCategory.MEME, _assetId(memeSymbols[i]), oracle, _memeOracleId(memeSymbols[i])
+            );
+        }
+        for (uint256 i = 0; i < cryptoSymbols.length; ++i) {
+            candidates[stockSymbols.length + memeSymbols.length + i] = _candidate(
+                AssetRace.RaceCategory.CRYPTO, _assetId(cryptoSymbols[i]), oracle, _cryptoOracleId(cryptoSymbols[i])
             );
         }
     }
@@ -70,6 +76,14 @@ abstract contract LocalAssetRaceBase is Script {
         for (uint256 i = 0; i < assetIds.length; ++i) {
             assetIds[i] = _assetId(symbols[i]);
         }
+    }
+
+    function _cryptoPlatformAssetIds() internal view returns (bytes32[] memory assetIds) {
+        string[] memory symbols = _cryptoSymbols();
+        require(symbols.length >= 2, "need two local Crypto assets");
+        assetIds = new bytes32[](2);
+        assetIds[0] = _assetId(symbols[0]);
+        assetIds[1] = _assetId(symbols[1]);
     }
 
     function _createPlatformRace(AssetRace race) internal returns (uint256) {
@@ -111,6 +125,24 @@ abstract contract LocalAssetRaceBase is Script {
         return race.createPlatformRace("LOCAL MEME MAYHEM", config, _memePlatformAssetIds());
     }
 
+    function _createCryptoPlatformRace(AssetRace race) internal returns (uint256) {
+        uint64 bettingStart = uint64(block.timestamp + 5 minutes);
+        AssetRace.RaceConfigInput memory config = AssetRace.RaceConfigInput({
+            category: AssetRace.RaceCategory.CRYPTO,
+            bettingStartTime: bettingStart,
+            bettingEndTime: bettingStart + 300,
+            raceDuration: 60,
+            startGrace: 1 hours,
+            resolutionGrace: 1 hours,
+            maxOracleTimestampSkew: 5,
+            feeBp: 200,
+            minActiveContenders: 2,
+            minStake: MIN_STAKE_WEI,
+            maxStakePerWallet: MAX_STAKE_PER_WALLET_WEI
+        });
+        return race.createPlatformRace("LOCAL CRYPTO RACE", config, _cryptoPlatformAssetIds());
+    }
+
     function _setPrices(MockRaceOracle oracle, string memory scenario) internal {
         bytes32 scenarioHash = keccak256(bytes(scenario));
         require(
@@ -140,6 +172,16 @@ abstract contract LocalAssetRaceBase is Script {
                 observationId
             );
         }
+        string[] memory cryptoSymbols = _cryptoSymbols();
+        for (uint256 i = 0; i < cryptoSymbols.length; ++i) {
+            oracle.setObservation(
+                _cryptoOracleId(cryptoSymbols[i]),
+                _scenarioPrice(scenarioHash, i) * PRICE_UNIT,
+                PRICE_DECIMALS,
+                block.timestamp,
+                observationId
+            );
+        }
     }
 
     function _scenarioPrice(bytes32 scenarioHash, uint256 index) private pure returns (uint256) {
@@ -157,12 +199,20 @@ abstract contract LocalAssetRaceBase is Script {
         return vm.envString("LOCAL_MEME_SYMBOLS", ",");
     }
 
+    function _cryptoSymbols() internal view returns (string[] memory) {
+        return vm.envString("LOCAL_CRYPTO_SYMBOLS", ",");
+    }
+
     function _stockOracleId(string memory symbol) internal pure returns (bytes32) {
         return keccak256(abi.encodePacked("LOCAL_", symbol, "_USD"));
     }
 
     function _memeOracleId(string memory symbol) internal pure returns (bytes32) {
         return keccak256(abi.encodePacked("LOCAL_DEMO_", symbol, "_USD"));
+    }
+
+    function _cryptoOracleId(string memory symbol) internal pure returns (bytes32) {
+        return keccak256(abi.encodePacked("LOCAL_CRYPTO_", symbol, "_USD"));
     }
 
     function _assetId(string memory symbol) internal pure returns (bytes32 result) {
@@ -220,8 +270,11 @@ contract CreateLocalAssetRace is LocalAssetRaceBase {
         AssetRace race = AssetRace(payable(vm.envAddress("LOCAL_ASSET_RACE_ADDRESS")));
         string memory categoryName = vm.envOr("LOCAL_RACE_CATEGORY", string("stock"));
         bool isMeme = keccak256(bytes(categoryName)) == keccak256("meme");
+        bool isCrypto = keccak256(bytes(categoryName)) == keccak256("crypto");
         vm.startBroadcast();
-        raceId = isMeme ? _createMemePlatformRace(race) : _createPlatformRace(race);
+        raceId = isMeme
+            ? _createMemePlatformRace(race)
+            : isCrypto ? _createCryptoPlatformRace(race) : _createPlatformRace(race);
         vm.stopBroadcast();
 
         console.log("LOCAL_RACE_ID", raceId);
@@ -234,6 +287,7 @@ contract CreateLocalCommunityRace is LocalAssetRaceBase {
         string memory title = vm.envString("LOCAL_RACE_TITLE");
         string memory categoryName = vm.envOr("LOCAL_RACE_CATEGORY", string("stock"));
         bool isMeme = keccak256(bytes(categoryName)) == keccak256("meme");
+        bool isCrypto = keccak256(bytes(categoryName)) == keccak256("crypto");
         uint64 duration = uint64(vm.envUint("LOCAL_RACE_DURATION"));
         bytes32[] memory initialAssetIds = new bytes32[](2);
         if (isMeme) {
@@ -241,6 +295,11 @@ contract CreateLocalCommunityRace is LocalAssetRaceBase {
             require(memeSymbols.length >= 3, "need three local Meme assets");
             initialAssetIds[0] = _assetId(memeSymbols[0]);
             initialAssetIds[1] = _assetId(memeSymbols[2]);
+        } else if (isCrypto) {
+            string[] memory cryptoSymbols = _cryptoSymbols();
+            require(cryptoSymbols.length >= 2, "need two local Crypto assets");
+            initialAssetIds[0] = _assetId(cryptoSymbols[0]);
+            initialAssetIds[1] = _assetId(cryptoSymbols[1]);
         } else {
             string[] memory stockSymbols = _stockSymbols();
             require(stockSymbols.length >= 4, "need four local Stock assets");
@@ -250,7 +309,12 @@ contract CreateLocalCommunityRace is LocalAssetRaceBase {
 
         vm.startBroadcast();
         raceId = race.createCommunityRace(
-            title, isMeme ? AssetRace.RaceCategory.MEME : AssetRace.RaceCategory.STOCK, duration, initialAssetIds
+            title,
+            isMeme
+                ? AssetRace.RaceCategory.MEME
+                : isCrypto ? AssetRace.RaceCategory.CRYPTO : AssetRace.RaceCategory.STOCK,
+            duration,
+            initialAssetIds
         );
         vm.stopBroadcast();
 

@@ -1,7 +1,8 @@
 {
   "schemaVersion": 1,
   "marketQuoteUniverses": {
-    "MEME": { "symbol": "WETH", "unit": "ETH_QUOTE", "supportedQuoteKinds": ["WETH", "NATIVE_ETH"], "address": "0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73", "decimals": 18, "chainId": 4663 }
+    "MEME": { "symbol": "WETH", "unit": "ETH_QUOTE", "supportedQuoteKinds": ["WETH", "NATIVE_ETH"], "address": "0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73", "decimals": 18, "chainId": 4663 },
+    "CRYPTO": { "symbol": "USDG", "unit": "USDG", "supportedQuoteKinds": ["USDG"], "address": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168", "decimals": 6, "chainId": 4663 }
   },
   "supportedOracleTypes": ["CHAINLINK_V3", "SIGNED_POOL_BLOCK_PAIR", "DEX_V2_SPOT", "DEX_V3_SPOT", "MOCK_LOCAL"],
   "networks": {
@@ -1277,6 +1278,84 @@
           "hooks": "0x0000000000000000000000000000000000000000"
         }
       }
+    },
+    {
+      "assetId": "BTC",
+      "symbol": "BTC",
+      "displayName": "Bitcoin",
+      "category": "CRYPTO",
+      "canonicalTokenAddress": "0xCEC185eB182c47d1bA1EFc84e6959e18cd620Be4",
+      "productionStatus": "A",
+      "networks": {
+        "local": { "enabled": true, "oracle": { "type": "MOCK_LOCAL", "identifier": "LOCAL_BTC_USD", "expectedDecimals": 8, "validationProfile": "LOCAL_MOCK_V1" } },
+        "robinhood-testnet": { "enabled": false, "oracle": null, "blocker": "No verified testnet source." },
+        "robinhood-mainnet": { "enabled": true, "oracle": { "type": "SIGNED_POOL_BLOCK_PAIR", "identifier": "0x231e3f623751bf2b68fbcefb7ee889baf016b96186eabd1bdfd2c66c4fed66c6", "expectedDecimals": 18, "validationProfile": "SIGNED_POOL_BLOCK_PAIR_V1", "provenance": "Exact cbBTC/USDG Uniswap V4 pool state at the deterministic Robinhood Chain endpoint block. cbBTC is the reviewed onchain BTC representation used as the base asset." } }
+      },
+      "tokenVerification": {
+        "verifiedAt": "2026-10-01",
+        "chainId": 4663,
+        "name": "Coinbase Wrapped BTC",
+        "symbol": "cbBTC",
+        "decimals": 8,
+        "confidence": "HIGH",
+        "sources": ["https://robinhoodchain.blockscout.com/token/0xCEC185eB182c47d1bA1EFc84e6959e18cd620Be4"],
+        "evidence": "Token code, symbol and decimals were verified by direct Robinhood Chain RPC. The exact hook-free V4 cbBTC/USDG PoolKey and initialized pool state were verified onchain."
+      },
+      "marketSource": {
+        "type": "UNISWAP_V4",
+        "poolIdentifier": "0x94c62eebf6454231b2fcd0259ede448ae3c6ad8617718cd88dab20b30cfae48a",
+        "baseToken": "0xCEC185eB182c47d1bA1EFc84e6959e18cd620Be4",
+        "quoteToken": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "baseDecimals": 8,
+        "quoteDecimals": 6,
+        "baseIsToken0": false,
+        "orientation": "BASE_TOKEN_QUOTE_TOKEN",
+        "poolKey": {
+          "currency0": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+          "currency1": "0xCEC185eB182c47d1bA1EFc84e6959e18cd620Be4",
+          "fee": 1500,
+          "tickSpacing": 15,
+          "hooks": "0x0000000000000000000000000000000000000000"
+        }
+      },
+      "maxRecommendedRaceExposureUsd": null,
+      "raceExposureReviewStatus": "REVIEWED"
+    },
+    {
+      "assetId": "ETH",
+      "symbol": "ETH",
+      "displayName": "Ethereum",
+      "category": "CRYPTO",
+      "canonicalTokenAddress": "0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73",
+      "productionStatus": "A",
+      "networks": {
+        "local": { "enabled": true, "oracle": { "type": "MOCK_LOCAL", "identifier": "LOCAL_ETH_USD", "expectedDecimals": 8, "validationProfile": "LOCAL_MOCK_V1" } },
+        "robinhood-testnet": { "enabled": false, "oracle": null, "blocker": "No verified testnet source." },
+        "robinhood-mainnet": { "enabled": true, "oracle": { "type": "SIGNED_POOL_BLOCK_PAIR", "identifier": "0xe0c5fb0aeffa2072f4d209ec73c47735f52c5016f50ea7fc9d1112b7369852a9", "expectedDecimals": 18, "validationProfile": "SIGNED_POOL_BLOCK_PAIR_V1", "provenance": "Exact WETH/USDG Uniswap V3 pool state at the deterministic Robinhood Chain endpoint block. WETH is the reviewed onchain ETH representation used as the base asset." } }
+      },
+      "tokenVerification": {
+        "verifiedAt": "2026-10-01",
+        "chainId": 4663,
+        "name": "Wrapped Ether",
+        "symbol": "WETH",
+        "decimals": 18,
+        "confidence": "HIGH",
+        "sources": ["https://robinhoodchain.blockscout.com/token/0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73"],
+        "evidence": "Token code and exact official-factory WETH/USDG V3 pool metadata were verified by direct Robinhood Chain RPC."
+      },
+      "marketSource": {
+        "type": "UNISWAP_V3",
+        "poolIdentifier": "0x52e65B17fB6E5BA00Ed806f37Afcd2DaA50271Ca",
+        "baseToken": "0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73",
+        "quoteToken": "0x5fc5360D0400a0Fd4f2af552ADD042D716F1d168",
+        "baseDecimals": 18,
+        "quoteDecimals": 6,
+        "baseIsToken0": true,
+        "orientation": "BASE_TOKEN_QUOTE_TOKEN",
+        "fee": 100
+      },
+      "maxRecommendedRaceExposureUsd": null,
+      "raceExposureReviewStatus": "REVIEWED"
     }
   ]
 }

@@ -5,6 +5,7 @@ import { useAccount, useChainId, useSwitchChain, useWriteContract } from 'wagmi'
 import type { ApprovedRaceAsset, AssetRaceMode } from '@/chain/assetRaces'
 import { ASSET_RACE_ADDRESS, assetRaceAbi, categoryForRaceMode } from '@/chain/assetRaces'
 import { assetRaceChain, isLocalAssetRace, wagmiConfig } from '@/chain/config'
+import { CRYPTO_ASSETS_ENABLED } from '@/chain/features'
 import { useApprovedRaceAssets } from '@/chain/useApprovedRaceAssets'
 import { CompactAssetSelector } from '@/components/CompactAssetSelector'
 import { GameLifecycleGuide } from '@/components/GameLifecycleGuide'
@@ -22,7 +23,10 @@ function durationLabel(seconds: bigint) {
 export function OnchainCreateRacePage() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
-  const mode: AssetRaceMode = searchParams.get('mode') === 'memes' ? 'memes' : 'stocks'
+  const requestedMode = searchParams.get('mode')
+  const mode: AssetRaceMode = requestedMode === 'memes' || (CRYPTO_ASSETS_ENABLED && requestedMode === 'crypto')
+    ? requestedMode
+    : 'stocks'
   const category = categoryForRaceMode(mode)
   const { address, isConnected } = useAccount()
   const chainId = useChainId()
@@ -44,7 +48,7 @@ export function OnchainCreateRacePage() {
 
   function selectMode(nextMode: AssetRaceMode) {
     setSelected([])
-    setSearchParams(nextMode === 'memes' ? { mode: 'memes' } : {})
+    setSearchParams(nextMode === 'stocks' ? {} : { mode: nextMode })
   }
 
   function toggleAsset(asset: ApprovedRaceAsset) {
@@ -68,7 +72,7 @@ export function OnchainCreateRacePage() {
       })
       setTxLabel('Waiting for race confirmation…')
       await waitForTransactionReceipt(wagmiConfig, { hash, chainId: assetRaceChain.id })
-      navigate(`/onchain/races${mode === 'memes' ? '?mode=memes' : ''}`)
+      navigate(`/onchain/races${mode === 'stocks' ? '' : `?mode=${mode}`}`)
     } catch (cause) {
       setTxLabel(null)
       setError(shortTxError(cause))
@@ -77,15 +81,15 @@ export function OnchainCreateRacePage() {
 
   return (
     <div className={`mx-auto max-w-[1280px] px-4 py-5 lg:min-h-[calc(100dvh-104px)] ${mode === 'memes' ? 'asset-race-meme' : ''}`}>
-      <Link to={`/onchain/races${mode === 'memes' ? '?mode=memes' : ''}`} className="text-sm text-white/40 transition-colors hover:text-white/70">← All races</Link>
+      <Link to={`/onchain/races${mode === 'stocks' ? '' : `?mode=${mode}`}`} className="text-sm text-white/40 transition-colors hover:text-white/70">← All races</Link>
 
       <div className="mt-4 grid min-w-0 items-stretch gap-6 lg:min-h-[calc(100dvh-180px)] lg:grid-cols-[440px_1fr] xl:gap-8">
         <div className="flex min-w-0 flex-col">
           <p className="mb-1 text-sm font-bold text-[#F2A65A]">
-            Create a community {mode === 'memes' ? 'meme' : 'stock'} race
+            Create a community {mode === 'memes' ? 'meme' : mode === 'crypto' ? 'crypto' : 'stock'} race
           </p>
           <h1 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">
-            {mode === 'memes' ? 'Assemble the meme pack' : 'Build the starting grid'}
+            {mode === 'memes' ? 'Assemble the meme pack' : mode === 'crypto' ? 'Race the blue chips' : 'Build the starting grid'}
           </h1>
           {isLocalAssetRace && <p className="mt-2 text-xs font-bold text-[#F2A65A]">Local test network · no real funds</p>}
           <div className="mt-3 flex gap-1.5">
@@ -103,7 +107,7 @@ export function OnchainCreateRacePage() {
                 {
                   title: 'Build the grid',
                   timing: 'Lobby · 5 min',
-                  body: `The creator may add up to six approved ${mode === 'memes' ? 'memes' : 'stocks'}. During the lobby, other wallets may add one approved asset each. At least two assets must be present when the lobby closes.`,
+                  body: `The creator may add up to six approved ${mode === 'memes' ? 'memes' : mode === 'crypto' ? 'crypto assets' : 'stocks'}. During the lobby, other wallets may add one approved asset each. At least two assets must be present when the lobby closes.`,
                 },
                 {
                   title: 'Back one contender',
@@ -150,7 +154,7 @@ export function OnchainCreateRacePage() {
               value={title}
               maxLength={64}
               onChange={(event) => setTitle(event.target.value)}
-              placeholder="AI stock battle"
+              placeholder={mode === 'crypto' ? 'BTC vs ETH' : mode === 'memes' ? 'Meme showdown' : 'AI stock battle'}
               className="w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 font-medium outline-none transition-colors focus:border-[#F2A65A]/50"
             />
             <div className={`mt-1 text-right text-[11px] font-medium ${titleBytes > 64 ? 'text-rose-400' : 'text-white/30'}`}>{titleBytes} / 64 bytes</div>
@@ -209,7 +213,7 @@ export function OnchainCreateRacePage() {
               disabled={!address || !validTitle || selectedDuration === 0n || !!txLabel}
               className="w-full rounded-xl bg-gradient-to-r from-[#F2A65A] to-[#ED8F3A] py-3 text-sm font-bold text-[#3b2416] transition-all hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              {txLabel ?? `Create ${mode === 'memes' ? 'meme' : 'stock'} race`}
+              {txLabel ?? `Create ${mode === 'memes' ? 'meme' : mode === 'crypto' ? 'crypto' : 'stock'} race`}
             </button>
           )}
 

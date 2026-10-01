@@ -1,12 +1,11 @@
 import { useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { formatEther, zeroAddress, type Hex } from 'viem'
 import { waitForTransactionReceipt } from 'wagmi/actions'
 import { useAccount, useBalance, useChainId, useReadContract, useSwitchChain, useWriteContract } from 'wagmi'
 import { assetRaceChain, isLocalAssetRace, wagmiConfig } from '@/chain/config'
 import {
   ASSET_RACE_ADDRESS,
-  LEGACY_ASSET_RACE_ADDRESS,
   ASSET_RACE_CONFIG_ERROR,
   ASSET_RACE_STATUS,
   ASSET_RACE_ORIGIN,
@@ -15,6 +14,7 @@ import {
   assetRaceAbi,
   assetRaceCategoryLabel,
   assetRaceStatusLabel,
+  legacyAssetRaceAddress,
   raceModeForCategory,
 } from '@/chain/assetRaces'
 import {
@@ -54,12 +54,15 @@ function parseRaceId(value: string | undefined) {
 
 export function OnchainRacePage({ legacy = false }: { legacy?: boolean }) {
   const { raceId: routeRaceId } = useParams()
+  const [searchParams] = useSearchParams()
   const raceId = parseRaceId(routeRaceId)
   const { address, isConnected } = useAccount()
   const chainId = useChainId()
   const { switchChain, isPending: isSwitching } = useSwitchChain()
   const { writeContractAsync } = useWriteContract()
-  const raceContractAddress = legacy ? LEGACY_ASSET_RACE_ADDRESS : ASSET_RACE_ADDRESS
+  const raceContractAddress = legacy
+    ? legacyAssetRaceAddress(searchParams.get('contract'))
+    : ASSET_RACE_ADDRESS
   const { race, position, isPreview, isLoading, error: readError, refetch } = useAssetRace(raceId, address, raceContractAddress)
   const [selectedAssetIndex, setSelectedAssetIndex] = useState(0)
   const betFormOwner = `${raceId?.toString() ?? ''}:${address ?? ''}`

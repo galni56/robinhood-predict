@@ -35,6 +35,7 @@ const requiredMemes = new Map([
   ['DOGO', 'DogBull'],
 ])
 const productionPoolStocks = new Set(['NVDA', 'TSLA', 'AAPL', 'META', 'MSTR', 'AMZN', 'MSFT', 'GOOGL', 'MU', 'NFLX'])
+const productionPoolCrypto = new Set(['BTC', 'ETH'])
 const catalogStocks = new Set([...productionPoolStocks, 'MU', 'AMD', 'COIN', 'NFLX', 'TSM'])
 const pairIdPattern = /^0x(?:[0-9a-fA-F]{40}|[0-9a-fA-F]{64})$/
 
@@ -73,6 +74,11 @@ function validate() {
     && memeQuote?.decimals === 18 && memeQuote?.unit === 'ETH_QUOTE'
     && JSON.stringify(memeQuote?.supportedQuoteKinds) === JSON.stringify(['WETH', 'NATIVE_ETH']),
   'Meme quote must be the ETH unit represented only by canonical WETH or V4 native ETH')
+  const cryptoQuote = registry.marketQuoteUniverses?.CRYPTO
+  assert(cryptoQuote?.chainId === ROBINHOOD_CHAIN_ID && cryptoQuote?.symbol === 'USDG'
+    && cryptoQuote?.address?.toLowerCase() === registry.networks['robinhood-mainnet'].stockQuoteToken.address.toLowerCase()
+    && cryptoQuote?.decimals === 6 && cryptoQuote?.unit === 'USDG',
+  'Crypto quote must be canonical USDG')
   const liveProfile = registry.liveDisplayProfiles?.DEXSCREENER_STOCK_TOKEN_V1
   assert(liveProfile?.provider === 'DEXSCREENER', 'Stock live display provider must be DEX Screener')
   assert(liveProfile?.chainId === 'robinhood', 'DEX Screener chain ID must be robinhood')
@@ -92,7 +98,7 @@ function validate() {
     assert(Buffer.byteLength(asset.assetId) > 0 && Buffer.byteLength(asset.assetId) <= 32, `${asset.assetId}: invalid bytes32 assetId`)
     assert(!ids.has(asset.assetId), `${asset.assetId}: duplicate assetId`)
     ids.add(asset.assetId)
-    assert(['STOCK', 'MEME'].includes(asset.category), `${asset.assetId}: invalid category`)
+    assert(['STOCK', 'MEME', 'CRYPTO'].includes(asset.category), `${asset.assetId}: invalid category`)
     for (const networkName of networkNames) {
       const networkAsset = asset.networks[networkName]
       assert(networkAsset && typeof networkAsset.enabled === 'boolean', `${asset.assetId}: missing ${networkName} config`)
@@ -120,7 +126,7 @@ function validate() {
       } else if (source.type === 'SIGNED_POOL_BLOCK_PAIR') {
         assert(networkName === 'robinhood-mainnet', `${asset.assetId}: signed pool source is production-only`)
         if (asset.category === 'STOCK') assert(productionPoolStocks.has(asset.assetId), `${asset.assetId}: Stock is not approved for pool pricing`)
-        else {
+        else if (asset.category === 'MEME') {
           assert(asset.tokenVerification?.confidence === 'HIGH', `${asset.assetId}: authoritative Meme identity required`)
           assert(asset.productionStatus === 'A', `${asset.assetId}: Meme pool must be approved`)
           // Exact quote-kind/pair/PoolId validation is shared with the engine.
@@ -133,7 +139,7 @@ function validate() {
         assert(isAddress(asset.canonicalTokenAddress ?? ''), `${asset.assetId}: canonical token address required`)
         const chartPath = `#/onchain/charts/${encodeURIComponent(asset.symbol)}`
         assert(/^#\/onchain\/charts\/[A-Za-z0-9_-]{1,32}$/.test(chartPath), `${asset.assetId}: invalid internal chart route`)
-        if (asset.category === 'MEME') continue // Direct-pool LIVE derives from the same marketSource, not DEX Screener.
+        if (asset.category !== 'STOCK') continue // Meme and Crypto LIVE derive from the same direct pool source.
         const live = asset.liveDisplay
         assert(live?.type === 'DEXSCREENER_STOCK_TOKEN', `${asset.assetId}: DEX Screener live display required`)
         assert(live?.profile === 'DEXSCREENER_STOCK_TOKEN_V1', `${asset.assetId}: wrong live display profile`)
@@ -166,6 +172,16 @@ function validate() {
     if (asset.networks['robinhood-mainnet'].enabled) assert(asset.networks['robinhood-mainnet'].oracle?.type === 'SIGNED_POOL_BLOCK_PAIR', `${asset.assetId}: Meme must use the shared signed pool oracle`)
   }
 
+  const crypto = registry.assets.filter((asset) => asset.category === 'CRYPTO')
+  assert(crypto.length === productionPoolCrypto.size, 'registry must contain exactly BTC and ETH Crypto assets')
+  for (const asset of crypto) {
+    assert(productionPoolCrypto.has(asset.assetId), `${asset.assetId}: unapproved Crypto asset`)
+    assert(asset.productionStatus === 'A', `${asset.assetId}: Crypto pool must be approved`)
+    assert(asset.tokenVerification?.confidence === 'HIGH', `${asset.assetId}: reviewed Crypto identity required`)
+    assert(asset.networks['robinhood-mainnet'].enabled, `${asset.assetId}: Crypto asset must be enabled on mainnet`)
+    assert(asset.marketSource?.quoteToken?.toLowerCase() === cryptoQuote.address.toLowerCase(), `${asset.assetId}: Crypto quote mismatch`)
+  }
+
   for (const asset of registry.assets) {
     assert(!asset.networks['robinhood-testnet'].enabled, `${asset.assetId}: testnet must fail closed until separately verified`)
     assert(asset.networks['robinhood-mainnet'].oracle?.type !== 'MOCK_LOCAL', `${asset.assetId}: production cannot use MockRaceOracle`)
@@ -173,12 +189,14 @@ function validate() {
 
   const configs = poolConfigsFromRegistry(registry, { category: 'STOCK' })
   const memeConfigs = poolConfigsFromRegistry(registry, { category: 'MEME' })
+  const cryptoConfigs = poolConfigsFromRegistry(registry, { category: 'CRYPTO' })
   assert(memeConfigs.length === memes.filter((asset) => asset.networks['robinhood-mainnet'].enabled).length, 'enabled Meme pool configuration missing')
   const stocks = registry.assets.filter((asset) => asset.category === 'STOCK')
   assert(stocks.length === catalogStocks.size, 'registry must contain exactly 13 approved Stocks')
   for (const stock of stocks) assert(catalogStocks.has(stock.assetId), `${stock.assetId}: unapproved Stock`)
   assert(poolConfigsFromRegistry(registry, { includeDisabled: true, category: 'STOCK' }).length === catalogStocks.size, 'all catalog Stocks require a verified candidate pool')
   assert(configs.length === productionPoolStocks.size, 'registry must expose exactly 10 approved pool configs')
+  assert(cryptoConfigs.length === productionPoolCrypto.size, 'registry must expose exactly 2 approved Crypto pool configs')
 
   const enabledPoolStocks = registry.assets.filter((asset) =>
     asset.category === 'STOCK' && asset.networks['robinhood-mainnet'].enabled
@@ -186,18 +204,20 @@ function validate() {
   assert(enabledPoolStocks.length === productionPoolStocks.size, 'mainnet must enable exactly the 10 approved pool-backed Stocks')
   for (const asset of enabledPoolStocks) assert(productionPoolStocks.has(asset.assetId), `${asset.assetId}: unexpected pool-backed Stock`)
   assert(livePairs.size === productionPoolStocks.size, 'mainnet must configure exactly 10 distinct Stock monitoring pairs')
-  for (const asset of registry.assets.filter((item) => !productionPoolStocks.has(item.assetId))) {
+  for (const asset of registry.assets.filter((item) => item.category === 'STOCK' && !productionPoolStocks.has(item.assetId))) {
     assert(!asset.liveDisplay, `${asset.assetId}: live display is out of scope or not production-approved`)
   }
 }
 
 try {
   validate()
+  const isAll = process.argv.some((arg) => arg === '--deployment-all-symbols' || arg === '--deployment-all-oracle-ids')
   const isMeme = process.argv.some((arg) => arg === '--deployment-meme-symbols' || arg === '--deployment-meme-oracle-ids')
-  const configs = poolConfigsFromRegistry(registry, { category: isMeme ? 'MEME' : 'STOCK' })
-  if (process.argv.includes('--deployment-symbols') || process.argv.includes('--deployment-meme-symbols')) {
+  const isCrypto = process.argv.some((arg) => arg === '--deployment-crypto-symbols' || arg === '--deployment-crypto-oracle-ids')
+  const configs = poolConfigsFromRegistry(registry, isAll ? {} : { category: isMeme ? 'MEME' : isCrypto ? 'CRYPTO' : 'STOCK' })
+  if (process.argv.includes('--deployment-symbols') || process.argv.includes('--deployment-meme-symbols') || process.argv.includes('--deployment-crypto-symbols') || process.argv.includes('--deployment-all-symbols')) {
     console.log(configs.map((config) => config.assetId).join(','))
-  } else if (process.argv.includes('--deployment-oracle-ids') || process.argv.includes('--deployment-meme-oracle-ids')) {
+  } else if (process.argv.includes('--deployment-oracle-ids') || process.argv.includes('--deployment-meme-oracle-ids') || process.argv.includes('--deployment-crypto-oracle-ids') || process.argv.includes('--deployment-all-oracle-ids')) {
     console.log(configs.map((config) => config.oracleId).join(','))
   } else {
   const enabledCounts = Object.fromEntries(networkNames.map((network) => [

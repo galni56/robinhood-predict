@@ -139,7 +139,7 @@ export function poolConfigsFromRegistry(registry, { includeDisabled = false, cat
   const chainId = registry?.networks?.['robinhood-mainnet']?.chainId
   if (chainId !== ROBINHOOD_CHAIN_ID) throw new Error('InvalidRobinhoodChainId')
   return registry.assets
-    .filter((asset) => ['STOCK', 'MEME'].includes(asset.category) && (!category || asset.category === category) && (asset.networks?.['robinhood-mainnet']?.enabled
+    .filter((asset) => ['STOCK', 'MEME', 'CRYPTO'].includes(asset.category) && (!category || asset.category === category) && (asset.networks?.['robinhood-mainnet']?.enabled
       || (includeDisabled && asset.marketSource)))
     .map((asset) => {
       const source = asset.marketSource
@@ -162,9 +162,11 @@ export function poolConfigsFromRegistry(registry, { includeDisabled = false, cat
       if (normalized(config.baseToken) !== normalized(asset.canonicalTokenAddress)) {
         throw new Error(`WrongPoolBaseToken:${asset.assetId}`)
       }
-      const quote = asset.category === 'STOCK'
-        ? registry.networks['robinhood-mainnet'].stockQuoteToken
-        : registry.marketQuoteUniverses?.MEME
+      const quote = asset.category === 'MEME'
+        ? registry.marketQuoteUniverses?.MEME
+        : asset.category === 'CRYPTO'
+          ? registry.marketQuoteUniverses?.CRYPTO
+          : registry.networks['robinhood-mainnet'].stockQuoteToken
       const native = nativeQuote(config)
       if (!quote || (!native && normalized(config.quoteToken) !== normalized(quote.address)) || config.quoteDecimals !== quote.decimals
         || (asset.category === 'MEME' && config.quoteKind !== (native ? 'NATIVE_ETH' : 'WETH'))) {

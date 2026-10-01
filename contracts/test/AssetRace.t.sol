@@ -126,6 +126,24 @@ contract AssetRaceTest is Test {
         return race.createRace(_config(2, feeBp), _candidates(count));
     }
 
+    function _cryptoCandidates(uint8 count) internal returns (AssetRace.CandidateInput[] memory candidates) {
+        candidates = new AssetRace.CandidateInput[](count);
+        for (uint8 i = 0; i < count; ++i) {
+            bytes32 id = bytes32(uint256(201 + i));
+            candidates[i] = AssetRace.CandidateInput({
+                category: AssetRace.RaceCategory.CRYPTO,
+                assetId: keccak256(abi.encodePacked("CRYPTO", i)),
+                oracle: address(oracle),
+                oracleId: id,
+                expectedDecimals: DECIMALS,
+                maxPriceAge: 300,
+                maxEndpointLag: 300
+            });
+            oracle.setObservation(id, 100e8, DECIMALS, block.timestamp, bytes32(uint256(201 + i)));
+            race.setApprovedAsset(candidates[i], true);
+        }
+    }
+
     function _bet(uint256 raceId, address user, uint8 assetIndex, uint256 amount) internal {
         vm.prank(user);
         race.bet{value: amount}(raceId, assetIndex, amount);
@@ -191,6 +209,17 @@ contract AssetRaceTest is Test {
         race.createRace(_config(2, 0), _candidates(2));
         race.createRace(_config(2, 0), _candidates(6));
         assertEq(race.raceCount(), 2);
+    }
+
+    function test_CreateRace_SupportsCryptoAndRejectsCategoryMixing() public {
+        AssetRace.RaceConfigInput memory cryptoConfig = _config(2, 0);
+        cryptoConfig.category = AssetRace.RaceCategory.CRYPTO;
+        uint256 cryptoRaceId = race.createRace(cryptoConfig, _cryptoCandidates(2));
+        assertEq(uint8(race.getRace(cryptoRaceId).category), uint8(AssetRace.RaceCategory.CRYPTO));
+
+        AssetRace.CandidateInput[] memory stockCandidates = _candidates(2);
+        vm.expectRevert(AssetRace.AssetNotApproved.selector);
+        race.createRace(cryptoConfig, stockCandidates);
     }
 
     function test_CreateRace_RejectsCandidateCountOutsideBounds() public {

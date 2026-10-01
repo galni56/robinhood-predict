@@ -66,6 +66,7 @@ export function AssetRaceBettingView({
   quoteReady: boolean
 }) {
   const meme = race.category === ASSET_RACE_CATEGORY.MEME
+  const crypto = race.category === ASSET_RACE_CATEGORY.CRYPTO
   const accentText = 'text-[#F2A65A]'
   const selected = race.assets[selectedAssetIndex]
   const existingStake = position?.exists ? position.stake : 0n
@@ -86,7 +87,7 @@ export function AssetRaceBettingView({
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <p className={`text-sm font-bold ${accentText}`}>Pick your front-runner</p>
-              <h2 className="mt-1 font-display text-2xl font-bold">{meme ? 'Meme sprint' : 'Stock sprint'}</h2>
+              <h2 className="mt-1 font-display text-2xl font-bold">{meme ? 'Meme sprint' : crypto ? 'Crypto sprint' : 'Stock sprint'}</h2>
               <p className="mt-1 max-w-xl text-sm text-white/45">Choose the asset with the highest return over the race window.</p>
             </div>
             <div className="text-right">

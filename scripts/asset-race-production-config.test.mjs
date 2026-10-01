@@ -3,7 +3,9 @@ import { existsSync, readFileSync } from 'node:fs'
 import test from 'node:test'
 import {
   APPROVED_NATIVE_ETH_BINDINGS,
+  STOCK_MEME_ONLY_V2_BINDINGS,
   validateAssetRaceProductionBuild,
+  validateCryptoAssetsBuild,
   validateNativeEthProductionBindings,
 } from '../vite.config.ts'
 import { archiveLookbacks, archiveRpcMinIntervalMs, archiveRpcUrl } from './asset-race-archive-options.mjs'
@@ -108,6 +110,29 @@ test('release builds reject missing or altered native-ETH production bindings', 
   )
 })
 
+test('complete asset UI stays off on V2 and requires explicit all-asset Race and Arena bindings', () => {
+  validateCryptoAssetsBuild({})
+  validateCryptoAssetsBuild({ VITE_ALL_ASSET_TYPES_ENABLED: 'false' })
+  assert.throws(
+    () => validateCryptoAssetsBuild({ VITE_ALL_ASSET_TYPES_ENABLED: 'enabled' }),
+    /must be true or false/,
+  )
+  for (const name of ['VITE_ASSET_RACE_ADDRESS', 'VITE_PRICE_ARENA_ADDRESS']) {
+    assert.throws(
+      () => validateCryptoAssetsBuild({
+        VITE_ALL_ASSET_TYPES_ENABLED: 'true',
+        ...APPROVED_NATIVE_ETH_BINDINGS,
+        [name]: STOCK_MEME_ONLY_V2_BINDINGS[name],
+      }),
+      /reviewed all-asset deployment/,
+    )
+  }
+  validateCryptoAssetsBuild({
+    VITE_ALL_ASSET_TYPES_ENABLED: 'true',
+    ...APPROVED_NATIVE_ETH_BINDINGS,
+  })
+})
+
 test('native-ETH builds reject every known USDG contract binding', () => {
   for (const [name, address] of [
     ['VITE_MARKET_ADDRESS', '0x1a62098AcEd3F7F8C41fff1bc1395A541678b0F1'],
@@ -129,7 +154,7 @@ test('legacy access is native-ETH settlement-only and exposes no legacy USDG tra
   assert.doesNotMatch(appSource, /LegacyUsdRecoveryPage/)
   assert.match(appSource, /path="legacy" element={<OnchainLegacyMarketsPage \/>}/)
   assert.match(appSource, /path="legacy\/:id" element={<OnchainMarketPage legacy \/>}/)
-  assert.match(legacyMarketsSource, /V1 no longer accepts new bets/)
+  assert.match(legacyMarketsSource, /Retired contract generations no longer accept new bets/)
   assert.match(marketPageSource, /if \(legacy\)[\s\S]*Legacy markets are settlement-only/)
   assert.match(marketPageSource, /disabled={[\s\S]*legacy \|\| !marketConfigured/)
   assert.doesNotMatch(navbarSource, /onchain\/legacy|Legacy/)
@@ -148,8 +173,8 @@ test('share previews and activity scans use the native successor generation', ()
     if (address === APPROVED_NATIVE_ETH_BINDINGS.VITE_ASSET_RACE_SIGNED_POOL_ORACLE_ADDRESS) continue
     assert.match(sharePreviewSource, new RegExp(address, 'i'))
   }
-  assert.match(gameActivitySource, /RACE_DEPLOY_BLOCK = 77_352_162n/)
-  assert.match(gameActivitySource, /ARENA_DEPLOY_BLOCK = 77_353_494n/)
+  assert.match(gameActivitySource, /RACE_DEPLOY_BLOCK = 77_663_890n/)
+  assert.match(gameActivitySource, /ARENA_DEPLOY_BLOCK = 77_664_309n/)
 })
 
 test('native AssetRace deployment reuses the existing signed-pool oracle', () => {

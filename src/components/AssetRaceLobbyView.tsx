@@ -40,6 +40,7 @@ export function AssetRaceLobbyView({
   const [pendingAsset, setPendingAsset] = useState<ApprovedRaceAsset | null>(null)
   const { assets: approvedAssets, isLoading } = useApprovedRaceAssets()
   const meme = race.category === ASSET_RACE_CATEGORY.MEME
+  const crypto = race.category === ASSET_RACE_CATEGORY.CRYPTO
   const lobbyOpen = nowMs > 0 && nowMs < Number(race.lobbyEndTime) * 1_000
   const raceFull = race.assets.length >= 6
   const selectable = approvedAssets.filter((approved) =>
@@ -78,7 +79,7 @@ export function AssetRaceLobbyView({
           {race.assets.map((asset) => (
             <div key={asset.assetIndex} className="rounded-2xl border border-white/5 bg-white/5 px-3.5 py-3">
               <div className="flex items-center gap-2"><TokenLogo ticker={asset.symbol} className="h-9 w-9 rounded-xl" /><div className="font-display text-lg font-bold">{asset.symbol}</div></div>
-              <div className="text-xs font-bold text-[#F2A65A]">Approved {meme ? 'meme' : 'stock'}</div>
+              <div className="text-xs font-bold text-[#F2A65A]">Approved {meme ? 'meme' : crypto ? 'crypto asset' : 'stock'}</div>
               <PriceSourceLink
                 href={priceSourceUrlForAssetId(asset.assetId)}
                 symbol={asset.symbol}
@@ -109,7 +110,7 @@ export function AssetRaceLobbyView({
               disabled={raceFull || hasAddedAsset || !isConnected || !onRightChain || !!txLabel}
               className="rounded-full bg-[#F2A65A] px-4 py-2 text-xs font-bold text-[#3b2416] disabled:opacity-40"
             >
-              {raceFull ? 'Race full' : hasAddedAsset ? 'Asset added' : `Add ${meme ? 'meme' : 'stock'}`}
+              {raceFull ? 'Race full' : hasAddedAsset ? 'Asset added' : `Add ${meme ? 'meme' : crypto ? 'crypto' : 'stock'}`}
             </button>
           </div>
           {!isConnected && <div className="mt-4"><WalletOptionsList tone="race" /></div>}

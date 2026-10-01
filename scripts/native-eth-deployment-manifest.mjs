@@ -28,7 +28,7 @@ function approvedAssets() {
       || !Number.isSafeInteger(profile.maxEndpointLagSeconds) || profile.maxEndpointLagSeconds < 0
       || typeof asset.assetId !== 'string' || Buffer.byteLength(asset.assetId) === 0
       || Buffer.byteLength(asset.assetId) > 32
-      || !['STOCK', 'MEME'].includes(asset.category)
+      || !['STOCK', 'MEME', 'CRYPTO'].includes(asset.category)
     ) {
       throw new Error(`InvalidRegistryAsset:${asset.assetId}`)
     }
@@ -61,7 +61,8 @@ export function nativeEthDeploymentManifest({ ownerAddress, oracleAddress, price
   const assets = approvedAssets()
   const stocks = assets.filter((asset) => asset.category === 'STOCK')
   const memes = assets.filter((asset) => asset.category === 'MEME')
-  if (stocks.length !== 10 || memes.length !== 13) throw new Error('UnexpectedProductionAssetCount')
+  const crypto = assets.filter((asset) => asset.category === 'CRYPTO')
+  if (stocks.length !== 10 || memes.length !== 13 || crypto.length !== 2) throw new Error('UnexpectedProductionAssetCount')
   const maxPriceAges = new Set(assets.map(({ maxPriceAgeSeconds }) => maxPriceAgeSeconds))
   const maxEndpointLags = new Set(assets.map(({ maxEndpointLagSeconds }) => maxEndpointLagSeconds))
   if (maxPriceAges.size !== 1 || maxEndpointLags.size !== 1) {
@@ -79,7 +80,7 @@ export function nativeEthDeploymentManifest({ ownerAddress, oracleAddress, price
   ) throw new Error('InvalidProductionNetwork')
 
   return {
-    schemaVersion: 3,
+    schemaVersion: 5,
     chain: {
       key: MAINNET,
       chainId: registry.networks[MAINNET].chainId,
@@ -104,7 +105,7 @@ export function nativeEthDeploymentManifest({ ownerAddress, oracleAddress, price
         maxSeedLiquidityWei: caps.predictionMarket.maxSeedLiquidityWei,
         maxStakePerSideWei: caps.predictionMarket.maxStakePerSideWei,
       },
-      assets: stocks,
+      assets: [...stocks, ...memes, ...crypto],
     },
     assetRace: {
       constructor: {},
@@ -126,6 +127,7 @@ export function nativeEthDeploymentManifest({ ownerAddress, oracleAddress, price
       },
       stockAssets: stocks,
       memeAssets: memes,
+      cryptoAssets: crypto,
     },
     priceArena: {
       constructor: {
@@ -135,6 +137,7 @@ export function nativeEthDeploymentManifest({ ownerAddress, oracleAddress, price
       oracle,
       stockAssets: stocks,
       memeAssets: memes,
+      cryptoAssets: crypto,
     },
   }
 }

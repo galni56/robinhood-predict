@@ -17,7 +17,8 @@ import {IAssetRaceOracle} from "./interfaces/IAssetRaceOracle.sol";
 contract PriceArena is Ownable, ReentrancyGuard {
     enum Category {
         STOCK,
-        MEME
+        MEME,
+        CRYPTO
     }
 
     enum Status {

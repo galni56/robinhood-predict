@@ -147,6 +147,7 @@ export function readKeeperConfig() {
     legacyAddress,
     signedOracleAddress: getAddress(rawOracle),
     allowLive: boolEnv('PREDICTION_MARKET_ALLOW_LIVE', false),
+    allAssetTypesEnabled: boolEnv('PREDICTION_MARKET_ALL_ASSET_TYPES_ENABLED', false),
     dryRun,
     expectedChainId: uintEnv('PREDICTION_MARKET_CHAIN_ID', 4663, 1),
     pollIntervalMs: uintEnv('PREDICTION_MARKET_POLL_INTERVAL_MS', DEFAULT_PREDICTION_MARKET_POLL_INTERVAL_MS, 500),
@@ -168,9 +169,9 @@ export function readKeeperConfig() {
   }
 }
 
-function productionStockPoolConfigs() {
+function productionMarketPoolConfigs() {
   const registry = JSON.parse(readFileSync(fileURLToPath(new URL('../config/asset-race-assets.json', import.meta.url)), 'utf8'))
-  return poolConfigsFromRegistry(registry, { category: 'STOCK' })
+  return poolConfigsFromRegistry(registry)
 }
 
 export async function verifyConfiguredAssets(publicClient, marketAddress, configs) {
@@ -356,13 +357,20 @@ async function main() {
   }
   if (Number(proofType) !== SIGNED_POOL_BLOCK_PAIR) throw new KeeperConfigError('Unexpected endpoint proof type')
 
-  const configs = productionStockPoolConfigs()
-  if (configs.length !== 10) throw new KeeperConfigError('Registry must expose exactly 10 production Stock pools')
+  const allConfigs = productionMarketPoolConfigs()
+  if (allConfigs.length !== 25) throw new KeeperConfigError('Registry must expose exactly 25 production Stock, Meme and Crypto pools')
+  const configs = config.allAssetTypesEnabled
+    ? allConfigs
+    : allConfigs.filter((item) => item.category === 'STOCK')
+  if (configs.length !== (config.allAssetTypesEnabled ? 25 : 10)) {
+    throw new KeeperConfigError('PredictionMarket keeper asset release profile is incomplete')
+  }
   await verifyPredictionMarketRelease(publicClient, config.address, configs, {
     expectedOracleAddress: config.signedOracleAddress,
   })
   if (config.legacyAddress) {
-    await verifyLegacyPredictionMarketRelease(publicClient, config.legacyAddress, configs, {
+    const legacyConfigs = configs.filter((item) => item.category === 'STOCK')
+    await verifyLegacyPredictionMarketRelease(publicClient, config.legacyAddress, legacyConfigs, {
       expectedOracleAddress: config.signedOracleAddress,
     })
   }

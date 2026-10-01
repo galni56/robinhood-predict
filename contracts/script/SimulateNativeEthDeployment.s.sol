@@ -18,6 +18,7 @@ contract SimulateNativeEthDeployment is Script {
     uint8 private constant EXPECTED_PRICE_DECIMALS = 18;
     uint256 private constant EXPECTED_STOCK_COUNT = 10;
     uint256 private constant EXPECTED_MEME_COUNT = 13;
+    uint256 private constant EXPECTED_CRYPTO_COUNT = 2;
     uint256 private constant EXPECTED_FEE_BP = 200;
 
     struct Inputs {
@@ -37,6 +38,8 @@ contract SimulateNativeEthDeployment is Script {
         bytes32[] stockOracleIds;
         string[] memeSymbols;
         bytes32[] memeOracleIds;
+        string[] cryptoSymbols;
+        bytes32[] cryptoOracleIds;
     }
 
     function run() external returns (PredictionMarket market, AssetRace race, PriceArena arena) {
@@ -58,6 +61,8 @@ contract SimulateNativeEthDeployment is Script {
 
         uint256 configureGasStart = gasleft();
         _configurePredictionMarket(market, inputs.stockSymbols, inputs.stockOracleIds);
+        _configurePredictionMarket(market, inputs.memeSymbols, inputs.memeOracleIds);
+        _configurePredictionMarket(market, inputs.cryptoSymbols, inputs.cryptoOracleIds);
         _configureAssetRace(race, inputs);
         _configurePriceArena(arena, inputs);
         uint256 configureGas = configureGasStart - gasleft();
@@ -94,6 +99,8 @@ contract SimulateNativeEthDeployment is Script {
         inputs.stockOracleIds = vm.envBytes32("STOCK_ORACLE_IDS", ",");
         inputs.memeSymbols = vm.envString("MEME_SYMBOLS", ",");
         inputs.memeOracleIds = vm.envBytes32("MEME_ORACLE_IDS", ",");
+        inputs.cryptoSymbols = vm.envString("CRYPTO_SYMBOLS", ",");
+        inputs.cryptoOracleIds = vm.envBytes32("CRYPTO_ORACLE_IDS", ",");
     }
 
     function _validateInputs(Inputs memory inputs) private view {
@@ -124,8 +131,10 @@ contract SimulateNativeEthDeployment is Script {
         require(inputs.maxPriceAge == 60 && inputs.maxEndpointLag == 0, "race validation profile mismatch");
         require(inputs.stockSymbols.length == EXPECTED_STOCK_COUNT, "expected 10 stocks");
         require(inputs.memeSymbols.length == EXPECTED_MEME_COUNT, "expected 13 memes");
+        require(inputs.cryptoSymbols.length == EXPECTED_CRYPTO_COUNT, "expected 2 crypto assets");
         require(inputs.stockSymbols.length == inputs.stockOracleIds.length, "stock arrays mismatch");
         require(inputs.memeSymbols.length == inputs.memeOracleIds.length, "meme arrays mismatch");
+        require(inputs.cryptoSymbols.length == inputs.cryptoOracleIds.length, "crypto arrays mismatch");
         require(
             inputs.raceDurations.length == 3 && inputs.raceDurations[0] == 60 && inputs.raceDurations[1] == 300
                 && inputs.raceDurations[2] == 900,
@@ -157,6 +166,15 @@ contract SimulateNativeEthDeployment is Script {
             AssetRace.RaceCategory.MEME,
             inputs.memeSymbols,
             inputs.memeOracleIds,
+            inputs.maxPriceAge,
+            inputs.maxEndpointLag
+        );
+        _configureRaceCategory(
+            race,
+            inputs.oracle,
+            AssetRace.RaceCategory.CRYPTO,
+            inputs.cryptoSymbols,
+            inputs.cryptoOracleIds,
             inputs.maxPriceAge,
             inputs.maxEndpointLag
         );
@@ -199,6 +217,9 @@ contract SimulateNativeEthDeployment is Script {
         _configureArenaCategory(
             arena, inputs.oracle, PriceArena.Category.MEME, inputs.memeSymbols, inputs.memeOracleIds
         );
+        _configureArenaCategory(
+            arena, inputs.oracle, PriceArena.Category.CRYPTO, inputs.cryptoSymbols, inputs.cryptoOracleIds
+        );
     }
 
     function _configureArenaCategory(
@@ -228,7 +249,10 @@ contract SimulateNativeEthDeployment is Script {
         require(arena.minStakeWei() == inputs.arenaMinStakeWei, "arena min mismatch");
         require(arena.maxStakeWei() == inputs.arenaMaxStakeWei, "arena max mismatch");
         require(race.communityPolicyConfigured(), "race policy missing");
-        require(race.getApprovedAssetIds().length == EXPECTED_STOCK_COUNT + EXPECTED_MEME_COUNT, "race asset count");
+        require(
+            race.getApprovedAssetIds().length == EXPECTED_STOCK_COUNT + EXPECTED_MEME_COUNT + EXPECTED_CRYPTO_COUNT,
+            "race asset count"
+        );
         uint64[] memory actualDurations = race.getApprovedRaceDurations();
         require(actualDurations.length == inputs.raceDurations.length, "race duration count");
         for (uint256 i; i < actualDurations.length; ++i) {
@@ -270,6 +294,7 @@ contract SimulateNativeEthDeployment is Script {
         }
         for (uint256 i; i < inputs.memeSymbols.length; ++i) {
             bytes32 assetId = _assetId(inputs.memeSymbols[i]);
+            _verifyPredictionAsset(market, assetId, inputs.memeOracleIds[i]);
             _verifyRaceAsset(
                 race,
                 assetId,
@@ -280,6 +305,20 @@ contract SimulateNativeEthDeployment is Script {
                 inputs.maxEndpointLag
             );
             _verifyArenaAsset(arena, assetId, inputs.memeOracleIds[i], PriceArena.Category.MEME, inputs.oracle);
+        }
+        for (uint256 i; i < inputs.cryptoSymbols.length; ++i) {
+            bytes32 assetId = _assetId(inputs.cryptoSymbols[i]);
+            _verifyPredictionAsset(market, assetId, inputs.cryptoOracleIds[i]);
+            _verifyRaceAsset(
+                race,
+                assetId,
+                inputs.cryptoOracleIds[i],
+                AssetRace.RaceCategory.CRYPTO,
+                inputs.oracle,
+                inputs.maxPriceAge,
+                inputs.maxEndpointLag
+            );
+            _verifyArenaAsset(arena, assetId, inputs.cryptoOracleIds[i], PriceArena.Category.CRYPTO, inputs.oracle);
         }
     }
 
@@ -357,6 +396,7 @@ contract SimulateNativeEthDeployment is Script {
         console.log("PRICE_ARENA_MAX_STAKE_WEI", inputs.arenaMaxStakeWei);
         console.log("CONFIGURED_STOCK_COUNT", inputs.stockSymbols.length);
         console.log("CONFIGURED_MEME_COUNT", inputs.memeSymbols.length);
+        console.log("CONFIGURED_CRYPTO_COUNT", inputs.cryptoSymbols.length);
         console.log("SIMULATED_PREDICTION_MARKET", address(market));
         console.log("SIMULATED_ASSET_RACE", address(race));
         console.log("SIMULATED_PRICE_ARENA", address(arena));
@@ -395,7 +435,9 @@ contract SimulateNativeEthDeployment is Script {
                     inputs.stockSymbols,
                     inputs.stockOracleIds,
                     inputs.memeSymbols,
-                    inputs.memeOracleIds
+                    inputs.memeOracleIds,
+                    inputs.cryptoSymbols,
+                    inputs.cryptoOracleIds
                 )
             )
         );

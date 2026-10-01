@@ -91,7 +91,9 @@ export function useRobinhoodPrices(symbols: string[]) {
 
 // Keep the global strip and stock browser aligned with the reviewed assets
 // accepted by the current PredictionMarket contract.
-export const CORE_TICKERS = PREDICTION_MARKET_ASSETS.map((asset) => asset.ticker)
+export const CORE_TICKERS = PREDICTION_MARKET_ASSETS
+  .filter((asset) => asset.category === 'STOCK')
+  .map((asset) => asset.ticker)
 
 /** Prices for CORE_TICKERS on a fixed query key (not parameterized by any
  * caller-supplied array), so every component using this hook shares the

@@ -9,6 +9,21 @@ export function formatUsd(value: number, digits = 2): string {
   })
 }
 
+export type AssetPriceQuote = 'USDG' | 'ETH'
+
+/** Formats an oracle price without losing the useful precision of ETH-quoted
+ * meme assets. Stock and crypto pools settle against USDG; meme pools settle
+ * against native ETH/WETH. */
+export function formatAssetPrice(value: number, quote: AssetPriceQuote): string {
+  if (quote === 'USDG') return formatUsd(value)
+  const magnitude = Math.abs(value)
+  const maximumFractionDigits = magnitude >= 1 ? 6 : magnitude >= 0.001 ? 8 : 12
+  return `${value.toLocaleString('en-US', {
+    minimumFractionDigits: Math.min(2, maximumFractionDigits),
+    maximumFractionDigits,
+  })} ETH`
+}
+
 /** Compact ETH for dense UI while preserving useful precision for tiny bets. */
 export function formatCompactEth(value: bigint, fractionalSignificantDigits = 4): string {
   const exact = formatEther(value)

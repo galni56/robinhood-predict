@@ -23,6 +23,7 @@ import {
 import { withRpcRateLimit } from './asset-race-rpc-budget.mjs'
 import { chainlinkRoundProof } from './chainlink-endpoint-proof.mjs'
 import { nextSleepMs } from './keeper-poll-schedule.mjs'
+import { earliestDeploymentDueAt, parseLegacyDeployments } from './keeper-deployments.mjs'
 
 const STATUS = {
   BETTING: 0,
@@ -177,6 +178,7 @@ Explicit configuration:
   ASSET_RACE_REALTIME_ENDPOINT_WINDOW_SECONDS=30    public RPC near-tip window
   ASSET_RACE_ENDPOINT_CACHE_FILE=<outside-repo-path> optional durable proof cache
   ASSET_RACE_ADDRESS=<contract-address>
+  ASSET_RACE_LEGACY_ADDRESSES=<address[,address]>   optional retired deployments
   ASSET_RACE_CHAIN_ID=<expected-chain-id>          optional safety check
   ASSET_RACE_KEEPER_ADDRESS=<unlocked-rpc-account> or
   ASSET_RACE_KEEPER_PRIVATE_KEY=<signer-key>
@@ -192,6 +194,7 @@ Explicit configuration:
                                                     well inside every configured
                                                     start/resolution grace
   RACE_SCAN_FROM=0                                 default
+  ASSET_RACE_LEGACY_SCAN_FROM=0                    default for retired deployments
   DRY_RUN=true                                     simulate and report; never send
   RUN_ONCE=true                                    poll once and exit
 
@@ -304,8 +307,16 @@ function resolveConfig() {
   const poolRpcUrl = process.env.ASSET_RACE_POOL_RPC_URL?.trim() || rpcUrl
   const endpointCacheFile = resolveEndpointCacheFile(process.env.ASSET_RACE_ENDPOINT_CACHE_FILE)
 
+  const address = getAddress(addressValue)
+  const legacyScanFrom = BigInt(readNonNegativeInteger('ASSET_RACE_LEGACY_SCAN_FROM', 0))
+  const legacyDeployments = parseLegacyDeployments(process.env.ASSET_RACE_LEGACY_ADDRESSES, {
+    activeAddress: address,
+    scanFrom: legacyScanFrom,
+    variableName: 'ASSET_RACE_LEGACY_ADDRESSES',
+  })
+
   return {
-    address: getAddress(addressValue),
+    address,
     allowLive: readBoolean('ASSET_RACE_ALLOW_LIVE'),
     dryRun,
     expectedChainId: process.env.ASSET_RACE_CHAIN_ID?.trim(),
@@ -321,6 +332,7 @@ function resolveConfig() {
     rpcUrl,
     runOnce: readBoolean('RUN_ONCE'),
     scanFrom: BigInt(readNonNegativeInteger('RACE_SCAN_FROM', 0)),
+    legacyDeployments,
     signedOracleAddress: signedOracleValue ? getAddress(signedOracleValue) : undefined,
     unlockedAddress: unlockedAddress ? getAddress(unlockedAddress) : undefined,
   }
@@ -557,13 +569,21 @@ async function main() {
     contracts: poolChainContracts(chainId),
   })
   const publicClient = createPublicClient({ chain, transport: http(config.rpcUrl, { batch: true }) })
+  const deployments = [
+    { address: config.address, label: 'active', scanFrom: config.scanFrom },
+    ...config.legacyDeployments,
+  ]
   if (chainId === 4663) {
-    const creatorShare = await publicClient.readContract({
-      address: config.address,
-      abi: keeperAbi,
-      functionName: 'CREATOR_FEE_SHARE_BP',
-    })
-    if (creatorShare !== 5_000n) throw new KeeperConfigError('AssetRace creator fee share must be 5000 bp')
+    for (const deployment of deployments) {
+      const creatorShare = await publicClient.readContract({
+        address: deployment.address,
+        abi: keeperAbi,
+        functionName: 'CREATOR_FEE_SHARE_BP',
+      })
+      if (creatorShare !== 5_000n) {
+        throw new KeeperConfigError(`AssetRace creator fee share must be 5000 bp on ${deployment.label}`)
+      }
+    }
   }
   if (config.expectedChainId && BigInt(config.expectedChainId) !== BigInt(chainId)) {
     throw new KeeperConfigError('RPC chain ID does not match ASSET_RACE_CHAIN_ID')
@@ -585,7 +605,9 @@ async function main() {
     const keeperAddress = typeof account === 'string' ? account : account?.address
     if (chainId !== 4663) throw new KeeperConfigError('Signed production pool endpoints require Robinhood Chain 4663')
     await verifySignedPoolOracle(publicClient, config.signedOracleAddress, priceAccount.address)
-    await verifyOperationalRoles(publicClient, config.address, keeperAddress, priceAccount.address)
+    for (const deployment of deployments) {
+      await verifyOperationalRoles(publicClient, deployment.address, keeperAddress, priceAccount.address)
+    }
     const poolConfigs = productionPoolConfigs()
     if (poolConfigs.length === 0) throw new KeeperConfigError('Registry has no enabled pool-backed Stocks')
     const engine = new PoolPriceEngine({ client: publicClient, configs: poolConfigs })
@@ -624,56 +646,60 @@ async function main() {
   let stopping = false
   process.once('SIGINT', () => { stopping = true })
   process.once('SIGTERM', () => { stopping = true })
-  const tracker = new ActiveRaceTracker(config.scanFrom)
+  for (const deployment of deployments) deployment.tracker = new ActiveRaceTracker(deployment.scanFrom)
 
   async function poll() {
-    const [block, raceCount] = await Promise.all([
-      publicClient.getBlock({ blockTag: 'latest' }),
-      publicClient.readContract({ address: config.address, abi: keeperAbi, functionName: 'raceCount' }),
-    ])
-    await tracker.discover(publicClient, config.address, raceCount)
+    const block = await publicClient.getBlock({ blockTag: 'latest' })
+    for (const deployment of deployments) {
+      const raceCount = await publicClient.readContract({
+        address: deployment.address,
+        abi: keeperAbi,
+        functionName: 'raceCount',
+      })
+      await deployment.tracker.discover(publicClient, deployment.address, raceCount)
 
-    for (const raceId of tracker.dueRaceIds(block.timestamp)) {
-      try {
-        const race = await tracker.refresh(publicClient, config.address, raceId)
-        const transition = transitionFor(race, block.timestamp)
-        if (!transition) continue
+      for (const raceId of deployment.tracker.dueRaceIds(block.timestamp)) {
+        try {
+          const race = await deployment.tracker.refresh(publicClient, deployment.address, raceId)
+          const transition = transitionFor(race, block.timestamp)
+          if (!transition) continue
 
-        let functionName = transition.functionName
-        let args = [raceId]
-        if (functionName === 'startRace') {
-          const startCall = await startCallForRace(publicClient, config.address, raceId, race, collector)
-          functionName = startCall.functionName
-          args = startCall.args
-        } else if (functionName === 'captureEndSnapshots') {
-          args = [raceId, await endpointProofsForRace(publicClient, config.address, raceId, race.raceEndTime, collector)]
+          let functionName = transition.functionName
+          let args = [raceId]
+          if (functionName === 'startRace') {
+            const startCall = await startCallForRace(publicClient, deployment.address, raceId, race, collector)
+            functionName = startCall.functionName
+            args = startCall.args
+          } else if (functionName === 'captureEndSnapshots') {
+            args = [raceId, await endpointProofsForRace(publicClient, deployment.address, raceId, race.raceEndTime, collector)]
+          }
+
+          const simulation = await publicClient.simulateContract({
+            account: account || zeroAddress,
+            address: deployment.address,
+            abi: keeperAbi,
+            functionName,
+            args,
+          })
+          if (config.dryRun) {
+            console.log(`[dry-run][${deployment.label}] race #${raceId}: ${functionName} -> ${transition.outcome}`)
+            continue
+          }
+
+          const hash = await walletClient.writeContract(simulation.request)
+          const receipt = await publicClient.waitForTransactionReceipt({ hash })
+          if (receipt.status !== 'success') throw new Error('TransactionReverted')
+          const updatedRace = await publicClient.readContract({
+            address: deployment.address,
+            abi: keeperAbi,
+            functionName: 'getRace',
+            args: [raceId],
+          })
+          deployment.tracker.observe(raceId, updatedRace)
+          console.log(`[keeper][${deployment.label}] race #${raceId}: ${functionName} -> ${STATUS_NAME[updatedRace.status]} (${hash})`)
+        } catch (error) {
+          console.error(`[keeper][${deployment.label}] race #${raceId}: transition failed (${safeErrorName(error)}); continuing`)
         }
-
-        const simulation = await publicClient.simulateContract({
-          account: account || zeroAddress,
-          address: config.address,
-          abi: keeperAbi,
-          functionName,
-          args,
-        })
-        if (config.dryRun) {
-          console.log(`[dry-run] race #${raceId}: ${functionName} -> ${transition.outcome}`)
-          continue
-        }
-
-        const hash = await walletClient.writeContract(simulation.request)
-        const receipt = await publicClient.waitForTransactionReceipt({ hash })
-        if (receipt.status !== 'success') throw new Error('TransactionReverted')
-        const updatedRace = await publicClient.readContract({
-          address: config.address,
-          abi: keeperAbi,
-          functionName: 'getRace',
-          args: [raceId],
-        })
-        tracker.observe(raceId, updatedRace)
-        console.log(`[keeper] race #${raceId}: ${functionName} -> ${STATUS_NAME[updatedRace.status]} (${hash})`)
-      } catch (error) {
-        console.error(`[keeper] race #${raceId}: transition failed (${safeErrorName(error)}); continuing`)
       }
     }
   }
@@ -685,7 +711,7 @@ async function main() {
       console.error(`[keeper] poll failed (${safeErrorName(error)}); continuing`)
     }
     if (config.runOnce || stopping) break
-    const sleepMs = nextSleepMs(tracker.earliestDueAt(), config.pollIntervalMs, config.idlePollIntervalMs)
+    const sleepMs = nextSleepMs(earliestDeploymentDueAt(deployments), config.pollIntervalMs, config.idlePollIntervalMs)
     await new Promise((resolve) => setTimeout(resolve, sleepMs))
   } while (!stopping)
 }

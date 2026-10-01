@@ -15,6 +15,7 @@ import {
 import { useAssetRaces } from '@/chain/useAssetRaces'
 import { useAssetRaceClock } from '@/chain/useAssetRaceClock'
 import { isPlayedCancellation, isVisibleInAll } from '@/chain/gameVisibility'
+import { CRYPTO_ASSETS_ENABLED } from '@/chain/features'
 import { priceSourceUrlForAssetId } from '@/chain/assetRaceRegistry'
 import { AddressLabel } from '@/components/AddressLabel'
 import { FilterChips, GAME_MODE_CHIP_OPTIONS } from '@/components/FilterChips'
@@ -178,8 +179,15 @@ function RaceCard({ race, nowMs, tokenDecimals }: { race: AssetRaceViewModel; no
 export function OnchainRacesListPage() {
   const { races, isPreview, tokenDecimals, isLoading, error } = useAssetRaces()
   const [searchParams, setSearchParams] = useSearchParams()
-  const mode: AssetRaceMode = searchParams.get('mode') === 'memes' ? 'memes' : 'stocks'
-  const category = mode === 'memes' ? ASSET_RACE_CATEGORY.MEME : ASSET_RACE_CATEGORY.STOCK
+  const requestedMode = searchParams.get('mode')
+  const mode: AssetRaceMode = requestedMode === 'memes' || (CRYPTO_ASSETS_ENABLED && requestedMode === 'crypto')
+    ? requestedMode
+    : 'stocks'
+  const category = mode === 'memes'
+    ? ASSET_RACE_CATEGORY.MEME
+    : mode === 'crypto'
+      ? ASSET_RACE_CATEGORY.CRYPTO
+      : ASSET_RACE_CATEGORY.STOCK
   const [filter, setFilter] = useState<RaceFilter>('ALL')
   const raceNowMs = useAssetRaceClock()
 
@@ -213,22 +221,24 @@ export function OnchainRacesListPage() {
       <div className="mb-8 flex flex-wrap items-end justify-between gap-6">
         <div className="max-w-2xl">
           <p className="mb-1 text-sm font-bold text-[#F2A65A]">
-            Prophet races · {modeRaceCount} {isPreview ? 'preview' : mode === 'memes' ? 'meme' : 'stock'} race{modeRaceCount === 1 ? '' : 's'}
+            Prophet races · {modeRaceCount} {isPreview ? 'preview' : mode === 'memes' ? 'meme' : mode === 'crypto' ? 'crypto' : 'stock'} race{modeRaceCount === 1 ? '' : 's'}
           </p>
           <h1 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">
-            {mode === 'memes' ? 'Pick the meme that moons.' : 'Back the fastest asset.'}
+            {mode === 'memes' ? 'Pick the meme that moons.' : mode === 'crypto' ? 'BTC or ETH. Back the move.' : 'Back the fastest asset.'}
           </h1>
           <p className="mt-2 text-sm leading-relaxed text-white/50">
             {mode === 'memes'
               ? 'Curated demo memes. The same transparent P0 to P1 race engine, with more chaos in the paint.'
-              : 'Featured races concentrate liquidity. Community races let wallets assemble an approved Stock Token grid before betting begins.'}
+              : mode === 'crypto'
+                ? 'Race Bitcoin against Ethereum using deterministic prices from reviewed liquid USDG pools on Robinhood Chain.'
+                : 'Featured races concentrate liquidity. Community races let wallets assemble an approved Stock Token grid before betting begins.'}
           </p>
         </div>
         <Link
-          to={`/onchain/races/create${mode === 'memes' ? '?mode=memes' : ''}`}
+          to={`/onchain/races/create${mode === 'stocks' ? '' : `?mode=${mode}`}`}
           className="inline-flex shrink-0 items-center gap-2.5 rounded-full bg-gradient-to-r from-[#F2A65A] to-[#ED8F3A] py-2 pl-5 pr-2 text-sm font-bold text-[#3b2416] shadow-[0_10px_28px_-10px_rgba(237,143,58,0.8)] transition-all hover:brightness-110"
         >
-          Create {mode === 'memes' ? 'meme' : 'stock'} race
+          Create {mode === 'memes' ? 'meme' : mode === 'crypto' ? 'crypto' : 'stock'} race
           <span className="grid h-7 w-7 place-items-center rounded-full bg-[#3b2416]/15 text-xs">↗</span>
         </Link>
       </div>
@@ -238,7 +248,7 @@ export function OnchainRacesListPage() {
           size="sm"
           options={GAME_MODE_CHIP_OPTIONS}
           value={mode}
-          onChange={(item) => setSearchParams(item === 'memes' ? { mode: 'memes' } : {})}
+          onChange={(item) => setSearchParams(item === 'stocks' ? {} : { mode: item })}
         />
         <FilterChips options={FILTER_OPTIONS} value={filter} onChange={setFilter} accent="race" className="overflow-x-auto pb-1" />
       </div>
@@ -250,7 +260,7 @@ export function OnchainRacesListPage() {
       ) : error && featured.length === 0 && community.length === 0 ? (
         <div className="rounded-2xl border border-rose-500/25 bg-rose-500/10 p-5 text-sm text-rose-300">Could not read the AssetRace contract.</div>
       ) : featured.length === 0 && community.length === 0 ? (
-        <p className="py-16 text-center text-sm text-white/35">No {mode === 'memes' ? 'meme' : 'stock'} races match this filter.</p>
+        <p className="py-16 text-center text-sm text-white/35">No {mode === 'memes' ? 'meme' : mode === 'crypto' ? 'crypto' : 'stock'} races match this filter.</p>
       ) : (
         <div className="space-y-10">
           {featured.length > 0 && (

@@ -207,11 +207,11 @@ Solidity, so the key never appears on the CLI or in anything Claude reads.
    cast call <new addr> "maxSeedLiquidityWei()(uint256)" --rpc-url robinhood_mainnet
    cast call <new addr> "maxStakePerSideWei()(uint256)" --rpc-url robinhood_mainnet
    ```
-4. Generate the ten reviewed symbols/oracle IDs from the registry and simulate
+4. Generate all 25 reviewed symbols/oracle IDs from the registry and simulate
    configuration before any broadcast:
    ```bash
-   node ../scripts/check-asset-race-registry.mjs --deployment-symbols
-   node ../scripts/check-asset-race-registry.mjs --deployment-oracle-ids
+   node ../scripts/check-asset-race-registry.mjs --deployment-all-symbols
+   node ../scripts/check-asset-race-registry.mjs --deployment-all-oracle-ids
    forge script script/ConfigurePredictionMarket.s.sol:ConfigurePredictionMarket --rpc-url robinhood_mainnet -vvv
    ```
    The script reads comma-separated `ASSET_SYMBOLS` and `ASSET_ORACLE_IDS`.

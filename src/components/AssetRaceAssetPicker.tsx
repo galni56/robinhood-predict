@@ -22,6 +22,7 @@ export function AssetRaceAssetPicker({
   compact?: boolean
 }) {
   const meme = category === ASSET_RACE_CATEGORY.MEME
+  const crypto = category === ASSET_RACE_CATEGORY.CRYPTO
   const [query, setQuery] = useState('')
   const selected = new Set(selectedIds.map((id) => id.toLowerCase()))
   const matches = useMemo(() => {
@@ -37,7 +38,7 @@ export function AssetRaceAssetPicker({
       <input
         value={query}
         onChange={(event) => setQuery(event.target.value)}
-        placeholder={meme ? 'Search approved meme assets…' : 'Search Stock Tokens…'}
+        placeholder={meme ? 'Search approved meme assets…' : crypto ? 'Search crypto assets…' : 'Search Stock Tokens…'}
         className="w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 text-sm font-medium outline-none transition-colors focus:border-[#F2A65A]/60"
       />
       <div className={`grid grid-cols-1 gap-2 overflow-y-auto pr-1 sm:grid-cols-2 ${compact ? 'max-h-52' : 'max-h-80'}`}>

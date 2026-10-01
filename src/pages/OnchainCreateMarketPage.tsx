@@ -4,7 +4,9 @@ import { formatUnits, parseUnits } from 'viem'
 import { useAccount, useChainId, useSwitchChain, useWriteContract } from 'wagmi'
 import { simulateContract, waitForTransactionReceipt } from 'wagmi/actions'
 import { robinhoodMainnet, wagmiConfig } from '@/chain/config'
+import { CRYPTO_ASSETS_ENABLED } from '@/chain/features'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
+import { FilterChips } from '@/components/FilterChips'
 import { CompactAssetSelector } from '@/components/CompactAssetSelector'
 import { GameLifecycleGuide } from '@/components/GameLifecycleGuide'
 import { GameModeMotion } from '@/components/GameModeMotion'
@@ -16,9 +18,13 @@ import {
   recommendedTargetRange,
   suggestedTargetDeviationBpForDuration,
 } from '@/chain/contracts'
-import { PREDICTION_MARKET_ASSETS, predictionAssetForTicker } from '@/chain/predictionMarketAssets'
+import {
+  predictionAssetForTicker,
+  predictionAssetsForMode,
+  type PredictionMarketMode,
+} from '@/chain/predictionMarketAssets'
 import { useAssetRaceLiveDisplay } from '@/chain/useAssetRaceLiveDisplay'
-import { formatUsd, shortTxError } from '@/lib/format'
+import { formatAssetPrice, shortTxError } from '@/lib/format'
 
 const DURATION_PRESETS = [
   // The shortest preset includes an allowance for the time spent confirming
@@ -46,7 +52,7 @@ function compactDuration(seconds: number) {
 
 export function OnchainCreateMarketPage() {
   const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { address, isConnected } = useAccount()
   const chainId = useChainId()
   const { switchChain, isPending: isSwitching } = useSwitchChain()
@@ -55,8 +61,18 @@ export function OnchainCreateMarketPage() {
   // Arriving from a "Create Prediction" button on a specific token's card
   // (e.g. /onchain/create?feed=NVDA) preselects that ticker; otherwise
   // default to the first allowlisted one.
-  const preselected = predictionAssetForTicker(searchParams.get('feed'))
-  const [assetId, setAssetId] = useState(preselected?.assetId ?? PREDICTION_MARKET_ASSETS[0].assetId)
+  const requestedAsset = predictionAssetForTicker(searchParams.get('feed'))
+  const preselected = requestedAsset?.category === 'STOCK' || CRYPTO_ASSETS_ENABLED ? requestedAsset : undefined
+  const requestedMode = searchParams.get('mode')
+  const mode: PredictionMarketMode = CRYPTO_ASSETS_ENABLED
+    ? preselected?.category === 'MEME' || requestedMode === 'memes'
+      ? 'memes'
+      : preselected?.category === 'CRYPTO' || requestedMode === 'crypto'
+        ? 'crypto'
+        : 'stocks'
+    : 'stocks'
+  const visibleAssets = predictionAssetsForMode(mode)
+  const [assetId, setAssetId] = useState(preselected?.assetId ?? visibleAssets[0].assetId)
   const [target, setTarget] = useState('400')
   // Keep 24 hours as the default while also offering the contract's exact
   // 30-minute minimum as a permanent short-market option.
@@ -64,7 +80,8 @@ export function OnchainCreateMarketPage() {
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const selectedAsset = PREDICTION_MARKET_ASSETS.find((asset) => asset.assetId === assetId) ?? PREDICTION_MARKET_ASSETS[0]
+  const selectedAsset = visibleAssets.find((asset) => asset.assetId === assetId) ?? visibleAssets[0]
+  const quoteSymbol = selectedAsset.quoteSymbol
   const durationPreset = DURATION_PRESETS[durationIdx]
   const durationSeconds = durationPreset.seconds
   const live = useAssetRaceLiveDisplay({ enabled: true })
@@ -82,10 +99,11 @@ export function OnchainCreateMarketPage() {
     const prefillKey = `${assetId}:${durationSeconds}`
     if (currentPriceUsd != null && prefilledFor.current !== prefillKey) {
       const deviation = Number(suggestedTargetDeviationBpForDuration(durationSeconds)) / 10_000
-      setTarget((currentPriceUsd * (1 + deviation)).toFixed(2))
+      const digits = quoteSymbol === 'ETH' ? 12 : 2
+      setTarget((currentPriceUsd * (1 + deviation)).toFixed(digits).replace(/0+$/, '').replace(/\.$/, ''))
       prefilledFor.current = prefillKey
     }
-  }, [assetId, currentPriceUsd, durationSeconds])
+  }, [assetId, currentPriceUsd, durationSeconds, quoteSymbol])
 
   const onRightChain = chainId === robinhoodMainnet.id
   const [minRange, maxRange] = currentPriceUsd != null ? recommendedTargetRange(currentPriceUsd, durationSeconds) : [null, null]
@@ -105,17 +123,17 @@ export function OnchainCreateMarketPage() {
       return
     }
     if (minRange != null && maxRange != null && (targetNum < minRange || targetNum > maxRange)) {
-      setError(`Target price must be between ${formatUsd(minRange)} and ${formatUsd(maxRange)} for this duration`)
+      setError(`Target price must be between ${formatAssetPrice(minRange, quoteSymbol)} and ${formatAssetPrice(maxRange, quoteSymbol)} for this duration`)
       return
     }
     if (currentPriceUsd != null && minGapUsd != null && Math.abs(targetNum - currentPriceUsd) < minGapUsd) {
       setError(
-        `Target is too close to the current price (${formatUsd(currentPriceUsd)}). It must be at least ${formatUsd(minGapUsd)} above or below it.`,
+        `Target is too close to the current price (${formatAssetPrice(currentPriceUsd, quoteSymbol)}). It must be at least ${formatAssetPrice(minGapUsd, quoteSymbol)} above or below it.`,
       )
       return
     }
     if (!livePrice || livePrice.stale) {
-      setError("The live onchain stock price isn't ready - try again")
+      setError("The live onchain asset price isn't ready - try again")
       return
     }
 
@@ -159,6 +177,21 @@ export function OnchainCreateMarketPage() {
         <div className="flex min-w-0 flex-col">
           <p className="text-sm font-bold text-[#B3A7FA] mb-1">Make a market</p>
           <h1 className="font-display text-3xl sm:text-4xl font-bold tracking-tight">Ask the next big question</h1>
+          <FilterChips
+            className="mt-3"
+            size="sm"
+            options={CRYPTO_ASSETS_ENABLED ? [
+              { key: 'stocks', label: 'Stocks', accent: 'cream' },
+              { key: 'memes', label: 'Memes', accent: 'race' },
+              { key: 'crypto', label: 'Crypto', accent: 'market' },
+            ] as const : [{ key: 'stocks', label: 'Stocks', accent: 'cream' }] as const}
+            value={mode}
+            onChange={(next) => {
+              const nextAssets = predictionAssetsForMode(next)
+              setAssetId(nextAssets[0].assetId)
+              setSearchParams(next === 'stocks' ? {} : { mode: next })
+            }}
+          />
 
           {/* Live preview: the question this form is about to put on the board */}
           <div className="mt-4 flex items-center gap-4 rounded-3xl bg-[#e7e1f8] px-5 py-5 text-[#241a33]">
@@ -171,7 +204,7 @@ export function OnchainCreateMarketPage() {
             <div className="min-w-0">
               <p className="text-[11px] font-bold text-[#241a33]/50 mb-0.5">Your question</p>
               <p className="break-words font-display text-xl font-bold leading-snug sm:text-2xl">
-                Will {selectedTicker} be at or above {targetNumPreview > 0 ? formatUsd(targetNumPreview) : '…'} at the{' '}
+                Will {selectedTicker} be at or above {targetNumPreview > 0 ? formatAssetPrice(targetNumPreview, quoteSymbol) : '…'} at the{' '}
                 {DURATION_PRESETS[durationIdx].label} deadline?
               </p>
             </div>
@@ -203,7 +236,7 @@ export function OnchainCreateMarketPage() {
                 {
                   title: 'The deadline fixes the result',
                   timing: durationPreset.label,
-                  body: 'Settlement uses the reviewed onchain stock price from the last Robinhood block strictly before the deadline. A price at or above the target means YES; a lower price means NO.',
+                  body: `Settlement uses the reviewed onchain ${mode === 'stocks' ? 'stock' : mode === 'memes' ? 'meme asset' : 'crypto'} price from the last Robinhood block strictly before the deadline. A price at or above the target means YES; a lower price means NO.`,
                 },
                 {
                   title: 'Claim or receive a refund',
@@ -220,9 +253,9 @@ export function OnchainCreateMarketPage() {
 
       <form onSubmit={onSubmit} className="flex h-full min-w-0 flex-col gap-5 rounded-3xl border border-white/5 bg-[#241b2f] p-6 sm:p-7">
         <div>
-          <label className="block text-sm font-bold text-white/60 mb-2">Tokenized stock</label>
+          <label className="block text-sm font-bold text-white/60 mb-2">{mode === 'stocks' ? 'Tokenized stock' : mode === 'memes' ? 'Meme asset' : 'Crypto asset'}</label>
           <CompactAssetSelector
-            assets={PREDICTION_MARKET_ASSETS.map((asset) => ({
+            assets={visibleAssets.map((asset) => ({
               id: asset.assetId,
               symbol: asset.ticker,
               name: asset.displayName,
@@ -230,13 +263,17 @@ export function OnchainCreateMarketPage() {
             }))}
             selectedIds={[assetId]}
             onSelect={(id) => {
-              const next = PREDICTION_MARKET_ASSETS.find((asset) => asset.assetId.toLowerCase() === id.toLowerCase())
+              const next = visibleAssets.find((asset) => asset.assetId.toLowerCase() === id.toLowerCase())
               if (next) setAssetId(next.assetId)
             }}
             tone="market"
           />
           <p className="text-[11px] text-white/30 mt-1.5">
-            Ten reviewed tokenized stocks have an onchain price source enabled for market settlement.
+            {mode === 'crypto'
+              ? 'Bitcoin and Ethereum use reviewed liquid USDG pools for deterministic market settlement.'
+              : mode === 'memes'
+                ? 'Thirteen reviewed meme assets use liquid ETH pools for deterministic market settlement.'
+                : 'Ten reviewed tokenized stocks have an onchain price source enabled for market settlement.'}
           </p>
           <p className="mt-2 rounded-xl border border-[#8B7CF7]/20 bg-[#8B7CF7]/10 px-3 py-2 text-[11px] font-medium text-[#B3A7FA]">
             Create & earn: you receive 1% of the losing-pool contribution when winners claim. Prophet receives the other 1%; cancelled markets charge no fee.
@@ -245,14 +282,14 @@ export function OnchainCreateMarketPage() {
 
         <div>
           <div className="flex items-baseline justify-between mb-2">
-            <label className="text-sm font-bold text-white/60">Target price, $</label>
-            {currentPriceUsd != null && <span className="text-[11px] font-bold text-[#B3A7FA]">now {formatUsd(currentPriceUsd)}</span>}
+            <label className="text-sm font-bold text-white/60">Target price, {quoteSymbol}</label>
+            {currentPriceUsd != null && <span className="text-[11px] font-bold text-[#B3A7FA]">now {formatAssetPrice(currentPriceUsd, quoteSymbol)}</span>}
           </div>
           <input
             type="number"
-            min={minRange != null ? minRange.toFixed(2) : 0}
-            max={maxRange != null ? maxRange.toFixed(2) : undefined}
-            step="0.01"
+            min={minRange ?? 0}
+            max={maxRange ?? undefined}
+            step={quoteSymbol === 'ETH' ? '0.000000000001' : '0.01'}
             value={target}
             onChange={(e) => setTarget(e.target.value)}
             className="w-full rounded-xl bg-white/5 border border-white/10 px-3.5 py-2.5 text-sm font-mono outline-none focus:border-[#8B7CF7]/60 transition-colors"
@@ -277,7 +314,7 @@ export function OnchainCreateMarketPage() {
           </div>
           {minRange != null && maxRange != null && minGapUsd != null && (
             <p className="text-[11px] text-white/30 mt-1.5">
-              Suggested for this duration: {formatUsd(minRange)}–{formatUsd(maxRange)}, at least {formatUsd(minGapUsd)} away
+              Suggested for this duration: {formatAssetPrice(minRange, quoteSymbol)} - {formatAssetPrice(maxRange, quoteSymbol)}, at least {formatAssetPrice(minGapUsd, quoteSymbol)} away
               from the current pool price. This is UI guidance; asset approval and settlement are enforced on-chain.
             </p>
           )}

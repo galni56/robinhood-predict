@@ -11,6 +11,7 @@ import {
   isRaceOpenNow,
   nextAssetToSeed,
   nextRaceConfigsToSeed,
+  onchainCategory,
   pickCommunityRaceAssetIds,
   pickCommunityRaceAssetIdsFrom,
   readSeederConfig,
@@ -62,7 +63,32 @@ test('config falls back to the prediction-market RPC/address envs', () => {
     assert.equal(config.marketOracleAddress, TEST_MARKET_ORACLE)
     assert.equal(config.arenaAddress, '0x2222222222222222222222222222222222222222')
     assert.equal(config.dryRun, true)
+    assert.equal(config.allAssetTypesEnabled, false)
+    assert.equal(config.memeMarketTargetOpen, 1)
+    assert.equal(config.cryptoMarketTargetOpen, 1)
+    assert.equal(config.memeArenaTargetOpen, 1)
+    assert.equal(config.cryptoArenaTargetOpen, 1)
+    assert.equal(config.memeRaceTargetOpen, 1)
+    assert.equal(config.cryptoRaceTargetOpen, 1)
   })
+})
+
+test('Meme and Crypto automatic creation switch on atomically after migration', () => {
+  withEnv({
+    EVENT_SEEDER_RPC_URL: 'https://rpc.invalid',
+    EVENT_SEEDER_MARKET_ADDRESS: '0x1111111111111111111111111111111111111111',
+    EVENT_SEEDER_ARENA_ADDRESS: '0x2222222222222222222222222222222222222222',
+    EVENT_SEEDER_ALL_ASSET_TYPES_ENABLED: 'true',
+  }, () => {
+    assert.equal(readSeederConfig().allAssetTypesEnabled, true)
+  })
+})
+
+test('all three asset categories use distinct onchain enum values', () => {
+  assert.equal(onchainCategory('STOCK'), 0)
+  assert.equal(onchainCategory('MEME'), 1)
+  assert.equal(onchainCategory('CRYPTO'), 2)
+  assert.throws(() => onchainCategory('UNKNOWN'), /UnsupportedAssetCategory/)
 })
 
 test('config requires the reviewed PredictionMarket oracle address', () => {
@@ -230,6 +256,38 @@ test('nextAssetToSeed skips assets that already have an open listing', () => {
   const openIds = new Set([stringToHex('NVDA', { size: 32 }).toLowerCase()])
   const next = nextAssetToSeed(configs, openIds, 1, 3)
   assert.equal(next.assetId, 'TSLA')
+})
+
+test('nextAssetToSeed rotates BTC and ETH after the latest historical listing', () => {
+  const configs = [{ assetId: 'BTC' }, { assetId: 'ETH' }]
+  const btc = stringToHex('BTC', { size: 32 }).toLowerCase()
+  const eth = stringToHex('ETH', { size: 32 }).toLowerCase()
+
+  assert.equal(nextAssetToSeed(configs, new Set(), 0, 1, btc).assetId, 'ETH')
+  assert.equal(nextAssetToSeed(configs, new Set(), 0, 1, eth).assetId, 'BTC')
+})
+
+test('OpenItemTracker remembers the latest asset even after a terminal event', async () => {
+  const btc = stringToHex('BTC', { size: 32 })
+  const eth = stringToHex('ETH', { size: 32 })
+  const rows = [
+    { assetId: btc, status: 2, deadline: 100n },
+    { assetId: eth, status: 2, deadline: 200n },
+  ]
+  const tracker = new OpenItemTracker()
+  const client = {
+    multicall: async () => rows.map((result) => ({ status: 'success', result })),
+  }
+
+  await tracker.discover(
+    client,
+    { address: '0x1', abi: [], getFn: 'getMarket', rowToItem: (row) => row },
+    2n,
+    300n,
+  )
+
+  assert.equal(tracker.openCount(300n), 0)
+  assert.equal(tracker.latestAssetId([{ assetId: 'BTC' }, { assetId: 'ETH' }]), eth.toLowerCase())
 })
 
 test('nextAssetToSeed returns undefined once every configured asset is already open', () => {

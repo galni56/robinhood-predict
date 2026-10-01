@@ -6,9 +6,10 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IAssetRaceOracle} from "./interfaces/IAssetRaceOracle.sol";
 
 /// @title PredictionMarket
-/// @notice Parimutuel YES/NO prediction market: "Is <StockToken> at or above
-/// <target> USDG at <deadline>?", settled from the same deterministic
-/// StockToken/USDG pool endpoint used by Asset Race.
+/// @notice Parimutuel YES/NO prediction market: "Is <asset> at or above
+/// <target> at <deadline>?", settled from the same deterministic reviewed pool
+/// endpoint used by Asset Race. Stock/Crypto targets use USDG quotes and Meme
+/// targets use ETH quotes; the frozen asset configuration defines the scale.
 /// Stakes, payouts, refunds and protocol fees are all denominated in native ETH.
 ///
 /// @dev STATUS: this creator-revenue revision is deployed as V2, but production

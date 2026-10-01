@@ -10,13 +10,26 @@ export const PRICE_ARENA_ADDRESS: Address | undefined = normalizedAddress && !us
   ? normalizedAddress
   : undefined
 export const LEGACY_PRICE_ARENA_ADDRESS = getAddress('0x383840a8Ca00dcB4b6cAc17e746c793426fE2f05')
+export const NATIVE_ETH_PRICE_ARENA_V2_ADDRESS = getAddress('0x8c1c5544E00C2f8ea2C564B179CdEB38504805d5')
+export const LEGACY_PRICE_ARENA_DEPLOYMENTS = [
+  { key: 'v1', label: 'Price Arena V1', address: LEGACY_PRICE_ARENA_ADDRESS },
+  { key: 'native-v2', label: 'Price Arena V2', address: NATIVE_ETH_PRICE_ARENA_V2_ADDRESS },
+].filter((deployment) => deployment.address.toLowerCase() !== PRICE_ARENA_ADDRESS?.toLowerCase())
+
+export function legacyPriceArenaAddress(value: string | null) {
+  if (!value || !isAddress(value)) return LEGACY_PRICE_ARENA_ADDRESS
+  const normalized = getAddress(value)
+  return LEGACY_PRICE_ARENA_DEPLOYMENTS.find(
+    (deployment) => deployment.address.toLowerCase() === normalized.toLowerCase(),
+  )?.address ?? LEGACY_PRICE_ARENA_ADDRESS
+}
 export const PRICE_ARENA_CONFIG_ERROR = usesDeniedUsdG
   ? 'VITE_PRICE_ARENA_ADDRESS points to a denied USDG contract.'
   : rawAddress && !PRICE_ARENA_ADDRESS
     ? 'VITE_PRICE_ARENA_ADDRESS is invalid.'
     : null
 
-export const PRICE_ARENA_CATEGORY = { STOCK: 0, MEME: 1 } as const
+export const PRICE_ARENA_CATEGORY = { STOCK: 0, MEME: 1, CRYPTO: 2 } as const
 export const PRICE_ARENA_STATUS = { OPEN: 0, RESOLVED: 1, CANCELLED: 2 } as const
 export const PRICE_ARENA_PHASE = { LOBBY: 0, RUNNING: 1, RESOLVED: 2, CANCELLED: 3 } as const
 export const PRICE_ARENA_DURATIONS = [60n, 300n, 900n, 3600n] as const
@@ -25,7 +38,7 @@ export const PRICE_ARENA_MAX_PARTICIPANTS = 20
 export const PRICE_ARENA_MIN_STAKE = 1
 export const PRICE_ARENA_MAX_STAKE = 50
 export const PRICE_ARENA_TOKEN_DECIMALS = 18
-export type PriceArenaMode = 'stocks' | 'memes'
+export type PriceArenaMode = 'stocks' | 'memes' | 'crypto'
 
 export interface PriceArenaAsset {
   assetId: Hex
@@ -44,7 +57,11 @@ export const PRICE_ARENA_ASSETS: PriceArenaAsset[] = assetRaceCatalog.flatMap((a
     assetId: stringToHex(asset.assetId, { size: 32 }),
     symbol: asset.symbol,
     name: asset.displayName,
-    category: asset.category === 'MEME' ? PRICE_ARENA_CATEGORY.MEME : PRICE_ARENA_CATEGORY.STOCK,
+    category: asset.category === 'MEME'
+      ? PRICE_ARENA_CATEGORY.MEME
+      : asset.category === 'CRYPTO'
+        ? PRICE_ARENA_CATEGORY.CRYPTO
+        : PRICE_ARENA_CATEGORY.STOCK,
     categoryName: asset.category,
     quoteSymbol: asset.category === 'MEME' ? 'ETH' : 'USDG',
     priceUrl: priceSourceUrlForCatalogAsset(asset),
@@ -58,11 +75,15 @@ export function priceArenaAsset(assetId?: Hex | string) {
 }
 
 export function categoryForArenaMode(mode: PriceArenaMode) {
-  return mode === 'memes' ? PRICE_ARENA_CATEGORY.MEME : PRICE_ARENA_CATEGORY.STOCK
+  if (mode === 'memes') return PRICE_ARENA_CATEGORY.MEME
+  if (mode === 'crypto') return PRICE_ARENA_CATEGORY.CRYPTO
+  return PRICE_ARENA_CATEGORY.STOCK
 }
 
 export function modeForArenaCategory(category: number): PriceArenaMode {
-  return category === PRICE_ARENA_CATEGORY.MEME ? 'memes' : 'stocks'
+  if (category === PRICE_ARENA_CATEGORY.MEME) return 'memes'
+  if (category === PRICE_ARENA_CATEGORY.CRYPTO) return 'crypto'
+  return 'stocks'
 }
 
 export function arenaDurationLabel(seconds: bigint | number) {

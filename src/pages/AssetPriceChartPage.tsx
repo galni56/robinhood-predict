@@ -413,7 +413,7 @@ export function AssetPriceChartPage() {
   }
 
   const quote = livePrice?.quoteSymbol ?? (asset.category === 'MEME' ? 'ETH' : 'USDG')
-  const accent = asset.category === 'MEME' ? '#F2A65A' : '#8B7CF7'
+  const accent = asset.category === 'MEME' ? '#F2A65A' : asset.category === 'CRYPTO' ? '#7A9FF0' : '#8B7CF7'
   const pool = livePrice?.poolIdentifier ?? asset.marketSource?.poolIdentifier
   const latestPoint = observations.at(-1)
   const latestAt = livePrice?.receivedAt ?? latestPoint?.receivedAt

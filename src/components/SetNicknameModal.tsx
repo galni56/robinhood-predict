@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useAccount, useWriteContract } from 'wagmi'
 import { waitForTransactionReceipt } from 'wagmi/actions'
 import { wagmiConfig } from '@/chain/config'
@@ -18,6 +19,14 @@ export function SetNicknameModal({ onClose }: { onClose: () => void }) {
   const [value, setValue] = useState(current.data ?? '')
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape' && !pending) onClose()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [onClose, pending])
 
   async function submit() {
     setError(null)
@@ -39,7 +48,7 @@ export function SetNicknameModal({ onClose }: { onClose: () => void }) {
     }
   }
 
-  return (
+  return createPortal(
     // The backdrop itself scrolls (rather than just centering with no
     // overflow handling) so the modal stays fully reachable on a short
     // viewport instead of its top clipping off-screen with no way to get
@@ -83,6 +92,7 @@ export function SetNicknameModal({ onClose }: { onClose: () => void }) {
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
