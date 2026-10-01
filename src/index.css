@@ -353,95 +353,56 @@ h3,
   color: rgba(255, 255, 255, 0.38);
 }
 
-/* Asset Race: three actual selected marks lap the same neon track with
-   staggered timing, so the leader changes continuously. */
-.race-track {
+/* Asset Race: canvas-driven lane telemetry (RaceTelemetry.tsx draws the
+   trails and finish gate; these styles position the canvas and the DOM
+   logo chips it moves each frame). */
+.race-tele {
   position: absolute;
-  inset: 22px 1.5% 6px;
-  width: 97%;
-  height: calc(100% - 28px);
+  inset: 0;
+  z-index: 3;
 }
 
-.race-track-outer,
-.race-track-inner {
-  fill: none;
-  stroke: url(#race-track-gradient);
-  stroke-width: 2;
+.race-tele-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
 }
 
-.race-track-inner { stroke-width: 1; stroke-dasharray: 5 8; opacity: 0.52; }
-.race-finish-line { fill: none; stroke: #f7f1e3; stroke-width: 3; stroke-dasharray: 5 5; opacity: 0.75; }
-.race-finish-line--dim { opacity: 0.18; }
-
-.race-center-copy {
+.race-tele-chip {
   position: absolute;
-  left: 50%;
-  top: 52%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  transform: translate(-50%, -50%);
-  line-height: 1.1;
-}
-
-.race-center-copy strong { font-family: var(--font-display); font-size: 16px; color: #ffd3a8; letter-spacing: 0.04em; }
-.race-center-copy span { margin-top: 3px; font-size: 9px; font-weight: 800; color: rgba(255, 255, 255, 0.32); }
-
-.race-runners { position: absolute; inset: 22px 7% 13px; }
-
-.race-runner {
-  position: absolute;
+  top: 0;
+  left: 0;
   z-index: 4;
-  left: 8%;
-  top: 49%;
-  animation: race-lap 8s linear infinite;
-}
-
-.race-runner:nth-child(2) { animation-delay: -2.55s; }
-.race-runner:nth-child(3) { animation-delay: -5.15s; }
-
-.race-runner-card {
-  position: relative;
-  z-index: 2;
   display: flex;
   align-items: center;
   gap: 5px;
-  padding: 4px 7px 4px 4px;
-  border: 1px solid rgba(242, 166, 90, 0.28);
-  border-radius: 13px;
-  background: rgba(36, 27, 47, 0.94);
-  box-shadow: 0 7px 22px rgba(17, 12, 24, 0.48), 0 0 16px rgba(242, 166, 90, 0.15);
-  font-size: 9px;
+  padding: 3px 7px 3px 3px;
+  border: 1px solid rgba(242, 166, 90, 0.26);
+  border-radius: 11px;
+  background: rgba(26, 19, 36, 0.92);
+  box-shadow: 0 6px 18px rgba(17, 12, 24, 0.5);
+  font-size: 10px;
   font-weight: 900;
+  color: rgba(255, 211, 168, 0.85);
+  will-change: transform;
+  transition: border-color 0.35s ease, box-shadow 0.35s ease;
+}
+
+.race-tele-chip[data-leader='true'] {
+  border-color: rgba(242, 166, 90, 0.65);
+  box-shadow: 0 6px 18px rgba(17, 12, 24, 0.5), 0 0 18px rgba(242, 166, 90, 0.28);
   color: #ffd3a8;
 }
 
-.race-runner-trail {
-  position: absolute;
-  z-index: 1;
-  width: 52px;
-  height: 3px;
-  right: calc(100% - 7px);
-  top: 50%;
-  border-radius: 999px;
-  background: linear-gradient(90deg, transparent, rgba(242, 166, 90, 0.72));
-  filter: blur(0.5px);
-  animation: race-trail-pulse 1.1s ease-in-out infinite;
+.race-tele-delta {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
 }
 
-@keyframes race-trail-pulse {
-  0%, 100% { opacity: 0.28; transform: scaleX(0.72); transform-origin: right; }
-  50% { opacity: 1; transform: scaleX(1.1); transform-origin: right; }
-}
-
-@keyframes race-lap {
-  0%, 100% { left: 8%; top: 49%; transform: translate(-50%, -50%) scale(0.84); z-index: 2; }
-  16% { left: 23%; top: 19%; transform: translate(-50%, -50%) scale(0.9); z-index: 2; }
-  36% { left: 72%; top: 17%; transform: translate(-50%, -50%) scale(0.92); z-index: 2; }
-  50% { left: 91%; top: 49%; transform: translate(-50%, -50%) scale(1); z-index: 4; }
-  68% { left: 72%; top: 80%; transform: translate(-50%, -50%) scale(1.08); z-index: 5; }
-  86% { left: 22%; top: 81%; transform: translate(-50%, -50%) scale(1.04); z-index: 5; }
-}
+.race-motion-caption-dim { color: rgba(255, 255, 255, 0.22); font-weight: 700; }
 
 /* Price Arena: forecasts are pulled into the selected asset's target rings.
    One marker glows a little brighter as it reaches the closest band. */
@@ -572,10 +533,7 @@ h3,
 
 @media (max-width: 640px) {
   .game-mode-motion { min-height: 170px; max-height: 190px; }
-  .race-center-copy strong { font-size: 13px; }
-  .race-runner-card { gap: 3px; padding-right: 5px; }
-  .race-runner-card span { display: none; }
-  .race-runner-trail { width: 34px; }
+  .race-tele-chip .race-tele-delta { display: none; }
   .arena-target { transform: translate(-50%, -50%) scale(0.88); }
 }
 

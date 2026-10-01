@@ -1,4 +1,5 @@
 import clsx from 'clsx'
+import { RaceTelemetry } from '@/components/RaceTelemetry'
 import { TokenLogo } from '@/components/TokenLogo'
 
 export interface MotionAsset {
@@ -47,40 +48,15 @@ function MarketMotion({ asset }: { asset?: MotionAsset }) {
 }
 
 function RaceMotion({ assets }: { assets: readonly MotionAsset[] }) {
-  const racers = (assets.length > 0 ? assets : FALLBACK_RACERS).slice(0, 3)
+  const racers = assets.length > 0 ? assets : FALLBACK_RACERS
 
   return (
     <>
-      <div className="game-motion-kicker">LIVE STARTING GRID</div>
-      <svg className="race-track" viewBox="0 0 640 250" preserveAspectRatio="none">
-        <defs>
-          <linearGradient id="race-track-gradient" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0" stopColor="#ED8F3A" stopOpacity="0.16" />
-            <stop offset="0.5" stopColor="#F2A65A" stopOpacity="0.85" />
-            <stop offset="1" stopColor="#ED8F3A" stopOpacity="0.16" />
-          </linearGradient>
-        </defs>
-        <ellipse cx="320" cy="127" rx="270" ry="84" className="race-track-outer" />
-        <ellipse cx="320" cy="127" rx="218" ry="54" className="race-track-inner" />
-        <path d="M543 78 V177" className="race-finish-line" />
-        <path d="M550 78 V177" className="race-finish-line race-finish-line--dim" />
-      </svg>
-      <div className="race-center-copy">
-        <strong>FASTEST MOVE</strong>
-        <span>wins the lap</span>
+      <div className="game-motion-kicker">LIVE RACE TELEMETRY</div>
+      <RaceTelemetry assets={racers} />
+      <div className="race-motion-caption">
+        Fastest move wins the lap<span className="race-motion-caption-dim"> · every lap reshuffles the lead</span>
       </div>
-      <div className="race-runners">
-        {racers.map((asset, index) => (
-          <div className="race-runner" key={`${asset.symbol}-${index}`}>
-            <div className="race-runner-trail" />
-            <div className="race-runner-card">
-              <TokenLogo ticker={asset.symbol} logoUrl={asset.logoUrl} className="h-8 w-8 rounded-xl" />
-              <span>{asset.symbol}</span>
-            </div>
-          </div>
-        ))}
-      </div>
-      <div className="race-motion-caption">Every lap reshuffles the lead.</div>
     </>
   )
 }
