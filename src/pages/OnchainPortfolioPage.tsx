@@ -298,7 +298,7 @@ export function OnchainPortfolioPage() {
           : `Creator earnings were sent in ${withdrawals.length} transactions.`,
       )
     } catch (error) {
-      setCreatorError(shortTxError(error))
+      setCreatorError(shortTxError(error, 'creator-revenue'))
     } finally {
       setCreatorTxLabel(null)
     }

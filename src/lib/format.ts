@@ -70,16 +70,39 @@ const REVERT_MESSAGES: Record<string, string> = {
 // placeholder; showing that verbatim tells the user nothing.
 const GENERIC_WALLET_ERROR = /^(unexpected error|internal (json-rpc )?error|an internal error was received\.?|unknown error)$/i
 
-export function shortTxError(e: unknown): string {
+/** Walks the error's `cause` chain (viem nests the actual revert several
+ * levels deep) and returns the most specific single-line message found,
+ * skipping generic wallet placeholders. */
+function mostSpecificErrorDetail(e: unknown): string | undefined {
+  let current: unknown = e
+  let best: string | undefined
+  for (let depth = 0; depth < 8 && current instanceof Error; depth++) {
+    const withExtras = current as { details?: string; shortMessage?: string }
+    const candidate = withExtras.details ?? withExtras.shortMessage ?? current.message
+    const trimmed = candidate?.replace(/\s+/g, ' ').trim()
+    if (trimmed && !GENERIC_WALLET_ERROR.test(trimmed)) best = trimmed
+    current = current.cause
+  }
+  if (!best) return undefined
+  return best.length > 160 ? `${best.slice(0, 157)}…` : best
+}
+
+export function shortTxError(e: unknown, context = 'transaction'): string {
   const raw = e instanceof Error ? ((e as { shortMessage?: string }).shortMessage ?? e.message) : String(e)
+  // A wallet rejection is a normal user action, not an error worth logging.
   if (/rejected/i.test(raw)) return 'Rejected in wallet'
+  // The UI shows a short message; the console keeps the complete error
+  // object (viem errors expand to args, cause chain and docs link there),
+  // so failures stay debuggable instead of collapsing to one phrase.
+  console.error(`[tx:${context}]`, e)
   const reasonMatch = raw.match(/reason:\s*\n?\s*"?([^"\n]+)"?/i)
   if (reasonMatch) {
     const reason = reasonMatch[1].trim()
     if (GENERIC_WALLET_ERROR.test(reason)) return 'Transaction would fail, but the wallet did not say why. Check the values and try again.'
     return REVERT_MESSAGES[reason.toLowerCase()] ?? reason
   }
-  return 'Transaction failed'
+  const detail = mostSpecificErrorDetail(e)
+  return detail ? `Transaction failed: ${detail}` : 'Transaction failed'
 }
 
 export function formatCountdown(msRemaining: number): string {

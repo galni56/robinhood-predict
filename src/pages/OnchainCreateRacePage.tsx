@@ -71,7 +71,7 @@ export function OnchainCreateRacePage() {
       navigate(`/onchain/races${mode === 'memes' ? '?mode=memes' : ''}`)
     } catch (cause) {
       setTxLabel(null)
-      setError(shortTxError(cause))
+      setError(shortTxError(cause, 'create-race'))
     }
   }
 

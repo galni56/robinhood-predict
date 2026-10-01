@@ -142,7 +142,7 @@ export function OnchainCreateMarketPage() {
 
       navigate('/onchain')
     } catch (err) {
-      setError(shortTxError(err))
+      setError(shortTxError(err, 'create-market'))
     } finally {
       setPending(false)
     }

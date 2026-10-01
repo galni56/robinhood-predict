@@ -140,7 +140,7 @@ export function OnchainRacePage({ legacy = false }: { legacy?: boolean }) {
     } catch (cause) {
       setTx(null)
       setFrozenBetQuote(null)
-      setError(nativeStakeQuoteErrorMessage(cause) ?? shortTxError(cause))
+      setError(nativeStakeQuoteErrorMessage(cause) ?? shortTxError(cause, 'race-bet'))
     }
   }
 
@@ -161,7 +161,7 @@ export function OnchainRacePage({ legacy = false }: { legacy?: boolean }) {
       await refetchAll()
     } catch (cause) {
       setTx(null)
-      setError(shortTxError(cause))
+      setError(shortTxError(cause, 'race-settlement'))
     }
   }
 
@@ -191,7 +191,7 @@ export function OnchainRacePage({ legacy = false }: { legacy?: boolean }) {
       await refetchAll()
     } catch (cause) {
       setTx(null)
-      setError(shortTxError(cause))
+      setError(shortTxError(cause, 'race-lobby'))
     }
   }
 
