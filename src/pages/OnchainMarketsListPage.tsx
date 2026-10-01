@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { formatUnits } from 'viem'
 import { ClockIcon } from '@/components/icons'
 import { LiveBetsTicker } from '@/components/LiveBetsTicker'
@@ -15,14 +15,15 @@ import {
   bettingWindowEndSeconds,
 } from '@/chain/contracts'
 import { demoPools, isDemoMode } from '@/chain/demo'
-import { tickerForPredictionAssetId } from '@/chain/predictionMarketAssets'
+import { predictionModeForAssetId, predictionQuoteForAssetId, tickerForPredictionAssetId, type PredictionMarketMode } from '@/chain/predictionMarketAssets'
 import { priceSourceUrlForSymbol } from '@/chain/assetRaceRegistry'
 import { isPlayedCancellation, isVisibleInAll } from '@/chain/gameVisibility'
+import { CRYPTO_ASSETS_ENABLED } from '@/chain/features'
 import { useAssetRaceLiveDisplay } from '@/chain/useAssetRaceLiveDisplay'
 import { useTokenLogos } from '@/chain/robinhoodApi'
 import { usePredictionMarkets } from '@/chain/usePredictionMarkets'
 import { PriceSourceLink } from '@/components/PriceSourceLink'
-import { formatCountdown, formatUsd } from '@/lib/format'
+import { formatAssetPrice, formatCountdown } from '@/lib/format'
 
 type StatusFilter = 'ALL' | 'OPEN' | 'RESOLVED' | 'CANCELLED'
 
@@ -33,8 +34,21 @@ const STATUS_FILTERS: { key: StatusFilter; label: string }[] = [
   { key: 'CANCELLED', label: 'Cancelled' },
 ]
 
+const MARKET_MODE_OPTIONS = CRYPTO_ASSETS_ENABLED
+  ? [
+      { key: 'stocks', label: 'Stocks', accent: 'cream' },
+      { key: 'memes', label: 'Memes', accent: 'race' },
+      { key: 'crypto', label: 'Crypto', accent: 'market' },
+    ] as const
+  : [{ key: 'stocks', label: 'Stocks', accent: 'cream' }] as const
+
 export function OnchainMarketsListPage() {
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const requestedMode = searchParams.get('mode')
+  const mode: PredictionMarketMode = CRYPTO_ASSETS_ENABLED && (requestedMode === 'memes' || requestedMode === 'crypto')
+    ? requestedMode
+    : 'stocks'
   const logos = useTokenLogos()
   const [filter, setFilter] = useState<StatusFilter>('ALL')
   // Tracks each ticker's previously-seen price so a card can color itself by
@@ -83,6 +97,7 @@ export function OnchainMarketsListPage() {
     .filter((_id, i) => {
       const market = marketAt(i)
       if (!market) return false
+      if (predictionModeForAssetId(market.assetId) !== mode) return false
       const status = market.status
       const totalPool = market.poolYes + market.poolNo
       // Empty auto-seeded cancellations add no player history. A one-sided
@@ -110,7 +125,7 @@ export function OnchainMarketsListPage() {
           </p>
         </div>
         <Link
-          to="/onchain/create"
+          to={`/onchain/create${mode === 'stocks' ? '' : `?mode=${mode}`}`}
           className="shrink-0 inline-flex items-center gap-2.5 text-sm pl-5 pr-2 py-2 rounded-full bg-gradient-to-r from-[#8B7CF7] to-[#6A5AE0] hover:brightness-110 text-white font-bold transition-all shadow-[0_10px_28px_-10px_rgba(106,90,224,0.8)]"
         >
           Create market
@@ -128,7 +143,13 @@ export function OnchainMarketsListPage() {
 
       <div className="flex gap-6 items-start">
         <div className="min-h-[32rem] min-w-0 flex-1">
-      <div className="mb-6 flex flex-wrap items-center justify-end gap-y-2">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-y-2">
+        <FilterChips
+          options={MARKET_MODE_OPTIONS}
+          value={mode}
+          onChange={(next) => setSearchParams(next === 'stocks' ? {} : { mode: next })}
+          size="sm"
+        />
         <FilterChips options={STATUS_FILTERS} value={filter} onChange={setFilter} accent="market" className="overflow-x-auto pb-1" />
       </div>
 
@@ -139,7 +160,7 @@ export function OnchainMarketsListPage() {
       ) : count === 0 ? (
         <div className="text-center py-16 text-white/40 text-sm">
           No markets yet.{' '}
-          <Link to="/onchain/create" className="text-[#8B7CF7] hover:underline">
+          <Link to={`/onchain/create${mode === 'stocks' ? '' : `?mode=${mode}`}`} className="text-[#8B7CF7] hover:underline">
             Create the first one
           </Link>
         </div>
@@ -152,6 +173,7 @@ export function OnchainMarketsListPage() {
             const m = marketAt(i)
             if (!m) return null
             const ticker = tickerByMarketId.get(id.toString())
+            const quoteSymbol = predictionQuoteForAssetId(m.assetId)
             const price = ticker ? live.assets[ticker] : undefined
             const targetUsd = Number(formatUnits(m.targetPrice, m.priceDecimals))
             const liveUsd = price && !price.stale ? Number(formatUnits(BigInt(price.priceRaw), price.decimals)) : null
@@ -201,17 +223,17 @@ export function OnchainMarketsListPage() {
                     </div>
                   </div>
                   <div className="min-w-0 max-w-[48%] shrink text-right">
-                    <div title={displayedUsd != null ? formatUsd(displayedUsd) : undefined} className={`truncate font-mono font-semibold ${isResolved ? 'text-white/70' : tickedUp ? 'text-emerald-400' : 'text-rose-400'}`}>
-                      {displayedUsd != null ? formatUsd(displayedUsd) : '…'}
+                    <div title={displayedUsd != null ? formatAssetPrice(displayedUsd, quoteSymbol) : undefined} className={`truncate font-mono font-semibold ${isResolved ? 'text-white/70' : tickedUp ? 'text-emerald-400' : 'text-rose-400'}`}>
+                      {displayedUsd != null ? formatAssetPrice(displayedUsd, quoteSymbol) : '…'}
                     </div>
                     <div className="truncate text-xs text-white/40">
-                      {isResolved ? 'final · ' : ''}{targetUsd != null ? `target ${formatUsd(targetUsd)}` : ''}
+                      {isResolved ? 'final · ' : ''}{targetUsd != null ? `target ${formatAssetPrice(targetUsd, quoteSymbol)}` : ''}
                     </div>
                   </div>
                 </div>
 
                 <h3 className="font-display text-xl font-bold leading-snug mb-3 group-hover:text-[#B3A7FA] transition-colors">
-                  Will {ticker ?? 'it'} be at or above {targetUsd != null ? formatUsd(targetUsd) : '…'} at the deadline?
+                  Will {ticker ?? 'it'} be at or above {targetUsd != null ? formatAssetPrice(targetUsd, quoteSymbol) : '…'} at the deadline?
                 </h3>
 
                 {/* Honest pool state: a split bar only once both sides have
@@ -290,7 +312,7 @@ export function OnchainMarketsListPage() {
         </div>
       )}
 
-      <TokenBrowser />
+      <TokenBrowser mode={mode} />
         </div>
 
         <aside className="hidden lg:block w-72 shrink-0 sticky top-20">

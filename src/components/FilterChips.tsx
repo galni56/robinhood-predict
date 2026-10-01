@@ -3,6 +3,8 @@
  * Markets, orange = Asset Races, blue = Price Arena, cream = neutral
  * category. Presentation only - selection state lives with the caller. */
 
+import { CRYPTO_ASSETS_ENABLED } from '@/chain/features'
+
 export type ChipAccent = 'market' | 'race' | 'raceSoft' | 'arena' | 'cream'
 
 const ACTIVE: Record<ChipAccent, string> = {
@@ -14,10 +16,14 @@ const ACTIVE: Record<ChipAccent, string> = {
 }
 
 /** The Stocks/Memes category segment shared by race and arena pages. */
-export const GAME_MODE_CHIP_OPTIONS = [
+const BASE_GAME_MODE_CHIP_OPTIONS = [
   { key: 'stocks', label: 'Stocks', accent: 'cream' },
   { key: 'memes', label: 'Memes', accent: 'raceSoft' },
-] as const satisfies readonly ChipOption<'stocks' | 'memes'>[]
+] as const satisfies readonly ChipOption<'stocks' | 'memes' | 'crypto'>[]
+
+export const GAME_MODE_CHIP_OPTIONS: readonly ChipOption<'stocks' | 'memes' | 'crypto'>[] = CRYPTO_ASSETS_ENABLED
+  ? [...BASE_GAME_MODE_CHIP_OPTIONS, { key: 'crypto', label: 'Crypto', accent: 'market' }]
+  : BASE_GAME_MODE_CHIP_OPTIONS
 
 export interface ChipOption<T extends string> {
   key: T

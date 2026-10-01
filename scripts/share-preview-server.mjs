@@ -1,13 +1,18 @@
 #!/usr/bin/env node
 
 import { createServer } from 'node:http'
+import { readFileSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
 import { createPublicClient, defineChain, formatUnits, hexToString, http, isAddress } from 'viem'
 
 const DEFAULT_ORIGIN = 'https://prophetmarkets.fun'
 const DEFAULT_MARKET_ADDRESS = '0xF62CF5Db594c4b706555584ccEC9Fb9a61541D4a'
-const DEFAULT_RACE_ADDRESS = '0x98f9af1756148c8995729E9ccEA770fd15124bC9'
-const DEFAULT_ARENA_ADDRESS = '0x8c1c5544E00C2f8ea2C564B179CdEB38504805d5'
+const DEFAULT_RACE_ADDRESS = '0xebA246E4B548b93079Bf4D85faA50fa8b7Ff9c6e'
+const DEFAULT_ARENA_ADDRESS = '0x541be0c7c1011a63465Ff53408e9F76DA870b29f'
+const assetRegistry = JSON.parse(readFileSync(new URL('../config/asset-race-assets.json', import.meta.url), 'utf8'))
+const ETH_QUOTED_ASSETS = new Set(
+  assetRegistry.assets.filter((asset) => asset.category === 'MEME').map((asset) => asset.assetId),
+)
 
 const marketAbi = [
   { type: 'function', name: 'marketCount', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
@@ -117,9 +122,12 @@ function durationLabel(seconds) {
   return `${Math.max(1, Math.round(value / 60))} min`
 }
 
-function displayTarget(raw, decimals) {
+function displayTarget(raw, decimals, ticker) {
   const value = Number(formatUnits(raw, decimals))
-  return `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: value < 1 ? 6 : 2 })}`
+  if (ETH_QUOTED_ASSETS.has(ticker)) {
+    return `${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 12 })} ETH`
+  }
+  return `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
 export function parseSharePath(pathname) {
@@ -200,7 +208,7 @@ export async function loadShareMetadata({ kind, id }, config) {
     await requireExisting(client, marketAddress, marketAbi, 'marketCount', id)
     const market = await client.readContract({ address: marketAddress, abi: marketAbi, functionName: 'getMarket', args: [id] })
     const ticker = tickerFromBytes32(market.assetId)
-    const target = displayTarget(market.targetPrice, market.priceDecimals)
+    const target = displayTarget(market.targetPrice, market.priceDecimals, ticker)
     return {
       title: `Will ${ticker} be at or above ${target} at the deadline?`,
       description: `Make your YES or NO call in Prediction Market #${id} on Prophet Markets.`,

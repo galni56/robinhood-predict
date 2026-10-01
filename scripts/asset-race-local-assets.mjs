@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
 
 export function localAssetSymbols(registry, category) {
-  if (!['STOCK', 'MEME'].includes(category)) throw new Error('LocalAssetCategoryInvalid')
+  if (!['STOCK', 'MEME', 'CRYPTO'].includes(category)) throw new Error('LocalAssetCategoryInvalid')
   const assets = registry?.assets?.filter((asset) => asset.category === category && asset.networks?.local?.enabled)
   if (!assets?.length) throw new Error(`NoEnabledLocal${category}Assets`)
 
@@ -26,6 +26,6 @@ export function localAssetSymbolsFromFile(registryPath, category) {
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const [, , registryPath, category] = process.argv
-  if (!registryPath || !category) throw new Error('Usage: asset-race-local-assets.mjs <registry.json> <STOCK|MEME>')
+  if (!registryPath || !category) throw new Error('Usage: asset-race-local-assets.mjs <registry.json> <STOCK|MEME|CRYPTO>')
   process.stdout.write(localAssetSymbolsFromFile(registryPath, category).join(','))
 }

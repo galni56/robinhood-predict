@@ -19,6 +19,7 @@ import { JsonEndpointProofCache, PoolEndpointCollector } from './asset-race-pool
 import { PoolPriceEngine, poolChainContracts, poolConfigsFromRegistry } from './asset-race-pool-price-engine.mjs'
 import { withRpcRateLimit } from './asset-race-rpc-budget.mjs'
 import { nextSleepMs } from './keeper-poll-schedule.mjs'
+import { earliestDeploymentDueAt, parseLegacyDeployments } from './keeper-deployments.mjs'
 
 export const DEFAULT_PRICE_ARENA_POLL_INTERVAL_MS = 1_000
 export const DEFAULT_PRICE_ARENA_IDLE_POLL_INTERVAL_MS = 5_000
@@ -110,8 +111,16 @@ export function readKeeperConfig() {
     throw new KeeperConfigError('PRICE_ARENA_KEEPER_PRIVATE_KEY is invalid')
   }
 
+  const address = getAddress(rawAddress)
+  const legacyScanFrom = BigInt(uintEnv('PRICE_ARENA_LEGACY_SCAN_FROM', 0))
+  const legacyDeployments = parseLegacyDeployments(process.env.PRICE_ARENA_LEGACY_ADDRESSES, {
+    activeAddress: address,
+    scanFrom: legacyScanFrom,
+    variableName: 'PRICE_ARENA_LEGACY_ADDRESSES',
+  })
+
   return {
-    address: getAddress(rawAddress),
+    address,
     signedOracleAddress: getAddress(rawOracle),
     rpcUrl,
     poolRpcUrl,
@@ -132,6 +141,8 @@ export function readKeeperConfig() {
       || join(homedir(), '.local', 'state', 'prophet', 'price-arena-endpoints.json'),
     runOnce: boolEnv('RUN_ONCE', false),
     scanFrom: BigInt(uintEnv('PRICE_ARENA_SCAN_FROM', 0)),
+    activeSupportsCrypto: boolEnv('PRICE_ARENA_ACTIVE_SUPPORTS_CRYPTO', false),
+    legacyDeployments,
   }
 }
 
@@ -150,7 +161,7 @@ export async function verifyConfiguredAssets(publicClient, arenaAddress, oracleA
   for (let index = 0; index < configs.length; index += 1) {
     const [oracle, oracleId, decimals, category, enabled] = bindings[index]
     const config = configs[index]
-    const expectedCategory = config.category === 'MEME' ? 1 : 0
+    const expectedCategory = config.category === 'MEME' ? 1 : config.category === 'CRYPTO' ? 2 : 0
     if (!enabled || oracle.toLowerCase() !== oracleAddress.toLowerCase()
       || oracleId.toLowerCase() !== config.oracleId.toLowerCase()
       || Number(decimals) !== 18 || Number(category) !== expectedCategory) {
@@ -240,13 +251,19 @@ async function main() {
     contracts: poolChainContracts(chainId),
   })
   const publicClient = createPublicClient({ chain, transport: http(config.rpcUrl, { batch: true }) })
+  const deployments = [
+    { address: config.address, label: 'active', scanFrom: config.scanFrom, supportsCrypto: config.activeSupportsCrypto },
+    ...config.legacyDeployments.map((deployment) => ({ ...deployment, supportsCrypto: false })),
+  ]
   if (chainId === 4663) {
-    const [feeBp, creatorShare] = await Promise.all([
-      publicClient.readContract({ address: config.address, abi: priceArenaKeeperAbi, functionName: 'FEE_BP' }),
-      publicClient.readContract({ address: config.address, abi: priceArenaKeeperAbi, functionName: 'CREATOR_FEE_SHARE_BP' }),
-    ])
-    if (feeBp !== 200n) throw new KeeperConfigError('PriceArena fee must be 200 bp')
-    if (creatorShare !== 5_000n) throw new KeeperConfigError('PriceArena creator fee share must be 5000 bp')
+    for (const deployment of deployments) {
+      const [feeBp, creatorShare] = await Promise.all([
+        publicClient.readContract({ address: deployment.address, abi: priceArenaKeeperAbi, functionName: 'FEE_BP' }),
+        publicClient.readContract({ address: deployment.address, abi: priceArenaKeeperAbi, functionName: 'CREATOR_FEE_SHARE_BP' }),
+      ])
+      if (feeBp !== 200n) throw new KeeperConfigError(`PriceArena fee must be 200 bp on ${deployment.label}`)
+      if (creatorShare !== 5_000n) throw new KeeperConfigError(`PriceArena creator fee share must be 5000 bp on ${deployment.label}`)
+    }
   }
   const priceAccount = privateKeyToAccount(config.priceSignerPrivateKey)
   const [trustedSigner, proofType] = await Promise.all([
@@ -257,8 +274,13 @@ async function main() {
   if (Number(proofType) !== SIGNED_POOL_BLOCK_PAIR) throw new KeeperConfigError('Unexpected endpoint proof type')
 
   const configs = productionPoolConfigs()
-  if (configs.length !== 23) throw new KeeperConfigError('Registry must expose exactly 23 production pools')
-  await verifyConfiguredAssets(publicClient, config.address, config.signedOracleAddress, configs)
+  if (configs.length !== 25) throw new KeeperConfigError('Registry must expose exactly 25 production pools')
+  for (const deployment of deployments) {
+    const deploymentConfigs = deployment.supportsCrypto
+      ? configs
+      : configs.filter((poolConfig) => poolConfig.category !== 'CRYPTO')
+    await verifyConfiguredAssets(publicClient, deployment.address, config.signedOracleAddress, deploymentConfigs)
+  }
   const engine = new PoolPriceEngine({ client: publicClient, configs })
   let fallbackEngine
   if (config.poolRpcUrl !== config.rpcUrl) {
@@ -280,38 +302,41 @@ async function main() {
   const account = config.keeperPrivateKey ? privateKeyToAccount(config.keeperPrivateKey) : undefined
   if (account?.address.toLowerCase() === priceAccount.address.toLowerCase()) throw new KeeperConfigError('Transaction keeper and pool price signer must be separate accounts')
   const walletClient = config.dryRun ? undefined : createWalletClient({ account, chain, transport: http(config.rpcUrl) })
-  const tracker = new ActiveArenaTracker(config.scanFrom)
+  for (const deployment of deployments) deployment.tracker = new ActiveArenaTracker(deployment.scanFrom)
   let stopping = false
   process.once('SIGINT', () => { stopping = true })
   process.once('SIGTERM', () => { stopping = true })
 
   async function poll() {
-    const [block, arenaCount] = await Promise.all([
-      publicClient.getBlock({ blockTag: 'latest' }),
-      publicClient.readContract({ address: config.address, abi: priceArenaKeeperAbi, functionName: 'arenaCount' }),
-    ])
-    await tracker.discover(publicClient, config.address, arenaCount)
-    for (const arenaId of tracker.dueArenaIds(block.timestamp)) {
-      try {
-        const arena = await tracker.refresh(publicClient, config.address, arenaId)
-        const transition = transitionForArena(arena, block.timestamp)
-        if (!transition) continue
-        const endpointProof = await endpointProofForArena(collector, arena)
-        const simulation = await publicClient.simulateContract({
-          account: account || zeroAddress,
-          address: config.address,
-          abi: priceArenaKeeperAbi,
-          functionName: 'resolve',
-          args: [arenaId, endpointProof],
-        })
-        if (config.dryRun) { console.log(`[dry-run] arena #${arenaId}: resolve -> ${transition.outcome}`); continue }
-        const hash = await walletClient.writeContract(simulation.request)
-        const receipt = await publicClient.waitForTransactionReceipt({ hash })
-        if (receipt.status !== 'success') throw new Error('TransactionReverted')
-        tracker.complete(arenaId)
-        console.log(`[keeper] arena #${arenaId}: resolve submitted (${hash})`)
-      } catch (error) {
-        console.error(`[keeper] arena #${arenaId}: resolve failed (${safeErrorName(error)}); continuing`)
+    const block = await publicClient.getBlock({ blockTag: 'latest' })
+    for (const deployment of deployments) {
+      const arenaCount = await publicClient.readContract({ address: deployment.address, abi: priceArenaKeeperAbi, functionName: 'arenaCount' })
+      await deployment.tracker.discover(publicClient, deployment.address, arenaCount)
+      for (const arenaId of deployment.tracker.dueArenaIds(block.timestamp)) {
+        try {
+          const arena = await deployment.tracker.refresh(publicClient, deployment.address, arenaId)
+          const transition = transitionForArena(arena, block.timestamp)
+          if (!transition) continue
+          const endpointProof = await endpointProofForArena(collector, arena)
+          const simulation = await publicClient.simulateContract({
+            account: account || zeroAddress,
+            address: deployment.address,
+            abi: priceArenaKeeperAbi,
+            functionName: 'resolve',
+            args: [arenaId, endpointProof],
+          })
+          if (config.dryRun) {
+            console.log(`[dry-run][${deployment.label}] arena #${arenaId}: resolve -> ${transition.outcome}`)
+            continue
+          }
+          const hash = await walletClient.writeContract(simulation.request)
+          const receipt = await publicClient.waitForTransactionReceipt({ hash })
+          if (receipt.status !== 'success') throw new Error('TransactionReverted')
+          deployment.tracker.complete(arenaId)
+          console.log(`[keeper][${deployment.label}] arena #${arenaId}: resolve submitted (${hash})`)
+        } catch (error) {
+          console.error(`[keeper][${deployment.label}] arena #${arenaId}: resolve failed (${safeErrorName(error)}); continuing`)
+        }
       }
     }
   }
@@ -319,7 +344,7 @@ async function main() {
   do {
     try { await poll() } catch (error) { console.error(`[keeper] poll failed (${safeErrorName(error)}); continuing`) }
     if (config.runOnce || stopping) break
-    const sleepMs = nextSleepMs(tracker.earliestDueAt(), config.pollIntervalMs, config.idlePollIntervalMs)
+    const sleepMs = nextSleepMs(earliestDeploymentDueAt(deployments), config.pollIntervalMs, config.idlePollIntervalMs)
     await new Promise((resolve) => setTimeout(resolve, sleepMs))
   } while (!stopping)
 }

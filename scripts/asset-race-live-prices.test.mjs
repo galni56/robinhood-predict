@@ -15,6 +15,7 @@ import {
   EthUsdQuoteCache,
   StockPoolLiveCollector,
   StockLivePriceCollector,
+  buildHistorySnapshot,
   buildDexScreenerPairsUrl,
   decimalToUnits,
   liveStockConfigsFromRegistry,
@@ -162,6 +163,36 @@ test('LIVE polls immediately on first viewer, pauses at zero viewers, and resume
   controllers.push(resumed)
   await fetch(`${url}/api/asset-race/live`, { signal: resumed.signal })
   await waitFor(() => calls > pausedAt)
+})
+
+test('production always-on mode builds chart history before the first viewer arrives', async (t) => {
+  let calls = 0
+  const collector = {
+    upstreamRequestCount: 0,
+    subscribe() { return () => {} },
+    snapshot() { return { provider: 'TEST', heartbeatAt: Date.now(), assets: {}, errors: {} } },
+    async poll() {
+      calls += 1
+      this.upstreamRequestCount += 1
+      return this.snapshot()
+    },
+  }
+  const { server, endClients } = createAssetRaceLiveServer(collector, { alwaysOn: true, pollIntervalMs: 10 })
+  server.listen(0, '127.0.0.1')
+  await once(server, 'listening')
+  t.after(async () => {
+    endClients()
+    await new Promise((resolve) => server.close(resolve))
+  })
+  const deadline = Date.now() + 1_000
+  while (calls < 2) {
+    if (Date.now() >= deadline) throw new Error('TimedOutWaitingForAlwaysOnPoll')
+    await new Promise((resolve) => setTimeout(resolve, 5))
+  }
+  const health = await fetch(`http://127.0.0.1:${server.address().port}/health`).then((response) => response.json())
+  assert.equal(health.alwaysOn, true)
+  assert.equal(health.clients, 0)
+  assert.ok(health.upstreamRequests >= 2)
 })
 
 function pairFor(config, overrides = {}) {
@@ -400,6 +431,21 @@ test('direct pool collector exposes bounded sampled history for internal charts'
   assert.equal(history.points.at(-1).priceRaw, '105')
   assert.equal(history.quoteSymbol, 'USDG')
   assert.equal(history.protocol, 'UNISWAP_V3')
+})
+
+test('chart history keeps recent short-timeframe observations at full resolution', () => {
+  const source = Array.from({ length: 2_000 }, (_, index) => ({
+    priceRaw: String(index + 1),
+    decimals: 18,
+    receivedAt: (index + 1) * 2_000,
+  }))
+  const history = buildHistorySnapshot('NVDA', source, 1_440)
+  assert.equal(history.points.length, 1_440)
+  assert.equal(history.points[0].priceRaw, '1')
+  assert.deepEqual(
+    history.points.slice(-900).map((point) => point.priceRaw),
+    source.slice(-900).map((point) => point.priceRaw),
+  )
 })
 
 test('LIVE history endpoint returns JSON without relying on third-party chart pages', async (t) => {

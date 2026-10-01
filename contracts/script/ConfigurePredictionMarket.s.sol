@@ -6,7 +6,7 @@ import {PredictionMarket} from "../src/PredictionMarket.sol";
 import {SignedPoolRaceOracle} from "../src/oracles/SignedPoolRaceOracle.sol";
 import {NativeEthDeploymentSafety} from "./helpers/NativeEthDeploymentSafety.sol";
 
-/// @notice Configures the reviewed StockToken/USDG pool identities on a fresh
+/// @notice Configures the reviewed StockToken/USDG, MemeToken/ETH and Crypto/USDG pool identities on a fresh
 /// PredictionMarket deployment. Run without `--broadcast` first.
 ///
 /// Environment:
@@ -15,7 +15,7 @@ import {NativeEthDeploymentSafety} from "./helpers/NativeEthDeploymentSafety.sol
 ///   MARKET_ADDRESS       - fresh PredictionMarket address
 ///   SIGNED_POOL_ORACLE_ADDRESS - reviewed shared oracle address
 ///   PRICE_SIGNER_ADDRESS - reviewed public signer returned by that oracle
-///   ASSET_SYMBOLS         - comma-separated symbols (the 10 production Stocks)
+///   ASSET_SYMBOLS         - comma-separated symbols (10 Stocks, 13 Memes, BTC and ETH)
 ///   ASSET_ORACLE_IDS      - comma-separated signed-pool oracle ids in the same order
 contract ConfigurePredictionMarket is Script {
     function run() external {
@@ -26,7 +26,7 @@ contract ConfigurePredictionMarket is Script {
         address expectedPriceSigner = vm.envAddress("PRICE_SIGNER_ADDRESS");
         string[] memory symbols = vm.envString("ASSET_SYMBOLS", ",");
         bytes32[] memory oracleIds = vm.envBytes32("ASSET_ORACLE_IDS", ",");
-        require(symbols.length > 0 && symbols.length == oracleIds.length, "asset config length mismatch");
+        require(symbols.length == 25 && symbols.length == oracleIds.length, "expected complete 25-asset config");
 
         PredictionMarket market = PredictionMarket(payable(marketAddress));
         SignedPoolRaceOracle oracle = SignedPoolRaceOracle(address(market.endpointOracle()));
@@ -54,6 +54,6 @@ contract ConfigurePredictionMarket is Script {
         vm.stopBroadcast();
 
         console.log("PredictionMarket:", marketAddress);
-        console.log("Configured StockToken/USDG assets:", symbols.length);
+        console.log("Configured StockToken/USDG, MemeToken/ETH and Crypto/USDG assets:", symbols.length);
     }
 }

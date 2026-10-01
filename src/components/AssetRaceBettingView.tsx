@@ -68,6 +68,7 @@ export function AssetRaceBettingView({
   quoteReady: boolean
 }) {
   const meme = race.category === ASSET_RACE_CATEGORY.MEME
+  const crypto = race.category === ASSET_RACE_CATEGORY.CRYPTO
   // Memes trade on market cap: each contender card shows MC computed from
   // the live ETH-quoted price, onchain supply and the ETH/USD quote.
   // Display-only; the label hides until all inputs resolve.
@@ -93,7 +94,7 @@ export function AssetRaceBettingView({
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <p className={`text-sm font-bold ${accentText}`}>Pick your front-runner</p>
-              <h2 className="mt-1 font-display text-2xl font-bold">{meme ? 'Meme sprint' : 'Stock sprint'}</h2>
+              <h2 className="mt-1 font-display text-2xl font-bold">{meme ? 'Meme sprint' : crypto ? 'Crypto sprint' : 'Stock sprint'}</h2>
               <p className="mt-1 max-w-xl text-sm text-white/45">Choose the asset with the highest return over the race window.</p>
             </div>
             <div className="text-right">

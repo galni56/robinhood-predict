@@ -28,8 +28,8 @@ const ARENA_RESOLVED_EVENT = parseAbiItem(
   'event ArenaResolved(uint256 indexed arenaId, uint256 finalPrice, uint256 winnerCount, uint256 protocolFee, bytes32 observationId)',
 )
 
-const RACE_DEPLOY_BLOCK = 77_352_162n
-const ARENA_DEPLOY_BLOCK = 77_353_494n
+const RACE_DEPLOY_BLOCK = 77_663_890n
+const ARENA_DEPLOY_BLOCK = 77_664_309n
 
 export type GameActivityKind = 'race' | 'arena'
 

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { formatEther, formatUnits, parseUnits, type Address } from 'viem'
 import { waitForTransactionReceipt } from 'wagmi/actions'
 import { useAccount, useBalance, useSwitchChain, useWriteContract } from 'wagmi'
@@ -19,10 +19,10 @@ import { useAssetRaceLiveDisplay } from '@/chain/useAssetRaceLiveDisplay'
 import { usePriceArena } from '@/chain/usePriceArena'
 import {
   PRICE_ARENA_ADDRESS,
-  LEGACY_PRICE_ARENA_ADDRESS,
   PRICE_ARENA_PHASE,
   arenaDurationLabel,
   arenaPhaseLabel,
+  legacyPriceArenaAddress,
   modeForArenaCategory,
   priceArenaAbi,
   type PriceArenaEntry,
@@ -75,7 +75,7 @@ function ArenaBoard({ rows, referencePrice, decimals, quote, resolved, winnerCou
           <div className="font-mono text-lg text-white/40">#{resolved ? entry.rank : index + 1}</div>
           <div className="min-w-0"><AddressLabel address={player} className="font-bold text-white/80" /><div title={`${formatEther(entry.stake)} ETH`} className="truncate text-xs text-white/30">{formatCompactEth(entry.stake)}</div></div>
           <div><div className="text-xs text-white/30">Prediction</div><div className="font-mono font-bold">{displayPrice(entry.prediction, decimals, quote)}</div></div>
-          <div className="min-w-0 sm:text-right"><div className="text-xs text-white/30">{resolved ? (winning ? 'Payout' : 'Result') : 'Live error'}</div><div title={resolved && entry.payout > 0n ? `${formatEther(entry.payout)} ETH` : undefined} className={`truncate font-mono font-bold ${winning ? 'text-emerald-300' : 'text-white/50'}`}>{resolved ? (entry.payout > 0n ? formatCompactEth(entry.payout) : 'Lost') : `${error.toFixed(4)}%`}</div></div>
+          <div className="min-w-0 sm:text-right"><div className="text-xs text-white/30">{resolved ? (winning ? 'Payout' : 'Result') : 'Live deviation'}</div><div title={resolved && entry.payout > 0n ? `${formatEther(entry.payout)} ETH` : undefined} className={`truncate font-mono font-bold ${winning ? 'text-emerald-300' : 'text-white/50'}`}>{resolved ? (entry.payout > 0n ? formatCompactEth(entry.payout) : 'Lost') : `${error.toFixed(4)}%`}</div></div>
         </div>
       })}
     </div>
@@ -84,6 +84,10 @@ function ArenaBoard({ rows, referencePrice, decimals, quote, resolved, winnerCou
 
 export function OnchainArenaPage({ legacy = false }: { legacy?: boolean }) {
   const arenaId = parseId(useParams().arenaId)
+  const [searchParams] = useSearchParams()
+  const arenaContractAddress = legacy
+    ? legacyPriceArenaAddress(searchParams.get('contract'))
+    : PRICE_ARENA_ADDRESS
   const { address, isConnected, chainId } = useAccount()
   const {
     arena,
@@ -94,8 +98,7 @@ export function OnchainArenaPage({ legacy = false }: { legacy?: boolean }) {
     isLoading,
     error: readError,
     refetch,
-  } = usePriceArena(arenaId, address, legacy ? LEGACY_PRICE_ARENA_ADDRESS : PRICE_ARENA_ADDRESS)
-  const arenaContractAddress = legacy ? LEGACY_PRICE_ARENA_ADDRESS : PRICE_ARENA_ADDRESS
+  } = usePriceArena(arenaId, address, arenaContractAddress)
   const { switchChain, isPending: isSwitching } = useSwitchChain()
   const { writeContractAsync } = useWriteContract()
   const queryClient = useQueryClient()

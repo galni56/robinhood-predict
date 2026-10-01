@@ -94,7 +94,9 @@ export function useAssetRace(
   }, [assetsQuery.data])
   const raceData = raceQuery.data as AssetRaceData | undefined
   const poolRaceRunning = !isPreview && !isLocalAssetRace
-    && (raceData?.category === ASSET_RACE_CATEGORY.STOCK || raceData?.category === ASSET_RACE_CATEGORY.MEME)
+    && (raceData?.category === ASSET_RACE_CATEGORY.STOCK
+      || raceData?.category === ASSET_RACE_CATEGORY.MEME
+      || raceData?.category === ASSET_RACE_CATEGORY.CRYPTO)
     && raceData.status === ASSET_RACE_STATUS.RUNNING
   const liveDisplay = useAssetRaceLiveDisplay({ enabled: poolRaceRunning })
 

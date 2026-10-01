@@ -6,11 +6,12 @@ import {
   BP_DENOMINATOR,
   MarketStatusOnchain,
 } from '@/chain/contracts'
-import { ASSET_RACE_STATUS, type AssetRaceViewModel } from '@/chain/assetRaces'
+import { ASSET_RACE_CATEGORY, ASSET_RACE_STATUS, type AssetRaceViewModel } from '@/chain/assetRaces'
 import { assetRaceCatalog, priceSourceUrlForAssetId, priceSourceUrlForCatalogAsset, priceSourceUrlForSymbol } from '@/chain/assetRaceRegistry'
 import { demoPools, isDemoMode } from '@/chain/demo'
-import { tickerForPredictionAssetId } from '@/chain/predictionMarketAssets'
-import { PRICE_ARENA_MAX_PARTICIPANTS, PRICE_ARENA_PHASE, arenaDurationLabel, type PriceArenaViewModel } from '@/chain/priceArena'
+import { CRYPTO_ASSETS_ENABLED } from '@/chain/features'
+import { predictionModeForAssetId, predictionQuoteForAssetId, tickerForPredictionAssetId } from '@/chain/predictionMarketAssets'
+import { PRICE_ARENA_CATEGORY, PRICE_ARENA_MAX_PARTICIPANTS, PRICE_ARENA_PHASE, arenaDurationLabel, type PriceArenaViewModel } from '@/chain/priceArena'
 import { useAssetRaceClock } from '@/chain/useAssetRaceClock'
 import { useAssetRaceLiveDisplay } from '@/chain/useAssetRaceLiveDisplay'
 import { useAssetRaces } from '@/chain/useAssetRaces'
@@ -20,20 +21,24 @@ import { useTokenLogos } from '@/chain/robinhoodApi'
 import { isActiveOnchainStatus } from '@/chain/gameSnapshots'
 import { TokenLogo } from '@/components/TokenLogo'
 import { PriceSourceLink } from '@/components/PriceSourceLink'
-import { formatCountdown, formatUsd } from '@/lib/format'
+import { formatAssetPrice, formatCountdown } from '@/lib/format'
 
 const GAME_GUIDES = [
   {
     eyebrow: 'YES / NO',
     title: 'Prediction Markets',
-    summary: 'Call whether a stock finishes above or below a target.',
+    summary: CRYPTO_ASSETS_ENABLED
+      ? 'Call whether a stock, meme or crypto asset finishes above or below a target.'
+      : 'Call whether a tokenized stock finishes above or below a target.',
     accent: '#6A5AE0',
     soft: '#eeeafd',
     image: 'brand/game-guides/prediction-markets.webp',
     href: '/onchain',
     cta: 'Explore markets',
     steps: [
-      ['Choose the question', 'Open a market - or create one with a reviewed stock, target price and deadline.'],
+      ['Choose the question', CRYPTO_ASSETS_ENABLED
+        ? 'Open a market - or create one with a reviewed stock, meme or crypto asset, target price and deadline.'
+        : 'Open a market - or create one with a reviewed stock, target price and deadline.'],
       ['Take YES or NO', 'Enter a stake in USD or ETH. Your wallet sends the exact amount as native ETH in one transaction.'],
       ['Bet before the cutoff', 'Earlier bets carry more pool-share weight. Betting closes before the final price deadline.'],
       ['Settle the pool', 'The last valid price before the deadline decides it. Both sides and two wallets are required; otherwise every stake is refundable. Winners recover principal and split the losing pool. The 2% profit fee is split equally between the market creator and Prophet.'],
@@ -49,7 +54,9 @@ const GAME_GUIDES = [
     href: '/onchain/races',
     cta: 'Explore races',
     steps: [
-      ['Pick a race', 'Choose a stock or meme race. Community lobbies can assemble 2–6 approved assets before betting.'],
+      ['Pick a race', CRYPTO_ASSETS_ENABLED
+        ? 'Choose a stock, meme or crypto race. Community lobbies can assemble 2-6 approved assets before betting.'
+        : 'Choose a stock or meme race. Community lobbies can assemble 2-6 approved assets before betting.'],
       ['Back one contender', 'During the betting window, choose one asset and stake in USD or ETH; top-ups stay on that asset.'],
       ['Watch T0 → T1', 'Every contender uses the same fixed start and finish snapshots. The highest percentage return wins - even if all returns are negative.'],
       ['Claim or refund', 'Backers of the winner recover principal and share the losing pools after the 2% profit fee. An exact top tie voids the race and makes stakes refundable.'],
@@ -115,6 +122,91 @@ const SUPPORTED_STOCKS = assetRaceCatalog.filter((asset) => (
 const SUPPORTED_MEMES = assetRaceCatalog.filter((asset) => (
   asset.category === 'MEME' && asset.networks['robinhood-mainnet'].enabled
 ))
+
+const SUPPORTED_CRYPTO = assetRaceCatalog.filter((asset) => (
+  asset.category === 'CRYPTO' && asset.networks['robinhood-mainnet'].enabled
+))
+
+const PROPHET_TOKEN_ADDRESS = '0x410f2bd350f3d88795cfc29b61ca664c30987efd'
+
+function copyWithTextarea(value: string) {
+  const textarea = document.createElement('textarea')
+  textarea.value = value
+  textarea.setAttribute('readonly', '')
+  textarea.style.position = 'fixed'
+  textarea.style.opacity = '0'
+  document.body.appendChild(textarea)
+  textarea.select()
+  const copied = document.execCommand('copy')
+  textarea.remove()
+  if (!copied) throw new Error('Copy failed')
+}
+
+function ProphetTokenContract() {
+  const [copyState, setCopyState] = useState<'idle' | 'copied' | 'error'>('idle')
+  const resetTimer = useRef<number | null>(null)
+
+  useEffect(() => () => {
+    if (resetTimer.current != null) window.clearTimeout(resetTimer.current)
+  }, [])
+
+  async function copyAddress() {
+    try {
+      if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(PROPHET_TOKEN_ADDRESS)
+      else copyWithTextarea(PROPHET_TOKEN_ADDRESS)
+      setCopyState('copied')
+    } catch {
+      try {
+        copyWithTextarea(PROPHET_TOKEN_ADDRESS)
+        setCopyState('copied')
+      } catch {
+        setCopyState('error')
+      }
+    }
+
+    if (resetTimer.current != null) window.clearTimeout(resetTimer.current)
+    resetTimer.current = window.setTimeout(() => setCopyState('idle'), 2_000)
+  }
+
+  const buttonLabel = copyState === 'copied' ? 'Copied!' : copyState === 'error' ? 'Try again' : 'Copy'
+
+  return (
+    <div className="mt-6 max-w-[610px] rounded-2xl border border-[#6A5AE0]/20 bg-white/50 p-3 shadow-[0_14px_36px_-28px_rgba(36,26,51,0.8)] backdrop-blur-sm sm:flex sm:items-center sm:gap-3 sm:p-3.5">
+      <div className="flex min-w-0 flex-1 items-center gap-3">
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#6A5AE0] text-lg text-white shadow-[0_8px_20px_-10px_rgba(106,90,224,0.9)]" aria-hidden="true">
+          ✦
+        </span>
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+            <p className="text-[11px] font-extrabold uppercase tracking-[0.15em] text-[#6A5AE0]">$PROPHET contract</p>
+            <span className="text-[10px] font-bold text-[#241a33]/45">Robinhood Chain</span>
+          </div>
+          <p className="mt-1 break-all font-mono text-[10px] font-semibold leading-relaxed text-[#241a33]/75 sm:truncate sm:text-xs">
+            {PROPHET_TOKEN_ADDRESS}
+          </p>
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={copyAddress}
+        className="mt-3 inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-[#6A5AE0] px-4 py-2.5 text-xs font-extrabold text-white transition-all hover:-translate-y-0.5 hover:bg-[#5B49C7] active:translate-y-0 sm:mt-0 sm:w-auto"
+        aria-label="Copy Prophet token contract address"
+      >
+        {copyState === 'copied' ? (
+          <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4 fill-none stroke-current" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="m5 12 4 4L19 6" />
+          </svg>
+        ) : (
+          <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4 fill-none stroke-current" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="9" y="9" width="11" height="11" rx="2" />
+            <path d="M15 9V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h3" />
+          </svg>
+        )}
+        <span aria-live="polite">{buttonLabel}</span>
+      </button>
+    </div>
+  )
+}
 
 // One-shot reveal for scroll-triggered stagger animations: flips to
 // visible the first time the element enters the viewport, then stops
@@ -364,7 +456,8 @@ export function OnchainLandingPage() {
   const nowSeconds = BigInt(Math.floor(nowMs / 1_000))
 
   const activeMarkets = markets
-    .filter((market) => market.status === MarketStatusOnchain.Open)
+    .filter((market) => market.status === MarketStatusOnchain.Open
+      && (CRYPTO_ASSETS_ENABLED || predictionModeForAssetId(market.assetId) === 'stocks'))
     // Newest first -- a higher id was created later, since ids increment
     // sequentially. Otherwise the preview here always shows the same oldest
     // handful forever as more get created.
@@ -372,15 +465,14 @@ export function OnchainLandingPage() {
 
   // The contract status is authoritative. Local countdowns are display-only:
   // removing cards from them made valid games vanish before keeper transitions.
-  const activeRaces = (racesPreview ? [] : races).filter((race) => isActiveOnchainStatus(race.status, [
-    ASSET_RACE_STATUS.RESOLVED,
-    ASSET_RACE_STATUS.CANCELLED,
-    ASSET_RACE_STATUS.VOID,
-  ]))
-  const activeArenas = arenas.filter((arena) => isActiveOnchainStatus(arena.phase, [
-    PRICE_ARENA_PHASE.RESOLVED,
-    PRICE_ARENA_PHASE.CANCELLED,
-  ]))
+  const activeRaces = (racesPreview ? [] : races).filter((race) => (
+    isActiveOnchainStatus(race.status, [ASSET_RACE_STATUS.RESOLVED, ASSET_RACE_STATUS.CANCELLED, ASSET_RACE_STATUS.VOID])
+    && (CRYPTO_ASSETS_ENABLED || race.category !== ASSET_RACE_CATEGORY.CRYPTO)
+  ))
+  const activeArenas = arenas.filter((arena) => (
+    isActiveOnchainStatus(arena.phase, [PRICE_ARENA_PHASE.RESOLVED, PRICE_ARENA_PHASE.CANCELLED])
+    && (CRYPTO_ASSETS_ENABLED || arena.category !== PRICE_ARENA_CATEGORY.CRYPTO)
+  ))
 
   const logos = useTokenLogos()
   const stepsReveal = useRevealOnScroll<HTMLDivElement>()
@@ -432,6 +524,8 @@ export function OnchainLandingPage() {
                     <span className="grid h-8 w-8 place-items-center rounded-full bg-[#152447]/15 text-sm">↗</span>
                   </Link>
                 </div>
+
+                <ProphetTokenContract />
 
               </div>
 
@@ -524,6 +618,7 @@ export function OnchainLandingPage() {
           >
             {activeMarkets.slice(0, 3).map((market) => {
               const ticker = tickerForPredictionAssetId(market.assetId)
+              const quoteSymbol = predictionQuoteForAssetId(market.assetId)
               const price = ticker ? live.assets[ticker] : undefined
               const targetUsd = Number(formatUnits(market.targetPrice, market.priceDecimals))
               const currentUsd = price && !price.stale ? Number(formatUnits(BigInt(price.priceRaw), price.decimals)) : null
@@ -563,10 +658,10 @@ export function OnchainLandingPage() {
                     </span>
                   </div>
                   <h3 className="mt-3 font-display text-lg font-bold leading-snug transition-colors group-hover:text-[#B3A7FA]">
-                    Will {ticker ?? 'it'} finish at or above {formatUsd(targetUsd)}?
+                    Will {ticker ?? 'it'} finish at or above {formatAssetPrice(targetUsd, quoteSymbol)}?
                   </h3>
                   <div className="mt-4 flex items-center justify-between gap-3 text-xs">
-                    <span className="text-white/35">{compactEth(totalPool)} pool{currentUsd != null ? ` · now ${formatUsd(currentUsd)}` : ''}</span>
+                    <span className="text-white/35">{compactEth(totalPool)} pool{currentUsd != null ? ` · now ${formatAssetPrice(currentUsd, quoteSymbol)}` : ''}</span>
                     <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
                       <PriceSourceLink href={priceSourceUrlForSymbol(ticker)} symbol={ticker} tone="market" className="bg-[#8B7CF7]/10 px-2 py-1" />
                       <span className="font-bold text-[#B3A7FA]">{acceptingBets ? 'Place a bet' : 'View market'} →</span>
@@ -782,7 +877,7 @@ export function OnchainLandingPage() {
             </p>
           </div>
 
-          <div className="relative mt-10 grid gap-5 lg:grid-cols-2">
+          <div className="relative mt-10 grid gap-5 lg:grid-cols-3">
             {[
               {
                 eyebrow: 'TOKENIZED STOCKS',
@@ -803,9 +898,20 @@ export function OnchainLandingPage() {
                 accent: '#ED8F3A',
                 soft: '#FFF0DF',
                 ctaText: '#3B2416',
-                href: '/onchain/races?mode=memes',
-                cta: 'Explore meme races',
+                href: '/onchain?mode=memes',
+                cta: 'Explore meme markets',
               },
+              ...(CRYPTO_ASSETS_ENABLED ? [{
+                eyebrow: 'CRYPTO ASSETS',
+                title: 'Liquid crypto majors',
+                description: 'Bitcoin and Ethereum priced from reviewed liquid USDG pools directly on Robinhood Chain.',
+                assets: SUPPORTED_CRYPTO,
+                accent: '#3B82F6',
+                soft: '#E8F0FF',
+                ctaText: '#FFFFFF',
+                href: '/onchain?mode=crypto',
+                cta: 'Explore crypto markets',
+              }] : []),
             ].map((group) => (
               <div key={group.eyebrow} className="flex flex-col rounded-[2rem] border border-[#241a33]/10 bg-white/60 p-5 shadow-[0_20px_45px_-35px_rgba(36,26,51,0.45)] sm:p-7">
                 <div className="flex items-start justify-between gap-4">

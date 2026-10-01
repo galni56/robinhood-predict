@@ -69,8 +69,10 @@ contract PriceArenaTest is Test {
     uint256 private constant FINAL_PRICE = 100e18;
     bytes32 private constant STOCK_ID = bytes32("NVDA");
     bytes32 private constant MEME_ID = bytes32("AI");
+    bytes32 private constant CRYPTO_ID = bytes32("BTC");
     bytes32 private constant STOCK_ORACLE_ID = keccak256("NVDA_USDG_POOL");
     bytes32 private constant MEME_ORACLE_ID = keccak256("AI_USDG_POOL");
+    bytes32 private constant CRYPTO_ORACLE_ID = keccak256("BTC_USDG_POOL");
 
     address private alice = address(0xA11CE);
     address private bob = address(0xB0B);
@@ -83,6 +85,7 @@ contract PriceArenaTest is Test {
 
         arena.setAsset(STOCK_ID, address(oracle), STOCK_ORACLE_ID, 18, PriceArena.Category.STOCK, true);
         arena.setAsset(MEME_ID, address(oracle), MEME_ORACLE_ID, 18, PriceArena.Category.MEME, true);
+        arena.setAsset(CRYPTO_ID, address(oracle), CRYPTO_ORACLE_ID, 18, PriceArena.Category.CRYPTO, true);
 
         _fund(address(this));
         _fund(alice);
@@ -105,18 +108,22 @@ contract PriceArenaTest is Test {
         assertEq(uint256(arena.phase(id)), uint256(PriceArena.Phase.LOBBY));
     }
 
-    function test_CreateArena_SupportsAllFourDurationsAndBothCategories() public {
+    function test_CreateArena_SupportsAllFourDurationsAndAllCategories() public {
         uint256[4] memory durations = [uint256(1 minutes), 5 minutes, 15 minutes, 1 hours];
         for (uint256 i; i < durations.length; ++i) {
             arena.createArena(STOCK_ID, PriceArena.Category.STOCK, durations[i], "STOCK");
             arena.createArena(MEME_ID, PriceArena.Category.MEME, durations[i], "MEME");
+            arena.createArena(CRYPTO_ID, PriceArena.Category.CRYPTO, durations[i], "CRYPTO");
         }
-        assertEq(arena.arenaCount(), 8);
+        assertEq(arena.arenaCount(), 12);
     }
 
     function test_CreateArena_RejectsWrongCategoryAndDuration() public {
         vm.expectRevert("wrong asset category");
         arena.createArena(STOCK_ID, PriceArena.Category.MEME, 1 minutes, "WRONG");
+
+        vm.expectRevert("wrong asset category");
+        arena.createArena(CRYPTO_ID, PriceArena.Category.STOCK, 1 minutes, "WRONG");
 
         vm.expectRevert("unsupported duration");
         arena.createArena(STOCK_ID, PriceArena.Category.STOCK, 2 minutes, "WRONG");

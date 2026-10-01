@@ -3,7 +3,7 @@ import registryJson from '../../config/asset-race-assets.json'
 import { assetPriceChartUrl } from '@/chain/assetPriceHistory'
 
 export type AssetRaceNetworkKey = 'local' | 'robinhood-testnet' | 'robinhood-mainnet'
-export type AssetRaceCategoryName = 'STOCK' | 'MEME'
+export type AssetRaceCategoryName = 'STOCK' | 'MEME' | 'CRYPTO'
 export type AssetRaceOracleType = 'CHAINLINK_V3' | 'SIGNED_POOL_BLOCK_PAIR' | 'DEX_V2_SPOT' | 'DEX_V3_SPOT' | 'MOCK_LOCAL'
 
 interface OracleConfig {
@@ -67,6 +67,7 @@ interface AssetRaceRegistry {
 export const assetRaceRegistry = registryJson as unknown as AssetRaceRegistry
 export const assetRaceCatalog = assetRaceRegistry.assets
 export const assetRaceMemeQuote = { ...registryJson.marketQuoteUniverses.MEME, symbol: 'ETH' }
+export const assetRaceCryptoQuote = registryJson.marketQuoteUniverses.CRYPTO
 export const assetRaceCatalogById = new Map(
   assetRaceCatalog.map((asset) => [stringToHex(asset.assetId, { size: 32 }).toLowerCase(), asset]),
 )
@@ -138,7 +139,8 @@ export function approvedAssetMatchesCatalog(args: {
   const networkConfig = asset.networks[network]
   const source = networkConfig.oracle
   if (!networkConfig.enabled || !source) return false
-  if (category !== (asset.category === 'MEME' ? 1 : 0)) return false
+  const catalogCategory = asset.category === 'MEME' ? 1 : asset.category === 'CRYPTO' ? 2 : 0
+  if (category !== catalogCategory) return false
   if (!assetRaceRegistry.networks[network].allowedOracleTypes.includes(source.type)) return false
   if (expectedDecimals !== source.expectedDecimals) return false
   const profile = assetRaceRegistry.validationProfiles[source.validationProfile]

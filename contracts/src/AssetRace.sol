@@ -24,7 +24,8 @@ contract AssetRace is Ownable, ReentrancyGuard {
 
     enum RaceCategory {
         STOCK,
-        MEME
+        MEME,
+        CRYPTO
     }
 
     enum RaceOrigin {

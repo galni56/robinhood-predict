@@ -11,8 +11,8 @@ export const ASSET_RACE_STATUS = {
   LOBBY: 5,
 } as const
 
-export const ASSET_RACE_CATEGORY = { STOCK: 0, MEME: 1 } as const
-export type AssetRaceMode = 'stocks' | 'memes'
+export const ASSET_RACE_CATEGORY = { STOCK: 0, MEME: 1, CRYPTO: 2 } as const
+export type AssetRaceMode = 'stocks' | 'memes' | 'crypto'
 export const ASSET_RACE_ORIGIN = { PLATFORM: 0, COMMUNITY: 1 } as const
 export const ETH_DECIMALS = 18
 export const RETURN_SCALE = 10n ** 18n
@@ -27,6 +27,19 @@ export const ASSET_RACE_ADDRESS: Address | undefined =
   !assetRaceNetworkConfigError && normalizedAddress && !usesDeniedUsdG ? normalizedAddress : undefined
 
 export const LEGACY_ASSET_RACE_ADDRESS = getAddress('0x02F030Bd9D9DC86d713CDF0772ae4d1E3b81f235')
+export const NATIVE_ETH_ASSET_RACE_V2_ADDRESS = getAddress('0x98f9af1756148c8995729E9ccEA770fd15124bC9')
+export const LEGACY_ASSET_RACE_DEPLOYMENTS = [
+  { key: 'v1', label: 'Asset Race V1', address: LEGACY_ASSET_RACE_ADDRESS },
+  { key: 'native-v2', label: 'Asset Race V2', address: NATIVE_ETH_ASSET_RACE_V2_ADDRESS },
+].filter((deployment) => deployment.address.toLowerCase() !== ASSET_RACE_ADDRESS?.toLowerCase())
+
+export function legacyAssetRaceAddress(value: string | null) {
+  if (!value || !isAddress(value)) return LEGACY_ASSET_RACE_ADDRESS
+  const normalized = getAddress(value)
+  return LEGACY_ASSET_RACE_DEPLOYMENTS.find(
+    (deployment) => deployment.address.toLowerCase() === normalized.toLowerCase(),
+  )?.address ?? LEGACY_ASSET_RACE_ADDRESS
+}
 
 export const ASSET_RACE_CONFIG_ERROR =
   assetRaceNetworkConfigError
@@ -360,15 +373,21 @@ export function assetRaceStatusLabel(status: number) {
 }
 
 export function assetRaceCategoryLabel(category: number) {
-  return category === ASSET_RACE_CATEGORY.MEME ? 'MEME' : 'STOCK'
+  if (category === ASSET_RACE_CATEGORY.MEME) return 'MEME'
+  if (category === ASSET_RACE_CATEGORY.CRYPTO) return 'CRYPTO'
+  return 'STOCK'
 }
 
 export function categoryForRaceMode(mode: AssetRaceMode) {
-  return mode === 'memes' ? ASSET_RACE_CATEGORY.MEME : ASSET_RACE_CATEGORY.STOCK
+  if (mode === 'memes') return ASSET_RACE_CATEGORY.MEME
+  if (mode === 'crypto') return ASSET_RACE_CATEGORY.CRYPTO
+  return ASSET_RACE_CATEGORY.STOCK
 }
 
 export function raceModeForCategory(category: number): AssetRaceMode {
-  return category === ASSET_RACE_CATEGORY.MEME ? 'memes' : 'stocks'
+  if (category === ASSET_RACE_CATEGORY.MEME) return 'memes'
+  if (category === ASSET_RACE_CATEGORY.CRYPTO) return 'crypto'
+  return 'stocks'
 }
 
 export function oracleIdToFeedAddress(oracleId: Hex): Address | undefined {

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-// STATUS: deployment preparation only. Registers the registry-approved Stock/Meme
+// STATUS: deployment preparation only. Registers the registry-approved Stock/Meme/Crypto
 // symbols and configures community timing/economics entirely from env values.
 
 import {Script, console} from "forge-std/Script.sol";
@@ -51,11 +51,18 @@ contract ConfigureAssetRace is Script {
         bytes32[] memory memeOracleIds = vm.envOr("ASSET_RACE_MEME_ORACLE_IDS", ",", new bytes32[](0));
         require(memeSymbols.length == memeOracleIds.length, "invalid approved meme arrays");
         require(memeSymbols.length == 0 || memeSymbols.length >= 2, "insufficient approved memes");
+        string[] memory cryptoSymbols = vm.envOr("ASSET_RACE_CRYPTO_SYMBOLS", ",", new string[](0));
+        bytes32[] memory cryptoOracleIds = vm.envOr("ASSET_RACE_CRYPTO_ORACLE_IDS", ",", new bytes32[](0));
+        require(cryptoSymbols.length == cryptoOracleIds.length, "invalid approved crypto arrays");
+        require(cryptoSymbols.length == 0 || cryptoSymbols.length >= 2, "insufficient approved crypto");
 
         vm.startBroadcast(deployerKey);
         _registerAssets(race, oracle, AssetRace.RaceCategory.STOCK, symbols, oracleIds, maxPriceAge, maxEndpointLag);
         _registerAssets(
             race, oracle, AssetRace.RaceCategory.MEME, memeSymbols, memeOracleIds, maxPriceAge, maxEndpointLag
+        );
+        _registerAssets(
+            race, oracle, AssetRace.RaceCategory.CRYPTO, cryptoSymbols, cryptoOracleIds, maxPriceAge, maxEndpointLag
         );
         race.setCommunityPolicy(
             AssetRace.CommunityPolicyInput({
@@ -77,6 +84,7 @@ contract ConfigureAssetRace is Script {
 
         console.log("Configured signed StockToken/USDG pool assets", symbols.length);
         console.log("Configured signed Meme/WETH pool assets", memeSymbols.length);
+        console.log("Configured signed Crypto/USDG pool assets", cryptoSymbols.length);
         console.log("maxPriceAge", maxPriceAge);
         console.log("maxEndpointLag", maxEndpointLag);
         console.log("maxOracleTimestampSkew", maxOracleTimestampSkew);

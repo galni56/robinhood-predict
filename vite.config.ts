@@ -16,8 +16,13 @@ const LEGACY_USDG_BINDINGS: Record<string, string[]> = {
 export const APPROVED_NATIVE_ETH_BINDINGS = {
   VITE_MARKET_ADDRESS: '0xF62CF5Db594c4b706555584ccEC9Fb9a61541D4a',
   VITE_DEPLOY_BLOCK: '76951947',
-  VITE_ASSET_RACE_ADDRESS: '0x98f9af1756148c8995729E9ccEA770fd15124bC9',
+  VITE_ASSET_RACE_ADDRESS: '0xebA246E4B548b93079Bf4D85faA50fa8b7Ff9c6e',
   VITE_ASSET_RACE_SIGNED_POOL_ORACLE_ADDRESS: '0x5b0f7e62E0A5fF5C5C02Ad219Afcd086F2618Db7',
+  VITE_PRICE_ARENA_ADDRESS: '0x541be0c7c1011a63465Ff53408e9F76DA870b29f',
+} as const
+
+export const STOCK_MEME_ONLY_V2_BINDINGS = {
+  VITE_ASSET_RACE_ADDRESS: '0x98f9af1756148c8995729E9ccEA770fd15124bC9',
   VITE_PRICE_ARENA_ADDRESS: '0x8c1c5544E00C2f8ea2C564B179CdEB38504805d5',
 } as const
 
@@ -69,6 +74,23 @@ export function validateAssetRaceProductionBuild(env: Record<string, unknown>) {
   }
 }
 
+export function validateCryptoAssetsBuild(env: Record<string, unknown>) {
+  const enabled = typeof env.VITE_ALL_ASSET_TYPES_ENABLED === 'string'
+    ? env.VITE_ALL_ASSET_TYPES_ENABLED.trim()
+    : ''
+  if (enabled && !['true', 'false'].includes(enabled)) {
+    throw new Error('VITE_ALL_ASSET_TYPES_ENABLED must be true or false')
+  }
+  if (enabled !== 'true') return
+  for (const name of ['VITE_ASSET_RACE_ADDRESS', 'VITE_PRICE_ARENA_ADDRESS'] as const) {
+    const actual = typeof env[name] === 'string' ? env[name].trim().toLowerCase() : ''
+    const approved = APPROVED_NATIVE_ETH_BINDINGS[name].toLowerCase()
+    if (!actual || actual !== approved) {
+      throw new Error(`${name} must match the reviewed all-asset deployment before the complete asset UI is enabled`)
+    }
+  }
+}
+
 // https://vite.dev/config/
 export default defineConfig({
   // GitHub Pages serves a project site from /<repo-name>/, not the domain
@@ -115,6 +137,7 @@ export default defineConfig({
     configResolved(config) {
       validateNativeEthProductionBindings(config.env)
       validateAssetRaceProductionBuild(config.env)
+      validateCryptoAssetsBuild(config.env)
     },
   }],
   resolve: {

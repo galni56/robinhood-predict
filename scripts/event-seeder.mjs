@@ -105,7 +105,12 @@ export function readSeederConfig() {
     runOnce: boolEnv('RUN_ONCE', false),
     expectedChainId: uintEnv('EVENT_SEEDER_CHAIN_ID', 4663, 1),
     marketTargetOpen: uintEnv('EVENT_SEEDER_MARKET_TARGET_OPEN', 3, 1),
+    memeMarketTargetOpen: uintEnv('EVENT_SEEDER_MEME_MARKET_TARGET_OPEN', 1, 0),
+    allAssetTypesEnabled: boolEnv('EVENT_SEEDER_ALL_ASSET_TYPES_ENABLED', false),
+    cryptoMarketTargetOpen: uintEnv('EVENT_SEEDER_CRYPTO_MARKET_TARGET_OPEN', 1, 0),
     arenaTargetOpen: uintEnv('EVENT_SEEDER_ARENA_TARGET_OPEN', 2, 1),
+    memeArenaTargetOpen: uintEnv('EVENT_SEEDER_MEME_ARENA_TARGET_OPEN', 1, 0),
+    cryptoArenaTargetOpen: uintEnv('EVENT_SEEDER_CRYPTO_ARENA_TARGET_OPEN', 1, 0),
     // contracts/src/PredictionMarket.sol:72 (MIN_MARKET_DURATION) is 1800s.
     marketDurationSeconds: uintEnv('EVENT_SEEDER_MARKET_DURATION_SECONDS', 21_600, 1_800),
     arenaDurationSeconds,
@@ -119,6 +124,8 @@ export function readSeederConfig() {
     assetRaceEnabled,
     raceAddress: raceAddressRaw && isAddress(raceAddressRaw) ? getAddress(raceAddressRaw) : undefined,
     raceTargetOpen: uintEnv('EVENT_SEEDER_RACE_TARGET_OPEN', 2, 1),
+    memeRaceTargetOpen: uintEnv('EVENT_SEEDER_MEME_RACE_TARGET_OPEN', 1, 0),
+    cryptoRaceTargetOpen: uintEnv('EVENT_SEEDER_CRYPTO_RACE_TARGET_OPEN', 1, 0),
     raceDurationSeconds: uintEnv('EVENT_SEEDER_RACE_DURATION_SECONDS', 900, 60),
     raceAssetCount: uintEnv('EVENT_SEEDER_RACE_ASSET_COUNT', MIN_ASSETS_PER_RACE, MIN_ASSETS_PER_RACE),
     raceScanFrom: BigInt(uintEnv('EVENT_SEEDER_RACE_SCAN_FROM', 0)),
@@ -226,6 +233,7 @@ export class OpenItemTracker {
   constructor(scanFrom = 0n, isOpen = isOpenNow, { expireByDeadline = true } = {}) {
     this.nextId = BigInt(scanFrom)
     this.items = new Map()
+    this.latestIdByAsset = new Map()
     this.isOpen = isOpen
     this.expireByDeadline = expireByDeadline
   }
@@ -251,8 +259,10 @@ export class OpenItemTracker {
 
       rows.forEach((row, index) => {
         const item = rowToItem(row)
+        const normalizedAssetId = item.assetId?.toLowerCase()
+        if (normalizedAssetId) this.latestIdByAsset.set(normalizedAssetId, ids[index])
         if (this.isOpen(item.status, item.deadline, now)) {
-          this.items.set(ids[index], { assetId: item.assetId, deadline: BigInt(item.deadline) })
+          this.items.set(ids[index], { assetId: item.assetId, deadline: BigInt(item.deadline), category: item.category })
         }
       })
       this.nextId += BigInt(size)
@@ -271,7 +281,7 @@ export class OpenItemTracker {
         const row = await publicClient.readContract({ address, abi, functionName: getFn, args: [id] })
         const item = rowToItem(row)
         if (this.isOpen(item.status, item.deadline, now)) {
-          this.items.set(id, { assetId: item.assetId, deadline: BigInt(item.deadline) })
+          this.items.set(id, { assetId: item.assetId, deadline: BigInt(item.deadline), category: item.category })
         } else {
           this.items.delete(id)
         }
@@ -299,16 +309,35 @@ export class OpenItemTracker {
     return count
   }
 
+  openCountForCategory(now, category) {
+    let count = 0
+    for (const item of this.items.values()) {
+      if (this.isTrackedOpen(item, now) && Number(item.category) === Number(category)) count += 1
+    }
+    return count
+  }
+
   openAssetIdSet(now) {
     const set = new Set()
     for (const item of this.items.values()) if (this.isTrackedOpen(item, now)) set.add(item.assetId.toLowerCase())
     return set
   }
 
-  openIds(now) {
+  openIds(now, category) {
     return [...this.items.entries()]
-      .filter(([, item]) => this.isTrackedOpen(item, now))
+      .filter(([, item]) => this.isTrackedOpen(item, now)
+        && (category == null || Number(item.category) === Number(category)))
       .map(([id]) => id)
+  }
+
+  latestAssetId(configs) {
+    let latest
+    for (const config of configs) {
+      const assetId = stringToHex(config.assetId, { size: 32 }).toLowerCase()
+      const id = this.latestIdByAsset.get(assetId)
+      if (id !== undefined && (latest === undefined || id > latest.id)) latest = { id, assetId }
+    }
+    return latest?.assetId
   }
 }
 
@@ -327,16 +356,22 @@ function arenaRowToItem(arena) {
 function raceRowToItem(race) {
   const occupiedUntil = BigInt(race.lobbyEndTime) + BigInt(race.bettingWindow) + BigInt(race.startGrace)
     + BigInt(race.raceDuration) + BigInt(race.resolutionGrace)
-  return { assetId: `0x${'0'.repeat(64)}`, status: race.status, deadline: occupiedUntil }
+  return { assetId: `0x${'0'.repeat(64)}`, status: race.status, deadline: occupiedUntil, category: race.category }
 }
 
-/** Picks the first configured asset (in registry order) that doesn't
- * currently have an open market/arena, so two simultaneous listings never
- * share a ticker. Returns undefined once `targetOpen` is already met or
- * every configured asset is already represented. */
-export function nextAssetToSeed(configs, openAssetIdSet, openCount, targetOpen) {
+/** Picks the next configured asset after the newest historical listing that
+ * doesn't currently have an open market/arena. This preserves duplicate
+ * prevention while rotating small categories (notably BTC/ETH) instead of
+ * selecting the first registry asset forever after each event closes. */
+export function nextAssetToSeed(configs, openAssetIdSet, openCount, targetOpen, latestAssetId) {
   if (openCount >= targetOpen) return undefined
-  return configs.find((config) => !openAssetIdSet.has(stringToHex(config.assetId, { size: 32 }).toLowerCase()))
+  const latestIndex = latestAssetId == null
+    ? -1
+    : configs.findIndex((config) => stringToHex(config.assetId, { size: 32 }).toLowerCase() === latestAssetId)
+  const ordered = latestIndex < 0
+    ? configs
+    : [...configs.slice(latestIndex + 1), ...configs.slice(0, latestIndex + 1)]
+  return ordered.find((config) => !openAssetIdSet.has(stringToHex(config.assetId, { size: 32 }).toLowerCase()))
 }
 
 /** targetPrice = live pool price +/- a random offset in [minBp, maxBp],
@@ -359,13 +394,20 @@ export function arenaTitleFor(config, durationSeconds) {
   return title
 }
 
+export function onchainCategory(categoryName) {
+  if (categoryName === 'STOCK') return 0
+  if (categoryName === 'MEME') return 1
+  if (categoryName === 'CRYPTO') return 2
+  throw new Error(`UnsupportedAssetCategory:${categoryName}`)
+}
+
 function safeErrorName(error) {
   if (error instanceof Error) return error.shortMessage || error.message.split('\n')[0]
   return 'UnknownError'
 }
 
 function productionMarketConfigs(registry) {
-  return poolConfigsFromRegistry(registry, { category: 'STOCK' })
+  return poolConfigsFromRegistry(registry)
 }
 
 function productionArenaConfigs(registry) {
@@ -572,9 +614,20 @@ async function main() {
 
   const registry = JSON.parse(readFileSync(fileURLToPath(new URL('../config/asset-race-assets.json', import.meta.url)), 'utf8'))
   const marketConfigs = productionMarketConfigs(registry)
-  if (marketConfigs.length !== 10) throw new SeederConfigError('Registry must expose exactly 10 production Stock pools')
+  if (marketConfigs.length !== 25) throw new SeederConfigError('Registry must expose exactly 25 production pools')
   const arenaConfigs = productionArenaConfigs(registry)
-  if (arenaConfigs.length !== 23) throw new SeederConfigError('Registry must expose exactly 23 production pools')
+  if (arenaConfigs.length !== 25) throw new SeederConfigError('Registry must expose exactly 25 production pools')
+  const marketConfigsByCategory = {
+    STOCK: marketConfigs.filter((item) => item.category === 'STOCK'),
+    MEME: marketConfigs.filter((item) => item.category === 'MEME'),
+    CRYPTO: marketConfigs.filter((item) => item.category === 'CRYPTO'),
+  }
+  const arenaConfigsByCategory = {
+    STOCK: arenaConfigs.filter((item) => item.category === 'STOCK'),
+    MEME: arenaConfigs.filter((item) => item.category === 'MEME'),
+    CRYPTO: arenaConfigs.filter((item) => item.category === 'CRYPTO'),
+  }
+  const raceConfigsByCategory = arenaConfigsByCategory
 
   const engine = config.marketEnabled ? new PoolPriceEngine({ client: publicClient, configs: marketConfigs }) : undefined
   if (config.marketEnabled) {
@@ -624,12 +677,21 @@ async function main() {
   process.once('SIGINT', () => { stopping = true })
   process.once('SIGTERM', () => { stopping = true })
 
-  async function seedMarketIfNeeded(now) {
+  async function seedMarketIfNeeded(now, categoryName, targetOpen) {
     if (!config.marketEnabled || !marketTracker || !engine) return
     const count = await publicClient.readContract({ address: config.marketAddress, abi: predictionMarketAbi, functionName: 'marketCount' })
     await marketTracker.discover(publicClient, { address: config.marketAddress, abi: predictionMarketAbi, getFn: 'getMarket', rowToItem: marketRowToItem }, count, now)
     marketTracker.prune(now)
-    const next = nextAssetToSeed(marketConfigs, marketTracker.openAssetIdSet(now), marketTracker.openCount(now), config.marketTargetOpen)
+    const categoryConfigs = marketConfigsByCategory[categoryName]
+    const openAssets = marketTracker.openAssetIdSet(now)
+    const openCount = categoryConfigs.filter((item) => openAssets.has(stringToHex(item.assetId, { size: 32 }).toLowerCase())).length
+    const next = nextAssetToSeed(
+      categoryConfigs,
+      openAssets,
+      openCount,
+      targetOpen,
+      marketTracker.latestAssetId(categoryConfigs),
+    )
     if (!next) return
 
     const snapshot = await engine.latestSnapshot()
@@ -656,41 +718,50 @@ async function main() {
     console.log(`[event-seeder] market created on ${next.assetId} (${hash})`)
   }
 
-  async function seedArenaIfNeeded(now) {
+  async function seedArenaIfNeeded(now, categoryName, targetOpen) {
     const count = await publicClient.readContract({ address: config.arenaAddress, abi: priceArenaAbi, functionName: 'arenaCount' })
     await arenaTracker.discover(publicClient, { address: config.arenaAddress, abi: priceArenaAbi, getFn: 'getArena', rowToItem: arenaRowToItem }, count, now)
     arenaTracker.prune(now)
-    const next = nextAssetToSeed(arenaConfigs, arenaTracker.openAssetIdSet(now), arenaTracker.openCount(now), config.arenaTargetOpen)
+    const categoryConfigs = arenaConfigsByCategory[categoryName]
+    const openAssets = arenaTracker.openAssetIdSet(now)
+    const openCount = categoryConfigs.filter((item) => openAssets.has(stringToHex(item.assetId, { size: 32 }).toLowerCase())).length
+    const next = nextAssetToSeed(
+      categoryConfigs,
+      openAssets,
+      openCount,
+      targetOpen,
+      arenaTracker.latestAssetId(categoryConfigs),
+    )
     if (!next) return
 
     const assetIdHex = stringToHex(next.assetId, { size: 32 })
-    const category = next.category === 'MEME' ? 1 : 0
+    const category = onchainCategory(next.category)
     const title = arenaTitleFor(next, config.arenaDurationSeconds)
 
-    if (config.dryRun) {
-      console.log(`[dry-run] would create arena on ${next.assetId} duration=${config.arenaDurationSeconds}`)
-      return
-    }
     const simulation = await publicClient.simulateContract({
-      account, address: config.arenaAddress, abi: priceArenaAbi, functionName: 'createArena',
+      account: account || zeroAddress, address: config.arenaAddress, abi: priceArenaAbi, functionName: 'createArena',
       args: [assetIdHex, category, BigInt(config.arenaDurationSeconds), title],
     })
+    if (config.dryRun) {
+      console.log(`[dry-run] createArena simulation passed for ${next.assetId} duration=${config.arenaDurationSeconds}`)
+      return
+    }
     const hash = await walletClient.writeContract(simulation.request)
     const receipt = await publicClient.waitForTransactionReceipt({ hash })
     if (receipt.status !== 'success') throw new Error('TransactionReverted')
     console.log(`[event-seeder] arena created on ${next.assetId} (${hash})`)
   }
 
-  async function seedRaceIfNeeded(now) {
+  async function seedRaceIfNeeded(now, categoryName, category, targetOpen) {
     const count = await publicClient.readContract({ address: config.raceAddress, abi: assetRaceCommunityAbi, functionName: 'raceCount' })
     const raceRead = { address: config.raceAddress, abi: assetRaceCommunityAbi, getFn: 'getRace', rowToItem: raceRowToItem }
     await raceTracker.discover(publicClient, raceRead, count, now)
     await raceTracker.refresh(publicClient, raceRead, now)
     raceTracker.prune(now)
-    if (raceTracker.openCount(now) >= config.raceTargetOpen) return
+    if (raceTracker.openCountForCategory(now, category) >= targetOpen) return
 
-    const openIds = raceTracker.openIds(now)
-    const newestId = count > 0n ? count - 1n : undefined
+    const openIds = raceTracker.openIds(now, category)
+    const newestId = openIds.length > 0 ? openIds.reduce((latest, id) => id > latest ? id : latest) : undefined
     const assetReadIds = [...new Set([
       ...openIds.map(String),
       ...(newestId == null ? [] : [String(newestId)]),
@@ -730,7 +801,7 @@ async function main() {
     const newestRaceAssetIds = newestId == null ? [] : assetIdsByRace.get(newestId.toString()) ?? []
     const openTitles = new Set(openIds.map((raceId) => titlesByRace.get(raceId.toString()) ?? ''))
     const selected = nextRaceConfigsToSeed(
-      marketConfigs,
+      raceConfigsByCategory[categoryName],
       config.raceAssetCount,
       newestRaceAssetIds,
       openCombinationKeys,
@@ -740,14 +811,17 @@ async function main() {
     const picked = selected.map((c) => stringToHex(c.assetId, { size: 32 }))
     const title = communityRaceTitleFor(selected)
 
+    const simulation = await publicClient.simulateContract({
+      account: account || zeroAddress,
+      address: config.raceAddress,
+      abi: assetRaceCommunityAbi,
+      functionName: 'createCommunityRace',
+      args: [title, category, BigInt(config.raceDurationSeconds), picked],
+    })
     if (config.dryRun) {
-      console.log(`[dry-run] would create race ${title} duration=${config.raceDurationSeconds}`)
+      console.log(`[dry-run] createCommunityRace simulation passed for ${title} duration=${config.raceDurationSeconds}`)
       return
     }
-    const simulation = await publicClient.simulateContract({
-      account, address: config.raceAddress, abi: assetRaceCommunityAbi, functionName: 'createCommunityRace',
-      args: [title, 0, BigInt(config.raceDurationSeconds), picked],
-    })
     const hash = await walletClient.writeContract(simulation.request)
     const receipt = await publicClient.waitForTransactionReceipt({ hash })
     if (receipt.status !== 'success') throw new Error('TransactionReverted')
@@ -757,11 +831,23 @@ async function main() {
   do {
     const block = await publicClient.getBlock({ blockTag: 'latest' })
     if (config.marketEnabled) {
-      try { await seedMarketIfNeeded(block.timestamp) } catch (error) { console.error(`[event-seeder] market seeding failed (${safeErrorName(error)}); continuing`) }
+      try { await seedMarketIfNeeded(block.timestamp, 'STOCK', config.marketTargetOpen) } catch (error) { console.error(`[event-seeder] Stock market seeding failed (${safeErrorName(error)}); continuing`) }
+      if (config.allAssetTypesEnabled) {
+        try { await seedMarketIfNeeded(block.timestamp, 'MEME', config.memeMarketTargetOpen) } catch (error) { console.error(`[event-seeder] Meme market seeding failed (${safeErrorName(error)}); continuing`) }
+        try { await seedMarketIfNeeded(block.timestamp, 'CRYPTO', config.cryptoMarketTargetOpen) } catch (error) { console.error(`[event-seeder] Crypto market seeding failed (${safeErrorName(error)}); continuing`) }
+      }
     }
-    try { await seedArenaIfNeeded(block.timestamp) } catch (error) { console.error(`[event-seeder] arena seeding failed (${safeErrorName(error)}); continuing`) }
+    try { await seedArenaIfNeeded(block.timestamp, 'STOCK', config.arenaTargetOpen) } catch (error) { console.error(`[event-seeder] Stock arena seeding failed (${safeErrorName(error)}); continuing`) }
+    if (config.allAssetTypesEnabled) {
+      try { await seedArenaIfNeeded(block.timestamp, 'MEME', config.memeArenaTargetOpen) } catch (error) { console.error(`[event-seeder] Meme arena seeding failed (${safeErrorName(error)}); continuing`) }
+      try { await seedArenaIfNeeded(block.timestamp, 'CRYPTO', config.cryptoArenaTargetOpen) } catch (error) { console.error(`[event-seeder] Crypto arena seeding failed (${safeErrorName(error)}); continuing`) }
+    }
     if (config.assetRaceEnabled) {
-      try { await seedRaceIfNeeded(block.timestamp) } catch (error) { console.error(`[event-seeder] race seeding failed (${safeErrorName(error)}); continuing`) }
+      try { await seedRaceIfNeeded(block.timestamp, 'STOCK', onchainCategory('STOCK'), config.raceTargetOpen) } catch (error) { console.error(`[event-seeder] Stock race seeding failed (${safeErrorName(error)}); continuing`) }
+      if (config.allAssetTypesEnabled) {
+        try { await seedRaceIfNeeded(block.timestamp, 'MEME', onchainCategory('MEME'), config.memeRaceTargetOpen) } catch (error) { console.error(`[event-seeder] Meme race seeding failed (${safeErrorName(error)}); continuing`) }
+        try { await seedRaceIfNeeded(block.timestamp, 'CRYPTO', onchainCategory('CRYPTO'), config.cryptoRaceTargetOpen) } catch (error) { console.error(`[event-seeder] Crypto race seeding failed (${safeErrorName(error)}); continuing`) }
+      }
     }
     if (config.runOnce || stopping) break
     await new Promise((resolve) => setTimeout(resolve, config.pollIntervalMs))

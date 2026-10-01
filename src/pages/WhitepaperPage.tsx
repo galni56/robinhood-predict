@@ -87,8 +87,9 @@ export function WhitepaperPage() {
             <li><strong>Network:</strong> all real games run on Robinhood Chain mainnet.</li>
             <li><strong>Wager currency:</strong> stakes, pools, payouts and refunds use native ETH. The interface accepts USD or ETH input for the live $1–$50 range and freezes the exact wei value; there is no ERC-20 approval, WETH wrapping or swap.</li>
             <li>
-              <strong>Reviewed assets:</strong> Markets use 10 approved tokenized stocks. Races and Arena support
-              those 10 Stocks plus 13 Memes; Stocks and Memes remain separate categories.
+              <strong>Reviewed assets:</strong> Prediction Markets, Asset Races and Price Arena all support 10
+              approved tokenized stocks, 13 Memes, Bitcoin and Ethereum. Stocks, Memes and Crypto remain separate
+              categories. Meme targets use ETH quotes; Stock and Crypto targets use USDG quotes.
             </li>
             <li>
               <strong>Non-custodial:</strong> Prophet never receives a wallet&apos;s private key. Entries,
@@ -107,7 +108,7 @@ export function WhitepaperPage() {
 
         <Section id="markets" title="3. Prediction Markets · YES or NO">
           <p>
-            A market asks: <em>Will this stock be at or above the target price at the deadline?</em> A YES position
+            A market asks: <em>Will this asset be at or above the target price at the deadline?</em> A YES position
             wins when the final price is greater than or equal to the target; otherwise NO wins. Touching the target
             at any earlier moment does not count - the only price that determines the outcome is the scheduled
             deadline price.
@@ -115,10 +116,10 @@ export function WhitepaperPage() {
           <p>The current market lifecycle is:</p>
           <ol className="list-decimal space-y-2 pl-5">
             <li>
-              Any wallet creates a market for one of 10 approved tokenized stocks, chooses a positive target and
-              selects a deadline. Each stock uses a reviewed StockToken/USDG pool as its price source - not as the
-              wager currency. The interface offers 30 minutes, 1 hour, 24 hours and 7 days. Thirty minutes is the
-              onchain minimum.
+              Any wallet creates a market for one of 10 approved tokenized stocks, 13 Memes, Bitcoin or Ethereum,
+              chooses a positive target and selects a deadline. Stocks and Crypto use reviewed USDG pools; Memes
+              use reviewed ETH pools. These quote assets are price units, not wager currencies. The interface offers
+              30 minutes, 1 hour, 24 hours and 7 days. Thirty minutes is the onchain minimum.
             </li>
             <li>
               Players enter the live equivalent of $1–$50 in USD or ETH and stake the displayed native ETH amount on YES or NO. A wallet may place one bet per side. It is
@@ -169,15 +170,16 @@ export function WhitepaperPage() {
 
         <Section id="races" title="5. Asset Races · highest return wins">
           <p>
-            A Race compares <strong>2–6 assets from one category</strong>. Stock races use StockToken/USDG prices;
-            Meme races use MemeToken/ETH prices. Players back one asset, and the winner is the asset with the highest
-            percentage return between the common start and end snapshots - not the asset with the highest dollar price.
+            A Race compares <strong>2-6 assets from one category</strong>. Stock races use StockToken/USDG prices,
+            Meme races use MemeToken/ETH prices, and Crypto races use BTC/USDG and ETH/USDG prices. Players back one
+            asset, and the winner is the asset with the highest percentage return between the common start and end
+            snapshots - not the asset with the highest dollar price.
           </p>
           <p>The live community-race policy is:</p>
           <ol className="list-decimal space-y-2 pl-5">
             <li>
-              The creator chooses Stocks or Memes, a title and an approved race duration of 1, 5 or 15 minutes. The
-              creator may add initial assets or leave the list open.
+              The creator chooses Stocks, Memes or Crypto, a title and an approved race duration of 1, 5 or 15
+              minutes. The creator may add initial assets or leave the list open.
             </li>
             <li>
               A 5-minute lobby opens. No betting occurs yet. Each wallet may add one approved asset of the chosen
@@ -201,7 +203,8 @@ export function WhitepaperPage() {
           <Formula>asset return = (P1 − P0) ÷ P0</Formula>
           <p>
             The highest return wins even when every contender fell in price - the least negative return is still the
-            highest. Stocks and Memes never compete in the same race because they use different quote units.
+            highest. Stocks, Memes and Crypto never mix in the same race, so every grid has one coherent asset
+            universe and reviewed source policy.
           </p>
         </Section>
 
@@ -226,8 +229,8 @@ export function WhitepaperPage() {
 
         <Section id="arena" title="7. Price Arena · closest prediction wins">
           <p>
-            Price Arena is a fixed-field forecasting contest for one approved Stock or Meme. Instead of choosing a
-            direction, every player enters the exact price they expect at the end of the game. Available game
+            Price Arena is a fixed-field forecasting contest for one approved Stock, Meme or Crypto asset. Instead
+            of choosing a direction, every player enters the exact price they expect at the end of the game. Available game
             durations are <strong>1, 5, 15 and 60 minutes</strong>.
           </p>
           <ol className="list-decimal space-y-2 pl-5">
@@ -256,7 +259,8 @@ export function WhitepaperPage() {
           </ol>
           <p>
             Stock Arenas predict a StockToken/USDG price in USDG. Meme Arenas predict a MemeToken/ETH price in ETH.
-            Those are price quote units only; native ETH is the stake and payout currency in both categories.
+            Crypto Arenas predict BTC/USDG or ETH/USDG in USDG. Those are price quote units only; native ETH is the
+            stake and payout currency in every category.
           </p>
         </Section>
 

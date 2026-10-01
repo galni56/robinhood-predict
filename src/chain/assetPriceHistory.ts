@@ -14,6 +14,108 @@ export interface AssetPriceHistory {
   points: AssetPriceHistoryPoint[]
 }
 
+export type AssetPriceWindow = '1M' | '5M' | '15M' | '1H' | 'ALL'
+
+export type AssetPriceCandleInterval = '1m' | '5m' | '15m' | '1h'
+
+export interface AssetPriceCandle {
+  startTime: number
+  endTime: number
+  open: number
+  high: number
+  low: number
+  close: number
+  updates: number
+  blockNumber?: string
+}
+
+export const ASSET_PRICE_WINDOWS: readonly AssetPriceWindow[] = ['1M', '5M', '15M', '1H', 'ALL']
+export const ASSET_PRICE_CANDLE_INTERVALS: readonly AssetPriceCandleInterval[] = ['1m', '5m', '15m', '1h']
+
+const CANDLE_INTERVAL_MS: Record<AssetPriceCandleInterval, number> = {
+  '1m': 60_000,
+  '5m': 5 * 60_000,
+  '15m': 15 * 60_000,
+  '1h': 60 * 60_000,
+}
+
+const WINDOW_DURATION_MS: Record<Exclude<AssetPriceWindow, 'ALL'>, number> = {
+  '1M': 60_000,
+  '5M': 5 * 60_000,
+  '15M': 15 * 60_000,
+  '1H': 60 * 60_000,
+}
+
+export function mergeAssetPriceHistory(
+  current: AssetPriceHistoryPoint[],
+  incoming: AssetPriceHistoryPoint[],
+  limit = 14_400,
+) {
+  const byTimestamp = new Map(current.map((point) => [point.receivedAt, point]))
+  for (const point of incoming) byTimestamp.set(point.receivedAt, point)
+  return [...byTimestamp.values()]
+    .sort((a, b) => a.receivedAt - b.receivedAt)
+    .slice(-limit)
+}
+
+export function filterAssetPriceWindow<T extends { receivedAt: number }>(
+  points: T[],
+  windowName: AssetPriceWindow,
+  anchor: number,
+) {
+  if (windowName === 'ALL') return points
+  const cutoff = anchor - WINDOW_DURATION_MS[windowName]
+  return points.filter((point) => point.receivedAt >= cutoff)
+}
+
+export function sampleAssetPriceSeries<T>(points: T[], maxPoints = 1_200) {
+  if (!Number.isSafeInteger(maxPoints) || maxPoints < 2) throw new Error('InvalidChartSampleLimit')
+  if (points.length <= maxPoints) return points
+  return Array.from(
+    { length: maxPoints },
+    (_, index) => points[Math.round(index * (points.length - 1) / (maxPoints - 1))],
+  )
+}
+
+export function assetPriceCandleIntervalMs(interval: AssetPriceCandleInterval) {
+  return CANDLE_INTERVAL_MS[interval]
+}
+
+export function buildAssetPriceCandles<T extends {
+  receivedAt: number
+  price: number
+  blockNumber?: string
+}>(points: T[], interval: AssetPriceCandleInterval): AssetPriceCandle[] {
+  const intervalMs = assetPriceCandleIntervalMs(interval)
+  const candles = new Map<number, AssetPriceCandle>()
+
+  for (const point of [...points].sort((a, b) => a.receivedAt - b.receivedAt)) {
+    if (!Number.isSafeInteger(point.receivedAt) || point.receivedAt <= 0 || !Number.isFinite(point.price) || point.price <= 0) continue
+    const startTime = Math.floor(point.receivedAt / intervalMs) * intervalMs
+    const current = candles.get(startTime)
+    if (!current) {
+      candles.set(startTime, {
+        startTime,
+        endTime: startTime + intervalMs,
+        open: point.price,
+        high: point.price,
+        low: point.price,
+        close: point.price,
+        updates: 1,
+        blockNumber: point.blockNumber,
+      })
+      continue
+    }
+    current.high = Math.max(current.high, point.price)
+    current.low = Math.min(current.low, point.price)
+    current.close = point.price
+    current.updates += 1
+    current.blockNumber = point.blockNumber ?? current.blockNumber
+  }
+
+  return [...candles.values()]
+}
+
 export function assetPriceChartUrl(symbol: string) {
   const normalized = symbol.trim()
   if (!normalized || normalized.length > 32 || !/^[A-Za-z0-9_-]+$/.test(normalized)) return undefined
@@ -49,5 +151,5 @@ export function parseAssetPriceHistory(value: unknown, expectedAssetId: string):
 
 export function assetPriceHistoryUrl(assetId: string) {
   const liveUrl = import.meta.env.VITE_ASSET_RACE_LIVE_URL?.trim() || '/api/asset-race/live'
-  return `${liveUrl.replace(/\/$/, '')}/history?asset=${encodeURIComponent(assetId)}&limit=900`
+  return `${liveUrl.replace(/\/$/, '')}/history?asset=${encodeURIComponent(assetId)}&limit=1440`
 }

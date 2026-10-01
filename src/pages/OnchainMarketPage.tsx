@@ -6,7 +6,7 @@ import { waitForTransactionReceipt } from 'wagmi/actions'
 import { robinhoodMainnet, wagmiConfig } from '@/chain/config'
 import { DEMO_USERS, demoBetLogs, demoPools, isDemoMode } from '@/chain/demo'
 import { ACTIVE_GAME_POLL_INTERVAL_MS, ACTIVE_GAME_REFRESH_OPTIONS } from '@/chain/gameSnapshots'
-import { tickerForPredictionAssetId } from '@/chain/predictionMarketAssets'
+import { predictionQuoteForAssetId, tickerForPredictionAssetId } from '@/chain/predictionMarketAssets'
 import { priceSourceUrlForSymbol } from '@/chain/assetRaceRegistry'
 import { useAssetRaceLiveDisplay } from '@/chain/useAssetRaceLiveDisplay'
 import { AddressLabel } from '@/components/AddressLabel'
@@ -40,7 +40,7 @@ import {
   type FrozenNativeStakeQuote,
   type StakeInputUnit,
 } from '@/chain/ethUsd'
-import { formatCompactEth, formatCountdown, formatUsd, shortTxError } from '@/lib/format'
+import { formatAssetPrice, formatCompactEth, formatCountdown, shortTxError } from '@/lib/format'
 import { shortHash } from '@/lib/hash'
 
 const BET_PLACED_EVENT = parseAbiItem(
@@ -172,6 +172,7 @@ export function OnchainMarketPage({ legacy = false }: { legacy?: boolean }) {
   })
 
   const ticker = tickerForPredictionAssetId(market.data?.assetId)
+  const quoteSymbol = predictionQuoteForAssetId(market.data?.assetId)
   const live = useAssetRaceLiveDisplay({ enabled: true })
   const livePrice = ticker ? live.assets[ticker] : undefined
   const effectiveDecimals = market.data?.priceDecimals
@@ -504,7 +505,7 @@ export function OnchainMarketPage({ legacy = false }: { legacy?: boolean }) {
             <TokenLogo ticker={ticker} className="mt-1 h-12 w-12 rounded-2xl" />
             <div>
             <h1 className="font-display text-3xl sm:text-4xl font-bold tracking-tight">
-              Will {ticker ?? '…'} be at or above {targetPriceUsd != null ? formatUsd(targetPriceUsd) : '…'} at the deadline?
+              Will {ticker ?? '…'} be at or above {targetPriceUsd != null ? formatAssetPrice(targetPriceUsd, quoteSymbol) : '…'} at the deadline?
             </h1>
             <p className="mt-1 flex flex-wrap items-center gap-1.5 text-sm text-white/30">
               <span>On-chain market #{MARKET_ID.toString()}</span>
@@ -609,7 +610,7 @@ export function OnchainMarketPage({ legacy = false }: { legacy?: boolean }) {
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-[#8B7CF7]" />
                 </span>
                 <span className={`font-mono text-3xl font-semibold ${tickedUp ? 'text-emerald-400' : 'text-rose-400'}`}>
-                  {displayedPriceUsd != null ? formatUsd(displayedPriceUsd) : '…'}
+                  {displayedPriceUsd != null ? formatAssetPrice(displayedPriceUsd, quoteSymbol) : '…'}
                 </span>
               </div>
               <div className="text-white/40 text-xs font-bold mt-1">
@@ -617,7 +618,7 @@ export function OnchainMarketPage({ legacy = false }: { legacy?: boolean }) {
               </div>
             </div>
             <div className="text-right">
-              <div className="font-mono text-3xl font-semibold text-white/70">{targetPriceUsd != null ? formatUsd(targetPriceUsd) : '…'}</div>
+              <div className="font-mono text-3xl font-semibold text-white/70">{targetPriceUsd != null ? formatAssetPrice(targetPriceUsd, quoteSymbol) : '…'}</div>
               <div className="text-white/40 text-xs font-bold mt-1">
                 target
                 {displayedPriceUsd != null && targetPriceUsd != null && displayedPriceUsd > 0 && (

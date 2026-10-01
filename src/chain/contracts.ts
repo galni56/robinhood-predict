@@ -405,7 +405,7 @@ export function recommendedTargetRange(currentPrice: number, durationSeconds: nu
   return [currentPrice * (1 - mult), currentPrice * (1 + mult)]
 }
 
-/** UI guidance for how close (in $) a target may sit to the current price.
+/** UI guidance for how close (in the asset's quote unit) a target may sit to the current price.
  * The excluded band is [current - this, current + this]. */
 export function recommendedMinDeviationUsd(currentPrice: number, durationSeconds: number): number {
   return (currentPrice * Number(minDeviationBpForDuration(durationSeconds))) / 10_000

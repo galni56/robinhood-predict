@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { formatEther } from 'viem'
 import { useAssetRaceClock } from '@/chain/useAssetRaceClock'
 import { isPlayedCancellation, isVisibleInAll } from '@/chain/gameVisibility'
+import { CRYPTO_ASSETS_ENABLED } from '@/chain/features'
 import { usePriceArenas } from '@/chain/usePriceArenas'
 import {
   PRICE_ARENA_CATEGORY,
@@ -40,6 +41,7 @@ function displayPhase(arena: PriceArenaViewModel, nowMs: number) {
 function ArenaCard({ arena, nowMs }: { arena: PriceArenaViewModel; nowMs: number }) {
   const navigate = useNavigate()
   const meme = arena.category === PRICE_ARENA_CATEGORY.MEME
+  const crypto = arena.category === PRICE_ARENA_CATEGORY.CRYPTO
   return (
     <div
       role="link"
@@ -59,7 +61,7 @@ function ArenaCard({ arena, nowMs }: { arena: PriceArenaViewModel; nowMs: number
     >
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="text-xs font-bold uppercase tracking-[0.16em] text-[#B7CEFF]">{meme ? 'Meme Arena' : 'Stock Arena'} · #{arena.id.toString()}</div>
+          <div className="text-xs font-bold uppercase tracking-[0.16em] text-[#B7CEFF]">{meme ? 'Meme Arena' : crypto ? 'Crypto Arena' : 'Stock Arena'} · #{arena.id.toString()}</div>
           <h2 className="mt-2 font-display text-xl font-bold">{arena.title}</h2>
           <p className="mt-1 text-xs text-white/35">by <AddressLabel address={arena.creator} className="text-white/50" /></p>
         </div>
@@ -89,8 +91,15 @@ function ArenaCard({ arena, nowMs }: { arena: PriceArenaViewModel; nowMs: number
 export function OnchainArenasListPage() {
   const { arenas, isConfigured, isLoading, error } = usePriceArenas()
   const [params, setParams] = useSearchParams()
-  const mode: PriceArenaMode = params.get('mode') === 'memes' ? 'memes' : 'stocks'
-  const category = mode === 'memes' ? PRICE_ARENA_CATEGORY.MEME : PRICE_ARENA_CATEGORY.STOCK
+  const requestedMode = params.get('mode')
+  const mode: PriceArenaMode = requestedMode === 'memes' || (CRYPTO_ASSETS_ENABLED && requestedMode === 'crypto')
+    ? requestedMode
+    : 'stocks'
+  const category = mode === 'memes'
+    ? PRICE_ARENA_CATEGORY.MEME
+    : mode === 'crypto'
+      ? PRICE_ARENA_CATEGORY.CRYPTO
+      : PRICE_ARENA_CATEGORY.STOCK
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>('ALL')
   const terminalFilter = filter === 'FINISHED' || filter === 'CANCELLED'
   const nowMs = useAssetRaceClock()
@@ -110,13 +119,13 @@ export function OnchainArenasListPage() {
           <h1 className="mt-1 font-display text-3xl font-bold sm:text-4xl">Name the final price.</h1>
           <p className="mt-2 text-sm leading-relaxed text-white/50">Predictions stay hidden in the lobby. When the round starts, the board goes live and the closest half shares the losing half’s pool.</p>
         </div>
-        <Link to={`/onchain/arenas/create${mode === 'memes' ? '?mode=memes' : ''}`} className="rounded-full bg-[#7A9FF0] px-5 py-3 text-sm font-bold text-[#152447] transition-colors hover:bg-[#8EB1F8]">+ Create {mode === 'memes' ? 'meme' : 'stock'} arena</Link>
+        <Link to={`/onchain/arenas/create${mode === 'stocks' ? '' : `?mode=${mode}`}`} className="rounded-full bg-[#7A9FF0] px-5 py-3 text-sm font-bold text-[#152447] transition-colors hover:bg-[#8EB1F8]">+ Create {mode === 'memes' ? 'meme' : mode === 'crypto' ? 'crypto' : 'stock'} arena</Link>
       </div>
 
       {!isConfigured && <div className="mt-6 rounded-2xl border border-amber-400/25 bg-amber-400/10 p-4 text-sm text-amber-100">Price Arena is not configured in this build. {PRICE_ARENA_CONFIG_ERROR}</div>}
 
       <div className="mt-8 flex flex-wrap items-center justify-between gap-3">
-        <FilterChips size="sm" options={GAME_MODE_CHIP_OPTIONS} value={mode} onChange={(item) => setParams(item === 'memes' ? { mode: 'memes' } : {})} />
+        <FilterChips size="sm" options={GAME_MODE_CHIP_OPTIONS} value={mode} onChange={(item) => setParams(item === 'stocks' ? {} : { mode: item })} />
         <FilterChips options={FILTER_OPTIONS} value={filter} onChange={setFilter} accent="arena" />
       </div>
 

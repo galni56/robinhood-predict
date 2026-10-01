@@ -24,7 +24,7 @@ const registry = JSON.parse(readFileSync(fileURLToPath(new URL('../config/asset-
 test('approved thirteen Memes bind canonical ERC20s to verified WETH/native pools and the same engine', () => {
   const memes = poolConfigsFromRegistry(registry, { category: 'MEME' })
   assert.deepEqual(memes.map((config) => config.assetId).sort(), ['AI', 'CASHCAT', 'CHUMP', 'PIPEDOG', 'IF', 'TENDIES', 'BONER', 'JUGGERNAUT', 'MOO', 'FRONG', 'HOOD', 'BLORB', 'DOGO'].sort())
-  assert.equal(poolConfigsFromRegistry(registry).length, 23)
+  assert.equal(poolConfigsFromRegistry(registry).length, 25)
   for (const config of memes) {
     const asset = registry.assets.find((entry) => entry.assetId === config.assetId)
     assert.equal(config.baseToken.toLowerCase(), asset.canonicalTokenAddress.toLowerCase())
@@ -49,6 +49,20 @@ test('approved thirteen Memes bind canonical ERC20s to verified WETH/native pool
   const wrongPool = structuredClone(registry)
   wrongPool.assets.find((asset) => asset.assetId === 'AI').marketSource.poolIdentifier = memes[1].poolIdentifier
   assert.throws(() => poolConfigsFromRegistry(wrongPool), /WrongPoolOracleId/)
+})
+
+test('BTC and ETH use reviewed USDG pools with exact frozen identities', () => {
+  const crypto = poolConfigsFromRegistry(registry, { category: 'CRYPTO' })
+  assert.deepEqual(crypto.map((config) => config.assetId), ['BTC', 'ETH'])
+  for (const config of crypto) {
+    assert.equal(config.quoteToken.toLowerCase(), registry.marketQuoteUniverses.CRYPTO.address.toLowerCase())
+    assert.equal(config.quoteDecimals, 6)
+    assert.equal(config.quoteSymbol, 'USDG')
+    assert.equal(config.quoteUnit, 'USDG')
+    const asset = registry.assets.find((entry) => entry.assetId === config.assetId)
+    assert.equal(config.oracleId, asset.networks['robinhood-mainnet'].oracle.identifier)
+  }
+  assert.equal(v4PoolId(crypto.find((config) => config.assetId === 'BTC').poolKey), crypto.find((config) => config.assetId === 'BTC').poolIdentifier)
 })
 
 test('unresolved Meme candidates cannot leak into production approvals', () => {

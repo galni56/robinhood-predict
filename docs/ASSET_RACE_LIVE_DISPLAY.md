@@ -50,20 +50,28 @@ ASSET_RACE_LIVE_PORT=8787
 ASSET_RACE_LIVE_POLL_INTERVAL_MS=2000
 ASSET_RACE_LIVE_STALE_MS=5000
 ASSET_RACE_LIVE_RPC_URL=https://rpc.mainnet.chain.robinhood.com
+ASSET_RACE_LIVE_ALWAYS_ON=true
 VITE_ASSET_RACE_LIVE_URL=/api/asset-race/live
 VITE_ASSET_RACE_LIVE_ENABLED=true
 ```
 
 Each poll first freezes one latest block, then reads every V3/V4 pool at that
-explicit block through canonical Multicall3. The process polls every two seconds
-only while at least one browser is connected; zero viewers produce zero LIVE
-polls. All browsers share one SSE endpoint, and the internal chart reads a
-bounded, sampled history from the same process:
+explicit block through canonical Multicall3. Production polls every two seconds
+even between viewers so a new visitor receives useful 1m and 5m candle history
+immediately. All browsers still share one SSE endpoint and never add upstream
+requests. Set `ASSET_RACE_LIVE_ALWAYS_ON=false` only for local or cost-limited
+environments where an empty first chart is acceptable. The internal chart reads
+a bounded history from the same process:
 
 ```text
 GET /api/asset-race/live
 GET /api/asset-race/live/history?asset=NVDA&limit=900
 ```
+
+For the 1M, 5M and 15M chart windows, a 1,440-point response preserves the
+newest 900 observations without sampling (about 30 minutes at the normal
+two-second cadence). The remaining response budget samples older observations,
+so longer windows keep their overall shape without sacrificing recent detail.
 
 The VPS reverse proxy must disable buffering and caching for this endpoint:
 

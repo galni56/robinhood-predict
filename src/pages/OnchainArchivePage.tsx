@@ -20,7 +20,7 @@ import {
   usePriceArenaArchivePage,
   type PredictionArchiveMarket,
 } from '@/chain/useGameArchive'
-import { tickerForPredictionAssetId } from '@/chain/predictionMarketAssets'
+import { predictionQuoteForAssetId, tickerForPredictionAssetId } from '@/chain/predictionMarketAssets'
 import {
   PRICE_ARENA_CATEGORY,
   PRICE_ARENA_PHASE,
@@ -28,7 +28,7 @@ import {
   type PriceArenaViewModel,
 } from '@/chain/priceArena'
 import { useTokenLogos } from '@/chain/robinhoodApi'
-import { formatCompactEth, formatUsd, timeAgo } from '@/lib/format'
+import { formatAssetPrice, formatCompactEth, timeAgo } from '@/lib/format'
 
 type ArchiveMode = 'markets' | 'races' | 'arenas'
 
@@ -42,6 +42,7 @@ function MarketArchiveCard({ market }: { market: PredictionArchiveMarket }) {
   const logos = useTokenLogos()
   const ticker = tickerForPredictionAssetId(market.assetId) ?? '…'
   const targetUsd = Number(formatUnits(market.targetPrice, market.priceDecimals))
+  const quoteSymbol = predictionQuoteForAssetId(market.assetId)
   const totalPool = market.poolYes + market.poolNo
   const yesPct = totalPool > 0n ? Number((market.poolYes * 10_000n) / totalPool) / 100 : 50
   const cancelled = market.status === MarketStatusOnchain.Cancelled
@@ -56,7 +57,7 @@ function MarketArchiveCard({ market }: { market: PredictionArchiveMarket }) {
               <span className="font-display text-lg font-bold">{ticker}</span>
               <span className="text-xs text-white/35">Market #{market.id.toString()}</span>
             </div>
-            <p className="truncate text-sm text-white/55">At or above {formatUsd(targetUsd)} at deadline?</p>
+            <p className="truncate text-sm text-white/55">At or above {formatAssetPrice(targetUsd, quoteSymbol)} at deadline?</p>
           </div>
         </Link>
         {cancelled ? <CancelledBadge /> : <SideBadge side={market.outcome === MarketSideOnchain.YES ? 'YES' : 'NO'} />}
@@ -76,7 +77,11 @@ function MarketArchiveCard({ market }: { market: PredictionArchiveMarket }) {
 
 function RaceArchiveCard({ race }: { race: AssetRaceViewModel }) {
   const terminalTime = race.resolvedAt || race.raceEndTime || race.bettingEndTime
-  const category = race.category === ASSET_RACE_CATEGORY.MEME ? 'Meme' : 'Stock'
+  const category = race.category === ASSET_RACE_CATEGORY.MEME
+    ? 'Meme'
+    : race.category === ASSET_RACE_CATEGORY.CRYPTO
+      ? 'Crypto'
+      : 'Stock'
   return (
     <article className="rounded-2xl border border-white/5 bg-[#241b2f] p-4 transition-colors hover:border-[#F2A65A]/40">
       <div className="flex min-w-0 items-start justify-between gap-3">
@@ -111,7 +116,11 @@ function RaceArchiveCard({ race }: { race: AssetRaceViewModel }) {
 
 function ArenaArchiveCard({ arena }: { arena: PriceArenaViewModel }) {
   const terminalTime = arena.resolvedAt || arena.deadline
-  const category = arena.category === PRICE_ARENA_CATEGORY.MEME ? 'Meme' : 'Stock'
+  const category = arena.category === PRICE_ARENA_CATEGORY.MEME
+    ? 'Meme'
+    : arena.category === PRICE_ARENA_CATEGORY.CRYPTO
+      ? 'Crypto'
+      : 'Stock'
   return (
     <article className="rounded-2xl border border-white/5 bg-[#241b2f] p-4 transition-colors hover:border-[#7A9FF0]/45">
       <div className="flex min-w-0 items-start justify-between gap-3">

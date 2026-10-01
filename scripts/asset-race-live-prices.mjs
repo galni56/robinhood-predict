@@ -353,14 +353,31 @@ export class StockPoolLiveCollector {
   }
 }
 
-function buildHistorySnapshot(assetId, history = [], maxPoints = 900) {
+export function buildHistorySnapshot(assetId, history = [], maxPoints = 900) {
   if (typeof assetId !== 'string' || !assetId || !Number.isSafeInteger(maxPoints) || maxPoints < 2 || maxPoints > 1_440) {
     throw new Error('InvalidHistoryRequest')
   }
   const source = Array.isArray(history) ? history : []
-  const sampled = source.length <= maxPoints
-    ? source
-    : Array.from({ length: maxPoints }, (_, index) => source[Math.round(index * (source.length - 1) / (maxPoints - 1))])
+  let sampled = source
+  if (source.length > maxPoints) {
+    // Keep the newest 30 minutes at the native two-second cadence so the 1M,
+    // 5M and 15M charts remain genuinely useful. Use the remaining response
+    // budget to sample older observations while preserving the oldest point.
+    const recentCount = Math.min(900, Math.max(1, Math.floor(maxPoints * 0.625)))
+    const recent = source.slice(-recentCount)
+    const older = source.slice(0, -recentCount)
+    const olderLimit = maxPoints - recent.length
+    let sampledOlder
+    if (older.length <= olderLimit) sampledOlder = older
+    else if (olderLimit === 1) sampledOlder = [older[0]]
+    else {
+      sampledOlder = Array.from(
+        { length: olderLimit },
+        (_, index) => older[Math.round(index * (older.length - 1) / (olderLimit - 1))],
+      )
+    }
+    sampled = [...sampledOlder, ...recent]
+  }
   const latest = source.at(-1)
   return {
     assetId,

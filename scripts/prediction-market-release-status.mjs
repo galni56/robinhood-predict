@@ -63,12 +63,12 @@ const legacyMarketStatusAbi = marketStatusAbi.map((item) => {
   }
 })
 
-function stockConfigs() {
+function reviewedConfigs(allAssetBindings = false) {
   const registry = JSON.parse(readFileSync(
     fileURLToPath(new URL('../config/asset-race-assets.json', import.meta.url)),
     'utf8',
   ))
-  return poolConfigsFromRegistry(registry, { category: 'STOCK' })
+  return poolConfigsFromRegistry(registry, allAssetBindings ? {} : { category: 'STOCK' })
 }
 
 async function readPositionStakeTotal(client, marketAddress, marketId, logs) {
@@ -93,14 +93,18 @@ export async function readPredictionMarketReleaseStatus({
   client,
   marketAddress = REVIEWED_PREDICTION_MARKET_V2,
   expectedOracleAddress = REVIEWED_SIGNED_POOL_ORACLE,
+  allAssetBindings = false,
 } = {}) {
   const address = getAddress(marketAddress)
   const chainId = await client.getChainId()
   if (chainId !== ROBINHOOD_MAINNET_CHAIN_ID) {
     throw new Error(`Wrong chain: expected ${ROBINHOOD_MAINNET_CHAIN_ID}, got ${chainId}`)
   }
-  const configs = stockConfigs()
-  if (configs.length !== 10) throw new Error(`Expected 10 reviewed Stock bindings, got ${configs.length}`)
+  const configs = reviewedConfigs(allAssetBindings)
+  const expectedBindingCount = allAssetBindings ? 25 : 10
+  if (configs.length !== expectedBindingCount) {
+    throw new Error(`Expected ${expectedBindingCount} reviewed asset bindings, got ${configs.length}`)
+  }
   await verifyPredictionMarketRelease(client, address, configs, { expectedOracleAddress })
 
   const [
@@ -269,7 +273,7 @@ async function main() {
   const rpcUrl = process.env.PREDICTION_MARKET_RPC_URL?.trim() || DEFAULT_PUBLIC_RPC
   const client = createPublicClient({ transport: http(rpcUrl, { batch: true }) })
   const [status, legacy] = await Promise.all([
-    readPredictionMarketReleaseStatus({ client }),
+    readPredictionMarketReleaseStatus({ client, allAssetBindings: process.argv.includes('--all-asset-bindings') }),
     readLegacyPredictionMarketStatus({ client }),
   ])
   const migrationReady = status.canaries.complete && legacy.overdueOpenIds.length === 0
