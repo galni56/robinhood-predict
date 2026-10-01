@@ -1,5 +1,7 @@
 import { assetRaceChain } from '@/chain/config'
 import type { StakeInputUnit } from '@/chain/ethUsd'
+import { formatCompactUsd, memeMarketCapUsd, useMemeTokenSupplies } from '@/chain/memeMarketCap'
+import { useAssetRaceLiveDisplay } from '@/chain/useAssetRaceLiveDisplay'
 import { ClockIcon } from '@/components/icons'
 import { StakeAmountInput } from '@/components/StakeAmountInput'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
@@ -66,6 +68,11 @@ export function AssetRaceBettingView({
   quoteReady: boolean
 }) {
   const meme = race.category === ASSET_RACE_CATEGORY.MEME
+  // Memes trade on market cap: each contender card shows MC computed from
+  // the live ETH-quoted price, onchain supply and the ETH/USD quote.
+  // Display-only; the label hides until all inputs resolve.
+  const memeSupplies = useMemeTokenSupplies(meme)
+  const { ethUsd } = useAssetRaceLiveDisplay({ enabled: meme })
   const accentText = 'text-[#F2A65A]'
   const selected = race.assets[selectedAssetIndex]
   const existingStake = position?.exists ? position.stake : 0n
@@ -129,6 +136,22 @@ export function AssetRaceBettingView({
                         {formatStakeRaw(asset.pool, tokenDecimals)} {tokenLabel}
                       </div>
                     </div>
+                    {(() => {
+                      const cap = meme
+                        ? memeMarketCapUsd({
+                            priceRaw: asset.livePrice ?? 0n,
+                            priceDecimals: asset.liveDecimals ?? asset.expectedDecimals,
+                            supply: memeSupplies.get(asset.symbol),
+                            ethUsd,
+                          })
+                        : undefined
+                      return cap != null ? (
+                        <div>
+                          <div className="text-xs font-bold text-white/30">Market cap</div>
+                          <div className="font-mono text-sm text-[#F2A65A]">{formatCompactUsd(cap)}</div>
+                        </div>
+                      ) : null
+                    })()}
                     <div className="font-mono text-sm text-white/55">{formatPoolShare(asset.pool, race.totalPool)}</div>
                   </div>
                 </button>
