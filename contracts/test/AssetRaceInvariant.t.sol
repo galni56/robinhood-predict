@@ -178,7 +178,10 @@ contract AssetRaceInvariantTest is Test {
 
     function invariant_ContractBalanceCoversFeesAndUserLiabilities() public view {
         AssetRace race = handler.race();
-        assertGe(address(race).balance, race.totalUserLiability() + race.accumulatedFees());
+        assertGe(
+            address(race).balance,
+            race.totalUserLiability() + race.totalCreatorEarningsLiability() + race.accumulatedFees()
+        );
     }
 
     function invariant_SingleRaceLiabilityMatchesGlobalLiability() public view {

@@ -27,6 +27,8 @@ const OPEN = 0
 const SIGNED_POOL_BLOCK_PAIR = 2
 
 export const priceArenaKeeperAbi = [
+  { type: 'function', name: 'FEE_BP', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'CREATOR_FEE_SHARE_BP', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
   { type: 'function', name: 'arenaCount', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
   {
     type: 'function', name: 'getArena', stateMutability: 'view', inputs: [{ name: 'arenaId', type: 'uint256' }],
@@ -238,6 +240,14 @@ async function main() {
     contracts: poolChainContracts(chainId),
   })
   const publicClient = createPublicClient({ chain, transport: http(config.rpcUrl, { batch: true }) })
+  if (chainId === 4663) {
+    const [feeBp, creatorShare] = await Promise.all([
+      publicClient.readContract({ address: config.address, abi: priceArenaKeeperAbi, functionName: 'FEE_BP' }),
+      publicClient.readContract({ address: config.address, abi: priceArenaKeeperAbi, functionName: 'CREATOR_FEE_SHARE_BP' }),
+    ])
+    if (feeBp !== 200n) throw new KeeperConfigError('PriceArena fee must be 200 bp')
+    if (creatorShare !== 5_000n) throw new KeeperConfigError('PriceArena creator fee share must be 5000 bp')
+  }
   const priceAccount = privateKeyToAccount(config.priceSignerPrivateKey)
   const [trustedSigner, proofType] = await Promise.all([
     publicClient.readContract({ address: config.signedOracleAddress, abi: signedPoolOracleAbi, functionName: 'TRUSTED_SIGNER' }),

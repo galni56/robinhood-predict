@@ -90,6 +90,7 @@ contract PriceArena is Ownable, ReentrancyGuard {
 
     uint256 public constant BP_DENOMINATOR = 10_000;
     uint256 public constant FEE_BP = 200;
+    uint256 public constant CREATOR_FEE_SHARE_BP = 5_000;
     uint256 public constant LOBBY_DURATION = 10 minutes;
     uint256 public constant MIN_PARTICIPANTS = 2;
     uint256 public constant MAX_PARTICIPANTS = 20;
@@ -105,12 +106,15 @@ contract PriceArena is Ownable, ReentrancyGuard {
     bool public newActivityPaused;
     uint256 public arenaCount;
     uint256 public accumulatedFees;
+    uint256 public totalCreatorEarningsLiability;
     uint256 public totalUserLiability;
 
     mapping(bytes32 => AssetConfig) public approvedAssets;
     mapping(uint256 => Arena) private arenas;
     mapping(uint256 => address[]) private participants;
     mapping(uint256 => mapping(address => Entry)) private entries;
+    mapping(address => uint256) public creatorEarnings;
+    mapping(uint256 => uint256) public arenaCreatorFees;
 
     event AssetConfigured(
         bytes32 indexed assetId,
@@ -144,6 +148,8 @@ contract PriceArena is Ownable, ReentrancyGuard {
     event ArenaCancelled(uint256 indexed arenaId, string reason);
     event Claimed(uint256 indexed arenaId, address indexed player, uint256 payout);
     event Refunded(uint256 indexed arenaId, address indexed player, uint256 amount);
+    event CreatorFeeAccrued(uint256 indexed arenaId, address indexed creator, uint256 amount);
+    event CreatorFeesWithdrawn(address indexed creator, uint256 amount);
     event NewActivityPaused(bool paused);
     event FeesWithdrawn(address indexed to, uint256 amount);
 
@@ -352,20 +358,27 @@ contract PriceArena is Ownable, ReentrancyGuard {
             entries[arenaId][ranking[i]].rank = uint32(i + 1);
         }
 
-        // Includes the stated 2% plus harmless integer-division dust.
+        // The creator receives exactly half of the stated 2% fee. Prophet keeps
+        // the other half plus harmless integer-division dust.
         uint256 protocolTake = arena.totalPool - payoutTotal;
+        uint256 creatorFee = Math.mulDiv(statedFee, CREATOR_FEE_SHARE_BP, BP_DENOMINATOR);
+        uint256 protocolFee = protocolTake - creatorFee;
         arena.status = Status.RESOLVED;
         arena.resolvedAt = uint64(block.timestamp);
         arena.winnerCount = uint16(winnerCount);
         arena.finalPrice = observation.price;
         arena.finalUpdatedAt = observation.updatedAt;
         arena.observationId = observation.observationId;
-        arena.protocolFee = protocolTake;
+        arena.protocolFee = protocolFee;
         arena.remainingLiability = payoutTotal;
-        accumulatedFees += protocolTake;
+        creatorEarnings[arena.creator] += creatorFee;
+        arenaCreatorFees[arenaId] = creatorFee;
+        totalCreatorEarningsLiability += creatorFee;
+        accumulatedFees += protocolFee;
         totalUserLiability -= protocolTake;
 
-        emit ArenaResolved(arenaId, observation.price, winnerCount, protocolTake, observation.observationId);
+        emit CreatorFeeAccrued(arenaId, arena.creator, creatorFee);
+        emit ArenaResolved(arenaId, observation.price, winnerCount, protocolFee, observation.observationId);
     }
 
     function claim(uint256 arenaId) external nonReentrant {
@@ -409,6 +422,18 @@ contract PriceArena is Ownable, ReentrancyGuard {
         accumulatedFees = 0;
         _sendEth(to, amount);
         emit FeesWithdrawn(to, amount);
+    }
+
+    /// @notice Withdraws all creator revenue accrued across resolved arenas.
+    /// Small amounts stay pooled until the creator chooses to withdraw them.
+    function withdrawCreatorFees() external nonReentrant returns (uint256 amount) {
+        amount = creatorEarnings[msg.sender];
+        require(amount > 0, "no creator fees");
+
+        creatorEarnings[msg.sender] = 0;
+        totalCreatorEarningsLiability -= amount;
+        _sendEth(msg.sender, amount);
+        emit CreatorFeesWithdrawn(msg.sender, amount);
     }
 
     function _sendEth(address to, uint256 amount) private {

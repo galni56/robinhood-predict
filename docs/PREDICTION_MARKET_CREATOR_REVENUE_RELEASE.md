@@ -140,21 +140,22 @@ one combined command.
 The old native-ETH V1 remains at
 `0x4bfd0efc15C3198fe3AFf4741FF121AB2F38060e`. It still holds funded user
 positions, so its keeper and explicit claim/refund UI must remain available
-through the migration. The V2 production cutover is not complete until the
-canary finalizer passes after its immutable deadline.
+after migration.
 
-At the latest read-only audit V1 had 43 markets: 3 open future-dated markets,
-3 resolved and 37 cancelled. Four markets had non-zero historical pools and
-the contract still held `0.000776434080414848 ETH`, so V1 must not be shut down
-or hidden. New creation is retired by pointing the event seeder and public
-create flow only at V2; V1 remains reachable solely for lifecycle completion,
-claims and refunds.
+At the final cutover audit V1 had 43 markets: 3 resolved and 40 cancelled, with
+no open markets. The final empty IDs #40–#42 were owner-voided only after a
+guarded script verified their zero YES/NO pools. Four older markets had non-zero
+historical pools and the contract still held `0.000776434080414848 ETH`, so V1
+must not be shut down or hidden. New creation points only at V2; V1 remains
+reachable solely for historical claims and refunds.
 
-### Current release blocker
+### Production cutover completed — 2026-10-01
 
-A read-only mainnet check on 2026-10-01, after the immutable canary deadline,
-found both V2 canaries still `Open`: `#0` should resolve and `#1` should cancel.
-The contract itself reports fee `200`, creator share `5000`, ten configured
-stocks, and holds the expected `0.0004 ETH` canary balance. This means the V2
-keeper has not yet completed the lifecycle gate; do not treat frontend bindings
-alone as a completed production cutover.
+The combined keeper resolved V2 canary #0 and cancelled #1. The guarded
+finalizer paid `0.000198 ETH` to the winner, refunded `0.0002 ETH`, accrued
+exactly `0.000001 ETH` to the creator and `0.000001 ETH` to Prophet, and left
+the expected `0.000002 ETH` contract balance. The release gate passed before
+public seeding. The VPS frontend and share-preview service now target V2, the
+single keeper services V2 plus legacy V1 sequentially, and the unified event
+seeder creates Prediction Markets, Asset Races and Price Arenas. The first
+automated V2 markets were IDs #2–#4 (NVDA, TSLA and AAPL).

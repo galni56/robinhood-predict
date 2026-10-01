@@ -5,15 +5,19 @@ import { ACTIVE_GAME_POLL_INTERVAL_MS, ACTIVE_GAME_REFRESH_OPTIONS } from '@/cha
 import { PRICE_ARENA_ADDRESS, priceArenaAbi, priceArenaAsset, type PriceArenaData, type PriceArenaEntry } from '@/chain/priceArena'
 import { isCoherentPriceArenaSnapshot } from '@/chain/priceArenaSnapshot'
 
-export function usePriceArena(arenaId: bigint | null, wallet?: Address) {
-  const address = PRICE_ARENA_ADDRESS ?? zeroAddress
-  const enabled = !!PRICE_ARENA_ADDRESS && arenaId != null
+export function usePriceArena(
+  arenaId: bigint | null,
+  wallet?: Address,
+  contractAddress: Address | undefined = PRICE_ARENA_ADDRESS,
+) {
+  const address = contractAddress ?? zeroAddress
+  const enabled = !!contractAddress && arenaId != null
   const limitsQuery = useReadContracts({
     contracts: [
       { address, chainId: assetRaceChain.id, abi: priceArenaAbi, functionName: 'minStakeWei' },
       { address, chainId: assetRaceChain.id, abi: priceArenaAbi, functionName: 'maxStakeWei' },
     ],
-    query: { enabled: !!PRICE_ARENA_ADDRESS },
+    query: { enabled: !!contractAddress },
   })
   const arenaQuery = useReadContract({
     address, chainId: assetRaceChain.id, abi: priceArenaAbi, functionName: 'getArena',

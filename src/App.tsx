@@ -96,6 +96,8 @@ export default function App() {
             <Route path="arenas/create" element={<OnchainCreateArenaPage />} />
             <Route path="arenas/:arenaId" element={<OnchainArenaPage />} />
             <Route path="legacy" element={<OnchainLegacyMarketsPage />} />
+            <Route path="legacy/races/:raceId" element={<OnchainRacePage legacy />} />
+            <Route path="legacy/arenas/:arenaId" element={<OnchainArenaPage legacy />} />
             <Route path="legacy/:id" element={<OnchainMarketPage legacy />} />
             <Route path=":id" element={<OnchainMarketPage />} />
           </Route>

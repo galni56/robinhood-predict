@@ -26,6 +26,8 @@ const usesDeniedUsdG = normalizedAddress?.toLowerCase() === DENIED_USDG_ASSET_RA
 export const ASSET_RACE_ADDRESS: Address | undefined =
   !assetRaceNetworkConfigError && normalizedAddress && !usesDeniedUsdG ? normalizedAddress : undefined
 
+export const LEGACY_ASSET_RACE_ADDRESS = getAddress('0x02F030Bd9D9DC86d713CDF0772ae4d1E3b81f235')
+
 export const ASSET_RACE_CONFIG_ERROR =
   assetRaceNetworkConfigError
   ?? (usesDeniedUsdG ? 'VITE_ASSET_RACE_ADDRESS points to a denied USDG contract.' : null)
@@ -306,6 +308,20 @@ export const assetRaceAbi = [
   },
   {
     type: 'function',
+    name: 'creatorEarnings',
+    stateMutability: 'view',
+    inputs: [{ name: 'creator', type: 'address' }],
+    outputs: [{ type: 'uint256' }],
+  },
+  {
+    type: 'function',
+    name: 'withdrawCreatorFees',
+    stateMutability: 'nonpayable',
+    inputs: [],
+    outputs: [{ name: 'amount', type: 'uint256' }],
+  },
+  {
+    type: 'function',
     name: 'refund',
     stateMutability: 'nonpayable',
     inputs: [{ name: 'raceId', type: 'uint256' }],
@@ -520,7 +536,7 @@ function previewRace(
     totalPool,
     winningPool,
     distributableLosingPool: totalPool - winningPool - fee,
-    protocolFee: fee,
+    protocolFee: fee / 2n,
     remainingLiability: totalPool - fee,
     origin: ASSET_RACE_ORIGIN.PLATFORM,
     creator: ZERO_ADDRESS,

@@ -1,8 +1,9 @@
 # Price Arena
 
-Status: native-ETH PriceArena is deployed and configured at
-`0x383840a8Ca00dcB4b6cAc17e746c793426fE2f05`; its complete tiny-value canary
-passed and only public keeper/frontend binding remains pending. The earlier USDG generation at
+Status: creator-revenue V2 PriceArena is deployed and configured at
+`0x8c1c5544E00C2f8ea2C564B179CdEB38504805d5`. The previous native contract
+`0x383840a8Ca00dcB4b6cAc17e746c793426fE2f05` remains settlement-only for
+historical claims and refunds. The earlier USDG generation at
 `0xBAca2605914d8f7f0DF5663AA01f79FB8a6DA8ae` contains owner test activity only
 and is unsupported/denylisted. See `NATIVE_ETH_MAINNET_DEPLOYMENT.md`. No
 independent security audit.

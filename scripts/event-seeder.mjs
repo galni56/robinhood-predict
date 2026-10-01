@@ -163,6 +163,8 @@ export const predictionMarketAbi = [
 ]
 
 export const priceArenaAbi = [
+  { type: 'function', name: 'FEE_BP', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'CREATOR_FEE_SHARE_BP', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
   { type: 'function', name: 'arenaCount', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
   {
     type: 'function', name: 'getArena', stateMutability: 'view', inputs: [{ name: 'arenaId', type: 'uint256' }],
@@ -378,6 +380,7 @@ function productionArenaConfigs(registry) {
 // this runs; main() below skips seedRaceIfNeeded entirely.
 
 export const assetRaceCommunityAbi = [
+  { type: 'function', name: 'CREATOR_FEE_SHARE_BP', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
   {
     type: 'function', name: 'approvedAssets', stateMutability: 'view', inputs: [{ name: 'assetId', type: 'bytes32' }],
     outputs: [
@@ -390,6 +393,16 @@ export const assetRaceCommunityAbi = [
   { type: 'function', name: 'getApprovedAssetIds', stateMutability: 'view', inputs: [], outputs: [{ type: 'bytes32[]' }] },
   { type: 'function', name: 'getApprovedRaceDurations', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint64[]' }] },
   { type: 'function', name: 'communityPolicyConfigured', stateMutability: 'view', inputs: [], outputs: [{ type: 'bool' }] },
+  {
+    type: 'function', name: 'communityPolicy', stateMutability: 'view', inputs: [],
+    outputs: [
+      { name: 'lobbyDuration', type: 'uint64' }, { name: 'bettingDuration', type: 'uint64' },
+      { name: 'startGrace', type: 'uint64' }, { name: 'resolutionGrace', type: 'uint64' },
+      { name: 'maxOracleTimestampSkew', type: 'uint64' }, { name: 'feeBp', type: 'uint16' },
+      { name: 'minActiveContenders', type: 'uint8' }, { name: 'minStake', type: 'uint256' },
+      { name: 'maxStakePerWallet', type: 'uint256' },
+    ],
+  },
   { type: 'function', name: 'raceCount', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
   {
     type: 'function', name: 'getRace', stateMutability: 'view', inputs: [{ name: 'raceId', type: 'uint256' }],
@@ -574,6 +587,13 @@ async function main() {
   const account = config.privateKey ? privateKeyToAccount(config.privateKey) : undefined
   const walletClient = config.dryRun ? undefined : createWalletClient({ account, chain, transport: http(config.rpcUrl) })
 
+  const [arenaFeeBp, arenaCreatorShare] = await Promise.all([
+    publicClient.readContract({ address: config.arenaAddress, abi: priceArenaAbi, functionName: 'FEE_BP' }),
+    publicClient.readContract({ address: config.arenaAddress, abi: priceArenaAbi, functionName: 'CREATOR_FEE_SHARE_BP' }),
+  ])
+  if (arenaFeeBp !== 200n) throw new SeederConfigError('PriceArena fee must be 200 bp')
+  if (arenaCreatorShare !== 5_000n) throw new SeederConfigError('PriceArena creator fee share must be 5000 bp')
+
   // Duplicate prevention must see every still-open item after a service
   // restart. A configured historical cursor can sit ahead of a long-running
   // game (this happened in production and allowed the same race pair to be
@@ -586,11 +606,15 @@ async function main() {
     ? new OpenItemTracker(0n, isRaceOpenNow, { expireByDeadline: false })
     : undefined
   if (config.assetRaceEnabled) {
-    const [communityPolicyConfigured, approvedRaceDurations] = await Promise.all([
+    const [creatorShare, communityPolicyConfigured, communityPolicy, approvedRaceDurations] = await Promise.all([
+      publicClient.readContract({ address: config.raceAddress, abi: assetRaceCommunityAbi, functionName: 'CREATOR_FEE_SHARE_BP' }),
       publicClient.readContract({ address: config.raceAddress, abi: assetRaceCommunityAbi, functionName: 'communityPolicyConfigured' }),
+      publicClient.readContract({ address: config.raceAddress, abi: assetRaceCommunityAbi, functionName: 'communityPolicy' }),
       publicClient.readContract({ address: config.raceAddress, abi: assetRaceCommunityAbi, functionName: 'getApprovedRaceDurations' }),
     ])
+    if (creatorShare !== 5_000n) throw new SeederConfigError('AssetRace creator fee share must be 5000 bp')
     if (!communityPolicyConfigured) throw new SeederConfigError('AssetRace community policy is not configured on-chain')
+    if (Number(communityPolicy[5]) !== 200) throw new SeederConfigError('AssetRace fee must be 200 bp')
     if (!approvedRaceDurations.map(Number).includes(config.raceDurationSeconds)) {
       throw new SeederConfigError(`EVENT_SEEDER_RACE_DURATION_SECONDS must be one of: ${approvedRaceDurations.join(', ')}`)
     }

@@ -13,8 +13,9 @@
 Historical staged checks and operator inputs are in
 `ASSET_RACE_PREDEPLOY_CHECKLIST.md`. The USDG contracts were deployed/configured
 and independently read-checked. The native-ETH successor is deployed and
-configured at `0x02F030Bd9D9DC86d713CDF0772ae4d1E3b81f235`; its lifecycle canary
-has passed and only public binding remains pending. See
+configured at `0x98f9af1756148c8995729E9ccEA770fd15124bC9`. The previous native
+contract `0x02F030Bd9D9DC86d713CDF0772ae4d1E3b81f235` remains settlement-only
+for historical claims and refunds. See
 `NATIVE_ETH_MAINNET_DEPLOYMENT.md`.
 
 ### Native ETH canary result

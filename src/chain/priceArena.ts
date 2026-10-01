@@ -9,6 +9,7 @@ const usesDeniedUsdG = normalizedAddress?.toLowerCase() === DENIED_USDG_PRICE_AR
 export const PRICE_ARENA_ADDRESS: Address | undefined = normalizedAddress && !usesDeniedUsdG
   ? normalizedAddress
   : undefined
+export const LEGACY_PRICE_ARENA_ADDRESS = getAddress('0x383840a8Ca00dcB4b6cAc17e746c793426fE2f05')
 export const PRICE_ARENA_CONFIG_ERROR = usesDeniedUsdG
   ? 'VITE_PRICE_ARENA_ADDRESS points to a denied USDG contract.'
   : rawAddress && !PRICE_ARENA_ADDRESS
@@ -178,4 +179,6 @@ export const priceArenaAbi = [
   },
   { type: 'function', name: 'claim', stateMutability: 'nonpayable', inputs: [{ name: 'arenaId', type: 'uint256' }], outputs: [] },
   { type: 'function', name: 'refund', stateMutability: 'nonpayable', inputs: [{ name: 'arenaId', type: 'uint256' }], outputs: [] },
+  { type: 'function', name: 'creatorEarnings', stateMutability: 'view', inputs: [{ name: 'creator', type: 'address' }], outputs: [{ type: 'uint256' }] },
+  { type: 'function', name: 'withdrawCreatorFees', stateMutability: 'nonpayable', inputs: [], outputs: [{ name: 'amount', type: 'uint256' }] },
 ] as const

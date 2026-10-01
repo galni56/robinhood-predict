@@ -19,6 +19,7 @@ import { useAssetRaceLiveDisplay } from '@/chain/useAssetRaceLiveDisplay'
 import { usePriceArena } from '@/chain/usePriceArena'
 import {
   PRICE_ARENA_ADDRESS,
+  LEGACY_PRICE_ARENA_ADDRESS,
   PRICE_ARENA_PHASE,
   arenaDurationLabel,
   arenaPhaseLabel,
@@ -81,7 +82,7 @@ function ArenaBoard({ rows, referencePrice, decimals, quote, resolved, winnerCou
   )
 }
 
-export function OnchainArenaPage() {
+export function OnchainArenaPage({ legacy = false }: { legacy?: boolean }) {
   const arenaId = parseId(useParams().arenaId)
   const { address, isConnected } = useAccount()
   const {
@@ -93,7 +94,8 @@ export function OnchainArenaPage() {
     isLoading,
     error: readError,
     refetch,
-  } = usePriceArena(arenaId, address)
+  } = usePriceArena(arenaId, address, legacy ? LEGACY_PRICE_ARENA_ADDRESS : PRICE_ARENA_ADDRESS)
+  const arenaContractAddress = legacy ? LEGACY_PRICE_ARENA_ADDRESS : PRICE_ARENA_ADDRESS
   const chainId = useChainId()
   const { switchChain, isPending: isSwitching } = useSwitchChain()
   const { writeContractAsync } = useWriteContract()
@@ -110,7 +112,7 @@ export function OnchainArenaPage() {
   const livePrice = liveAsset ? BigInt(liveAsset.priceRaw) : 0n
   const quote = arena?.asset?.quoteSymbol ?? 'USDG'
   const referencePrice = arena?.phase === PRICE_ARENA_PHASE.RESOLVED ? arena.finalPrice : livePrice
-  const balanceQuery = useBalance({ address, chainId: assetRaceChain.id, query: { enabled: !!address && !!PRICE_ARENA_ADDRESS } })
+  const balanceQuery = useBalance({ address, chainId: assetRaceChain.id, query: { enabled: !!address && !!arenaContractAddress } })
   let quotedEntry: FrozenNativeStakeQuote | undefined
   try {
     quotedEntry = amount.trim() && live.ethUsd
@@ -144,7 +146,7 @@ export function OnchainArenaPage() {
       : displayedPhase
 
   async function submitEntry() {
-    if (!PRICE_ARENA_ADDRESS || arenaId == null || !arena) return
+    if (legacy || !arenaContractAddress || arenaId == null || !arena) return
     setError(null)
     try {
       if (amount.trim() && !live.ethUsd) throw new Error('EthUsdQuoteStale')
@@ -175,8 +177,8 @@ export function OnchainArenaPage() {
       }
       setTxLabel(walletEntry?.exists ? 'Confirm arena update…' : 'Confirm arena entry…')
       const hash = walletEntry?.exists
-        ? await writeContractAsync({ address: PRICE_ARENA_ADDRESS, chainId: assetRaceChain.id, abi: priceArenaAbi, functionName: 'updateEntry', args: [arenaId, predicted, additional], value: additional })
-        : await writeContractAsync({ address: PRICE_ARENA_ADDRESS, chainId: assetRaceChain.id, abi: priceArenaAbi, functionName: 'enter', args: [arenaId, predicted, additional], value: additional })
+        ? await writeContractAsync({ address: arenaContractAddress, chainId: assetRaceChain.id, abi: priceArenaAbi, functionName: 'updateEntry', args: [arenaId, predicted, additional], value: additional })
+        : await writeContractAsync({ address: arenaContractAddress, chainId: assetRaceChain.id, abi: priceArenaAbi, functionName: 'enter', args: [arenaId, predicted, additional], value: additional })
       setTxLabel('Waiting for confirmation…')
       await waitForTransactionReceipt(wagmiConfig, { hash, chainId: assetRaceChain.id })
       setPrediction(''); setAmount(''); setTxLabel(null); setFrozenEntryQuote(null)
@@ -189,11 +191,11 @@ export function OnchainArenaPage() {
   }
 
   async function settle(functionName: 'claim' | 'refund') {
-    if (!PRICE_ARENA_ADDRESS || arenaId == null) return
+    if (!arenaContractAddress || arenaId == null) return
     setError(null)
     try {
       setTxLabel(`Confirm ${functionName}…`)
-      const hash = await writeContractAsync({ address: PRICE_ARENA_ADDRESS, chainId: assetRaceChain.id, abi: priceArenaAbi, functionName, args: [arenaId] })
+      const hash = await writeContractAsync({ address: arenaContractAddress, chainId: assetRaceChain.id, abi: priceArenaAbi, functionName, args: [arenaId] })
       await waitForTransactionReceipt(wagmiConfig, { hash, chainId: assetRaceChain.id })
       setTxLabel(null)
       await Promise.all([
@@ -207,11 +209,12 @@ export function OnchainArenaPage() {
   if (arenaId == null) return <div className="mx-auto max-w-4xl px-4 py-12 text-rose-300">Invalid arena ID.</div>
   return (
     <div className="mx-auto max-w-[1200px] px-4 py-8">
-      <Link to={`/onchain/arenas${arena ? `?mode=${modeForArenaCategory(arena.category)}` : ''}`} className="text-sm font-bold text-white/40 hover:text-white">← All arenas</Link>
+      {legacy && <div className="mb-5 rounded-2xl border border-[#8A72F8]/25 bg-[#8A72F8]/10 px-4 py-3 text-sm font-medium text-[#B3A7FA]">Legacy Price Arena — new entries are disabled. Existing claims and refunds remain available here.</div>}
+      <Link to={legacy ? '/onchain/legacy?mode=arenas' : `/onchain/arenas${arena ? `?mode=${modeForArenaCategory(arena.category)}` : ''}`} className="text-sm font-bold text-white/40 hover:text-white">← {legacy ? 'Legacy games' : 'All arenas'}</Link>
       {isLoading ? <p className="py-20 text-center text-white/40">Loading arena…</p> : readError ? <div className="mt-6 rounded-2xl border border-rose-500/25 bg-rose-500/10 p-5 text-rose-300">Could not read this arena.</div> : !arena ? <p className="py-20 text-center text-white/40">Arena not found.</p> : <>
         <div className="mt-5 flex flex-wrap items-end justify-between gap-4">
           <div className="flex min-w-0 items-start gap-3"><TokenLogo ticker={arena.asset?.symbol} className="mt-1 h-12 w-12 shrink-0 rounded-2xl" /><div className="min-w-0"><p className="text-sm font-bold text-[#B7CEFF]">{arena.asset?.symbol} Price Arena · #{arena.id.toString()}</p><h1 className="mt-1 break-words font-display text-3xl font-bold sm:text-4xl">{arena.title}</h1><p className="mt-1 text-xs text-white/40">Created by <AddressLabel address={arena.creator} className="text-white/60" /> · {arenaDurationLabel(arena.duration)} game</p><PriceSourceLink href={arena.asset?.priceUrl} symbol={arena.asset?.symbol} tone="arena" className="mt-2 bg-[#7A9FF0]/10 px-3 py-1.5" /></div></div>
-          <div className="flex w-full min-w-0 flex-wrap items-center justify-between gap-3 sm:w-auto sm:flex-nowrap sm:justify-start"><ShareInviteButton kind="arena" id={arena.id} /><div className="text-right"><div className="text-xs font-bold uppercase tracking-wider text-white/35">{displayedPhase}</div><div className="font-mono text-3xl font-bold">{clock}</div></div></div>
+          <div className="flex w-full min-w-0 flex-wrap items-center justify-between gap-3 sm:w-auto sm:flex-nowrap sm:justify-start">{!legacy && <ShareInviteButton kind="arena" id={arena.id} />}<div className="text-right"><div className="text-xs font-bold uppercase tracking-wider text-white/35">{displayedPhase}</div><div className="font-mono text-3xl font-bold">{clock}</div></div></div>
         </div>
 
         <div className="mt-6 grid gap-4 sm:grid-cols-3">
@@ -220,7 +223,7 @@ export function OnchainArenaPage() {
           <div className="min-w-0 rounded-2xl border border-white/5 bg-[#241b2f] p-4"><div className="text-xs text-white/35">{arena.phase === PRICE_ARENA_PHASE.RESOLVED ? 'Final price' : 'Live price'}</div><div className="mt-1 truncate font-mono text-2xl font-bold tabular-nums">{displayPrice(referencePrice, arena.priceDecimals, quote)}</div></div>
         </div>
 
-        {arena.phase === PRICE_ARENA_PHASE.LOBBY ? <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_0.8fr]">
+        {legacy && arena.phase === PRICE_ARENA_PHASE.LOBBY ? <div className="mt-6 rounded-3xl border border-white/10 bg-[#241b2f] p-6 text-sm text-white/55">This legacy arena is settlement-only. No new entries can be added.</div> : arena.phase === PRICE_ARENA_PHASE.LOBBY ? <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_0.8fr]">
           <section className="min-w-0"><h2 className="font-display text-xl font-bold">Lobby stakes</h2><p className="mt-1 text-sm text-white/40">Prices stay hidden until the game starts. Blockchain data itself remains public.</p><div className="mt-4 space-y-2">{entries.map(({ player, entry }) => <div key={player} className="flex min-w-0 items-center justify-between gap-3 rounded-xl border border-white/5 bg-[#241b2f] px-4 py-3"><AddressLabel address={player} className="min-w-0 font-bold text-white/70" /><span title={`${formatEther(entry.stake)} ETH`} className="shrink-0 whitespace-nowrap font-mono">{formatCompactEth(entry.stake)} · prediction hidden</span></div>)}{entries.length === 0 && <p className="py-8 text-sm text-white/35">Be the first player.</p>}</div></section>
           <section className="rounded-3xl border border-[#7A9FF0]/20 bg-[#241b2f] p-5">
             <h2 className="font-display text-xl font-bold">{walletEntry?.exists ? 'Update your entry' : 'Make your prediction'}</h2>

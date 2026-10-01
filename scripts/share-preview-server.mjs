@@ -6,8 +6,8 @@ import { createPublicClient, defineChain, formatUnits, hexToString, http, isAddr
 
 const DEFAULT_ORIGIN = 'https://prophetmarkets.fun'
 const DEFAULT_MARKET_ADDRESS = '0xF62CF5Db594c4b706555584ccEC9Fb9a61541D4a'
-const DEFAULT_RACE_ADDRESS = '0x02F030Bd9D9DC86d713CDF0772ae4d1E3b81f235'
-const DEFAULT_ARENA_ADDRESS = '0x383840a8Ca00dcB4b6cAc17e746c793426fE2f05'
+const DEFAULT_RACE_ADDRESS = '0x98f9af1756148c8995729E9ccEA770fd15124bC9'
+const DEFAULT_ARENA_ADDRESS = '0x8c1c5544E00C2f8ea2C564B179CdEB38504805d5'
 
 const marketAbi = [
   { type: 'function', name: 'marketCount', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },

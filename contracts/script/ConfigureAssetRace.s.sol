@@ -18,10 +18,13 @@ contract ConfigureAssetRace is Script {
         uint256 deployerKey = vm.envUint("PRIVATE_KEY");
         address expectedOwner = vm.envAddress("EXPECTED_OWNER_ADDRESS");
         AssetRace race = AssetRace(payable(vm.envAddress("ASSET_RACE_ADDRESS")));
-        SignedPoolRaceOracle oracle = SignedPoolRaceOracle(vm.envAddress("ASSET_RACE_SIGNED_POOL_ORACLE_ADDRESS"));
-        address expectedSigner = vm.envAddress("ASSET_RACE_PRICE_SIGNER_ADDRESS");
+        SignedPoolRaceOracle oracle = SignedPoolRaceOracle(
+            vm.envOr("ASSET_RACE_SIGNED_POOL_ORACLE_ADDRESS", vm.envAddress("SIGNED_POOL_ORACLE_ADDRESS"))
+        );
+        address expectedSigner = vm.envOr("ASSET_RACE_PRICE_SIGNER_ADDRESS", vm.envAddress("PRICE_SIGNER_ADDRESS"));
         NativeEthDeploymentSafety.validateSigningOwner(vm.addr(deployerKey), expectedOwner);
         NativeEthDeploymentSafety.validateContractOwner(race.owner(), expectedOwner);
+        require(race.CREATOR_FEE_SHARE_BP() == 5_000, "wrong creator fee share");
         NativeEthDeploymentSafety.validateReleaseRoles(expectedOwner, address(oracle), expectedSigner);
         require(address(oracle).code.length > 0, "signed pool oracle has no code");
         NativeEthDeploymentSafety.validateOracle(
@@ -36,6 +39,7 @@ contract ConfigureAssetRace is Script {
         uint256 feeBpValue = vm.envUint("ASSET_RACE_FEE_BP");
         uint256 minimumContendersValue = vm.envUint("ASSET_RACE_MIN_ACTIVE_CONTENDERS");
         require(feeBpValue <= type(uint16).max, "fee does not fit uint16");
+        require(feeBpValue == 200, "race fee must be 200 bp");
         require(minimumContendersValue <= type(uint8).max, "contenders do not fit uint8");
 
         // Public arrays are exported by the registry validator, not maintained

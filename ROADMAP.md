@@ -67,13 +67,12 @@ tests and operational evidence are recorded in
 [`docs/ASSET_RACE_PREDEPLOY_CHECKLIST.md`](./docs/ASSET_RACE_PREDEPLOY_CHECKLIST.md).
 
 These USDG addresses are unsupported historical test deployments and remain only
-in a denylist. Native successors are now deployed/configured at PredictionMarket
-`0x4bfd0efc15C3198fe3AFf4741FF121AB2F38060e`, AssetRace
-`0x02F030Bd9D9DC86d713CDF0772ae4d1E3b81f235` and PriceArena
-`0x383840a8Ca00dcB4b6cAc17e746c793426fE2f05`. All controlled tiny-value
-rehearsals passed. The feature branch now prepares exact release-locked GitHub
-Pages/VPS bindings, but the public switch still requires an explicit `main` and
-service-cutover approval. See
+in a denylist. Creator-revenue V2 successors are deployed/configured at
+PredictionMarket `0xF62CF5Db594c4b706555584ccEC9Fb9a61541D4a`, AssetRace
+`0x98f9af1756148c8995729E9ccEA770fd15124bC9` and PriceArena
+`0x8c1c5544E00C2f8ea2C564B179CdEB38504805d5`. Each product splits its existing
+2% losing-pool fee equally between the immutable game creator and Prophet. V1
+contracts remain settlement-only for historical claims and refunds. See
 [`docs/NATIVE_ETH_MAINNET_DEPLOYMENT.md`](./docs/NATIVE_ETH_MAINNET_DEPLOYMENT.md).
 
 ## Open / explicitly deferred

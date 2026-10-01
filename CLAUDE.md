@@ -39,26 +39,25 @@ Two parts, both live:
 - **https://prophetmarkets.fun** — the real product, self-hosted VPS,
   primary/canonical
 - **https://galni56.github.io/robinhood-predict/** — GitHub Pages mirror,
-  auto-deploys on push to `main`. Native game addresses are deliberately unset
-  there until the replacement contracts are deployed and approved.
+  auto-deploys on push to `main` with the same reviewed native game contracts.
 
 Repo: **https://github.com/galni56/robinhood-predict** (public, owner's
 personal GitHub account). GitHub Pages silently stops serving if this repo
 ever goes private again — it happened once (2026-09-11), see the "Ops
 lessons" section below.
 
-## Status snapshot (2026-09-25)
+## Status snapshot (2026-10-01)
 
 | Piece | Status |
 |---|---|
-| `PredictionMarket` contract | Corrected native-ETH candidate is deployed/configured at `0x4bfd0efc15C3198fe3AFf4741FF121AB2F38060e`; it requires funded YES/NO pools and two distinct participant addresses. Its two-market tiny-value canary passed settlement/claim and cancellation/two-refund with exact accounting. The unused pre-canary native address `0xe6C4aAf95f43E35Ef309eEa61bAfb345226333EB` is superseded. The USDG contracts at `0x1a62098AcEd3F7F8C41fff1bc1395A541678b0F1` and `0xd95ed19edBCd330498CADe7BA8569ac940A4182f` contain only owner tests and are unsupported history. 46/46 focused Foundry tests pass. |
+| `PredictionMarket` contract | Creator-revenue V2 is live at `0xF62CF5Db594c4b706555584ccEC9Fb9a61541D4a`: the 2% losing-pool fee is split 1% to the immutable market creator and 1% to Prophet. Its two-market mainnet canary passed settlement/claim, cancellation/two-refund and exact creator/protocol accounting. V1 `0x4bfd0efc15C3198fe3AFf4741FF121AB2F38060e` is settlement-only and remains reachable for historical claims/refunds; no new V1 markets are created. |
 | `NicknameRegistry` contract | **Live on mainnet** at `0x1Ddc13e9D4895a5E6671079478007C7371b76E75` (deployed 2026-09-11). Standalone from PredictionMarket on purpose. `setNickname(string)` — anyone can set their own, 24-char max, no admin override. 8/8 tests pass. `src/chain/nicknames.ts` + `src/components/AddressLabel.tsx` (the one place addresses should render through) wire it into the leaderboard, recent bets, and per-market bet lists. |
-| Asset Race / Price Arena | Native successors are deployed/configured at `0x02F030Bd9D9DC86d713CDF0772ae4d1E3b81f235` and `0x383840a8Ca00dcB4b6cAc17e746c793426fE2f05`. AssetRace passed objective timeout/refund and full two-contender settlement/claim canaries; PriceArena passed settlement/claim and cancellation/refund. Both have exact final accounting. Exact production bindings are prepared on `dima/gonochki`; public VPS/`main` activation remains pending. USDG deployments `0x63E582bb395527CED97F2F94662eA93A7EDf65Ff` and `0xBAca2605914d8f7f0DF5663AA01f79FB8a6DA8ae` are unsupported owner tests. The shared oracle remains `0x5b0f7e62E0A5fF5C5C02Ad219Afcd086F2618Db7`. |
+| Asset Race / Price Arena | Creator-revenue V2 contracts are live at `0x98f9af1756148c8995729E9ccEA770fd15124bC9` and `0x8c1c5544E00C2f8ea2C564B179CdEB38504805d5`. Their existing 2% losing-pool fee is split 1% to the immutable game creator and 1% to Prophet. V1 contracts remain settlement-only for historical claims/refunds. The shared oracle remains `0x5b0f7e62E0A5fF5C5C02Ad219Afcd086F2618Db7`. |
 | Wager currency | New contracts account only in native ETH/wei and require exact payable value; there is no WETH or swap. The UI accepts USD or ETH input for the live $1–$50 range using one cached ETH/USD quote and fixed-point arithmetic. USDG remains only a Stock price quote. |
 | Prediction price sources | The native replacement uses exactly 10 reviewed StockToken/USDG pools from `config/asset-race-assets.json`: NVDA, TSLA, AAPL, META, MSTR, AMZN, MSFT, GOOGL, MU, NFLX. |
-| Markets | The 11 USDG markets are historical owner tests. Native `createMarket` remains permissionless for the 10 configured pool assets. Canary market #0 resolved and paid its winner; #1 cancelled and refunded both positions. The reviewed binding is prepared on the feature branch but is not public yet. |
+| Markets | V2 `createMarket` is permissionless for the 10 configured pool assets. Canary market #0 resolved and paid its winner; #1 cancelled and refunded both positions. Automated production markets began at V2 IDs #2–#4. |
 | Frontend ↔ contract | The native-ETH frontend sends one payable bet transaction with no approval. Release builds accept only the exact three canary-approved addresses and fail closed on missing/mismatched values. Old USDG contracts remain in a denylist and have no route or transaction ABI. At cutover the existing keepers are rebound to native addresses rather than duplicated. |
-| Hosting | VPS (`prophetmarkets.fun`) is the canonical live site. The feature branch prepares the GitHub Pages and VPS builds for the exact native successors; neither becomes public until the approved `main`/VPS cutover. nginx on the VPS proxies Robinhood Chain's read-only price/catalog REST API (`/api/robinhood/*`) with 15s server-side caching. |
+| Hosting | VPS (`prophetmarkets.fun`) is the canonical live site and is bound to V2 PredictionMarket plus the reviewed Race/Arena contracts. nginx proxies Robinhood Chain's read-only price/catalog REST API (`/api/robinhood/*`) with 15s server-side caching. |
 | Audit | **None.** Said explicitly in the UI disclaimer banner on every real-mode page. Owner-centralized (one EOA controls the approved asset/pool registry, protocol fee, and seed liquidity) — a known, accepted risk for this stage. |
 
 ### Product color system
@@ -92,7 +91,7 @@ semantic meaning; do not use them to redefine a product's identity color.
    time (happened once). Full deploy command:
    ```bash
    ssh -i ~/.ssh/predictx_vps -p 22022 root@104.207.90.56 \
-     "cd /opt/robinhood-predict && git pull origin main && VITE_NATIVE_ETH_RELEASE=true VITE_MARKET_ADDRESS=0x4bfd0efc15C3198fe3AFf4741FF121AB2F38060e VITE_DEPLOY_BLOCK=72300695 VITE_ASSET_RACE_NETWORK=robinhood-mainnet VITE_ASSET_RACE_ADDRESS=0x02F030Bd9D9DC86d713CDF0772ae4d1E3b81f235 VITE_ASSET_RACE_SIGNED_POOL_ORACLE_ADDRESS=0x5b0f7e62E0A5fF5C5C02Ad219Afcd086F2618Db7 VITE_PRICE_ARENA_ADDRESS=0x383840a8Ca00dcB4b6cAc17e746c793426fE2f05 VITE_ASSET_RACE_LIVE_ENABLED=true VITE_BASE_PATH=/ VITE_RPC_URL=/api/rpc/ npm run build"
+     "cd /opt/robinhood-predict && git pull origin main && VITE_NATIVE_ETH_RELEASE=true VITE_MARKET_ADDRESS=0xF62CF5Db594c4b706555584ccEC9Fb9a61541D4a VITE_DEPLOY_BLOCK=76951947 VITE_ASSET_RACE_NETWORK=robinhood-mainnet VITE_ASSET_RACE_ADDRESS=0x98f9af1756148c8995729E9ccEA770fd15124bC9 VITE_ASSET_RACE_SIGNED_POOL_ORACLE_ADDRESS=0x5b0f7e62E0A5fF5C5C02Ad219Afcd086F2618Db7 VITE_PRICE_ARENA_ADDRESS=0x8c1c5544E00C2f8ea2C564B179CdEB38504805d5 VITE_ASSET_RACE_LIVE_ENABLED=true VITE_BASE_PATH=/ VITE_RPC_URL=/api/rpc/ npm run build"
    ```
    The exact public native bindings are release-locked by `vite.config.ts` when
    `VITE_NATIVE_ETH_RELEASE=true`; a missing or altered address fails the build.

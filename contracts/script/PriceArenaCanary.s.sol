@@ -14,7 +14,6 @@ abstract contract PriceArenaCanaryBase is Script {
     uint256 internal constant OWNER_PREDICTION = 100 ether;
     uint256 internal constant PLAYER_PREDICTION = 110 ether;
 
-    address internal constant ARENA_ADDRESS = 0x383840a8Ca00dcB4b6cAc17e746c793426fE2f05;
     address internal constant EXPECTED_OWNER = 0x6d68157bEDa778346Dd27f8Ef4F917f69aD2Dc41;
     address internal constant EXPECTED_ORACLE = 0x5b0f7e62E0A5fF5C5C02Ad219Afcd086F2618Db7;
     address internal constant EXPECTED_SIGNER = 0x79F4991Ccc64Cbb8143fB61e4cBD49b8b64d3635;
@@ -23,8 +22,12 @@ abstract contract PriceArenaCanaryBase is Script {
     bytes32 internal constant ASSET_ID = bytes32("TSLA");
     bytes32 internal constant EXPECTED_ORACLE_ID = 0x14e1dfbdefeb08594f0852a6449b41554f51dd277f968d2499f7666feebb4aeb;
 
-    function _arena() internal pure returns (PriceArena) {
-        return PriceArena(payable(ARENA_ADDRESS));
+    function _arenaAddress() internal view returns (address) {
+        return vm.envAddress("PRICE_ARENA_ADDRESS");
+    }
+
+    function _arena() internal view returns (PriceArena) {
+        return PriceArena(payable(_arenaAddress()));
     }
 
     function _ownerKey() internal view returns (uint256 key) {
@@ -40,13 +43,14 @@ abstract contract PriceArenaCanaryBase is Script {
         require(player != EXPECTED_ORACLE, "canary player must differ from oracle");
         require(player != EXPECTED_SIGNER, "canary player must differ from signer");
         require(player != EXPECTED_KEEPER, "canary player must differ from keeper");
-        require(player != ARENA_ADDRESS, "canary player must differ from arena");
+        require(player != _arenaAddress(), "canary player must differ from arena");
     }
 
     function _validateDeployment(PriceArena arena) internal view {
         require(block.chainid == ROBINHOOD_MAINNET_CHAIN_ID, "wrong chain");
-        require(ARENA_ADDRESS.code.length > 0, "arena has no code");
+        require(_arenaAddress().code.length > 0, "arena has no code");
         require(arena.owner() == EXPECTED_OWNER, "wrong owner");
+        require(arena.CREATOR_FEE_SHARE_BP() == 5_000, "wrong creator fee share");
         require(!arena.newActivityPaused(), "new activity paused");
         require(arena.minStakeWei() == CANARY_STAKE && arena.maxStakeWei() == 0.1 ether, "wrong stake limits");
         require(arena.LOBBY_DURATION() == 10 minutes && arena.FEE_BP() == 200, "wrong arena policy");
@@ -93,7 +97,7 @@ contract CreatePriceArenaCanaries is PriceArenaCanaryBase {
         require(settlement.participantCount == 2 && settlement.totalPool == CANARY_STAKE * 3, "arena #0 mismatch");
         require(cancellation.participantCount == 1 && cancellation.totalPool == CANARY_STAKE, "arena #1 mismatch");
 
-        console.log("PriceArena canary address", ARENA_ADDRESS);
+        console.log("PriceArena canary address", _arenaAddress());
         console.log("Settlement arena id", settlementArenaId);
         console.log("Cancellation arena id", cancellationArenaId);
         console.log("Settlement deadline", settlement.deadline);
@@ -129,20 +133,24 @@ contract FinalizePriceArenaCanaries is PriceArenaCanaryBase {
         uint256 winningStake = ownerWon ? ownerEntry.stake : playerEntry.stake;
         uint256 losingPool = resolved.totalPool - winningStake;
         uint256 expectedFee = (losingPool * arena.FEE_BP()) / arena.BP_DENOMINATOR();
-        require(resolved.protocolFee == expectedFee, "fee mismatch");
+        uint256 expectedCreatorFee =
+            (expectedFee * arena.CREATOR_FEE_SHARE_BP()) / arena.BP_DENOMINATOR();
+        require(arena.arenaCreatorFees(0) == expectedCreatorFee, "creator fee mismatch");
+        require(resolved.protocolFee == expectedFee - expectedCreatorFee, "protocol fee mismatch");
+        require(arena.creatorEarnings(resolved.creator) == expectedCreatorFee, "creator accrual mismatch");
         require(payout == winningStake + losingPool - expectedFee, "payout mismatch");
 
-        uint256 beforeClaim = ARENA_ADDRESS.balance;
+        uint256 beforeClaim = _arenaAddress().balance;
         vm.startBroadcast(winnerKey);
         arena.claim(0);
         vm.stopBroadcast();
-        require(ARENA_ADDRESS.balance + payout == beforeClaim, "wrong claim ETH delta");
+        require(_arenaAddress().balance + payout == beforeClaim, "wrong claim ETH delta");
 
-        uint256 beforeRefund = ARENA_ADDRESS.balance;
+        uint256 beforeRefund = _arenaAddress().balance;
         vm.startBroadcast(ownerKey);
         arena.refund(1);
         vm.stopBroadcast();
-        require(ARENA_ADDRESS.balance + CANARY_STAKE == beforeRefund, "wrong refund ETH delta");
+        require(_arenaAddress().balance + CANARY_STAKE == beforeRefund, "wrong refund ETH delta");
 
         console.log("PriceArena canary finalized");
         console.log("Winner", winner);

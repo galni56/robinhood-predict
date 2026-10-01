@@ -20,7 +20,6 @@ abstract contract AssetRaceCanaryBase is Script {
     uint256 internal constant CANCELLATION_RACE_ID = 1;
     uint256 internal constant RETRY_RACE_ID = 2;
 
-    address internal constant RACE_ADDRESS = 0x02F030Bd9D9DC86d713CDF0772ae4d1E3b81f235;
     address internal constant EXPECTED_OWNER = 0x6d68157bEDa778346Dd27f8Ef4F917f69aD2Dc41;
     address internal constant EXPECTED_ORACLE = 0x5b0f7e62E0A5fF5C5C02Ad219Afcd086F2618Db7;
     address internal constant EXPECTED_SIGNER = 0x79F4991Ccc64Cbb8143fB61e4cBD49b8b64d3635;
@@ -31,8 +30,12 @@ abstract contract AssetRaceCanaryBase is Script {
     bytes32 internal constant NVDA_ORACLE_ID = 0x28b1117d38bcf0b69924a2d75043bb306f3272fe110a078f4d54e473f8c60925;
     bytes32 internal constant TSLA_ORACLE_ID = 0x14e1dfbdefeb08594f0852a6449b41554f51dd277f968d2499f7666feebb4aeb;
 
-    function _race() internal pure returns (AssetRace) {
-        return AssetRace(payable(RACE_ADDRESS));
+    function _raceAddress() internal view returns (address) {
+        return vm.envAddress("ASSET_RACE_ADDRESS");
+    }
+
+    function _race() internal view returns (AssetRace) {
+        return AssetRace(payable(_raceAddress()));
     }
 
     function _ownerKey() internal view returns (uint256 key) {
@@ -48,7 +51,7 @@ abstract contract AssetRaceCanaryBase is Script {
         require(player != EXPECTED_ORACLE, "canary player must differ from oracle");
         require(player != EXPECTED_SIGNER, "canary player must differ from signer");
         require(player != EXPECTED_KEEPER, "canary player must differ from keeper");
-        require(player != RACE_ADDRESS, "canary player must differ from race");
+        require(player != _raceAddress(), "canary player must differ from race");
     }
 
     function _validateAsset(AssetRace race, bytes32 assetId, bytes32 expectedOracleId) private view {
@@ -70,8 +73,9 @@ abstract contract AssetRaceCanaryBase is Script {
 
     function _validateDeployment(AssetRace race) internal view {
         require(block.chainid == ROBINHOOD_MAINNET_CHAIN_ID, "wrong chain");
-        require(RACE_ADDRESS.code.length > 0, "race has no code");
+        require(_raceAddress().code.length > 0, "race has no code");
         require(race.owner() == EXPECTED_OWNER, "wrong owner");
+        require(race.CREATOR_FEE_SHARE_BP() == 5_000, "wrong creator fee share");
         require(!race.newActivityPaused(), "new activity paused");
         require(SignedPoolRaceOracle(EXPECTED_ORACLE).TRUSTED_SIGNER() == EXPECTED_SIGNER, "wrong signer");
         _validateAsset(race, NVDA, NVDA_ORACLE_ID);
@@ -135,7 +139,7 @@ contract CreateAssetRaceCanaries is AssetRaceCanaryBase {
 
         require(settlementRaceId == 0 && cancellationRaceId == 1, "unexpected race ids");
         require(race.raceCount() == 2, "unexpected race count");
-        console.log("AssetRace canary address", RACE_ADDRESS);
+        console.log("AssetRace canary address", _raceAddress());
         console.log("Settlement race id", settlementRaceId);
         console.log("Cancellation race id", cancellationRaceId);
         console.log("Betting starts", start);
@@ -195,7 +199,11 @@ contract FinalizeAssetRaceCanaries is AssetRaceCanaryBase {
         require(resolved.status == AssetRace.RaceStatus.RESOLVED, "race #0 not resolved");
         require(cancelled.status == AssetRace.RaceStatus.CANCELLED, "race #1 not cancelled");
         require(resolved.winningAssetIndex < 2, "unexpected winner");
-        require(resolved.protocolFee == (CANARY_STAKE * FEE_BP) / race.BP_DENOMINATOR(), "fee mismatch");
+        uint256 totalFee = (CANARY_STAKE * FEE_BP) / race.BP_DENOMINATOR();
+        uint256 creatorFee = (totalFee * race.CREATOR_FEE_SHARE_BP()) / race.BP_DENOMINATOR();
+        require(race.raceCreatorFees(SETTLEMENT_RACE_ID) == creatorFee, "creator fee mismatch");
+        require(resolved.protocolFee == totalFee - creatorFee, "protocol fee mismatch");
+        require(race.creatorEarnings(resolved.creator) == creatorFee, "creator accrual mismatch");
 
         uint256 ownerKey = _ownerKey();
         uint256 playerKey = _playerKey();
@@ -203,19 +211,19 @@ contract FinalizeAssetRaceCanaries is AssetRaceCanaryBase {
         uint256 winnerKey = resolved.winningAssetIndex == 0 ? ownerKey : playerKey;
         uint256 expectedPayout = CANARY_STAKE + resolved.distributableLosingPool;
 
-        uint256 beforeClaim = RACE_ADDRESS.balance;
+        uint256 beforeClaim = _raceAddress().balance;
         vm.startBroadcast(winnerKey);
         uint256 payout = race.claim(0);
         vm.stopBroadcast();
         require(payout == expectedPayout, "payout mismatch");
-        require(RACE_ADDRESS.balance + expectedPayout == beforeClaim, "wrong claim ETH delta");
+        require(_raceAddress().balance + expectedPayout == beforeClaim, "wrong claim ETH delta");
 
-        uint256 beforeRefund = RACE_ADDRESS.balance;
+        uint256 beforeRefund = _raceAddress().balance;
         vm.startBroadcast(ownerKey);
         uint256 refund = race.refund(1);
         vm.stopBroadcast();
         require(refund == CANARY_STAKE, "refund mismatch");
-        require(RACE_ADDRESS.balance + CANARY_STAKE == beforeRefund, "wrong refund ETH delta");
+        require(_raceAddress().balance + CANARY_STAKE == beforeRefund, "wrong refund ETH delta");
 
         console.log("AssetRace canary finalized");
         console.log("Winner", winner);
@@ -253,7 +261,7 @@ contract RecoverExpiredAssetRaceCanaries is AssetRaceCanaryBase {
             "owner race #1 position mismatch"
         );
 
-        uint256 beforeRefunds = RACE_ADDRESS.balance;
+        uint256 beforeRefunds = _raceAddress().balance;
         vm.startBroadcast(ownerKey);
         uint256 ownerSettlementRefund = race.refund(SETTLEMENT_RACE_ID);
         uint256 ownerCancellationRefund = race.refund(CANCELLATION_RACE_ID);
@@ -265,7 +273,7 @@ contract RecoverExpiredAssetRaceCanaries is AssetRaceCanaryBase {
         require(ownerSettlementRefund == CANARY_STAKE, "wrong owner race #0 refund");
         require(ownerCancellationRefund == CANARY_STAKE, "wrong owner race #1 refund");
         require(playerSettlementRefund == CANARY_STAKE, "wrong player race #0 refund");
-        require(RACE_ADDRESS.balance + CANARY_STAKE * 3 == beforeRefunds, "wrong recovery ETH delta");
+        require(_raceAddress().balance + CANARY_STAKE * 3 == beforeRefunds, "wrong recovery ETH delta");
         require(race.getRace(SETTLEMENT_RACE_ID).remainingLiability == 0, "race #0 liability remains");
         require(race.getRace(CANCELLATION_RACE_ID).remainingLiability == 0, "race #1 liability remains");
 
@@ -300,7 +308,7 @@ contract CreateAssetRaceRetryCanary is AssetRaceCanaryBase {
 
         require(raceId == RETRY_RACE_ID, "unexpected retry race id");
         require(race.raceCount() == RETRY_RACE_ID + 1, "unexpected race count");
-        console.log("AssetRace retry canary address", RACE_ADDRESS);
+        console.log("AssetRace retry canary address", _raceAddress());
         console.log("Settlement race id", raceId);
         console.log("Betting starts", start);
         console.log("Betting ends", end);
@@ -352,7 +360,11 @@ contract FinalizeAssetRaceRetryCanary is AssetRaceCanaryBase {
         AssetRace.Race memory resolved = race.getRace(RETRY_RACE_ID);
         require(resolved.status == AssetRace.RaceStatus.RESOLVED, "retry race not resolved");
         require(resolved.winningAssetIndex < 2, "unexpected winner");
-        require(resolved.protocolFee == (CANARY_STAKE * FEE_BP) / race.BP_DENOMINATOR(), "fee mismatch");
+        uint256 totalFee = (CANARY_STAKE * FEE_BP) / race.BP_DENOMINATOR();
+        uint256 creatorFee = (totalFee * race.CREATOR_FEE_SHARE_BP()) / race.BP_DENOMINATOR();
+        require(race.raceCreatorFees(RETRY_RACE_ID) == creatorFee, "creator fee mismatch");
+        require(resolved.protocolFee == totalFee - creatorFee, "protocol fee mismatch");
+        require(race.creatorEarnings(resolved.creator) == creatorFee, "creator accrual mismatch");
 
         uint256 ownerKey = _ownerKey();
         uint256 playerKey = _playerKey();
@@ -360,12 +372,12 @@ contract FinalizeAssetRaceRetryCanary is AssetRaceCanaryBase {
         uint256 winnerKey = resolved.winningAssetIndex == 0 ? ownerKey : playerKey;
         uint256 expectedPayout = CANARY_STAKE + resolved.distributableLosingPool;
 
-        uint256 beforeClaim = RACE_ADDRESS.balance;
+        uint256 beforeClaim = _raceAddress().balance;
         vm.startBroadcast(winnerKey);
         uint256 payout = race.claim(RETRY_RACE_ID);
         vm.stopBroadcast();
         require(payout == expectedPayout, "payout mismatch");
-        require(RACE_ADDRESS.balance + expectedPayout == beforeClaim, "wrong claim ETH delta");
+        require(_raceAddress().balance + expectedPayout == beforeClaim, "wrong claim ETH delta");
 
         console.log("AssetRace retry canary finalized");
         console.log("Winner", winner);

@@ -799,7 +799,9 @@ contract AssetRaceTest is Test {
         AssetRace.Race memory data = race.getRace(id);
         assertEq(data.winningAssetIndex, 1);
         assertEq(data.winningPool, 200 * UNIT);
-        assertEq(data.protocolFee, 16 * UNIT);
+        assertEq(race.raceCreatorFees(id), 8 * UNIT);
+        assertEq(data.protocolFee, 8 * UNIT);
+        assertEq(race.creatorEarnings(address(this)), 8 * UNIT);
         assertEq(data.distributableLosingPool, 784 * UNIT);
 
         uint256 before = alice.balance;
@@ -846,7 +848,8 @@ contract AssetRaceTest is Test {
         ends[1] = 99e8;
         _resolve(id, ends, _uniformDecimals(2));
 
-        assertEq(race.getRace(id).protocolFee, 4 * UNIT);
+        assertEq(race.raceCreatorFees(id), 2 * UNIT);
+        assertEq(race.getRace(id).protocolFee, 2 * UNIT);
         vm.prank(alice);
         assertEq(race.claim(id), 136 * UNIT);
     }
@@ -915,6 +918,7 @@ contract AssetRaceTest is Test {
         ends[1] = 100e8;
         _resolve(id, ends, _uniformDecimals(2));
         assertEq(race.accumulatedFees(), 0);
+        assertEq(race.totalCreatorEarningsLiability(), 0);
 
         vm.prank(alice);
         race.refund(id);
@@ -960,9 +964,13 @@ contract AssetRaceTest is Test {
         totalPayout += race.claim(id);
 
         AssetRace.Race memory data = race.getRace(id);
-        assertLe(totalPayout + data.protocolFee, data.totalPool);
+        assertLe(totalPayout + race.raceCreatorFees(id) + data.protocolFee, data.totalPool);
         assertEq(race.accumulatedFees(), data.protocolFee);
-        assertEq(address(race).balance, race.totalUserLiability() + race.accumulatedFees());
+        assertEq(race.creatorEarnings(address(this)), race.raceCreatorFees(id));
+        assertEq(
+            address(race).balance,
+            race.totalUserLiability() + race.totalCreatorEarningsLiability() + race.accumulatedFees()
+        );
         assertGt(data.remainingLiability, 0); // deterministic rounding dust stays locked, not fee income
     }
 
@@ -981,15 +989,16 @@ contract AssetRaceTest is Test {
         ends[1] = 90e8;
         _resolve(id, ends, _uniformDecimals(2));
 
-        assertEq(race.accumulatedFees(), 2 * UNIT);
+        assertEq(race.accumulatedFees(), 1 * UNIT);
+        assertEq(race.totalCreatorEarningsLiability(), 1 * UNIT);
         vm.expectRevert(AssetRace.InsufficientFeeBalance.selector);
-        race.withdrawFees(dave, 2 * UNIT + 1);
-        race.withdrawFees(dave, 2 * UNIT);
-        assertEq(address(race).balance, race.totalUserLiability());
+        race.withdrawFees(dave, 1 * UNIT + 1);
+        race.withdrawFees(dave, 1 * UNIT);
+        assertEq(address(race).balance, race.totalUserLiability() + race.totalCreatorEarningsLiability());
 
         vm.prank(alice);
         assertEq(race.claim(id), 198 * UNIT);
-        assertEq(address(race).balance, 0);
+        assertEq(address(race).balance, race.totalCreatorEarningsLiability());
         assertEq(race.totalUserLiability(), 0);
     }
 
@@ -1373,11 +1382,20 @@ contract AssetRaceCommunityTest is Test {
         AssetRace.Race memory data = race.getRace(id);
         assertEq(uint8(data.status), uint8(AssetRace.RaceStatus.RESOLVED));
         assertEq(data.winningAssetIndex, 0);
-        assertEq(data.protocolFee, 200_000);
+        assertEq(race.raceCreatorFees(id), 100_000);
+        assertEq(data.protocolFee, 100_000);
+        assertEq(race.creatorEarnings(alice), 100_000);
         uint256 balanceBefore = alice.balance;
         vm.prank(alice);
         assertEq(race.claim(id), 19_800_000);
         assertEq(alice.balance - balanceBefore, 19_800_000);
+
+        balanceBefore = alice.balance;
+        vm.prank(alice);
+        assertEq(race.withdrawCreatorFees(), 100_000);
+        assertEq(alice.balance - balanceBefore, 100_000);
+        assertEq(race.creatorEarnings(alice), 0);
+        assertEq(race.totalCreatorEarningsLiability(), 0);
     }
 
     function test_PlatformRaceUsesRegistryAndStillBeginsInBetting() public {

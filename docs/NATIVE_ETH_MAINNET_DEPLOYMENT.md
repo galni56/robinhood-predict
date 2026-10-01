@@ -13,10 +13,13 @@ of this deployment.
 
 | Component | Address |
 |---|---|
-| PredictionMarket | `0x4bfd0efc15C3198fe3AFf4741FF121AB2F38060e` |
+| PredictionMarket V2 | `0xF62CF5Db594c4b706555584ccEC9Fb9a61541D4a` |
+| AssetRace V2 | `0x98f9af1756148c8995729E9ccEA770fd15124bC9` |
+| PriceArena V2 | `0x8c1c5544E00C2f8ea2C564B179CdEB38504805d5` |
+| Legacy PredictionMarket | `0x4bfd0efc15C3198fe3AFf4741FF121AB2F38060e` |
 | Superseded pre-canary PredictionMarket | `0xe6C4aAf95f43E35Ef309eEa61bAfb345226333EB` |
-| AssetRace | `0x02F030Bd9D9DC86d713CDF0772ae4d1E3b81f235` |
-| PriceArena | `0x383840a8Ca00dcB4b6cAc17e746c793426fE2f05` |
+| Legacy AssetRace | `0x02F030Bd9D9DC86d713CDF0772ae4d1E3b81f235` |
+| Legacy PriceArena | `0x383840a8Ca00dcB4b6cAc17e746c793426fE2f05` |
 | Shared SignedPoolRaceOracle | `0x5b0f7e62E0A5fF5C5C02Ad219Afcd086F2618Db7` |
 | Owner/deployer | `0x6d68157bEDa778346Dd27f8Ef4F917f69aD2Dc41` |
 | Expected oracle signer | `0x79F4991Ccc64Cbb8143fB61e4cBD49b8b64d3635` |

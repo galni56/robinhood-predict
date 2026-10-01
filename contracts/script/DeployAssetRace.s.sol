@@ -17,8 +17,10 @@ contract DeployAssetRace is Script {
         uint256 deployerKey = vm.envUint("PRIVATE_KEY");
         address deployer = vm.addr(deployerKey);
         address expectedOwner = vm.envAddress("EXPECTED_OWNER_ADDRESS");
-        address priceSigner = vm.envAddress("ASSET_RACE_PRICE_SIGNER_ADDRESS");
-        oracle = SignedPoolRaceOracle(vm.envAddress("ASSET_RACE_SIGNED_POOL_ORACLE_ADDRESS"));
+        address priceSigner = vm.envOr("ASSET_RACE_PRICE_SIGNER_ADDRESS", vm.envAddress("PRICE_SIGNER_ADDRESS"));
+        oracle = SignedPoolRaceOracle(
+            vm.envOr("ASSET_RACE_SIGNED_POOL_ORACLE_ADDRESS", vm.envAddress("SIGNED_POOL_ORACLE_ADDRESS"))
+        );
         NativeEthDeploymentSafety.validateSigningOwner(deployer, expectedOwner);
         NativeEthDeploymentSafety.validateReleaseRoles(expectedOwner, address(oracle), priceSigner);
         require(address(oracle).code.length > 0, "signed pool oracle has no code");
@@ -30,10 +32,12 @@ contract DeployAssetRace is Script {
         vm.stopBroadcast();
 
         NativeEthDeploymentSafety.validateContractOwner(race.owner(), expectedOwner);
+        require(race.CREATOR_FEE_SHARE_BP() == 5_000, "wrong creator fee share");
 
         console.log("REUSED_SIGNED_POOL_ORACLE_ADDRESS", address(oracle));
         console.log("ASSET_RACE_ADDRESS", address(race));
         console.log("ASSET_RACE_PRICE_SIGNER_ADDRESS", priceSigner);
         console.log("OWNER", race.owner());
+        console.log("CREATOR_FEE_SHARE_BP", race.CREATOR_FEE_SHARE_BP());
     }
 }

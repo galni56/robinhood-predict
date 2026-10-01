@@ -148,8 +148,8 @@ test('share previews and activity scans use the native successor generation', ()
     if (address === APPROVED_NATIVE_ETH_BINDINGS.VITE_ASSET_RACE_SIGNED_POOL_ORACLE_ADDRESS) continue
     assert.match(sharePreviewSource, new RegExp(address, 'i'))
   }
-  assert.match(gameActivitySource, /RACE_DEPLOY_BLOCK = 72_253_652n/)
-  assert.match(gameActivitySource, /ARENA_DEPLOY_BLOCK = 72_262_224n/)
+  assert.match(gameActivitySource, /RACE_DEPLOY_BLOCK = 77_352_162n/)
+  assert.match(gameActivitySource, /ARENA_DEPLOY_BLOCK = 77_353_494n/)
 })
 
 test('native AssetRace deployment reuses the existing signed-pool oracle', () => {
@@ -157,7 +157,7 @@ test('native AssetRace deployment reuses the existing signed-pool oracle', () =>
     assert.match(script, /envUint\("PRIVATE_KEY"\)/)
     assert.doesNotMatch(script, /ASSET_RACE_DEPLOYER_PRIVATE_KEY/)
   }
-  assert.match(deployAssetRaceScript, /envAddress\("ASSET_RACE_SIGNED_POOL_ORACLE_ADDRESS"\)/)
+  assert.match(deployAssetRaceScript, /envOr\("ASSET_RACE_SIGNED_POOL_ORACLE_ADDRESS", vm\.envAddress\("SIGNED_POOL_ORACLE_ADDRESS"\)\)/)
   assert.match(deployAssetRaceScript, /envAddress\("EXPECTED_OWNER_ADDRESS"\)/)
   assert.match(deployAssetRaceScript, /validateSigningOwner\(deployer, expectedOwner\)/)
   assert.match(deployAssetRaceScript, /validateOracle\([^;]*oracle\.TRUSTED_SIGNER\(\), priceSigner\)/)

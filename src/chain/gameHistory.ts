@@ -14,8 +14,8 @@ import {
 } from '@/chain/gameHistoryIndex'
 export { visibleIdsThroughCount } from '@/chain/gameHistoryIndex'
 
-const RACE_DEPLOY_BLOCK = 72_253_652n
-const ARENA_DEPLOY_BLOCK = 72_262_224n
+const RACE_DEPLOY_BLOCK = 77_352_162n
+const ARENA_DEPLOY_BLOCK = 77_353_494n
 
 const MARKET_CREATED_EVENT = parseAbiItem(
   'event MarketCreated(uint256 indexed id, bytes32 indexed assetId, bytes32 indexed oracleId, int256 targetPrice, uint256 deadline)',

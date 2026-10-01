@@ -20,6 +20,17 @@ contract RejectingArenaReceiver {
         arena.claim(arenaId);
     }
 
+    function createArena(bytes32 assetId, PriceArena.Category category, uint256 duration, string calldata title)
+        external
+        returns (uint256)
+    {
+        return arena.createArena(assetId, category, duration, title);
+    }
+
+    function withdrawCreatorFees() external {
+        arena.withdrawCreatorFees();
+    }
+
     receive() external payable {
         revert("reject ETH");
     }
@@ -230,7 +241,9 @@ contract PriceArenaTest is Test {
         PriceArena.PublicEntry memory charlieEntry = arena.getEntry(id, charlie);
 
         assertEq(data.winnerCount, 2);
-        assertEq(data.protocolFee, 600_000);
+        assertEq(arena.arenaCreatorFees(id), 300_000);
+        assertEq(data.protocolFee, 300_000);
+        assertEq(arena.creatorEarnings(address(this)), 300_000);
         assertEq(aliceEntry.rank, 1);
         assertEq(aliceEntry.accuracyMultiplierBp, 30_000);
         assertEq(aliceEntry.payout, 27_640_000);
@@ -346,7 +359,7 @@ contract PriceArenaTest is Test {
         assertFalse(receiver.reentrySucceeded());
         assertTrue(arena.getEntry(id, address(receiver)).settled);
         assertEq(address(receiver).balance, expectedPayout);
-        assertEq(address(arena).balance, arena.accumulatedFees());
+        assertEq(address(arena).balance, arena.accumulatedFees() + arena.totalCreatorEarningsLiability());
     }
 
     function test_AssetConfigurationIsFrozenPerArena() public {
@@ -368,7 +381,7 @@ contract PriceArenaTest is Test {
         uint256 fees = arena.accumulatedFees();
         uint256 before = dave.balance;
         arena.withdrawFees(dave);
-        assertEq(address(arena).balance, arena.totalUserLiability());
+        assertEq(address(arena).balance, arena.totalUserLiability() + arena.totalCreatorEarningsLiability());
         assertEq(dave.balance - before, fees);
     }
 
@@ -384,7 +397,43 @@ contract PriceArenaTest is Test {
         PriceArena.Arena memory data = arena.getArena(id);
         assertEq(data.participantCount, 20);
         assertEq(data.winnerCount, 10);
-        assertEq(address(arena).balance, arena.totalUserLiability() + arena.accumulatedFees());
+        assertEq(
+            address(arena).balance,
+            arena.totalUserLiability() + arena.totalCreatorEarningsLiability() + arena.accumulatedFees()
+        );
+    }
+
+    function test_CreatorFeesAccumulateAndWithdrawWithoutTouchingPlayerLiability() public {
+        vm.prank(alice);
+        uint256 id = arena.createArena(STOCK_ID, PriceArena.Category.STOCK, 1 minutes, "ALICE ARENA");
+        _enter(id, bob, FINAL_PRICE, 10 * UNIT);
+        _enter(id, charlie, 120e18, 10 * UNIT);
+        _resolve(id, FINAL_PRICE, 1);
+
+        assertEq(arena.creatorEarnings(alice), 100_000);
+        assertEq(arena.totalCreatorEarningsLiability(), 100_000);
+        uint256 playerLiability = arena.totalUserLiability();
+        uint256 before = alice.balance;
+        vm.prank(alice);
+        assertEq(arena.withdrawCreatorFees(), 100_000);
+        assertEq(alice.balance - before, 100_000);
+        assertEq(arena.totalUserLiability(), playerLiability);
+        assertEq(arena.totalCreatorEarningsLiability(), 0);
+    }
+
+    function test_RejectingCreatorCannotBlockResolutionAndFailedWithdrawalRollsBack() public {
+        RejectingArenaReceiver rejector = new RejectingArenaReceiver(arena);
+        uint256 id = rejector.createArena(STOCK_ID, PriceArena.Category.STOCK, 1 minutes, "REJECTING CREATOR");
+        _enter(id, alice, FINAL_PRICE, 10 * UNIT);
+        _enter(id, bob, 120e18, 10 * UNIT);
+        _resolve(id, FINAL_PRICE, 1);
+
+        assertEq(arena.creatorEarnings(address(rejector)), 100_000);
+        uint256 creatorLiability = arena.totalCreatorEarningsLiability();
+        vm.expectRevert("ETH transfer failed");
+        rejector.withdrawCreatorFees();
+        assertEq(arena.creatorEarnings(address(rejector)), 100_000);
+        assertEq(arena.totalCreatorEarningsLiability(), creatorLiability);
     }
 
     function test_Entry_RejectsTwentyFirstPlayer() public {

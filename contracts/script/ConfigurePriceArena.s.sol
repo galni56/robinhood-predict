@@ -27,6 +27,7 @@ contract ConfigurePriceArena is Script {
         require(memeSymbols.length > 0 && memeSymbols.length == memeOracleIds.length, "meme config mismatch");
         NativeEthDeploymentSafety.validateSigningOwner(vm.addr(ownerKey), expectedOwner);
         NativeEthDeploymentSafety.validateContractOwner(arena.owner(), expectedOwner);
+        require(arena.CREATOR_FEE_SHARE_BP() == 5_000, "wrong creator fee share");
         NativeEthDeploymentSafety.validateReleaseRoles(expectedOwner, oracle, expectedPriceSigner);
         require(oracle.code.length > 0, "signed pool oracle has no code");
         NativeEthDeploymentSafety.validateOracle(

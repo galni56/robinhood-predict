@@ -13,6 +13,7 @@ import {IAssetRaceOracle} from "./interfaces/IAssetRaceOracle.sol";
 /// PredictionMarket. Stakes, payouts, refunds and fees are native ETH in wei.
 contract AssetRace is Ownable, ReentrancyGuard {
     uint256 public constant BP_DENOMINATOR = 10_000;
+    uint256 public constant CREATOR_FEE_SHARE_BP = 5_000;
     uint256 public constant RETURN_SCALE = 1e18;
     uint256 public constant MAX_FEE_BP = BP_DENOMINATOR;
     uint256 public constant MIN_ASSETS_PER_RACE = 2;
@@ -208,6 +209,7 @@ contract AssetRace is Ownable, ReentrancyGuard {
     bool public communityPolicyConfigured;
     uint256 public raceCount;
     uint256 public accumulatedFees;
+    uint256 public totalCreatorEarningsLiability;
     uint256 public totalUserLiability;
 
     mapping(uint256 => Race) private races;
@@ -220,6 +222,8 @@ contract AssetRace is Ownable, ReentrancyGuard {
     uint64[] private raceDurationPresets;
     CommunityPolicyInput public communityPolicy;
     mapping(uint256 => mapping(address => bool)) public lobbyAssetAddedByWallet;
+    mapping(address => uint256) public creatorEarnings;
+    mapping(uint256 => uint256) public raceCreatorFees;
 
     event NewActivityPaused(bool paused);
     event ApprovedAssetSet(
@@ -277,6 +281,8 @@ contract AssetRace is Ownable, ReentrancyGuard {
     event RaceVoided(uint256 indexed raceId, VoidReason reason);
     event RaceClaimed(uint256 indexed raceId, address indexed user, uint256 payout);
     event RaceRefunded(uint256 indexed raceId, address indexed user, uint256 amount);
+    event CreatorFeeAccrued(uint256 indexed raceId, address indexed creator, uint256 amount);
+    event CreatorFeesWithdrawn(address indexed creator, uint256 amount);
     event FeesWithdrawn(address indexed to, uint256 amount);
 
     constructor() Ownable(msg.sender) {}
@@ -756,17 +762,23 @@ contract AssetRace is Ownable, ReentrancyGuard {
         uint256 winningPool = assets[leaderIndex].pool;
         uint256 losingPool = race.totalPool - winningPool;
         uint256 fee = Math.mulDiv(losingPool, race.feeBp, BP_DENOMINATOR);
+        uint256 creatorFee = Math.mulDiv(fee, CREATOR_FEE_SHARE_BP, BP_DENOMINATOR);
+        uint256 protocolFee = fee - creatorFee;
 
         race.winningAssetIndex = leaderIndex;
         race.winningPool = winningPool;
         race.distributableLosingPool = losingPool - fee;
-        race.protocolFee = fee;
+        race.protocolFee = protocolFee;
         race.remainingLiability -= fee;
         totalUserLiability -= fee;
-        accumulatedFees += fee;
+        creatorEarnings[race.creator] += creatorFee;
+        raceCreatorFees[raceId] = creatorFee;
+        totalCreatorEarningsLiability += creatorFee;
+        accumulatedFees += protocolFee;
         race.status = RaceStatus.RESOLVED;
 
-        emit RaceResolved(raceId, leaderIndex, bestReturn, winningPool, fee);
+        emit CreatorFeeAccrued(raceId, race.creator, creatorFee);
+        emit RaceResolved(raceId, leaderIndex, bestReturn, winningPool, protocolFee);
     }
 
     /// @notice Voids a started race that could not obtain a valid P1 before
@@ -831,6 +843,18 @@ contract AssetRace is Ownable, ReentrancyGuard {
         accumulatedFees -= amount;
         _sendEth(to, amount);
         emit FeesWithdrawn(to, amount);
+    }
+
+    /// @notice Withdraws all creator revenue accrued across resolved races.
+    /// Small amounts stay pooled until the creator chooses to withdraw them.
+    function withdrawCreatorFees() external nonReentrant returns (uint256 amount) {
+        amount = creatorEarnings[msg.sender];
+        if (amount == 0) revert AmountZero();
+
+        creatorEarnings[msg.sender] = 0;
+        totalCreatorEarningsLiability -= amount;
+        _sendEth(msg.sender, amount);
+        emit CreatorFeesWithdrawn(msg.sender, amount);
     }
 
     function _sendEth(address to, uint256 amount) private {

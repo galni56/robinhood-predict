@@ -37,9 +37,13 @@ function snapshotEntryFor(
   return key ? snapshot[key] : undefined
 }
 
-export function useAssetRace(raceId: bigint | null, walletAddress?: Address) {
-  const isPreview = !ASSET_RACE_ADDRESS
-  const readAddress = ASSET_RACE_ADDRESS ?? zeroAddress
+export function useAssetRace(
+  raceId: bigint | null,
+  walletAddress?: Address,
+  contractAddress: Address | undefined = ASSET_RACE_ADDRESS,
+) {
+  const isPreview = !contractAddress
+  const readAddress = contractAddress ?? zeroAddress
   const previews = useMemo(() => buildPreviewRaces(), [])
   const [previewTick, setPreviewTick] = useState(0)
 

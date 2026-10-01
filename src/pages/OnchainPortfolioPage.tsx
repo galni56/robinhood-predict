@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { formatEther, parseAbiItem } from 'viem'
+import { formatEther, parseAbiItem, zeroAddress } from 'viem'
 import { waitForTransactionReceipt } from 'wagmi/actions'
 import {
   useAccount,
@@ -34,10 +34,17 @@ import { useNickname } from '@/chain/nicknames'
 import { formatCompactEth, shortTxError } from '@/lib/format'
 import type { MarketSide } from '@/types'
 import {
+  ASSET_RACE_ADDRESS,
   ASSET_RACE_STATUS,
+  assetRaceAbi,
   assetRaceStatusLabel,
 } from '@/chain/assetRaces'
-import { PRICE_ARENA_PHASE, arenaPhaseLabel } from '@/chain/priceArena'
+import {
+  PRICE_ARENA_ADDRESS,
+  PRICE_ARENA_PHASE,
+  arenaPhaseLabel,
+  priceArenaAbi,
+} from '@/chain/priceArena'
 import {
   useWalletGamePositions,
   type WalletArenaPosition,
@@ -104,7 +111,7 @@ export function OnchainPortfolioPage() {
     query: { enabled: count > 0 && !!address },
   })
 
-  const creatorEarnings = useReadContract({
+  const marketCreatorEarnings = useReadContract({
     address: PREDICTION_MARKET_ADDRESS,
     abi: predictionMarketAbi,
     functionName: 'creatorEarnings',
@@ -112,6 +119,30 @@ export function OnchainPortfolioPage() {
     chainId: robinhoodMainnet.id,
     query: {
       enabled: PREDICTION_MARKET_CONFIGURED && !!address,
+      refetchInterval: ACTIVE_GAME_POLL_INTERVAL_MS,
+      ...ACTIVE_GAME_REFRESH_OPTIONS,
+    },
+  })
+  const raceCreatorEarnings = useReadContract({
+    address: ASSET_RACE_ADDRESS ?? zeroAddress,
+    abi: assetRaceAbi,
+    functionName: 'creatorEarnings',
+    args: address ? [address] : undefined,
+    chainId: robinhoodMainnet.id,
+    query: {
+      enabled: !!ASSET_RACE_ADDRESS && !!address,
+      refetchInterval: ACTIVE_GAME_POLL_INTERVAL_MS,
+      ...ACTIVE_GAME_REFRESH_OPTIONS,
+    },
+  })
+  const arenaCreatorEarnings = useReadContract({
+    address: PRICE_ARENA_ADDRESS ?? zeroAddress,
+    abi: priceArenaAbi,
+    functionName: 'creatorEarnings',
+    args: address ? [address] : undefined,
+    chainId: robinhoodMainnet.id,
+    query: {
+      enabled: !!PRICE_ARENA_ADDRESS && !!address,
       refetchInterval: ACTIVE_GAME_POLL_INTERVAL_MS,
       ...ACTIVE_GAME_REFRESH_OPTIONS,
     },
@@ -203,25 +234,60 @@ export function OnchainPortfolioPage() {
   // you've actually called claim().
   const netPnl = totalClaimed != null ? totalClaimed - totalWagered : null
 
+  const totalCreatorEarnings = (marketCreatorEarnings.data ?? 0n)
+    + (raceCreatorEarnings.data ?? 0n)
+    + (arenaCreatorEarnings.data ?? 0n)
+  const creatorBalancesPending = marketCreatorEarnings.isPending
+    || (!!ASSET_RACE_ADDRESS && raceCreatorEarnings.isPending)
+    || (!!PRICE_ARENA_ADDRESS && arenaCreatorEarnings.isPending)
+  const creatorBalancesError = marketCreatorEarnings.isError
+    || (!!ASSET_RACE_ADDRESS && raceCreatorEarnings.isError)
+    || (!!PRICE_ARENA_ADDRESS && arenaCreatorEarnings.isError)
+  const creatorRevenueConfigured = PREDICTION_MARKET_CONFIGURED && !!ASSET_RACE_ADDRESS && !!PRICE_ARENA_ADDRESS
+
   async function withdrawCreatorEarnings() {
-    if (!address || !PREDICTION_MARKET_CONFIGURED || !onRightChain || !creatorEarnings.data) return
+    if (!address || !creatorRevenueConfigured || !onRightChain || totalCreatorEarnings === 0n) return
     setCreatorError(null)
     setCreatorSuccess(null)
-    setCreatorTxLabel('Confirm withdrawal in your wallet…')
     try {
-      const hash = await writeContractAsync({
-        address: PREDICTION_MARKET_ADDRESS,
-        abi: predictionMarketAbi,
-        functionName: 'withdrawCreatorFees',
-      })
-      setCreatorTxLabel('Sending earnings to your wallet…')
-      const receipt = await waitForTransactionReceipt(wagmiConfig, {
-        hash,
-        chainId: robinhoodMainnet.id,
-      })
-      if (receipt.status !== 'success') throw new Error('The withdrawal transaction reverted.')
-      await Promise.all([creatorEarnings.refetch(), balance.refetch()])
-      setCreatorSuccess('Creator earnings were sent to your connected wallet.')
+      const withdrawals = [
+        marketCreatorEarnings.data
+          ? { label: 'Prediction Markets', address: PREDICTION_MARKET_ADDRESS, abi: predictionMarketAbi }
+          : null,
+        raceCreatorEarnings.data && ASSET_RACE_ADDRESS
+          ? { label: 'Asset Races', address: ASSET_RACE_ADDRESS, abi: assetRaceAbi }
+          : null,
+        arenaCreatorEarnings.data && PRICE_ARENA_ADDRESS
+          ? { label: 'Price Arena', address: PRICE_ARENA_ADDRESS, abi: priceArenaAbi }
+          : null,
+      ].filter((withdrawal): withdrawal is NonNullable<typeof withdrawal> => withdrawal != null)
+
+      for (let index = 0; index < withdrawals.length; index += 1) {
+        const withdrawal = withdrawals[index]
+        setCreatorTxLabel(`Confirm ${index + 1}/${withdrawals.length}: ${withdrawal.label}…`)
+        const hash = await writeContractAsync({
+          address: withdrawal.address,
+          abi: withdrawal.abi,
+          functionName: 'withdrawCreatorFees',
+        })
+        setCreatorTxLabel(`Processing ${index + 1}/${withdrawals.length}: ${withdrawal.label}…`)
+        const receipt = await waitForTransactionReceipt(wagmiConfig, {
+          hash,
+          chainId: robinhoodMainnet.id,
+        })
+        if (receipt.status !== 'success') throw new Error(`${withdrawal.label} withdrawal reverted.`)
+      }
+      await Promise.all([
+        marketCreatorEarnings.refetch(),
+        raceCreatorEarnings.refetch(),
+        arenaCreatorEarnings.refetch(),
+        balance.refetch(),
+      ])
+      setCreatorSuccess(
+        withdrawals.length === 1
+          ? 'Creator earnings were sent to your connected wallet.'
+          : `Creator earnings were sent in ${withdrawals.length} transactions.`,
+      )
     } catch (error) {
       setCreatorError(shortTxError(error))
     } finally {
@@ -254,8 +320,8 @@ export function OnchainPortfolioPage() {
         className="flex items-center justify-between gap-3 rounded-2xl border border-[#8B7CF7]/25 bg-[#8B7CF7]/10 px-4 py-3 text-sm transition-colors hover:border-[#8B7CF7]/50"
       >
         <span>
-          <span className="block font-bold text-[#B3A7FA]">Legacy Prediction Markets</span>
-          <span className="mt-0.5 block text-xs text-white/45">Claim or refund positions created before the V2 upgrade.</span>
+          <span className="block font-bold text-[#B3A7FA]">Legacy games</span>
+          <span className="mt-0.5 block text-xs text-white/45">Claim or refund markets, races and arenas created before the V2 upgrade.</span>
         </span>
         <span className="shrink-0 font-bold text-[#B3A7FA]">Open →</span>
       </Link>
@@ -283,7 +349,7 @@ export function OnchainPortfolioPage() {
             <p className="text-xs font-bold uppercase tracking-[0.16em] text-[#B3A7FA]">Creator revenue</p>
             <h2 className="mt-2 font-display text-2xl font-bold">Your market earnings</h2>
             <p className="mt-2 max-w-xl text-sm leading-6 text-white/55">
-              Your share from every Prediction Market you create is collected in one balance. Earnings stay available until you withdraw them.
+              Your share from every Prediction Market, Asset Race and Price Arena you create is shown together here. Earnings stay available until you withdraw them.
             </p>
             <p className="mt-3 text-xs text-white/35">
               Small balances can keep accumulating, so you can withdraw later in a single transaction and avoid spending gas repeatedly.
@@ -294,18 +360,24 @@ export function OnchainPortfolioPage() {
             <p className="text-xs font-bold text-white/45">Available to withdraw</p>
             <div
               className="mt-1 truncate font-mono text-2xl font-semibold tabular-nums text-[#C8BFFF]"
-              title={creatorEarnings.data != null ? `${formatEther(creatorEarnings.data)} ETH` : undefined}
+              title={`${formatEther(totalCreatorEarnings)} ETH`}
             >
-              {!PREDICTION_MARKET_CONFIGURED || creatorEarnings.isError
+              {!creatorRevenueConfigured || creatorBalancesError
                 ? 'Unavailable'
-                : creatorEarnings.isPending
+                : creatorBalancesPending
                   ? 'Loading…'
-                  : creatorEarnings.data != null
-                    ? formatCompactEth(creatorEarnings.data)
-                    : '0 ETH'}
+                  : formatCompactEth(totalCreatorEarnings)}
             </div>
 
-            {!PREDICTION_MARKET_CONFIGURED ? (
+            {creatorRevenueConfigured && !creatorBalancesPending && !creatorBalancesError && (
+              <div className="mt-3 grid grid-cols-3 gap-2 text-[11px] text-white/45">
+                <span title={`${formatEther(marketCreatorEarnings.data ?? 0n)} ETH`}>Markets<br /><b className="text-white/65">{formatCompactEth(marketCreatorEarnings.data ?? 0n)}</b></span>
+                <span title={`${formatEther(raceCreatorEarnings.data ?? 0n)} ETH`}>Races<br /><b className="text-white/65">{formatCompactEth(raceCreatorEarnings.data ?? 0n)}</b></span>
+                <span title={`${formatEther(arenaCreatorEarnings.data ?? 0n)} ETH`}>Arena<br /><b className="text-white/65">{formatCompactEth(arenaCreatorEarnings.data ?? 0n)}</b></span>
+              </div>
+            )}
+
+            {!creatorRevenueConfigured ? (
               <p className="mt-4 rounded-xl border border-amber-400/20 bg-amber-400/10 px-3 py-2 text-xs text-amber-200">
                 Creator withdrawals are not configured on this network.
               </p>
@@ -322,10 +394,10 @@ export function OnchainPortfolioPage() {
               <button
                 type="button"
                 onClick={withdrawCreatorEarnings}
-                disabled={creatorEarnings.isPending || !!creatorTxLabel || !creatorEarnings.data}
+                disabled={creatorBalancesPending || !!creatorTxLabel || totalCreatorEarnings === 0n}
                 className="mt-4 w-full rounded-xl bg-gradient-to-r from-[#8B7CF7] to-[#6E58E8] px-4 py-3 text-sm font-bold text-white shadow-[0_10px_30px_rgba(110,88,232,0.2)] transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
               >
-                {creatorTxLabel ?? (creatorEarnings.data ? 'Withdraw to wallet' : 'Nothing to withdraw')}
+                {creatorTxLabel ?? (totalCreatorEarnings > 0n ? 'Withdraw all to wallet' : 'Nothing to withdraw')}
               </button>
             )}
 

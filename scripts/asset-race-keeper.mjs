@@ -37,6 +37,13 @@ const STATUS_NAME = ['BETTING', 'RUNNING', 'RESOLVED', 'CANCELLED', 'VOID', 'LOB
 const keeperAbi = [
   {
     type: 'function',
+    name: 'CREATOR_FEE_SHARE_BP',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ type: 'uint256' }],
+  },
+  {
+    type: 'function',
     name: 'raceCount',
     stateMutability: 'view',
     inputs: [],
@@ -550,6 +557,14 @@ async function main() {
     contracts: poolChainContracts(chainId),
   })
   const publicClient = createPublicClient({ chain, transport: http(config.rpcUrl, { batch: true }) })
+  if (chainId === 4663) {
+    const creatorShare = await publicClient.readContract({
+      address: config.address,
+      abi: keeperAbi,
+      functionName: 'CREATOR_FEE_SHARE_BP',
+    })
+    if (creatorShare !== 5_000n) throw new KeeperConfigError('AssetRace creator fee share must be 5000 bp')
+  }
   if (config.expectedChainId && BigInt(config.expectedChainId) !== BigInt(chainId)) {
     throw new KeeperConfigError('RPC chain ID does not match ASSET_RACE_CHAIN_ID')
   }

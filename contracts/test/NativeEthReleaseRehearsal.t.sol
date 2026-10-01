@@ -91,8 +91,8 @@ contract NativeEthReleaseRehearsalTest is Test {
         assertEq(uint256(race.getRace(raceId).status), uint256(AssetRace.RaceStatus.RESOLVED));
         assertEq(uint256(arena.getArena(arenaId).status), uint256(PriceArena.Status.RESOLVED));
         assertEq(uint256(market.getMarket(predictionId).status), uint256(PredictionMarket.Status.Resolved));
-        assertEq(address(race).balance, race.accumulatedFees());
-        assertEq(address(arena).balance, arena.accumulatedFees());
+        assertEq(address(race).balance, race.accumulatedFees() + race.totalCreatorEarningsLiability());
+        assertEq(address(arena).balance, arena.accumulatedFees() + arena.totalCreatorEarningsLiability());
         assertEq(
             address(market).balance,
             market.accumulatedFees() + market.totalCreatorEarningsLiability()

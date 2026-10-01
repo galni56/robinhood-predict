@@ -28,6 +28,7 @@ contract DeployPriceArena is Script {
         vm.stopBroadcast();
 
         NativeEthDeploymentSafety.validateContractOwner(priceArena.owner(), expectedOwner);
+        require(priceArena.CREATOR_FEE_SHARE_BP() == 5_000, "wrong creator fee share");
 
         console.log("PriceArena deployed at:", address(priceArena));
         console.log("Owner:", priceArena.owner());
@@ -35,5 +36,6 @@ contract DeployPriceArena is Script {
         console.log("Max stake (wei):", priceArena.maxStakeWei());
         console.log("Lobby duration:", priceArena.LOBBY_DURATION());
         console.log("Fee (bp):", priceArena.FEE_BP());
+        console.log("Creator fee share (bp):", priceArena.CREATOR_FEE_SHARE_BP());
     }
 }
