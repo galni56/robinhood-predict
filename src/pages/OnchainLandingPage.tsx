@@ -116,6 +116,87 @@ const SUPPORTED_MEMES = assetRaceCatalog.filter((asset) => (
   asset.category === 'MEME' && asset.networks['robinhood-mainnet'].enabled
 ))
 
+const PROPHET_TOKEN_ADDRESS = '0x410f2bd350f3d88795cfc29b61ca664c30987efd'
+
+function copyWithTextarea(value: string) {
+  const textarea = document.createElement('textarea')
+  textarea.value = value
+  textarea.setAttribute('readonly', '')
+  textarea.style.position = 'fixed'
+  textarea.style.opacity = '0'
+  document.body.appendChild(textarea)
+  textarea.select()
+  const copied = document.execCommand('copy')
+  textarea.remove()
+  if (!copied) throw new Error('Copy failed')
+}
+
+function ProphetTokenContract() {
+  const [copyState, setCopyState] = useState<'idle' | 'copied' | 'error'>('idle')
+  const resetTimer = useRef<number | null>(null)
+
+  useEffect(() => () => {
+    if (resetTimer.current != null) window.clearTimeout(resetTimer.current)
+  }, [])
+
+  async function copyAddress() {
+    try {
+      if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(PROPHET_TOKEN_ADDRESS)
+      else copyWithTextarea(PROPHET_TOKEN_ADDRESS)
+      setCopyState('copied')
+    } catch {
+      try {
+        copyWithTextarea(PROPHET_TOKEN_ADDRESS)
+        setCopyState('copied')
+      } catch {
+        setCopyState('error')
+      }
+    }
+
+    if (resetTimer.current != null) window.clearTimeout(resetTimer.current)
+    resetTimer.current = window.setTimeout(() => setCopyState('idle'), 2_000)
+  }
+
+  const buttonLabel = copyState === 'copied' ? 'Copied!' : copyState === 'error' ? 'Try again' : 'Copy'
+
+  return (
+    <div className="mt-6 max-w-[610px] rounded-2xl border border-[#6A5AE0]/20 bg-white/50 p-3 shadow-[0_14px_36px_-28px_rgba(36,26,51,0.8)] backdrop-blur-sm sm:flex sm:items-center sm:gap-3 sm:p-3.5">
+      <div className="flex min-w-0 flex-1 items-center gap-3">
+        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#6A5AE0] text-lg text-white shadow-[0_8px_20px_-10px_rgba(106,90,224,0.9)]" aria-hidden="true">
+          ✦
+        </span>
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+            <p className="text-[11px] font-extrabold uppercase tracking-[0.15em] text-[#6A5AE0]">$PROPHET contract</p>
+            <span className="text-[10px] font-bold text-[#241a33]/45">Robinhood Chain</span>
+          </div>
+          <p className="mt-1 break-all font-mono text-[10px] font-semibold leading-relaxed text-[#241a33]/75 sm:truncate sm:text-xs">
+            {PROPHET_TOKEN_ADDRESS}
+          </p>
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={copyAddress}
+        className="mt-3 inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-[#6A5AE0] px-4 py-2.5 text-xs font-extrabold text-white transition-all hover:-translate-y-0.5 hover:bg-[#5B49C7] active:translate-y-0 sm:mt-0 sm:w-auto"
+        aria-label="Copy Prophet token contract address"
+      >
+        {copyState === 'copied' ? (
+          <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4 fill-none stroke-current" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="m5 12 4 4L19 6" />
+          </svg>
+        ) : (
+          <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4 fill-none stroke-current" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="9" y="9" width="11" height="11" rx="2" />
+            <path d="M15 9V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h3" />
+          </svg>
+        )}
+        <span aria-live="polite">{buttonLabel}</span>
+      </button>
+    </div>
+  )
+}
+
 // One-shot reveal for scroll-triggered stagger animations: flips to
 // visible the first time the element enters the viewport, then stops
 // observing. Cards inside get their own transition-delay.
@@ -432,6 +513,8 @@ export function OnchainLandingPage() {
                     <span className="grid h-8 w-8 place-items-center rounded-full bg-[#152447]/15 text-sm">↗</span>
                   </Link>
                 </div>
+
+                <ProphetTokenContract />
 
               </div>
 
