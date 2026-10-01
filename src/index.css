@@ -60,6 +60,22 @@ h3,
   font-family: var(--font-display);
 }
 
+/* shimmering placeholder blocks for route/list skeletons */
+.skeleton-block {
+  background: linear-gradient(100deg, rgba(255, 255, 255, 0.05) 36%, rgba(255, 255, 255, 0.11) 50%, rgba(255, 255, 255, 0.05) 64%);
+  background-size: 220% 100%;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes skeleton-shimmer {
+  from { background-position: 130% 0; }
+  to { background-position: -90% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-block { animation: none; }
+}
+
 /* thin scrollbar for tables / explorer lists */
 .scrollbar-thin::-webkit-scrollbar {
   height: 6px;

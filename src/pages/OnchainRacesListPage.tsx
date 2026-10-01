@@ -17,6 +17,7 @@ import { useAssetRaceClock } from '@/chain/useAssetRaceClock'
 import { isPlayedCancellation, isVisibleInAll } from '@/chain/gameVisibility'
 import { priceSourceUrlForAssetId } from '@/chain/assetRaceRegistry'
 import { AddressLabel } from '@/components/AddressLabel'
+import { InfoBanner } from '@/components/InfoBanner'
 import { ClockIcon } from '@/components/icons'
 import { GameActivitySidebar } from '@/components/GameActivitySidebar'
 import { GameListLoadingGrid } from '@/components/GameListLoadingGrid'
@@ -198,14 +199,12 @@ export function OnchainRacesListPage() {
   return (
     <div className="mx-auto max-w-[1500px] px-4 py-8">
       {isPreview ? (
-        <div className="mb-6 rounded-2xl border border-[#F2A65A]/25 bg-[#F2A65A]/10 px-4 py-3 text-sm font-medium text-[#F2A65A]">
+        <InfoBanner tone="warning">
           Preview data - AssetRace is not deployed or configured, so these cards are local examples and cannot send transactions.
           {ASSET_RACE_CONFIG_ERROR && <span className="mt-1 block text-rose-300">{ASSET_RACE_CONFIG_ERROR}</span>}
-        </div>
+        </InfoBanner>
       ) : isLocalAssetRace ? (
-        <div className="mb-6 rounded-2xl border border-[#F2A65A]/25 bg-[#F2A65A]/10 px-4 py-3 text-sm font-medium text-[#F2A65A]">
-          Local test network - races use Anvil and local ETH, no real funds.
-        </div>
+        <InfoBanner tone="warning">Local test network - races use Anvil and local ETH, no real funds.</InfoBanner>
       ) : null}
 
       <div className="mb-8 flex flex-wrap items-end justify-between gap-6">
