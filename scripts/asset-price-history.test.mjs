@@ -2,6 +2,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   assetPriceChartUrl,
+  assetPriceCandleIntervalMs,
+  buildAssetPriceCandles,
   filterAssetPriceWindow,
   mergeAssetPriceHistory,
   parseAssetPriceHistory,
@@ -58,4 +60,36 @@ test('chart sampling preserves both endpoints and stays within the render limit'
   assert.equal(sampled.length, 1_200)
   assert.equal(sampled[0], points[0])
   assert.equal(sampled.at(-1), points.at(-1))
+})
+
+test('builds exact OHLC candles for real one-minute and five-minute intervals', () => {
+  const observations = [
+    { receivedAt: 61_000, price: 100, blockNumber: '10' },
+    { receivedAt: 75_000, price: 104, blockNumber: '11' },
+    { receivedAt: 90_000, price: 98, blockNumber: '12' },
+    { receivedAt: 119_000, price: 102, blockNumber: '13' },
+    { receivedAt: 121_000, price: 103, blockNumber: '14' },
+  ]
+  const oneMinute = buildAssetPriceCandles(observations, '1m')
+  assert.deepEqual(oneMinute, [
+    { startTime: 60_000, endTime: 120_000, open: 100, high: 104, low: 98, close: 102, updates: 4, blockNumber: '13' },
+    { startTime: 120_000, endTime: 180_000, open: 103, high: 103, low: 103, close: 103, updates: 1, blockNumber: '14' },
+  ])
+  assert.deepEqual(buildAssetPriceCandles(observations, '5m'), [
+    { startTime: 0, endTime: 300_000, open: 100, high: 104, low: 98, close: 103, updates: 5, blockNumber: '14' },
+  ])
+  assert.equal(assetPriceCandleIntervalMs('15m'), 900_000)
+})
+
+test('candle builder sorts observations and ignores invalid prices', () => {
+  const candles = buildAssetPriceCandles([
+    { receivedAt: 180_000, price: 9 },
+    { receivedAt: 120_000, price: 7 },
+    { receivedAt: 150_000, price: Number.NaN },
+    { receivedAt: 140_000, price: 8 },
+  ], '1m')
+  assert.deepEqual(candles.map(({ open, high, low, close, updates }) => ({ open, high, low, close, updates })), [
+    { open: 7, high: 8, low: 7, close: 8, updates: 2 },
+    { open: 9, high: 9, low: 9, close: 9, updates: 1 },
+  ])
 })

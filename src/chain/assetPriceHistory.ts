@@ -16,7 +16,28 @@ export interface AssetPriceHistory {
 
 export type AssetPriceWindow = '1M' | '5M' | '15M' | '1H' | 'ALL'
 
+export type AssetPriceCandleInterval = '1m' | '5m' | '15m' | '1h'
+
+export interface AssetPriceCandle {
+  startTime: number
+  endTime: number
+  open: number
+  high: number
+  low: number
+  close: number
+  updates: number
+  blockNumber?: string
+}
+
 export const ASSET_PRICE_WINDOWS: readonly AssetPriceWindow[] = ['1M', '5M', '15M', '1H', 'ALL']
+export const ASSET_PRICE_CANDLE_INTERVALS: readonly AssetPriceCandleInterval[] = ['1m', '5m', '15m', '1h']
+
+const CANDLE_INTERVAL_MS: Record<AssetPriceCandleInterval, number> = {
+  '1m': 60_000,
+  '5m': 5 * 60_000,
+  '15m': 15 * 60_000,
+  '1h': 60 * 60_000,
+}
 
 const WINDOW_DURATION_MS: Record<Exclude<AssetPriceWindow, 'ALL'>, number> = {
   '1M': 60_000,
@@ -54,6 +75,45 @@ export function sampleAssetPriceSeries<T>(points: T[], maxPoints = 1_200) {
     { length: maxPoints },
     (_, index) => points[Math.round(index * (points.length - 1) / (maxPoints - 1))],
   )
+}
+
+export function assetPriceCandleIntervalMs(interval: AssetPriceCandleInterval) {
+  return CANDLE_INTERVAL_MS[interval]
+}
+
+export function buildAssetPriceCandles<T extends {
+  receivedAt: number
+  price: number
+  blockNumber?: string
+}>(points: T[], interval: AssetPriceCandleInterval): AssetPriceCandle[] {
+  const intervalMs = assetPriceCandleIntervalMs(interval)
+  const candles = new Map<number, AssetPriceCandle>()
+
+  for (const point of [...points].sort((a, b) => a.receivedAt - b.receivedAt)) {
+    if (!Number.isSafeInteger(point.receivedAt) || point.receivedAt <= 0 || !Number.isFinite(point.price) || point.price <= 0) continue
+    const startTime = Math.floor(point.receivedAt / intervalMs) * intervalMs
+    const current = candles.get(startTime)
+    if (!current) {
+      candles.set(startTime, {
+        startTime,
+        endTime: startTime + intervalMs,
+        open: point.price,
+        high: point.price,
+        low: point.price,
+        close: point.price,
+        updates: 1,
+        blockNumber: point.blockNumber,
+      })
+      continue
+    }
+    current.high = Math.max(current.high, point.price)
+    current.low = Math.min(current.low, point.price)
+    current.close = point.price
+    current.updates += 1
+    current.blockNumber = point.blockNumber ?? current.blockNumber
+  }
+
+  return [...candles.values()]
 }
 
 export function assetPriceChartUrl(symbol: string) {

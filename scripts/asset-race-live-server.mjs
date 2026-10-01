@@ -18,7 +18,7 @@ export function resolveLiveRpcUrl(env = process.env) {
 }
 
 // Shared HTTP/SSE fan-out for Stock and Meme snapshots; no per-viewer RPC polls.
-export function createAssetRaceLiveServer(collector, { pollIntervalMs } = {}) {
+export function createAssetRaceLiveServer(collector, { alwaysOn = false, pollIntervalMs } = {}) {
   const clients = new Set()
   let timer
   let polling = false
@@ -30,7 +30,7 @@ export function createAssetRaceLiveServer(collector, { pollIntervalMs } = {}) {
   }
 
   async function pollWhileDemanded() {
-    if (stopped || clients.size === 0 || polling || !pollIntervalMs) return
+    if (stopped || (!alwaysOn && clients.size === 0) || polling || !pollIntervalMs) return
     polling = true
     const startedAt = Date.now()
     try {
@@ -40,7 +40,7 @@ export function createAssetRaceLiveServer(collector, { pollIntervalMs } = {}) {
       // A custom collector must not terminate the demand loop on one failure.
     } finally {
       polling = false
-      if (!stopped && clients.size > 0) {
+      if (!stopped && (alwaysOn || clients.size > 0)) {
         const delay = Math.max(0, pollIntervalMs - (Date.now() - startedAt))
         timer = setTimeout(() => { void pollWhileDemanded() }, delay)
       }
@@ -49,7 +49,7 @@ export function createAssetRaceLiveServer(collector, { pollIntervalMs } = {}) {
 
   function removeClient(response) {
     if (!clients.delete(response)) return
-    if (clients.size === 0) stopPolling()
+    if (!alwaysOn && clients.size === 0) stopPolling()
   }
 
   const unsubscribe = collector.subscribe((snapshot) => {
@@ -92,7 +92,7 @@ export function createAssetRaceLiveServer(collector, { pollIntervalMs } = {}) {
     }
     if (request.method === 'GET' && pathname === '/health') {
       response.writeHead(200, { 'content-type': 'application/json' })
-      response.end(`${JSON.stringify({ ok: true, clients: clients.size, upstreamRequests: collector.upstreamRequestCount })}\n`)
+      response.end(`${JSON.stringify({ ok: true, alwaysOn, clients: clients.size, upstreamRequests: collector.upstreamRequestCount })}\n`)
       return
     }
     response.writeHead(404, { 'content-type': 'application/json' })
@@ -102,6 +102,9 @@ export function createAssetRaceLiveServer(collector, { pollIntervalMs } = {}) {
     stopped = true
     stopPolling()
     unsubscribe()
+  })
+  server.on('listening', () => {
+    if (alwaysOn) void pollWhileDemanded()
   })
   return { server, endClients: () => {
     for (const client of clients) client.end()
@@ -122,6 +125,7 @@ async function main() {
   const host = process.env.ASSET_RACE_LIVE_HOST?.trim() || '127.0.0.1'
   const port = Number(process.env.ASSET_RACE_LIVE_PORT || 8787)
   const pollIntervalMs = Number(process.env.ASSET_RACE_LIVE_POLL_INTERVAL_MS || profile.livePollIntervalMs || 2_000)
+  const alwaysOn = process.env.ASSET_RACE_LIVE_ALWAYS_ON?.trim() !== 'false'
   const staleAfterMs = Number(process.env.ASSET_RACE_LIVE_STALE_MS || profile.liveStaleAfterMs || 5_000)
   const ethUsdStaleAfterMs = Number(process.env.ETH_USD_STALE_MS || 45_000)
   const rpcUrl = resolveLiveRpcUrl()
@@ -142,7 +146,7 @@ async function main() {
   await engine.verify()
   const ethUsdQuoteCache = new EthUsdQuoteCache({ staleAfterMs: ethUsdStaleAfterMs })
   const collector = new StockPoolLiveCollector({ engine, ethUsdQuoteCache, staleAfterMs })
-  const { server, endClients } = createAssetRaceLiveServer(collector, { pollIntervalMs })
+  const { server, endClients } = createAssetRaceLiveServer(collector, { alwaysOn, pollIntervalMs })
 
   server.listen(port, host, () => {
     console.log(`Asset Race live display server listening on ${host}:${port}`)

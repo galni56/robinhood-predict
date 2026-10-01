@@ -165,6 +165,36 @@ test('LIVE polls immediately on first viewer, pauses at zero viewers, and resume
   await waitFor(() => calls > pausedAt)
 })
 
+test('production always-on mode builds chart history before the first viewer arrives', async (t) => {
+  let calls = 0
+  const collector = {
+    upstreamRequestCount: 0,
+    subscribe() { return () => {} },
+    snapshot() { return { provider: 'TEST', heartbeatAt: Date.now(), assets: {}, errors: {} } },
+    async poll() {
+      calls += 1
+      this.upstreamRequestCount += 1
+      return this.snapshot()
+    },
+  }
+  const { server, endClients } = createAssetRaceLiveServer(collector, { alwaysOn: true, pollIntervalMs: 10 })
+  server.listen(0, '127.0.0.1')
+  await once(server, 'listening')
+  t.after(async () => {
+    endClients()
+    await new Promise((resolve) => server.close(resolve))
+  })
+  const deadline = Date.now() + 1_000
+  while (calls < 2) {
+    if (Date.now() >= deadline) throw new Error('TimedOutWaitingForAlwaysOnPoll')
+    await new Promise((resolve) => setTimeout(resolve, 5))
+  }
+  const health = await fetch(`http://127.0.0.1:${server.address().port}/health`).then((response) => response.json())
+  assert.equal(health.alwaysOn, true)
+  assert.equal(health.clients, 0)
+  assert.ok(health.upstreamRequests >= 2)
+})
+
 function pairFor(config, overrides = {}) {
   return {
     chainId: config.chainId,
