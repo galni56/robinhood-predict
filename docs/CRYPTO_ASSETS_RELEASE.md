@@ -106,5 +106,7 @@ both deployments so already-created games on either generation still settle.
 Claims and refunds have no artificial expiry, and old deployments must remain
 reachable even after all automatic creation moves to the new contracts.
 
-The replacement mainnet contracts and all 25 bindings are deployed. The
-frontend and automation switch remains a separate atomic production operation.
+The replacement mainnet contracts, all 25 bindings, combined active/legacy
+keepers, frontend and automatic event creation were switched to production on
+2026-10-01. The previous V2 contracts remain reachable for settlement, claims,
+refunds and history.

@@ -91,7 +91,7 @@ semantic meaning; do not use them to redefine a product's identity color.
    time (happened once). Full deploy command:
    ```bash
    ssh -i ~/.ssh/predictx_vps -p 22022 root@104.207.90.56 \
-     "cd /opt/robinhood-predict && git pull origin main && VITE_NATIVE_ETH_RELEASE=true VITE_MARKET_ADDRESS=0xF62CF5Db594c4b706555584ccEC9Fb9a61541D4a VITE_DEPLOY_BLOCK=76951947 VITE_ASSET_RACE_NETWORK=robinhood-mainnet VITE_ASSET_RACE_ADDRESS=0x98f9af1756148c8995729E9ccEA770fd15124bC9 VITE_ASSET_RACE_SIGNED_POOL_ORACLE_ADDRESS=0x5b0f7e62E0A5fF5C5C02Ad219Afcd086F2618Db7 VITE_PRICE_ARENA_ADDRESS=0x8c1c5544E00C2f8ea2C564B179CdEB38504805d5 VITE_ASSET_RACE_LIVE_ENABLED=true VITE_BASE_PATH=/ VITE_RPC_URL=/api/rpc/ npm run build"
+    "cd /opt/robinhood-predict && git pull origin main && VITE_NATIVE_ETH_RELEASE=true VITE_MARKET_ADDRESS=0xF62CF5Db594c4b706555584ccEC9Fb9a61541D4a VITE_DEPLOY_BLOCK=76951947 VITE_ASSET_RACE_NETWORK=robinhood-mainnet VITE_ASSET_RACE_ADDRESS=0xebA246E4B548b93079Bf4D85faA50fa8b7Ff9c6e VITE_ASSET_RACE_SIGNED_POOL_ORACLE_ADDRESS=0x5b0f7e62E0A5fF5C5C02Ad219Afcd086F2618Db7 VITE_PRICE_ARENA_ADDRESS=0x541be0c7c1011a63465Ff53408e9F76DA870b29f VITE_ALL_ASSET_TYPES_ENABLED=true VITE_ASSET_RACE_LIVE_ENABLED=true VITE_BASE_PATH=/ VITE_RPC_URL=/api/rpc/ npm run build"
    ```
    The exact public native bindings are release-locked by `vite.config.ts` when
    `VITE_NATIVE_ETH_RELEASE=true`; a missing or altered address fails the build.
