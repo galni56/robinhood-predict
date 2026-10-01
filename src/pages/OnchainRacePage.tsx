@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { formatEther, zeroAddress, type Hex } from 'viem'
 import { waitForTransactionReceipt } from 'wagmi/actions'
-import { useAccount, useBalance, useChainId, useReadContract, useSwitchChain, useWriteContract } from 'wagmi'
+import { useAccount, useBalance, useReadContract, useSwitchChain, useWriteContract } from 'wagmi'
 import { assetRaceChain, isLocalAssetRace, wagmiConfig } from '@/chain/config'
 import {
   ASSET_RACE_ADDRESS,
@@ -56,8 +56,7 @@ export function OnchainRacePage({ legacy = false }: { legacy?: boolean }) {
   const { raceId: routeRaceId } = useParams()
   const [searchParams] = useSearchParams()
   const raceId = parseRaceId(routeRaceId)
-  const { address, isConnected } = useAccount()
-  const chainId = useChainId()
+  const { address, isConnected, chainId } = useAccount()
   const { switchChain, isPending: isSwitching } = useSwitchChain()
   const { writeContractAsync } = useWriteContract()
   const raceContractAddress = legacy
@@ -143,7 +142,7 @@ export function OnchainRacePage({ legacy = false }: { legacy?: boolean }) {
     } catch (cause) {
       setTx(null)
       setFrozenBetQuote(null)
-      setError(nativeStakeQuoteErrorMessage(cause) ?? shortTxError(cause))
+      setError(nativeStakeQuoteErrorMessage(cause) ?? shortTxError(cause, 'race-bet'))
     }
   }
 
@@ -164,7 +163,7 @@ export function OnchainRacePage({ legacy = false }: { legacy?: boolean }) {
       await refetchAll()
     } catch (cause) {
       setTx(null)
-      setError(shortTxError(cause))
+      setError(shortTxError(cause, 'race-settlement'))
     }
   }
 
@@ -194,7 +193,7 @@ export function OnchainRacePage({ legacy = false }: { legacy?: boolean }) {
       await refetchAll()
     } catch (cause) {
       setTx(null)
-      setError(shortTxError(cause))
+      setError(shortTxError(cause, 'race-lobby'))
     }
   }
 

@@ -5,7 +5,6 @@ import { waitForTransactionReceipt } from 'wagmi/actions'
 import {
   useAccount,
   useBalance,
-  useChainId,
   usePublicClient,
   useReadContract,
   useReadContracts,
@@ -73,8 +72,7 @@ function StatCard({ label, value, valueClassName = '', title }: { label: string;
 }
 
 export function OnchainPortfolioPage() {
-  const { address, isConnected } = useAccount()
-  const chainId = useChainId()
+  const { address, isConnected, chainId } = useAccount()
   const { switchChain, isPending: isSwitching } = useSwitchChain()
   const { writeContractAsync } = useWriteContract()
   const nickname = useNickname(address)
@@ -298,7 +296,7 @@ export function OnchainPortfolioPage() {
           : `Creator earnings were sent in ${withdrawals.length} transactions.`,
       )
     } catch (error) {
-      setCreatorError(shortTxError(error))
+      setCreatorError(shortTxError(error, 'creator-revenue'))
     } finally {
       setCreatorTxLabel(null)
     }

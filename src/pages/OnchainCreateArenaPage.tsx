@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { zeroAddress } from 'viem'
 import { waitForTransactionReceipt } from 'wagmi/actions'
-import { useAccount, useChainId, useReadContracts, useSwitchChain, useWriteContract } from 'wagmi'
+import { useAccount, useReadContracts, useSwitchChain, useWriteContract } from 'wagmi'
 import { assetRaceChain, wagmiConfig } from '@/chain/config'
 import { CRYPTO_ASSETS_ENABLED } from '@/chain/features'
 import {
@@ -41,8 +41,7 @@ export function OnchainCreateArenaPage() {
   const [duration, setDuration] = useState<bigint>(300n)
   const [txLabel, setTxLabel] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const { address, isConnected } = useAccount()
-  const chainId = useChainId()
+  const { address, isConnected, chainId } = useAccount()
   const { switchChain, isPending: isSwitching } = useSwitchChain()
   const { writeContractAsync } = useWriteContract()
   const selected = assets.find((asset) => asset.assetId === assetId) ?? assets[0]
@@ -65,7 +64,7 @@ export function OnchainCreateArenaPage() {
       navigate(`/onchain/arenas${mode === 'stocks' ? '' : `?mode=${mode}`}`)
     } catch (cause) {
       setTxLabel(null)
-      setError(shortTxError(cause))
+      setError(shortTxError(cause, 'create-arena'))
     }
   }
 

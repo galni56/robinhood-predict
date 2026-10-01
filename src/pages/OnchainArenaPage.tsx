@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { formatEther, formatUnits, parseUnits, type Address } from 'viem'
 import { waitForTransactionReceipt } from 'wagmi/actions'
-import { useAccount, useBalance, useChainId, useSwitchChain, useWriteContract } from 'wagmi'
+import { useAccount, useBalance, useSwitchChain, useWriteContract } from 'wagmi'
 import { assetRaceChain, wagmiConfig } from '@/chain/config'
 import {
   formatUsdCents,
@@ -88,7 +88,7 @@ export function OnchainArenaPage({ legacy = false }: { legacy?: boolean }) {
   const arenaContractAddress = legacy
     ? legacyPriceArenaAddress(searchParams.get('contract'))
     : PRICE_ARENA_ADDRESS
-  const { address, isConnected } = useAccount()
+  const { address, isConnected, chainId } = useAccount()
   const {
     arena,
     entries,
@@ -99,7 +99,6 @@ export function OnchainArenaPage({ legacy = false }: { legacy?: boolean }) {
     error: readError,
     refetch,
   } = usePriceArena(arenaId, address, arenaContractAddress)
-  const chainId = useChainId()
   const { switchChain, isPending: isSwitching } = useSwitchChain()
   const { writeContractAsync } = useWriteContract()
   const queryClient = useQueryClient()
@@ -189,7 +188,7 @@ export function OnchainArenaPage({ legacy = false }: { legacy?: boolean }) {
     } catch (cause) {
       setTxLabel(null)
       setFrozenEntryQuote(null)
-      setError(nativeStakeQuoteErrorMessage(cause) ?? (cause instanceof Error && !cause.message.includes('\n') ? cause.message : shortTxError(cause)))
+      setError(nativeStakeQuoteErrorMessage(cause) ?? (cause instanceof Error && !cause.message.includes('\n') ? cause.message : shortTxError(cause, 'arena-join')))
     }
   }
 
@@ -206,7 +205,7 @@ export function OnchainArenaPage({ legacy = false }: { legacy?: boolean }) {
         balanceQuery.refetch(),
         queryClient.invalidateQueries({ queryKey: ['game-activity', 'arena'] }),
       ])
-    } catch (cause) { setTxLabel(null); setError(shortTxError(cause)) }
+    } catch (cause) { setTxLabel(null); setError(shortTxError(cause, 'arena-settlement')) }
   }
 
   if (arenaId == null) return <div className="mx-auto max-w-4xl px-4 py-12 text-rose-300">Invalid arena ID.</div>

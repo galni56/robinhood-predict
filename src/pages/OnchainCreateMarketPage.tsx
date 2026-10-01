@@ -1,7 +1,7 @@
 import { type FormEvent, useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { formatUnits, parseUnits } from 'viem'
-import { useAccount, useChainId, useSwitchChain, useWriteContract } from 'wagmi'
+import { useAccount, useSwitchChain, useWriteContract } from 'wagmi'
 import { simulateContract, waitForTransactionReceipt } from 'wagmi/actions'
 import { robinhoodMainnet, wagmiConfig } from '@/chain/config'
 import { CRYPTO_ASSETS_ENABLED } from '@/chain/features'
@@ -53,8 +53,7 @@ function compactDuration(seconds: number) {
 export function OnchainCreateMarketPage() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
-  const { address, isConnected } = useAccount()
-  const chainId = useChainId()
+  const { address, isConnected, chainId } = useAccount()
   const { switchChain, isPending: isSwitching } = useSwitchChain()
   const { writeContractAsync } = useWriteContract()
 
@@ -160,7 +159,7 @@ export function OnchainCreateMarketPage() {
 
       navigate('/onchain')
     } catch (err) {
-      setError(shortTxError(err))
+      setError(shortTxError(err, 'create-market'))
     } finally {
       setPending(false)
     }
