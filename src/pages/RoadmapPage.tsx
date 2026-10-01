@@ -21,7 +21,7 @@ const roadmapPhases: readonly RoadmapPhase[] = [
     status: 'NEXT',
     eyebrow: 'Expand & insight',
     title: 'More assets. Better data.',
-    tagline: 'More opportunities—without lowering the quality bar.',
+    tagline: 'More opportunities - without lowering the quality bar.',
     description: 'Prophet expands its reviewed universe while bringing the exact price context behind every game directly into the product.',
     tone: 'purple',
     symbol: '+',
@@ -104,7 +104,7 @@ const roadmapPhases: readonly RoadmapPhase[] = [
       'Embeddable market widgets',
       'Public API and partner integrations',
     ],
-    callout: 'One ecosystem—across communities, bots, widgets and partner products.',
+    callout: 'One ecosystem - across communities, bots, widgets and partner products.',
   },
 ]
 
@@ -339,7 +339,7 @@ export function RoadmapPage() {
             ))}
           </div>
           <p className="mt-7 border-t border-white/[0.07] pt-5 text-[11px] leading-relaxed text-white/30">
-            Bar lengths illustrate routing categories—not final allocation percentages. Exact parameters will be published before activation.
+            Bar lengths illustrate routing categories - not final allocation percentages. Exact parameters will be published before activation.
           </p>
         </div>
       </section>

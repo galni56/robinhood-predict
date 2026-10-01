@@ -64,7 +64,7 @@ function ArenaCard({ arena, nowMs }: { arena: PriceArenaViewModel; nowMs: number
         <span className="rounded-full bg-white/5 px-2.5 py-1 text-xs font-bold text-white/60">{displayPhase(arena, nowMs)}</span>
       </div>
       <div className="mt-5 grid grid-cols-3 gap-3 rounded-2xl bg-black/10 p-3 text-sm">
-        <div className="min-w-0"><div className="text-xs text-white/30">Asset</div><div className="mt-1 flex min-w-0 items-center gap-2 font-bold"><TokenLogo ticker={arena.asset?.symbol} className="h-7 w-7 shrink-0 rounded-lg" /><span className="truncate">{arena.asset?.symbol ?? '—'}</span></div></div>
+        <div className="min-w-0"><div className="text-xs text-white/30">Asset</div><div className="mt-1 flex min-w-0 items-center gap-2 font-bold"><TokenLogo ticker={arena.asset?.symbol} className="h-7 w-7 shrink-0 rounded-lg" /><span className="truncate">{arena.asset?.symbol ?? '-'}</span></div></div>
         <div className="min-w-0"><div className="text-xs text-white/30">Players</div><div className="mt-1 truncate font-mono font-bold tabular-nums">{arena.participantCount} / 20</div></div>
         <div className="min-w-0"><div className="text-xs text-white/30">Prize pool</div><div title={`${formatEther(arena.totalPool)} ETH`} className="mt-1 truncate font-mono text-[0.78rem] font-bold tabular-nums">{formatCompactEth(arena.totalPool, 3)}</div></div>
       </div>

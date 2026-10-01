@@ -125,7 +125,7 @@ function ArenaArchiveCard({ arena }: { arena: PriceArenaViewModel }) {
         <span className="shrink-0 rounded-full bg-white/5 px-2.5 py-1 text-xs font-bold text-white/55">{arenaPhaseLabel(arena.phase)}</span>
       </div>
       <div className="mt-4 grid grid-cols-3 gap-2 rounded-xl bg-black/10 p-3 text-xs">
-        <div><div className="text-white/30">Asset</div><div className="mt-1 font-bold">{arena.asset?.symbol ?? '—'}</div></div>
+        <div><div className="text-white/30">Asset</div><div className="mt-1 font-bold">{arena.asset?.symbol ?? '-'}</div></div>
         <div><div className="text-white/30">Players</div><div className="mt-1 font-mono">{arena.participantCount}</div></div>
         <div className="min-w-0 text-right"><div className="text-white/30">Pool</div><div title={`${formatEther(arena.totalPool)} ETH`} className="mt-1 truncate font-mono">{formatCompactEth(arena.totalPool)}</div></div>
       </div>

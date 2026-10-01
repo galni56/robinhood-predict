@@ -41,7 +41,7 @@ function parseId(value?: string) {
 }
 
 function displayPrice(raw: bigint, decimals: number, quote: string) {
-  if (raw <= 0n) return '—'
+  if (raw <= 0n) return '-'
   const value = Number(formatUnits(raw, decimals))
   const digits = value >= 100 ? 2 : value >= 1 ? 4 : 8
   return `${value.toLocaleString(undefined, { maximumFractionDigits: digits })} ${quote}`
@@ -209,7 +209,7 @@ export function OnchainArenaPage({ legacy = false }: { legacy?: boolean }) {
   if (arenaId == null) return <div className="mx-auto max-w-4xl px-4 py-12 text-rose-300">Invalid arena ID.</div>
   return (
     <div className="mx-auto max-w-[1200px] px-4 py-8">
-      {legacy && <div className="mb-5 rounded-2xl border border-[#8A72F8]/25 bg-[#8A72F8]/10 px-4 py-3 text-sm font-medium text-[#B3A7FA]">Legacy Price Arena — new entries are disabled. Existing claims and refunds remain available here.</div>}
+      {legacy && <div className="mb-5 rounded-2xl border border-[#8A72F8]/25 bg-[#8A72F8]/10 px-4 py-3 text-sm font-medium text-[#B3A7FA]">Legacy Price Arena - new entries are disabled. Existing claims and refunds remain available here.</div>}
       <Link to={legacy ? '/onchain/legacy?mode=arenas' : `/onchain/arenas${arena ? `?mode=${modeForArenaCategory(arena.category)}` : ''}`} className="text-sm font-bold text-white/40 hover:text-white">← {legacy ? 'Legacy games' : 'All arenas'}</Link>
       {isLoading ? <p className="py-20 text-center text-white/40">Loading arena…</p> : readError ? <div className="mt-6 rounded-2xl border border-rose-500/25 bg-rose-500/10 p-5 text-rose-300">Could not read this arena.</div> : !arena ? <p className="py-20 text-center text-white/40">Arena not found.</p> : <>
         <div className="mt-5 flex flex-wrap items-end justify-between gap-4">

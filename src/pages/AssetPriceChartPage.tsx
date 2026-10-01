@@ -9,7 +9,7 @@ import { TokenLogo } from '@/components/TokenLogo'
 type WindowName = '15M' | '1H' | 'ALL'
 
 function formatPrice(value: number, quote: string) {
-  if (!Number.isFinite(value)) return '—'
+  if (!Number.isFinite(value)) return '-'
   if (quote === 'USDG') return `$${value.toLocaleString(undefined, { maximumFractionDigits: 4 })}`
   const digits = value >= 1 ? 6 : value >= 0.001 ? 8 : 12
   return `${value.toLocaleString(undefined, { maximumSignificantDigits: digits })} ETH`

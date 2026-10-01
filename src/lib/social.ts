@@ -1,1 +1,1 @@
-export const PROPHET_X_URL = 'https://x.com/pmarketsrh?s=11'
+export const PROPHET_X_URL = 'https://x.com/Prophet_Markets'

@@ -109,14 +109,14 @@ export function WhitepaperPage() {
           <p>
             A market asks: <em>Will this stock be at or above the target price at the deadline?</em> A YES position
             wins when the final price is greater than or equal to the target; otherwise NO wins. Touching the target
-            at any earlier moment does not count—the only price that determines the outcome is the scheduled
+            at any earlier moment does not count - the only price that determines the outcome is the scheduled
             deadline price.
           </p>
           <p>The current market lifecycle is:</p>
           <ol className="list-decimal space-y-2 pl-5">
             <li>
               Any wallet creates a market for one of 10 approved tokenized stocks, chooses a positive target and
-              selects a deadline. Each stock uses a reviewed StockToken/USDG pool as its price source—not as the
+              selects a deadline. Each stock uses a reviewed StockToken/USDG pool as its price source - not as the
               wager currency. The interface offers 30 minutes, 1 hour, 24 hours and 7 days. Thirty minutes is the
               onchain minimum.
             </li>
@@ -156,8 +156,8 @@ export function WhitepaperPage() {
             payout = stake + (weighted stake ÷ total weighted winning stake) × losing pool × 98%
           </Formula>
           <p>
-            The 2% fee applies only to each winner&apos;s share of the losing pool. One percentage point is credited to the
-            immutable market creator and one percentage point to Prophet. It is not charged on returned
+            The 2% fee applies only to each winner&apos;s share of the losing pool. Exactly 1% of the losing pool is
+            credited to the immutable market creator and 1% goes to Prophet. It is not charged on returned
             principal or refunds. Integer division can leave a small amount of rounding dust in the contract.
           </p>
           <p>
@@ -171,7 +171,7 @@ export function WhitepaperPage() {
           <p>
             A Race compares <strong>2–6 assets from one category</strong>. Stock races use StockToken/USDG prices;
             Meme races use MemeToken/ETH prices. Players back one asset, and the winner is the asset with the highest
-            percentage return between the common start and end snapshots—not the asset with the highest dollar price.
+            percentage return between the common start and end snapshots - not the asset with the highest dollar price.
           </p>
           <p>The live community-race policy is:</p>
           <ol className="list-decimal space-y-2 pl-5">
@@ -200,7 +200,7 @@ export function WhitepaperPage() {
           </ol>
           <Formula>asset return = (P1 − P0) ÷ P0</Formula>
           <p>
-            The highest return wins even when every contender fell in price—the least negative return is still the
+            The highest return wins even when every contender fell in price - the least negative return is still the
             highest. Stocks and Memes never compete in the same race because they use different quote units.
           </p>
         </Section>
@@ -212,8 +212,9 @@ export function WhitepaperPage() {
           </p>
           <Formula>payout = stake + (stake ÷ winning pool) × losing pool × 98%</Formula>
           <p>
-            The 2% fee comes only from the losing pool. If two or more active assets finish with exactly the same top
-            return, the race is void and every stake is refundable in full—no arbitrary tiebreaker selects an asset.
+            The 2% fee comes only from the losing pool. Exactly 1% of the losing pool is credited to the immutable
+            race creator and 1% goes to Prophet. If two or more active assets finish with exactly the same top
+            return, the race is void and every stake is refundable in full - no arbitrary tiebreaker selects an asset.
             A race also becomes refundable if a valid start or end snapshot cannot be fixed within its onchain grace
             window.
           </p>
@@ -281,7 +282,8 @@ export function WhitepaperPage() {
           <Formula>payout = stake + (player score ÷ total winner scores) × losing pool × 98%</Formula>
           <p>
             If the cutoff error is zero, exact-price winners use a 1× multiplier and stake alone determines their
-            shares. The 2% fee applies only to the losing pool; integer rounding dust also remains protocol funds.
+            shares. The 2% fee applies only to the losing pool. Exactly 1% of the losing pool is credited to the
+            immutable Arena creator and 1% goes to Prophet; integer rounding dust also remains protocol funds.
             Fewer than two players or a stale deadline price cancels the Arena and enables full refunds.
           </p>
         </Section>

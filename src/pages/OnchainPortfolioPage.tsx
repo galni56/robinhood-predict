@@ -203,8 +203,17 @@ export function OnchainPortfolioPage() {
     })
     .filter((p): p is Position => p != null)
 
-  const openPositions = positions.filter((p) => p.status === MarketStatusOnchain.Open)
   const settledPositions = positions.filter((p) => p.status !== MarketStatusOnchain.Open)
+  const predictionPositionsLoading = marketCount.isLoading
+    || markets.isLoading
+    || stakesYes.isLoading
+    || stakesNo.isLoading
+    || claimedFlags.isLoading
+  const predictionPositionsError = marketCount.isError
+    || markets.isError
+    || stakesYes.isError
+    || stakesNo.isError
+    || claimedFlags.isError
   const decidedPositions = settledPositions.filter((p) => p.status === MarketStatusOnchain.Resolved)
   const wonPosition = (p: Position) => (outcome(p) === 'YES' && p.yesStake > 0n) || (outcome(p) === 'NO' && p.noStake > 0n)
   const wins = decidedPositions.filter(wonPosition)
@@ -407,6 +416,22 @@ export function OnchainPortfolioPage() {
         </div>
       </section>
 
+      <section className="rounded-3xl border border-[#8B7CF7]/20 bg-[#1f1829] p-5">
+        <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-[#B3A7FA]">Prediction Markets</p>
+            <h2 className="mt-1 font-display text-xl font-bold">Your market positions ({positions.length})</h2>
+          </div>
+          <Link to="/onchain/archive?mode=markets" className="text-xs font-bold text-[#B3A7FA] hover:text-white">Market history →</Link>
+        </div>
+        <PositionList positions={positions} isLoading={predictionPositionsLoading} />
+        {predictionPositionsError && (
+          <p className="mt-3 rounded-xl border border-rose-500/20 bg-rose-500/10 px-3 py-2 text-xs text-rose-300">
+            Some Prediction Market positions could not be loaded. Refresh to retry.
+          </p>
+        )}
+      </section>
+
       <section className="rounded-3xl border border-[#F2A65A]/15 bg-[#1f1829] p-5">
         <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
           <div>
@@ -434,16 +459,6 @@ export function OnchainPortfolioPage() {
           Some Race or Arena positions could not be loaded. Refresh to retry.
         </p>
       )}
-
-      <div>
-        <h2 className="font-display text-lg font-bold mb-3">Open Prediction Markets ({openPositions.length})</h2>
-        <PositionList positions={openPositions} />
-      </div>
-
-      <div>
-        <h2 className="font-display text-lg font-bold mb-3">Settled Prediction Markets ({settledPositions.length})</h2>
-        <PositionList positions={settledPositions} />
-      </div>
     </div>
   )
 }
@@ -526,11 +541,20 @@ function ArenaPositionList({ positions, isLoading }: { positions: WalletArenaPos
   )
 }
 
-function PositionList({ positions }: { positions: Position[] }) {
-  if (positions.length === 0) return <p className="text-white/30 text-sm text-center py-6">Nothing here yet.</p>
+function PositionList({ positions, isLoading = false }: { positions: Position[]; isLoading?: boolean }) {
+  if (isLoading && positions.length === 0) return <p className="py-6 text-center text-sm text-white/35">Finding your market positions…</p>
+  if (positions.length === 0) return <p className="py-6 text-center text-sm text-white/30">No market positions for this wallet.</p>
+  const ordered = [...positions].sort((a, b) => {
+    const actionable = (position: Position) => position.status === MarketStatusOnchain.Cancelled
+      || (position.status === MarketStatusOnchain.Resolved && !position.hasClaimed && wonPositionForMarket(position))
+    const priority = Number(actionable(b)) - Number(actionable(a))
+    if (priority !== 0) return priority
+    const openPriority = Number(b.status === MarketStatusOnchain.Open) - Number(a.status === MarketStatusOnchain.Open)
+    return openPriority || (a.id === b.id ? 0 : a.id > b.id ? -1 : 1)
+  })
   return (
     <div className="space-y-2">
-      {positions.map((p) => (
+      {ordered.map((p) => (
         <div
           key={p.id.toString()}
           className="flex flex-wrap items-center gap-3 text-sm bg-[#241b2f] border border-white/5 rounded-xl px-4 py-3 hover:border-[#8B7CF7]/40 transition-colors"
@@ -575,6 +599,11 @@ function PositionList({ positions }: { positions: Position[] }) {
       ))}
     </div>
   )
+}
+
+function wonPositionForMarket(position: Position) {
+  return (outcome(position) === 'YES' && position.yesStake > 0n)
+    || (outcome(position) === 'NO' && position.noStake > 0n)
 }
 
 function outcome(p: Position): MarketSide {

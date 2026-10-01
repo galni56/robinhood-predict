@@ -188,7 +188,7 @@ export function OnchainCreateMarketPage() {
                 {
                   title: 'The market opens',
                   timing: 'Immediately',
-                  body: 'Players choose YES or NO and enter $1–$50 in USD or ETH. The wallet sends the exact native ETH amount in one transaction—no approval or swap. Each wallet may place one position on each side.',
+                  body: 'Players choose YES or NO and enter $1–$50 in USD or ETH. The wallet sends the exact native ETH amount in one transaction - no approval or swap. Each wallet may place one position on each side.',
                 },
                 {
                   title: 'Betting is open',

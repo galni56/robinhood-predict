@@ -202,7 +202,7 @@ export function OnchainRacePage({ legacy = false }: { legacy?: boolean }) {
     <div className="mx-auto max-w-[1200px] px-4 py-8">
       {legacy && (
         <div className="mb-5 rounded-2xl border border-[#8A72F8]/25 bg-[#8A72F8]/10 px-4 py-3 text-sm font-medium text-[#B3A7FA]">
-          Legacy Asset Race — new bets are disabled. Existing claims and refunds remain available here.
+          Legacy Asset Race - new bets are disabled. Existing claims and refunds remain available here.
         </div>
       )}
       {isPreview ? (

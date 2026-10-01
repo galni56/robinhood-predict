@@ -137,7 +137,7 @@ export function OnchainCreateRacePage() {
                 {
                   title: 'Fix the finish and settle',
                   timing: '5 min proof grace',
-                  body: 'The finish snapshot belongs to the scheduled end. Highest return wins—even if every return is negative, the least-negative asset leads. An exact top tie voids the race.',
+                  body: 'The finish snapshot belongs to the scheduled end. Highest return wins - even if every return is negative, the least-negative asset leads. An exact top tie voids the race.',
                 },
                 {
                   title: 'Claim or refund',

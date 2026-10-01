@@ -33,7 +33,7 @@ const GAME_GUIDES = [
     href: '/onchain',
     cta: 'Explore markets',
     steps: [
-      ['Choose the question', 'Open a market—or create one with a reviewed stock, target price and deadline.'],
+      ['Choose the question', 'Open a market - or create one with a reviewed stock, target price and deadline.'],
       ['Take YES or NO', 'Enter a stake in USD or ETH. Your wallet sends the exact amount as native ETH in one transaction.'],
       ['Bet before the cutoff', 'Earlier bets carry more pool-share weight. Betting closes before the final price deadline.'],
       ['Settle the pool', 'The last valid price before the deadline decides it. Both sides and two wallets are required; otherwise every stake is refundable. Winners recover principal and split the losing pool. The 2% profit fee is split equally between the market creator and Prophet.'],
@@ -51,7 +51,7 @@ const GAME_GUIDES = [
     steps: [
       ['Pick a race', 'Choose a stock or meme race. Community lobbies can assemble 2–6 approved assets before betting.'],
       ['Back one contender', 'During the betting window, choose one asset and stake in USD or ETH; top-ups stay on that asset.'],
-      ['Watch T0 → T1', 'Every contender uses the same fixed start and finish snapshots. The highest percentage return wins—even if all returns are negative.'],
+      ['Watch T0 → T1', 'Every contender uses the same fixed start and finish snapshots. The highest percentage return wins - even if all returns are negative.'],
       ['Claim or refund', 'Backers of the winner recover principal and share the losing pools after the 2% profit fee. An exact top tie voids the race and makes stakes refundable.'],
     ],
   },

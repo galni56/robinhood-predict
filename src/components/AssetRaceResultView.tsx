@@ -54,7 +54,7 @@ export function AssetRaceResultView({
   const refundable = !resolved && position?.exists && !position.settled
 
   const action = race.source === 'preview' ? (
-    <button disabled className="w-full rounded-lg bg-white/10 py-2.5 text-sm font-semibold text-white/45">Preview only — no transaction will be sent</button>
+    <button disabled className="w-full rounded-lg bg-white/10 py-2.5 text-sm font-semibold text-white/45">Preview only - no transaction will be sent</button>
   ) : !isConnected ? (
     <WalletOptionsList tone="race" />
   ) : !onRightChain ? (

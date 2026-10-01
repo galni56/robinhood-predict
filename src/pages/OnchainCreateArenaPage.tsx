@@ -110,7 +110,7 @@ export function OnchainCreateArenaPage() {
                 {
                   title: 'The deadline price ranks everyone',
                   timing: 'At the fixed finish',
-                  body: 'Settlement uses the last valid onchain price strictly before the deadline. The closest floor(player count ÷ 2) forecasts win—one winner with 2–3 players and up to 10 with 20. Equal errors are ordered by the earlier most-recent prediction update, then wallet address.',
+                  body: 'Settlement uses the last valid onchain price strictly before the deadline. The closest floor(player count ÷ 2) forecasts win - one winner with 2–3 players and up to 10 with 20. Equal errors are ordered by the earlier most-recent prediction update, then wallet address.',
                 },
                 {
                   title: 'Claim or receive a refund',
