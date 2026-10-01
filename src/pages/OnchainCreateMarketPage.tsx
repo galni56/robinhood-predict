@@ -1,7 +1,7 @@
 import { type FormEvent, useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { formatUnits, parseUnits } from 'viem'
-import { useAccount, useChainId, useSwitchChain, useWriteContract } from 'wagmi'
+import { useAccount, useSwitchChain, useWriteContract } from 'wagmi'
 import { simulateContract, waitForTransactionReceipt } from 'wagmi/actions'
 import { robinhoodMainnet, wagmiConfig } from '@/chain/config'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
@@ -47,8 +47,7 @@ function compactDuration(seconds: number) {
 export function OnchainCreateMarketPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const { address, isConnected } = useAccount()
-  const chainId = useChainId()
+  const { address, isConnected, chainId } = useAccount()
   const { switchChain, isPending: isSwitching } = useSwitchChain()
   const { writeContractAsync } = useWriteContract()
 

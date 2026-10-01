@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { waitForTransactionReceipt } from 'wagmi/actions'
-import { useAccount, useChainId, useSwitchChain, useWriteContract } from 'wagmi'
+import { useAccount, useSwitchChain, useWriteContract } from 'wagmi'
 import type { ApprovedRaceAsset, AssetRaceMode } from '@/chain/assetRaces'
 import { ASSET_RACE_ADDRESS, assetRaceAbi, categoryForRaceMode } from '@/chain/assetRaces'
 import { assetRaceChain, isLocalAssetRace, wagmiConfig } from '@/chain/config'
@@ -24,8 +24,7 @@ export function OnchainCreateRacePage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const mode: AssetRaceMode = searchParams.get('mode') === 'memes' ? 'memes' : 'stocks'
   const category = categoryForRaceMode(mode)
-  const { address, isConnected } = useAccount()
-  const chainId = useChainId()
+  const { address, isConnected, chainId } = useAccount()
   const { switchChain, isPending: isSwitching } = useSwitchChain()
   const { writeContractAsync } = useWriteContract()
   const { assets, durations, isLoading, error: registryError } = useApprovedRaceAssets()

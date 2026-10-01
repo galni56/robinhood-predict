@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { formatEther, formatUnits, parseAbiItem } from 'viem'
-import { useAccount, useBalance, useChainId, usePublicClient, useReadContract, useSwitchChain, useWriteContract } from 'wagmi'
+import { useAccount, useBalance, usePublicClient, useReadContract, useSwitchChain, useWriteContract } from 'wagmi'
 import { waitForTransactionReceipt } from 'wagmi/actions'
 import { robinhoodMainnet, wagmiConfig } from '@/chain/config'
 import { DEMO_USERS, demoBetLogs, demoPools, isDemoMode } from '@/chain/demo'
@@ -64,8 +64,7 @@ export function OnchainMarketPage({ legacy = false }: { legacy?: boolean }) {
   const marketAbi = legacy ? predictionMarketV1Abi : predictionMarketAbi
   const marketDeployBlock = legacy ? LEGACY_PREDICTION_MARKET_DEPLOY_BLOCK : DEPLOY_BLOCK
   const marketConfigured = legacy || PREDICTION_MARKET_CONFIGURED
-  const { address, isConnected } = useAccount()
-  const chainId = useChainId()
+  const { address, isConnected, chainId } = useAccount()
   const { switchChain, isPending: isSwitching } = useSwitchChain()
   const { writeContractAsync } = useWriteContract()
 

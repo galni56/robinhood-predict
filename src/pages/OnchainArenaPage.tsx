@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router-dom'
 import { formatEther, formatUnits, parseUnits, type Address } from 'viem'
 import { waitForTransactionReceipt } from 'wagmi/actions'
-import { useAccount, useBalance, useChainId, useSwitchChain, useWriteContract } from 'wagmi'
+import { useAccount, useBalance, useSwitchChain, useWriteContract } from 'wagmi'
 import { assetRaceChain, wagmiConfig } from '@/chain/config'
 import {
   formatUsdCents,
@@ -84,7 +84,7 @@ function ArenaBoard({ rows, referencePrice, decimals, quote, resolved, winnerCou
 
 export function OnchainArenaPage({ legacy = false }: { legacy?: boolean }) {
   const arenaId = parseId(useParams().arenaId)
-  const { address, isConnected } = useAccount()
+  const { address, isConnected, chainId } = useAccount()
   const {
     arena,
     entries,
@@ -96,7 +96,6 @@ export function OnchainArenaPage({ legacy = false }: { legacy?: boolean }) {
     refetch,
   } = usePriceArena(arenaId, address, legacy ? LEGACY_PRICE_ARENA_ADDRESS : PRICE_ARENA_ADDRESS)
   const arenaContractAddress = legacy ? LEGACY_PRICE_ARENA_ADDRESS : PRICE_ARENA_ADDRESS
-  const chainId = useChainId()
   const { switchChain, isPending: isSwitching } = useSwitchChain()
   const { writeContractAsync } = useWriteContract()
   const queryClient = useQueryClient()
