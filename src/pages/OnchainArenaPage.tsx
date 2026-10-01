@@ -75,7 +75,7 @@ function ArenaBoard({ rows, referencePrice, decimals, quote, resolved, winnerCou
           <div className="font-mono text-lg text-white/40">#{resolved ? entry.rank : index + 1}</div>
           <div className="min-w-0"><AddressLabel address={player} className="font-bold text-white/80" /><div title={`${formatEther(entry.stake)} ETH`} className="truncate text-xs text-white/30">{formatCompactEth(entry.stake)}</div></div>
           <div><div className="text-xs text-white/30">Prediction</div><div className="font-mono font-bold">{displayPrice(entry.prediction, decimals, quote)}</div></div>
-          <div className="min-w-0 sm:text-right"><div className="text-xs text-white/30">{resolved ? (winning ? 'Payout' : 'Result') : 'Live error'}</div><div title={resolved && entry.payout > 0n ? `${formatEther(entry.payout)} ETH` : undefined} className={`truncate font-mono font-bold ${winning ? 'text-emerald-300' : 'text-white/50'}`}>{resolved ? (entry.payout > 0n ? formatCompactEth(entry.payout) : 'Lost') : `${error.toFixed(4)}%`}</div></div>
+          <div className="min-w-0 sm:text-right"><div className="text-xs text-white/30">{resolved ? (winning ? 'Payout' : 'Result') : 'Live deviation'}</div><div title={resolved && entry.payout > 0n ? `${formatEther(entry.payout)} ETH` : undefined} className={`truncate font-mono font-bold ${winning ? 'text-emerald-300' : 'text-white/50'}`}>{resolved ? (entry.payout > 0n ? formatCompactEth(entry.payout) : 'Lost') : `${error.toFixed(4)}%`}</div></div>
         </div>
       })}
     </div>
