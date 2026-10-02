@@ -11,6 +11,9 @@ Status: planning, branch `solana-migration`. Nothing here is deployed.
 | Games kept | Asset Race, Price Arena, nicknames, buyback/burn (re-designed for SPL). |
 | Price source | DEX pools on Solana (Raydium / Orca / Meteora), via a signed-observation oracle. |
 | Stake currency | SOL now. Prophet SPL token later, as a second accepted mint. |
+| Price quote | All pool prices are quoted in SOL (pools paired with USDC are converted through the SOL/USDC pool at the same slot). |
+| Price Arena size | Max 10 participants per arena; resolution in a single transaction. |
+| Mock demo | Removed (`/demo`, `src/store/`, `src/market/`, non-Onchain pages). |
 
 ## What changes and why
 
@@ -23,7 +26,7 @@ passed in. Each EVM contract becomes one Anchor program.
 | EVM contract | Solana program | Notes |
 |---|---|---|
 | `AssetRace.sol` | `asset_race` | `Race` PDA per race, `Position` PDA per (race, wallet). Max 6 assets per race fits in one account. |
-| `PriceArena.sol` | `price_arena` | **Needs a design change.** Resolution sorts all entries by accuracy; an unbounded loop does not fit Solana's compute budget. Options: hard participant cap (e.g. 64) and resolve in one tx, or a multi-tx crank that ranks in batches. |
+| `PriceArena.sol` | `price_arena` | Hard cap of 10 participants; all entries are ranked and paid out in one `resolve` transaction (fits the compute budget comfortably). |
 | `SignedPoolRaceOracle.sol` | shared `signed_oracle` module | Keeper signs pool observations with an **ed25519** key; programs verify via the Ed25519 native program + instructions sysvar. Replaces EIP-712/ECDSA. "Block pair" boundary proof becomes a slot pair (`slot`, `slot + 1` timestamps). |
 | `ChainlinkV3RaceOracle.sol` | dropped | Not needed with DEX-pool pricing. |
 | `NicknameRegistry.sol` | `nickname` (or a field in a user-profile PDA) | Trivial. |
@@ -66,7 +69,7 @@ manipulable (sandwich/flash within the same slot). Keep the existing model:
   landing, portfolio, leaderboard, archive.
 - Amount input: USD or SOL, using a cached SOL/USD quote (same fixed-point
   approach as the ETH version).
-- Mock demo (`/demo`): decide separately whether to keep (it is chain-agnostic).
+- Delete the mock demo: `/demo` and all non-Onchain routes, `src/store/`, `src/market/`.
 
 ### 4. Keepers / infra
 
@@ -101,8 +104,5 @@ Every step is a mainnet transaction run by the owner.
 
 ## Open questions for the owner
 
-- Price Arena: participant cap or multi-tx crank?
-- Quote currency for pool prices: USDC everywhere, or SOL for memes?
-- Keep `/demo` mock?
 - Squads multisig as upgrade/config authority — OK?
 - External audit budget before mainnet?
