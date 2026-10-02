@@ -6,9 +6,17 @@ use {
         solana_program::{
             bpf_loader_upgradeable,
             instruction::{AccountMeta, Instruction},
-            system_program,
+            program_pack::Pack,
+            system_instruction, system_program,
         },
         AccountDeserialize, AnchorSerialize, InstructionData, ToAccountMetas,
+    },
+    anchor_spl::{
+        associated_token::{
+            get_associated_token_address_with_program_id, spl_associated_token_account::instruction as ata_ix,
+        },
+        token_2022::spl_token_2022::{instruction as token_ix, state::Mint as MintState},
+        token_interface::TokenAccount,
     },
     asset_race::{
         accounts as acc,
@@ -28,13 +36,25 @@ use {
 pub const SOL: u64 = 1_000_000_000;
 pub const START_TIME: i64 = 1_800_000_000;
 pub const DECIMALS: u8 = 9;
+/// Default stake limits for every accepted currency in tests.
+pub const MIN_STAKE: u64 = SOL / 100;
+pub const MAX_STAKE: u64 = SOL;
+pub const TOKEN_DECIMALS: u8 = 6;
 
 pub fn config_pda() -> Pubkey {
     Pubkey::find_program_address(&[CONFIG_SEED], &asset_race::ID).0
 }
 
+pub fn stake_mint_pda(mint: &Pubkey) -> Pubkey {
+    Pubkey::find_program_address(&[STAKE_MINT_SEED, mint.as_ref()], &asset_race::ID).0
+}
+
+pub fn treasury_pda_for(mint: &Pubkey) -> Pubkey {
+    Pubkey::find_program_address(&[TREASURY_SEED, mint.as_ref()], &asset_race::ID).0
+}
+
 pub fn treasury_pda() -> Pubkey {
-    Pubkey::find_program_address(&[TREASURY_SEED, NATIVE_SOL.as_ref()], &asset_race::ID).0
+    treasury_pda_for(&NATIVE_SOL)
 }
 
 pub fn asset_pda(asset_id: &[u8; 32]) -> Pubkey {
@@ -49,8 +69,12 @@ pub fn position_pda(race: &Pubkey, owner: &Pubkey) -> Pubkey {
     Pubkey::find_program_address(&[POSITION_SEED, race.as_ref(), owner.as_ref()], &asset_race::ID).0
 }
 
+pub fn creator_pda_for(mint: &Pubkey, creator: &Pubkey) -> Pubkey {
+    Pubkey::find_program_address(&[CREATOR_SEED, mint.as_ref(), creator.as_ref()], &asset_race::ID).0
+}
+
 pub fn creator_pda(creator: &Pubkey) -> Pubkey {
-    Pubkey::find_program_address(&[CREATOR_SEED, NATIVE_SOL.as_ref(), creator.as_ref()], &asset_race::ID).0
+    creator_pda_for(&NATIVE_SOL, creator)
 }
 
 pub fn program_data_pda() -> Pubkey {
@@ -67,17 +91,31 @@ pub fn test_asset(n: u8) -> TestAsset {
     TestAsset { id: [n; 32], source: Pubkey::new_unique() }
 }
 
+/// An SPL mint created in the test VM.
+#[derive(Clone, Copy)]
+pub struct Token {
+    pub mint: Pubkey,
+    pub program: Pubkey,
+}
+
+impl Token {
+    pub fn ata(&self, owner: &Pubkey) -> Pubkey {
+        get_associated_token_address_with_program_id(owner, &self.mint, &self.program)
+    }
+}
+
 pub struct Harness {
     pub svm: LiteSVM,
     pub admin: Keypair,
     pub oracle: Keypair,
     pub assets: Vec<TestAsset>,
+    pub tokens: Vec<Token>,
 }
 
 impl Harness {
     /// Deploys the program with `admin` as upgrade authority. Does not initialize.
     pub fn deploy() -> Self {
-        let mut svm = LiteSVM::new().with_precompiles();
+        let mut svm = LiteSVM::new();
         let bytes = include_bytes!(concat!(env!("CARGO_TARGET_TMPDIR"), "/../deploy/asset_race.so"));
         svm.add_program(asset_race::ID, bytes).unwrap();
 
@@ -97,16 +135,18 @@ impl Harness {
             admin,
             oracle: Keypair::new(),
             assets: (1..=4).map(test_asset).collect(),
+            tokens: Vec::new(),
         };
         harness.set_time(START_TIME);
         harness
     }
 
-    /// Deploys, initializes and approves four Stock assets.
+    /// Deploys, initializes, accepts native SOL and approves four Stock assets.
     pub fn new() -> Self {
         let mut h = Self::deploy();
         let admin = h.admin.insecure_clone();
         h.send(&[h.initialize_ix(&admin.pubkey())], &admin, &[]).unwrap();
+        h.set_stake_mint(NATIVE_SOL, true, MIN_STAKE, MAX_STAKE).unwrap();
         for asset in h.assets.clone() {
             h.approve_asset(&asset, Category::Stock, true).unwrap();
         }
@@ -159,6 +199,43 @@ impl Harness {
         }
     }
 
+    // ---------------------------------------------------------------- tokens
+
+    /// Creates a mint (admin is mint authority) under `program`.
+    pub fn create_token(&mut self, program: Pubkey) -> Token {
+        let admin = self.admin.insecure_clone();
+        let mint = Keypair::new();
+        let rent = self.svm.minimum_balance_for_rent_exemption(MintState::LEN);
+        let create =
+            system_instruction::create_account(&admin.pubkey(), &mint.pubkey(), rent, MintState::LEN as u64, &program);
+        let init = token_ix::initialize_mint2(&program, &mint.pubkey(), &admin.pubkey(), None, TOKEN_DECIMALS).unwrap();
+        self.send(&[create, init], &admin, &[&mint]).unwrap();
+        let token = Token { mint: mint.pubkey(), program };
+        self.tokens.push(token);
+        token
+    }
+
+    /// Creates `owner`'s associated token account if needed and mints to it.
+    pub fn fund_token(&mut self, token: &Token, owner: &Pubkey, amount: u64) {
+        let admin = self.admin.insecure_clone();
+        let create =
+            ata_ix::create_associated_token_account_idempotent(&admin.pubkey(), owner, &token.mint, &token.program);
+        let mint_to =
+            token_ix::mint_to(&token.program, &token.mint, &token.ata(owner), &admin.pubkey(), &[], amount).unwrap();
+        self.send(&[create, mint_to], &admin, &[]).unwrap();
+    }
+
+    pub fn token_balance(&self, account: &Pubkey) -> u64 {
+        let data = self.svm.get_account(account).expect("token account exists").data;
+        TokenAccount::try_deserialize(&mut &data[..]).unwrap().amount
+    }
+
+    pub fn token_of(&self, mint: &Pubkey) -> Option<Token> {
+        self.tokens.iter().copied().find(|t| t.mint == *mint)
+    }
+
+    // ------------------------------------------------------------- admin ixs
+
     pub fn initialize_ix(&self, admin: &Pubkey) -> Instruction {
         Instruction::new_with_bytes(
             asset_race::ID,
@@ -166,13 +243,35 @@ impl Harness {
             acc::Initialize {
                 admin: *admin,
                 config: config_pda(),
-                treasury: treasury_pda(),
                 program: asset_race::ID,
                 program_data: program_data_pda(),
                 system_program: system_program::ID,
             }
             .to_account_metas(None),
         )
+    }
+
+    pub fn set_stake_mint(&mut self, stake_mint: Pubkey, enabled: bool, min_stake: u64, max_stake: u64) -> Result<(), String> {
+        let admin = self.admin.insecure_clone();
+        let token = self.token_of(&stake_mint);
+        let treasury = treasury_pda_for(&stake_mint);
+        let instruction = Instruction::new_with_bytes(
+            asset_race::ID,
+            &ix::SetStakeMint { stake_mint, enabled, min_stake, max_stake }.data(),
+            acc::SetStakeMint {
+                admin: admin.pubkey(),
+                config: config_pda(),
+                stake_mint_config: stake_mint_pda(&stake_mint),
+                treasury,
+                token_mint: token.map(|t| t.mint),
+                treasury_vault: token.map(|t| t.ata(&treasury)),
+                token_program: token.map(|t| t.program),
+                associated_token_program: token.map(|_| anchor_spl::associated_token::ID),
+                system_program: system_program::ID,
+            }
+            .to_account_metas(None),
+        );
+        self.send(&[instruction], &admin, &[])
     }
 
     pub fn admin_config_ix(&self, data: Vec<u8>, admin: &Pubkey) -> Instruction {
@@ -206,6 +305,44 @@ impl Harness {
         self.send(&[instruction], &admin, &[])
     }
 
+    pub fn withdraw_fees_ix(&self, stake_mint: Pubkey, amount: u64, admin: &Pubkey, recipient: &Pubkey) -> Instruction {
+        let token = self.token_of(&stake_mint);
+        let treasury = treasury_pda_for(&stake_mint);
+        Instruction::new_with_bytes(
+            asset_race::ID,
+            &ix::WithdrawFees { stake_mint, amount }.data(),
+            acc::WithdrawFees {
+                admin: *admin,
+                config: config_pda(),
+                treasury,
+                recipient: *recipient,
+                token_mint: token.map(|t| t.mint),
+                treasury_vault: token.map(|t| t.ata(&treasury)),
+                recipient_token: token.map(|t| t.ata(recipient)),
+                token_program: token.map(|t| t.program),
+            }
+            .to_account_metas(None),
+        )
+    }
+
+    pub fn withdraw_creator_ix(&self, stake_mint: Pubkey, creator: &Pubkey) -> Instruction {
+        let token = self.token_of(&stake_mint);
+        let earnings = creator_pda_for(&stake_mint, creator);
+        Instruction::new_with_bytes(
+            asset_race::ID,
+            &ix::WithdrawCreatorFees { stake_mint }.data(),
+            acc::WithdrawCreatorFees {
+                creator: *creator,
+                creator_earnings: earnings,
+                token_mint: token.map(|t| t.mint),
+                creator_vault: token.map(|t| t.ata(&earnings)),
+                creator_token: token.map(|t| t.ata(creator)),
+                token_program: token.map(|t| t.program),
+            }
+            .to_account_metas(None),
+        )
+    }
+
     pub fn config(&self) -> Config {
         self.fetch(&config_pda())
     }
@@ -223,6 +360,7 @@ impl Harness {
         let now = self.now();
         PlatformRaceInput {
             category: Category::Stock,
+            stake_mint: NATIVE_SOL,
             betting_start_time: now,
             betting_end_time: now + 600,
             race_duration: 3_600,
@@ -230,8 +368,8 @@ impl Harness {
             resolution_grace: 300,
             fee_bp: 200,
             min_active_contenders: 2,
-            min_stake: SOL / 100,
-            max_stake_per_wallet: SOL,
+            min_stake: MIN_STAKE,
+            max_stake_per_wallet: MAX_STAKE,
         }
     }
 
@@ -239,11 +377,20 @@ impl Harness {
     pub fn create_platform_race(&mut self, input: PlatformRaceInput, asset_count: usize) -> Result<u64, String> {
         let admin = self.admin.insecure_clone();
         let race_id = self.config().race_count;
+        let race = race_pda(race_id);
+        let token = self.token_of(&input.stake_mint);
+        let earnings = creator_pda_for(&input.stake_mint, &admin.pubkey());
         let mut metas = acc::CreatePlatformRace {
             admin: admin.pubkey(),
             config: config_pda(),
-            race: race_pda(race_id),
-            creator_earnings: creator_pda(&admin.pubkey()),
+            stake_mint_config: stake_mint_pda(&input.stake_mint),
+            race,
+            creator_earnings: earnings,
+            token_mint: token.map(|t| t.mint),
+            race_vault: token.map(|t| t.ata(&race)),
+            creator_vault: token.map(|t| t.ata(&earnings)),
+            token_program: token.map(|t| t.program),
+            associated_token_program: token.map(|_| anchor_spl::associated_token::ID),
             system_program: system_program::ID,
         }
         .to_account_metas(None);
@@ -259,8 +406,50 @@ impl Harness {
         Ok(race_id)
     }
 
+    pub fn create_community_ix(
+        &self,
+        race_id: u64,
+        creator: &Pubkey,
+        duration: i64,
+        stake_mint: Pubkey,
+        assets: &[usize],
+    ) -> Instruction {
+        let race = race_pda(race_id);
+        let token = self.token_of(&stake_mint);
+        let earnings = creator_pda_for(&stake_mint, creator);
+        let mut metas = acc::CreateCommunityRace {
+            creator: *creator,
+            config: config_pda(),
+            stake_mint_config: stake_mint_pda(&stake_mint),
+            race,
+            creator_earnings: earnings,
+            token_mint: token.map(|t| t.mint),
+            race_vault: token.map(|t| t.ata(&race)),
+            creator_vault: token.map(|t| t.ata(&earnings)),
+            token_program: token.map(|t| t.program),
+            associated_token_program: token.map(|_| anchor_spl::associated_token::ID),
+            system_program: system_program::ID,
+        }
+        .to_account_metas(None);
+        for index in assets {
+            metas.push(AccountMeta::new_readonly(asset_pda(&self.assets[*index].id), false));
+        }
+        Instruction::new_with_bytes(
+            asset_race::ID,
+            &ix::CreateCommunityRace {
+                title: "Community".into(),
+                category: Category::Stock,
+                race_duration: duration,
+                stake_mint,
+            }
+            .data(),
+            metas,
+        )
+    }
+
     pub fn bet_ix(&self, race_id: u64, bettor: &Pubkey, asset_index: u8, amount: u64) -> Instruction {
         let race = race_pda(race_id);
+        let token = self.token_of(&self.race(race_id).stake_mint);
         Instruction::new_with_bytes(
             asset_race::ID,
             &ix::Bet { asset_index, amount }.data(),
@@ -269,6 +458,10 @@ impl Harness {
                 config: config_pda(),
                 race,
                 position: position_pda(&race, bettor),
+                token_mint: token.map(|t| t.mint),
+                bettor_token: token.map(|t| t.ata(bettor)),
+                race_vault: token.map(|t| t.ata(&race)),
+                token_program: token.map(|t| t.program),
                 system_program: system_program::ID,
             }
             .to_account_metas(None),
@@ -316,19 +509,34 @@ impl Harness {
         )
     }
 
-    pub fn resolve_ix(&self, race_id: u64) -> Instruction {
-        let race: Race = self.race(race_id);
+    /// Resolve instruction; `treasury_vault_override` lets tests try to divert fees.
+    pub fn resolve_ix_with(&self, race_id: u64, treasury_vault_override: Option<Pubkey>) -> Instruction {
+        let race_state: Race = self.race(race_id);
+        let race = race_pda(race_id);
+        let mint = race_state.stake_mint;
+        let token = self.token_of(&mint);
+        let treasury = treasury_pda_for(&mint);
+        let earnings = creator_pda_for(&mint, &race_state.creator);
         Instruction::new_with_bytes(
             asset_race::ID,
             &ix::ResolveRace {}.data(),
             acc::ResolveRace {
-                race: race_pda(race_id),
-                treasury: treasury_pda(),
-                creator_earnings: creator_pda(&race.creator),
+                race,
+                treasury,
+                creator_earnings: earnings,
                 instructions: solana_sdk_ids::sysvar::instructions::ID,
+                token_mint: token.map(|t| t.mint),
+                race_vault: token.map(|t| t.ata(&race)),
+                treasury_vault: token.map(|t| treasury_vault_override.unwrap_or(t.ata(&treasury))),
+                creator_vault: token.map(|t| t.ata(&earnings)),
+                token_program: token.map(|t| t.program),
             }
             .to_account_metas(None),
         )
+    }
+
+    pub fn resolve_ix(&self, race_id: u64) -> Instruction {
+        self.resolve_ix_with(race_id, None)
     }
 
     pub fn start_with(&mut self, race_id: u64, attestation: &PoolAttestation, signer: &Keypair) -> Result<(), String> {
@@ -345,11 +553,20 @@ impl Harness {
 
     pub fn settle_ix(&self, data: Vec<u8>, race_id: u64, owner: &Pubkey) -> Instruction {
         let race = race_pda(race_id);
+        let token = self.token_of(&self.race(race_id).stake_mint);
         Instruction::new_with_bytes(
             asset_race::ID,
             &data,
-            acc::SettlePosition { owner: *owner, race, position: position_pda(&race, owner) }
-                .to_account_metas(None),
+            acc::SettlePosition {
+                owner: *owner,
+                race,
+                position: position_pda(&race, owner),
+                token_mint: token.map(|t| t.mint),
+                race_vault: token.map(|t| t.ata(&race)),
+                owner_token: token.map(|t| t.ata(owner)),
+                token_program: token.map(|t| t.program),
+            }
+            .to_account_metas(None),
         )
     }
 

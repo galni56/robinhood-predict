@@ -35,13 +35,23 @@ pub struct Config {
     /// Pauses only creation and new entries. Resolution, claims and refunds stay open.
     pub paused: bool,
     pub arena_count: u64,
-    /// Per-player stake bounds in lamports, snapshotted into each new arena.
+    pub bump: u8,
+}
+
+/// An accepted stake currency: native SOL (`NATIVE_SOL`) or an SPL mint, with
+/// the per-player stake bounds snapshotted into each new arena.
+#[account]
+#[derive(InitSpace)]
+pub struct StakeMintConfig {
+    pub mint: Pubkey,
+    pub enabled: bool,
     pub min_stake: u64,
     pub max_stake: u64,
     pub bump: u8,
 }
 
-/// Fee balance for one stake mint, held as lamports above rent.
+/// Fee balance for one stake mint: lamports above rent for native SOL, or the
+/// balance of its vault (associated token account) for an SPL mint.
 #[account]
 #[derive(InitSpace)]
 pub struct Treasury {

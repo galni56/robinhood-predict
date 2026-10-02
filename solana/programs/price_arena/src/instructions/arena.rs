@@ -1,6 +1,10 @@
 use anchor_lang::prelude::*;
-use anchor_lang::system_program;
+use anchor_spl::{
+    associated_token::AssociatedToken,
+    token_interface::{Mint, TokenInterface},
+};
 use solana_sdk_ids::sysvar::instructions as instructions_sysvar;
+use stake_funds::{deposit_native, pay_from_pda, required};
 
 use crate::{
     attestation::{arena_err, load_verified_attestation},
@@ -10,12 +14,19 @@ use crate::{
     state::*,
 };
 
+fn as_info<'a, 'info>(account: &'a Option<UncheckedAccount<'info>>) -> Option<&'a AccountInfo<'info>> {
+    account.as_ref().map(|a| a.as_ref())
+}
+
 #[derive(Accounts)]
+#[instruction(title: String, duration: i64, stake_mint: Pubkey)]
 pub struct CreateArena<'info> {
     #[account(mut)]
     pub creator: Signer<'info>,
     #[account(mut, seeds = [CONFIG_SEED], bump = config.bump)]
     pub config: Account<'info, Config>,
+    #[account(seeds = [STAKE_MINT_SEED, stake_mint.as_ref()], bump = stake_mint_config.bump)]
+    pub stake_mint_config: Account<'info, StakeMintConfig>,
     pub approved_asset: Account<'info, ApprovedAsset>,
     #[account(
         init,
@@ -29,20 +40,31 @@ pub struct CreateArena<'info> {
         init_if_needed,
         payer = creator,
         space = 8 + CreatorEarnings::INIT_SPACE,
-        seeds = [CREATOR_SEED, NATIVE_SOL.as_ref(), creator.key().as_ref()],
+        seeds = [CREATOR_SEED, stake_mint.as_ref(), creator.key().as_ref()],
         bump
     )]
     pub creator_earnings: Account<'info, CreatorEarnings>,
+    pub token_mint: Option<InterfaceAccount<'info, Mint>>,
+    /// CHECK: must be the arena's associated token account; created here.
+    #[account(mut)]
+    pub arena_vault: Option<UncheckedAccount<'info>>,
+    /// CHECK: must be the creator-earnings associated token account; created here.
+    #[account(mut)]
+    pub creator_vault: Option<UncheckedAccount<'info>>,
+    pub token_program: Option<Interface<'info, TokenInterface>>,
+    pub associated_token_program: Option<Program<'info, AssociatedToken>>,
     pub system_program: Program<'info, System>,
 }
 
 /// Opens a ten-minute lobby on one approved asset. The contest runs for
 /// `duration` after the lobby; both boundaries are fixed here, on-chain.
-pub fn handle_create_arena(ctx: Context<CreateArena>, title: String, duration: i64) -> Result<()> {
+pub fn handle_create_arena(ctx: Context<CreateArena>, title: String, duration: i64, stake_mint: Pubkey) -> Result<()> {
     let now = Clock::get()?.unix_timestamp;
     let config = &ctx.accounts.config;
     let asset = &ctx.accounts.approved_asset;
+    let stake = &ctx.accounts.stake_mint_config;
     require!(!config.paused, ArenaError::ActivityPaused);
+    require!(stake.enabled, ArenaError::UnsupportedStakeMint);
     require!(asset.enabled, ArenaError::AssetNotApproved);
     require!(SUPPORTED_DURATIONS.contains(&duration), ArenaError::UnsupportedDuration);
     let bytes = title.as_bytes();
@@ -54,11 +76,21 @@ pub fn handle_create_arena(ctx: Context<CreateArena>, title: String, duration: i
     let deadline = add_time(starts_at, duration)?;
     add_time(deadline, RESOLUTION_GRACE)?;
 
+    let (min_stake, max_stake) = (stake.min_stake, stake.max_stake);
     let creator = ctx.accounts.creator.key();
+    if let Some(spl) = stake_funds::spl(&stake_mint, &ctx.accounts.token_mint, &ctx.accounts.token_program)? {
+        let payer = ctx.accounts.creator.to_account_info();
+        let system = ctx.accounts.system_program.to_account_info();
+        let ata_program = required(&ctx.accounts.associated_token_program)?.to_account_info();
+        let arena_vault = required(&ctx.accounts.arena_vault)?.to_account_info();
+        let creator_vault = required(&ctx.accounts.creator_vault)?.to_account_info();
+        spl.create_vault(&payer, &arena_vault, &ctx.accounts.arena.to_account_info(), &system, &ata_program)?;
+        spl.create_vault(&payer, &creator_vault, &ctx.accounts.creator_earnings.to_account_info(), &system, &ata_program)?;
+    }
     let earnings = &mut ctx.accounts.creator_earnings;
     if earnings.creator == Pubkey::default() {
         earnings.creator = creator;
-        earnings.stake_mint = NATIVE_SOL;
+        earnings.stake_mint = stake_mint;
         earnings.bump = ctx.bumps.creator_earnings;
     }
 
@@ -69,7 +101,7 @@ pub fn handle_create_arena(ctx: Context<CreateArena>, title: String, duration: i
     arena.price_decimals = asset.price_decimals;
     arena.category = asset.category;
     arena.creator = creator;
-    arena.stake_mint = NATIVE_SOL;
+    arena.stake_mint = stake_mint;
     arena.oracle_signer = config.oracle_signer;
     arena.status = ArenaStatus::Open;
     arena.cancel_reason = CancelReason::None;
@@ -79,8 +111,8 @@ pub fn handle_create_arena(ctx: Context<CreateArena>, title: String, duration: i
     arena.deadline = deadline;
     arena.duration = duration;
     arena.fee_bp = FEE_BP;
-    arena.min_stake = config.min_stake;
-    arena.max_stake = config.max_stake;
+    arena.min_stake = min_stake;
+    arena.max_stake = max_stake;
     arena.bump = ctx.bumps.arena;
 
     let config = &mut ctx.accounts.config;
@@ -105,27 +137,35 @@ pub struct PlayerEntry<'info> {
     pub config: Account<'info, Config>,
     #[account(mut)]
     pub arena: Account<'info, Arena>,
+    pub token_mint: Option<InterfaceAccount<'info, Mint>>,
+    /// CHECK: player's token account; the token program checks mint and owner.
+    #[account(mut)]
+    pub player_token: Option<UncheckedAccount<'info>>,
+    /// CHECK: checked against the arena's associated token account.
+    #[account(mut)]
+    pub arena_vault: Option<UncheckedAccount<'info>>,
+    pub token_program: Option<Interface<'info, TokenInterface>>,
     pub system_program: Program<'info, System>,
 }
 
 fn require_open_lobby(arena: &Arena, now: i64) -> Result<()> {
-    require!(arena.stake_mint == NATIVE_SOL, ArenaError::UnsupportedStakeMint);
     require!(arena.status == ArenaStatus::Open, ArenaError::ArenaNotOpen);
     require!(now < arena.starts_at, ArenaError::LobbyClosed);
     Ok(())
 }
 
 fn deposit(ctx: &Context<PlayerEntry>, amount: u64) -> Result<()> {
-    system_program::transfer(
-        CpiContext::new(
-            system_program::ID,
-            system_program::Transfer {
-                from: ctx.accounts.player.to_account_info(),
-                to: ctx.accounts.arena.to_account_info(),
-            },
-        ),
-        amount,
-    )
+    let accounts = &ctx.accounts;
+    let player = accounts.player.to_account_info();
+    let arena = accounts.arena.to_account_info();
+    match stake_funds::spl(&accounts.arena.stake_mint, &accounts.token_mint, &accounts.token_program)? {
+        None => deposit_native(&player, &arena, amount),
+        Some(spl) => {
+            let vault = required(&accounts.arena_vault)?.to_account_info();
+            spl.require_vault(&vault, arena.key)?;
+            spl.transfer(&required(&accounts.player_token)?.to_account_info(), &vault, &player, amount, &[])
+        }
+    }
 }
 
 pub fn handle_enter(ctx: Context<PlayerEntry>, prediction: u64, amount: u64) -> Result<()> {
@@ -266,6 +306,17 @@ pub struct ResolveArena<'info> {
     /// CHECK: address-constrained to the instructions sysvar.
     #[account(address = instructions_sysvar::ID)]
     pub instructions: UncheckedAccount<'info>,
+    pub token_mint: Option<InterfaceAccount<'info, Mint>>,
+    /// CHECK: checked against the arena's associated token account.
+    #[account(mut)]
+    pub arena_vault: Option<UncheckedAccount<'info>>,
+    /// CHECK: checked against the treasury's associated token account.
+    #[account(mut)]
+    pub treasury_vault: Option<UncheckedAccount<'info>>,
+    /// CHECK: checked against the creator-earnings associated token account.
+    #[account(mut)]
+    pub creator_vault: Option<UncheckedAccount<'info>>,
+    pub token_program: Option<Interface<'info, TokenInterface>>,
 }
 
 /// Settles from the last block strictly before the deadline. The closest half
@@ -342,9 +393,22 @@ pub fn handle_resolve(ctx: Context<ResolveArena>) -> Result<()> {
     arena.creator_fee = creator_fee;
     arena.remaining_liability = payout_total;
 
-    let arena_info = ctx.accounts.arena.to_account_info();
-    transfer_program_lamports(&arena_info, &ctx.accounts.treasury.to_account_info(), protocol_fee)?;
-    transfer_program_lamports(&arena_info, &ctx.accounts.creator_earnings.to_account_info(), creator_fee)?;
+    let id = arena.id.to_le_bytes();
+    let bump = [arena.bump];
+    let seeds: &[&[u8]] = &[ARENA_SEED, &id, &bump];
+    let accounts = &ctx.accounts;
+    let spl = stake_funds::spl(&accounts.arena.stake_mint, &accounts.token_mint, &accounts.token_program)?;
+    let treasury_info = accounts.treasury.to_account_info();
+    let creator_info = accounts.creator_earnings.to_account_info();
+    if let Some(spl) = &spl {
+        // Fees may only land in the protocol's own vaults.
+        spl.require_vault(required(&accounts.treasury_vault)?, &treasury_info.key())?;
+        spl.require_vault(required(&accounts.creator_vault)?, &creator_info.key())?;
+    }
+    let arena_info = accounts.arena.to_account_info();
+    let vault = as_info(&accounts.arena_vault);
+    pay_from_pda(&spl, &arena_info, &[seeds], vault, &treasury_info, as_info(&accounts.treasury_vault), protocol_fee)?;
+    pay_from_pda(&spl, &arena_info, &[seeds], vault, &creator_info, as_info(&accounts.creator_vault), creator_fee)?;
     let treasury = &mut ctx.accounts.treasury;
     treasury.accumulated_fees = treasury
         .accumulated_fees
@@ -373,6 +437,32 @@ pub struct SettleEntry<'info> {
     pub player: Signer<'info>,
     #[account(mut)]
     pub arena: Account<'info, Arena>,
+    pub token_mint: Option<InterfaceAccount<'info, Mint>>,
+    /// CHECK: checked against the arena's associated token account.
+    #[account(mut)]
+    pub arena_vault: Option<UncheckedAccount<'info>>,
+    /// CHECK: player's token account; the token program checks the mint.
+    #[account(mut)]
+    pub player_token: Option<UncheckedAccount<'info>>,
+    pub token_program: Option<Interface<'info, TokenInterface>>,
+}
+
+fn pay_player(ctx: &Context<SettleEntry>, amount: u64) -> Result<()> {
+    let accounts = &ctx.accounts;
+    let arena = &accounts.arena;
+    let id = arena.id.to_le_bytes();
+    let bump = [arena.bump];
+    let seeds: &[&[u8]] = &[ARENA_SEED, &id, &bump];
+    let spl = stake_funds::spl(&arena.stake_mint, &accounts.token_mint, &accounts.token_program)?;
+    pay_from_pda(
+        &spl,
+        &arena.to_account_info(),
+        &[seeds],
+        as_info(&accounts.arena_vault),
+        &accounts.player.to_account_info(),
+        as_info(&accounts.player_token),
+        amount,
+    )
 }
 
 pub fn handle_claim(ctx: Context<SettleEntry>) -> Result<()> {
@@ -390,11 +480,7 @@ pub fn handle_claim(ctx: Context<SettleEntry>) -> Result<()> {
         .remaining_liability
         .checked_sub(payout)
         .ok_or(error!(ArenaError::InsufficientEscrow))?;
-    transfer_program_lamports(
-        &ctx.accounts.arena.to_account_info(),
-        &ctx.accounts.player.to_account_info(),
-        payout,
-    )?;
+    pay_player(&ctx, payout)?;
     emit!(Claimed { arena: key, player, payout });
     Ok(())
 }
@@ -413,11 +499,7 @@ pub fn handle_refund(ctx: Context<SettleEntry>) -> Result<()> {
         .remaining_liability
         .checked_sub(amount)
         .ok_or(error!(ArenaError::InsufficientEscrow))?;
-    transfer_program_lamports(
-        &ctx.accounts.arena.to_account_info(),
-        &ctx.accounts.player.to_account_info(),
-        amount,
-    )?;
+    pay_player(&ctx, amount)?;
     emit!(Refunded { arena: key, player, amount });
     Ok(())
 }

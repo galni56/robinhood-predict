@@ -3,8 +3,15 @@
 use {
     anchor_lang::{
         prelude::{Clock, Pubkey},
-        solana_program::{bpf_loader_upgradeable, instruction::Instruction, system_program},
+        solana_program::{bpf_loader_upgradeable, instruction::Instruction, program_pack::Pack, system_instruction, system_program},
         AccountDeserialize, AnchorSerialize, InstructionData, ToAccountMetas,
+    },
+    anchor_spl::{
+        associated_token::{
+            get_associated_token_address_with_program_id, spl_associated_token_account::instruction as ata_ix,
+        },
+        token_2022::spl_token_2022::{instruction as token_ix, state::Mint as MintState},
+        token_interface::TokenAccount,
     },
     litesvm::LiteSVM,
     price_arena::{
@@ -25,13 +32,22 @@ pub const START_TIME: i64 = 1_800_000_000;
 pub const DECIMALS: u8 = 9;
 pub const MIN_STAKE: u64 = SOL / 100;
 pub const MAX_STAKE: u64 = SOL;
+pub const TOKEN_DECIMALS: u8 = 6;
 
 pub fn config_pda() -> Pubkey {
     Pubkey::find_program_address(&[CONFIG_SEED], &price_arena::ID).0
 }
 
+pub fn stake_mint_pda(mint: &Pubkey) -> Pubkey {
+    Pubkey::find_program_address(&[STAKE_MINT_SEED, mint.as_ref()], &price_arena::ID).0
+}
+
+pub fn treasury_pda_for(mint: &Pubkey) -> Pubkey {
+    Pubkey::find_program_address(&[TREASURY_SEED, mint.as_ref()], &price_arena::ID).0
+}
+
 pub fn treasury_pda() -> Pubkey {
-    Pubkey::find_program_address(&[TREASURY_SEED, NATIVE_SOL.as_ref()], &price_arena::ID).0
+    treasury_pda_for(&NATIVE_SOL)
 }
 
 pub fn asset_pda(asset_id: &[u8; 32]) -> Pubkey {
@@ -42,12 +58,29 @@ pub fn arena_pda(arena_id: u64) -> Pubkey {
     Pubkey::find_program_address(&[ARENA_SEED, arena_id.to_le_bytes().as_ref()], &price_arena::ID).0
 }
 
+pub fn creator_pda_for(mint: &Pubkey, creator: &Pubkey) -> Pubkey {
+    Pubkey::find_program_address(&[CREATOR_SEED, mint.as_ref(), creator.as_ref()], &price_arena::ID).0
+}
+
 pub fn creator_pda(creator: &Pubkey) -> Pubkey {
-    Pubkey::find_program_address(&[CREATOR_SEED, NATIVE_SOL.as_ref(), creator.as_ref()], &price_arena::ID).0
+    creator_pda_for(&NATIVE_SOL, creator)
 }
 
 pub fn program_data_pda() -> Pubkey {
     Pubkey::find_program_address(&[price_arena::ID.as_ref()], &bpf_loader_upgradeable::ID).0
+}
+
+/// An SPL mint created in the test VM.
+#[derive(Clone, Copy)]
+pub struct Token {
+    pub mint: Pubkey,
+    pub program: Pubkey,
+}
+
+impl Token {
+    pub fn ata(&self, owner: &Pubkey) -> Pubkey {
+        get_associated_token_address_with_program_id(owner, &self.mint, &self.program)
+    }
 }
 
 pub struct Harness {
@@ -56,13 +89,14 @@ pub struct Harness {
     pub oracle: Keypair,
     pub asset_id: [u8; 32],
     pub source: Pubkey,
+    pub tokens: Vec<Token>,
     pub last_compute_units: u64,
 }
 
 impl Harness {
     /// Deploys the program with `admin` as upgrade authority. Does not initialize.
     pub fn deploy() -> Self {
-        let mut svm = LiteSVM::new().with_precompiles();
+        let mut svm = LiteSVM::new();
         let bytes = include_bytes!(concat!(env!("CARGO_TARGET_TMPDIR"), "/../deploy/price_arena.so"));
         svm.add_program(price_arena::ID, bytes).unwrap();
         let admin = Keypair::new();
@@ -82,17 +116,19 @@ impl Harness {
             oracle: Keypair::new(),
             asset_id: [1u8; 32],
             source: Pubkey::new_unique(),
+            tokens: Vec::new(),
             last_compute_units: 0,
         };
         harness.set_time(START_TIME);
         harness
     }
 
-    /// Deploys, initializes and approves one Stock asset.
+    /// Deploys, initializes, accepts native SOL and approves one Stock asset.
     pub fn new() -> Self {
         let mut h = Self::deploy();
         let admin = h.admin.insecure_clone();
         h.send(&[h.initialize_ix(&admin.pubkey())], &admin, &[]).unwrap();
+        h.set_stake_mint(NATIVE_SOL, true, MIN_STAKE, MAX_STAKE).unwrap();
         let (asset_id, source) = (h.asset_id, h.source);
         h.approve_asset(asset_id, source, Category::Stock, true).unwrap();
         h
@@ -144,20 +180,81 @@ impl Harness {
         }
     }
 
+    // ---------------------------------------------------------------- tokens
+
+    pub fn create_token(&mut self, program: Pubkey) -> Token {
+        let admin = self.admin.insecure_clone();
+        let mint = Keypair::new();
+        let rent = self.svm.minimum_balance_for_rent_exemption(MintState::LEN);
+        let create =
+            system_instruction::create_account(&admin.pubkey(), &mint.pubkey(), rent, MintState::LEN as u64, &program);
+        let init = token_ix::initialize_mint2(&program, &mint.pubkey(), &admin.pubkey(), None, TOKEN_DECIMALS).unwrap();
+        self.send(&[create, init], &admin, &[&mint]).unwrap();
+        let token = Token { mint: mint.pubkey(), program };
+        self.tokens.push(token);
+        token
+    }
+
+    pub fn fund_token(&mut self, token: &Token, owner: &Pubkey, amount: u64) {
+        let admin = self.admin.insecure_clone();
+        let create =
+            ata_ix::create_associated_token_account_idempotent(&admin.pubkey(), owner, &token.mint, &token.program);
+        let mint_to =
+            token_ix::mint_to(&token.program, &token.mint, &token.ata(owner), &admin.pubkey(), &[], amount).unwrap();
+        self.send(&[create, mint_to], &admin, &[]).unwrap();
+    }
+
+    pub fn token_balance(&self, account: &Pubkey) -> u64 {
+        let data = self.svm.get_account(account).expect("token account exists").data;
+        TokenAccount::try_deserialize(&mut &data[..]).unwrap().amount
+    }
+
+    pub fn token_of(&self, mint: &Pubkey) -> Option<Token> {
+        self.tokens.iter().copied().find(|t| t.mint == *mint)
+    }
+
+    fn arena_token(&self, arena_id: u64) -> Option<Token> {
+        self.token_of(&self.arena(arena_id).stake_mint)
+    }
+
+    // ------------------------------------------------------------- admin ixs
+
     pub fn initialize_ix(&self, admin: &Pubkey) -> Instruction {
         Instruction::new_with_bytes(
             price_arena::ID,
-            &ix::Initialize { oracle_signer: self.oracle.pubkey(), min_stake: MIN_STAKE, max_stake: MAX_STAKE }.data(),
+            &ix::Initialize { oracle_signer: self.oracle.pubkey() }.data(),
             acc::Initialize {
                 admin: *admin,
                 config: config_pda(),
-                treasury: treasury_pda(),
                 program: price_arena::ID,
                 program_data: program_data_pda(),
                 system_program: system_program::ID,
             }
             .to_account_metas(None),
         )
+    }
+
+    pub fn set_stake_mint(&mut self, stake_mint: Pubkey, enabled: bool, min_stake: u64, max_stake: u64) -> Result<(), String> {
+        let admin = self.admin.insecure_clone();
+        let token = self.token_of(&stake_mint);
+        let treasury = treasury_pda_for(&stake_mint);
+        let instruction = Instruction::new_with_bytes(
+            price_arena::ID,
+            &ix::SetStakeMint { stake_mint, enabled, min_stake, max_stake }.data(),
+            acc::SetStakeMint {
+                admin: admin.pubkey(),
+                config: config_pda(),
+                stake_mint_config: stake_mint_pda(&stake_mint),
+                treasury,
+                token_mint: token.map(|t| t.mint),
+                treasury_vault: token.map(|t| t.ata(&treasury)),
+                token_program: token.map(|t| t.program),
+                associated_token_program: token.map(|_| anchor_spl::associated_token::ID),
+                system_program: system_program::ID,
+            }
+            .to_account_metas(None),
+        );
+        self.send(&[instruction], &admin, &[])
     }
 
     pub fn admin_config_ix(&self, data: Vec<u8>) -> Instruction {
@@ -191,6 +288,44 @@ impl Harness {
         self.send(&[instruction], &admin, &[])
     }
 
+    pub fn withdraw_fees_ix(&self, stake_mint: Pubkey, amount: u64, recipient: &Pubkey) -> Instruction {
+        let token = self.token_of(&stake_mint);
+        let treasury = treasury_pda_for(&stake_mint);
+        Instruction::new_with_bytes(
+            price_arena::ID,
+            &ix::WithdrawFees { stake_mint, amount }.data(),
+            acc::WithdrawFees {
+                admin: self.admin.pubkey(),
+                config: config_pda(),
+                treasury,
+                recipient: *recipient,
+                token_mint: token.map(|t| t.mint),
+                treasury_vault: token.map(|t| t.ata(&treasury)),
+                recipient_token: token.map(|t| t.ata(recipient)),
+                token_program: token.map(|t| t.program),
+            }
+            .to_account_metas(None),
+        )
+    }
+
+    pub fn withdraw_creator_ix(&self, stake_mint: Pubkey, creator: &Pubkey) -> Instruction {
+        let token = self.token_of(&stake_mint);
+        let earnings = creator_pda_for(&stake_mint, creator);
+        Instruction::new_with_bytes(
+            price_arena::ID,
+            &ix::WithdrawCreatorFees { stake_mint }.data(),
+            acc::WithdrawCreatorFees {
+                creator: *creator,
+                creator_earnings: earnings,
+                token_mint: token.map(|t| t.mint),
+                creator_vault: token.map(|t| t.ata(&earnings)),
+                creator_token: token.map(|t| t.ata(creator)),
+                token_program: token.map(|t| t.program),
+            }
+            .to_account_metas(None),
+        )
+    }
+
     pub fn config(&self) -> Config {
         self.fetch(&config_pda())
     }
@@ -204,23 +339,44 @@ impl Harness {
         T::try_deserialize(&mut &account.data[..]).unwrap()
     }
 
-    pub fn create_arena_as(&mut self, creator: &Keypair, asset_id: [u8; 32], duration: i64) -> Result<u64, String> {
+    // ------------------------------------------------------------- arena ixs
+
+    pub fn create_arena_in(
+        &mut self,
+        creator: &Keypair,
+        asset_id: [u8; 32],
+        duration: i64,
+        stake_mint: Pubkey,
+    ) -> Result<u64, String> {
         let arena_id = self.config().arena_count;
+        let arena = arena_pda(arena_id);
+        let token = self.token_of(&stake_mint);
+        let earnings = creator_pda_for(&stake_mint, &creator.pubkey());
         let instruction = Instruction::new_with_bytes(
             price_arena::ID,
-            &ix::CreateArena { title: "Where will it close?".into(), duration }.data(),
+            &ix::CreateArena { title: "Where will it close?".into(), duration, stake_mint }.data(),
             acc::CreateArena {
                 creator: creator.pubkey(),
                 config: config_pda(),
+                stake_mint_config: stake_mint_pda(&stake_mint),
                 approved_asset: asset_pda(&asset_id),
-                arena: arena_pda(arena_id),
-                creator_earnings: creator_pda(&creator.pubkey()),
+                arena,
+                creator_earnings: earnings,
+                token_mint: token.map(|t| t.mint),
+                arena_vault: token.map(|t| t.ata(&arena)),
+                creator_vault: token.map(|t| t.ata(&earnings)),
+                token_program: token.map(|t| t.program),
+                associated_token_program: token.map(|_| anchor_spl::associated_token::ID),
                 system_program: system_program::ID,
             }
             .to_account_metas(None),
         );
         self.send_as(&[instruction], creator)?;
         Ok(arena_id)
+    }
+
+    pub fn create_arena_as(&mut self, creator: &Keypair, asset_id: [u8; 32], duration: i64) -> Result<u64, String> {
+        self.create_arena_in(creator, asset_id, duration, NATIVE_SOL)
     }
 
     pub fn create_arena(&mut self, duration: i64) -> Result<u64, String> {
@@ -230,13 +386,19 @@ impl Harness {
     }
 
     fn entry_ix(&self, data: Vec<u8>, arena_id: u64, player: &Pubkey) -> Instruction {
+        let arena = arena_pda(arena_id);
+        let token = self.arena_token(arena_id);
         Instruction::new_with_bytes(
             price_arena::ID,
             &data,
             acc::PlayerEntry {
                 player: *player,
                 config: config_pda(),
-                arena: arena_pda(arena_id),
+                arena,
+                token_mint: token.map(|t| t.mint),
+                player_token: token.map(|t| t.ata(player)),
+                arena_vault: token.map(|t| t.ata(&arena)),
+                token_program: token.map(|t| t.program),
                 system_program: system_program::ID,
             }
             .to_account_metas(None),
@@ -274,19 +436,32 @@ impl Harness {
         }
     }
 
-    pub fn resolve_ix(&self, arena_id: u64) -> Instruction {
-        let arena = self.arena(arena_id);
+    pub fn resolve_ix_with(&self, arena_id: u64, treasury_vault_override: Option<Pubkey>) -> Instruction {
+        let state = self.arena(arena_id);
+        let arena = arena_pda(arena_id);
+        let token = self.token_of(&state.stake_mint);
+        let treasury = treasury_pda_for(&state.stake_mint);
+        let earnings = creator_pda_for(&state.stake_mint, &state.creator);
         Instruction::new_with_bytes(
             price_arena::ID,
             &ix::Resolve {}.data(),
             acc::ResolveArena {
-                arena: arena_pda(arena_id),
-                treasury: treasury_pda(),
-                creator_earnings: creator_pda(&arena.creator),
+                arena,
+                treasury,
+                creator_earnings: earnings,
                 instructions: solana_sdk_ids::sysvar::instructions::ID,
+                token_mint: token.map(|t| t.mint),
+                arena_vault: token.map(|t| t.ata(&arena)),
+                treasury_vault: token.map(|t| treasury_vault_override.unwrap_or(t.ata(&treasury))),
+                creator_vault: token.map(|t| t.ata(&earnings)),
+                token_program: token.map(|t| t.program),
             }
             .to_account_metas(None),
         )
+    }
+
+    pub fn resolve_ix(&self, arena_id: u64) -> Instruction {
+        self.resolve_ix_with(arena_id, None)
     }
 
     pub fn resolve_with(&mut self, arena_id: u64, attestation: &PoolAttestation, signer: &Keypair) -> Result<(), String> {
@@ -296,10 +471,20 @@ impl Harness {
     }
 
     pub fn settle(&mut self, data: Vec<u8>, arena_id: u64, player: &Keypair) -> Result<(), String> {
+        let arena = arena_pda(arena_id);
+        let token = self.arena_token(arena_id);
         let instruction = Instruction::new_with_bytes(
             price_arena::ID,
             &data,
-            acc::SettleEntry { player: player.pubkey(), arena: arena_pda(arena_id) }.to_account_metas(None),
+            acc::SettleEntry {
+                player: player.pubkey(),
+                arena,
+                token_mint: token.map(|t| t.mint),
+                arena_vault: token.map(|t| t.ata(&arena)),
+                player_token: token.map(|t| t.ata(&player.pubkey())),
+                token_program: token.map(|t| t.program),
+            }
+            .to_account_metas(None),
         );
         self.send_as(&[instruction], player)
     }

@@ -26,28 +26,6 @@ pub fn add_time(a: i64, b: i64) -> Result<i64> {
     a.checked_add(b).ok_or(error!(RaceError::MathOverflow))
 }
 
-/// Moves lamports out of an account this program owns. The source must stay
-/// rent-exempt, so an escrow can never be drained below its own rent.
-pub fn transfer_program_lamports(from: &AccountInfo, to: &AccountInfo, amount: u64) -> Result<()> {
-    if amount == 0 {
-        return Ok(());
-    }
-    let rent_floor = Rent::get()?.minimum_balance(from.data_len());
-    let from_balance = from.lamports();
-    let from_after = from_balance
-        .checked_sub(amount)
-        .ok_or(error!(RaceError::InsufficientEscrow))?;
-    require!(from_after >= rent_floor, RaceError::InsufficientEscrow);
-    let to_after = to
-        .lamports()
-        .checked_add(amount)
-        .ok_or(error!(RaceError::MathOverflow))?;
-
-    **from.try_borrow_mut_lamports()? = from_after;
-    **to.try_borrow_mut_lamports()? = to_after;
-    Ok(())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

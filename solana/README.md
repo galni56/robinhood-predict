@@ -9,6 +9,7 @@ Anchor workspace for the Solana port. Plan and decisions:
 | `price_arena` | Implemented, localnet-tested. Not deployed. |
 | `nickname_registry` | Implemented, localnet-tested. Not deployed. |
 | `pool_attestation` (crate) | Shared Ed25519 pool-price attestation verification. |
+| `stake_funds` (crate) | Shared native-SOL / SPL / Token-2022 stake movement and vault checks. |
 
 ## Build and test (WSL)
 
@@ -32,9 +33,8 @@ boundary (all assets, same slot pair), verified by reading the Ed25519
 precompile instruction placed immediately before `start_race` /
 `resolve_race`. Fees: `fee_bp` of the losing pool (capped at 10%), split 50/50
 between the race creator (pull-based `CreatorEarnings`) and the protocol
-`Treasury`. `stake_mint` is stored on every race, treasury and creator account
-so SPL-token stakes can be added by a program upgrade without migrating data;
-today only native SOL is accepted.
+`Treasury`. Stakes are native SOL or any admin-accepted plain SPL / Token-2022 mint
+(`set_stake_mint`); token stakes sit in the game PDA's associated token account.
 
 ### Attestation message (Borsh)
 

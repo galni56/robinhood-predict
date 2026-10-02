@@ -27,8 +27,8 @@ declare_id!("GWdUNY9nzmMCSUfNSsvQCZFzwGNrqDKeh5TdHg79DaQU");
 pub mod price_arena {
     use super::*;
 
-    pub fn initialize(ctx: Context<Initialize>, oracle_signer: Pubkey, min_stake: u64, max_stake: u64) -> Result<()> {
-        admin::handle_initialize(ctx, oracle_signer, min_stake, max_stake)
+    pub fn initialize(ctx: Context<Initialize>, oracle_signer: Pubkey) -> Result<()> {
+        admin::handle_initialize(ctx, oracle_signer)
     }
 
     pub fn set_paused(ctx: Context<AdminConfig>, paused: bool) -> Result<()> {
@@ -39,8 +39,14 @@ pub mod price_arena {
         admin::handle_set_oracle_signer(ctx, oracle_signer)
     }
 
-    pub fn set_stake_limits(ctx: Context<AdminConfig>, min_stake: u64, max_stake: u64) -> Result<()> {
-        admin::handle_set_stake_limits(ctx, min_stake, max_stake)
+    pub fn set_stake_mint(
+        ctx: Context<SetStakeMint>,
+        stake_mint: Pubkey,
+        enabled: bool,
+        min_stake: u64,
+        max_stake: u64,
+    ) -> Result<()> {
+        admin::handle_set_stake_mint(ctx, stake_mint, enabled, min_stake, max_stake)
     }
 
     pub fn propose_admin(ctx: Context<AdminConfig>, new_admin: Pubkey) -> Result<()> {
@@ -62,16 +68,16 @@ pub mod price_arena {
         admin::handle_set_approved_asset(ctx, asset_id, category, price_source, price_decimals, enabled)
     }
 
-    pub fn withdraw_fees(ctx: Context<WithdrawFees>, amount: u64) -> Result<()> {
-        admin::handle_withdraw_fees(ctx, amount)
+    pub fn withdraw_fees(ctx: Context<WithdrawFees>, stake_mint: Pubkey, amount: u64) -> Result<()> {
+        admin::handle_withdraw_fees(ctx, stake_mint, amount)
     }
 
-    pub fn withdraw_creator_fees(ctx: Context<WithdrawCreatorFees>) -> Result<()> {
-        admin::handle_withdraw_creator_fees(ctx)
+    pub fn withdraw_creator_fees(ctx: Context<WithdrawCreatorFees>, stake_mint: Pubkey) -> Result<()> {
+        admin::handle_withdraw_creator_fees(ctx, stake_mint)
     }
 
-    pub fn create_arena(ctx: Context<CreateArena>, title: String, duration: i64) -> Result<()> {
-        arena::handle_create_arena(ctx, title, duration)
+    pub fn create_arena(ctx: Context<CreateArena>, title: String, duration: i64, stake_mint: Pubkey) -> Result<()> {
+        arena::handle_create_arena(ctx, title, duration, stake_mint)
     }
 
     pub fn enter(ctx: Context<PlayerEntry>, prediction: u64, amount: u64) -> Result<()> {

@@ -1,10 +1,17 @@
 use anchor_lang::prelude::*;
+use anchor_spl::{
+    associated_token::AssociatedToken,
+    token_interface::{Mint, TokenInterface},
+};
+use stake_funds::required;
 
 use crate::{constants::*, error::RaceError, math::add_time, state::*};
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct PlatformRaceInput {
     pub category: Category,
+    /// `NATIVE_SOL` or an accepted SPL mint.
+    pub stake_mint: Pubkey,
     pub betting_start_time: i64,
     pub betting_end_time: i64,
     pub race_duration: i64,
@@ -17,11 +24,14 @@ pub struct PlatformRaceInput {
 }
 
 #[derive(Accounts)]
+#[instruction(title: String, input: PlatformRaceInput)]
 pub struct CreatePlatformRace<'info> {
     #[account(mut)]
     pub admin: Signer<'info>,
     #[account(mut, seeds = [CONFIG_SEED], bump = config.bump, has_one = admin @ RaceError::Unauthorized)]
     pub config: Account<'info, Config>,
+    #[account(seeds = [STAKE_MINT_SEED, input.stake_mint.as_ref()], bump = stake_mint_config.bump)]
+    pub stake_mint_config: Account<'info, StakeMintConfig>,
     #[account(
         init,
         payer = admin,
@@ -34,10 +44,19 @@ pub struct CreatePlatformRace<'info> {
         init_if_needed,
         payer = admin,
         space = 8 + CreatorEarnings::INIT_SPACE,
-        seeds = [CREATOR_SEED, NATIVE_SOL.as_ref(), admin.key().as_ref()],
+        seeds = [CREATOR_SEED, input.stake_mint.as_ref(), admin.key().as_ref()],
         bump
     )]
     pub creator_earnings: Account<'info, CreatorEarnings>,
+    pub token_mint: Option<InterfaceAccount<'info, Mint>>,
+    /// CHECK: must be the race's associated token account; created here.
+    #[account(mut)]
+    pub race_vault: Option<UncheckedAccount<'info>>,
+    /// CHECK: must be the creator-earnings associated token account; created here.
+    #[account(mut)]
+    pub creator_vault: Option<UncheckedAccount<'info>>,
+    pub token_program: Option<Interface<'info, TokenInterface>>,
+    pub associated_token_program: Option<Program<'info, AssociatedToken>>,
     pub system_program: Program<'info, System>,
 }
 
@@ -50,6 +69,7 @@ pub fn handle_create_platform_race(
 ) -> Result<()> {
     let now = Clock::get()?.unix_timestamp;
     require!(!ctx.accounts.config.paused, RaceError::ActivityPaused);
+    require!(ctx.accounts.stake_mint_config.enabled, RaceError::UnsupportedStakeMint);
     validate_title(&title)?;
     let asset_count = ctx.remaining_accounts.len();
     require!(
@@ -74,7 +94,19 @@ pub fn handle_create_platform_race(
     add_time(race_end, input.resolution_grace)?;
 
     let creator = ctx.accounts.admin.key();
-    init_creator_earnings(&mut ctx.accounts.creator_earnings, creator, ctx.bumps.creator_earnings);
+    create_vaults(
+        &input.stake_mint,
+        &ctx.accounts.admin.to_account_info(),
+        &ctx.accounts.race.to_account_info(),
+        &ctx.accounts.creator_earnings.to_account_info(),
+        &ctx.accounts.token_mint,
+        &ctx.accounts.race_vault,
+        &ctx.accounts.creator_vault,
+        &ctx.accounts.token_program,
+        &ctx.accounts.associated_token_program,
+        &ctx.accounts.system_program.to_account_info(),
+    )?;
+    init_creator_earnings(&mut ctx.accounts.creator_earnings, creator, input.stake_mint, ctx.bumps.creator_earnings);
 
     let config = &mut ctx.accounts.config;
     let race = &mut ctx.accounts.race;
@@ -83,7 +115,7 @@ pub fn handle_create_platform_race(
     race.origin = Origin::Platform;
     race.status = RaceStatus::Betting;
     race.creator = creator;
-    race.stake_mint = NATIVE_SOL;
+    race.stake_mint = input.stake_mint;
     race.oracle_signer = config.oracle_signer;
     race.title = title;
     race.betting_start_time = input.betting_start_time;
@@ -108,17 +140,21 @@ pub fn handle_create_platform_race(
         origin: race.origin,
         category: race.category,
         creator,
+        stake_mint: race.stake_mint,
         asset_count: race.assets.len() as u8,
     });
     Ok(())
 }
 
 #[derive(Accounts)]
+#[instruction(title: String, category: Category, race_duration: i64, stake_mint: Pubkey)]
 pub struct CreateCommunityRace<'info> {
     #[account(mut)]
     pub creator: Signer<'info>,
     #[account(mut, seeds = [CONFIG_SEED], bump = config.bump)]
     pub config: Account<'info, Config>,
+    #[account(seeds = [STAKE_MINT_SEED, stake_mint.as_ref()], bump = stake_mint_config.bump)]
+    pub stake_mint_config: Account<'info, StakeMintConfig>,
     #[account(
         init,
         payer = creator,
@@ -131,25 +167,37 @@ pub struct CreateCommunityRace<'info> {
         init_if_needed,
         payer = creator,
         space = 8 + CreatorEarnings::INIT_SPACE,
-        seeds = [CREATOR_SEED, NATIVE_SOL.as_ref(), creator.key().as_ref()],
+        seeds = [CREATOR_SEED, stake_mint.as_ref(), creator.key().as_ref()],
         bump
     )]
     pub creator_earnings: Account<'info, CreatorEarnings>,
+    pub token_mint: Option<InterfaceAccount<'info, Mint>>,
+    /// CHECK: must be the race's associated token account; created here.
+    #[account(mut)]
+    pub race_vault: Option<UncheckedAccount<'info>>,
+    /// CHECK: must be the creator-earnings associated token account; created here.
+    #[account(mut)]
+    pub creator_vault: Option<UncheckedAccount<'info>>,
+    pub token_program: Option<Interface<'info, TokenInterface>>,
+    pub associated_token_program: Option<Program<'info, AssociatedToken>>,
     pub system_program: Program<'info, System>,
 }
 
 /// Creates a community race with protocol-controlled economics. The creator
-/// picks only the title, category, an approved duration and initial assets.
+/// picks only the title, category, an approved duration, the stake currency
+/// and initial assets. Stake limits come from the stake currency's config.
 pub fn handle_create_community_race(
     ctx: Context<CreateCommunityRace>,
     title: String,
     category: Category,
     race_duration: i64,
+    stake_mint: Pubkey,
 ) -> Result<()> {
     let now = Clock::get()?.unix_timestamp;
     let config = &ctx.accounts.config;
     require!(!config.paused, RaceError::ActivityPaused);
     require!(config.community_policy_configured, RaceError::CommunityPolicyNotConfigured);
+    require!(ctx.accounts.stake_mint_config.enabled, RaceError::UnsupportedStakeMint);
     validate_title(&title)?;
     require!(
         config.race_durations.contains(&race_duration),
@@ -161,9 +209,22 @@ pub fn handle_create_community_race(
     );
     let policy = config.community_policy;
     let lobby_end = add_time(now, policy.lobby_duration)?;
+    let (min_stake, max_stake) = (ctx.accounts.stake_mint_config.min_stake, ctx.accounts.stake_mint_config.max_stake);
 
     let creator = ctx.accounts.creator.key();
-    init_creator_earnings(&mut ctx.accounts.creator_earnings, creator, ctx.bumps.creator_earnings);
+    create_vaults(
+        &stake_mint,
+        &ctx.accounts.creator.to_account_info(),
+        &ctx.accounts.race.to_account_info(),
+        &ctx.accounts.creator_earnings.to_account_info(),
+        &ctx.accounts.token_mint,
+        &ctx.accounts.race_vault,
+        &ctx.accounts.creator_vault,
+        &ctx.accounts.token_program,
+        &ctx.accounts.associated_token_program,
+        &ctx.accounts.system_program.to_account_info(),
+    )?;
+    init_creator_earnings(&mut ctx.accounts.creator_earnings, creator, stake_mint, ctx.bumps.creator_earnings);
 
     let config = &mut ctx.accounts.config;
     let race = &mut ctx.accounts.race;
@@ -172,7 +233,7 @@ pub fn handle_create_community_race(
     race.origin = Origin::Community;
     race.status = RaceStatus::Lobby;
     race.creator = creator;
-    race.stake_mint = NATIVE_SOL;
+    race.stake_mint = stake_mint;
     race.oracle_signer = config.oracle_signer;
     race.title = title;
     race.lobby_end_time = lobby_end;
@@ -183,8 +244,8 @@ pub fn handle_create_community_race(
     race.fee_bp = policy.fee_bp;
     race.min_active_contenders = policy.min_active_contenders;
     race.winning_asset_index = NO_WINNER;
-    race.min_stake = policy.min_stake;
-    race.max_stake_per_wallet = policy.max_stake_per_wallet;
+    race.min_stake = min_stake;
+    race.max_stake_per_wallet = max_stake;
     race.bump = ctx.bumps.race;
     for info in ctx.remaining_accounts.iter() {
         push_approved_asset(race, info)?;
@@ -197,6 +258,7 @@ pub fn handle_create_community_race(
         origin: race.origin,
         category: race.category,
         creator,
+        stake_mint,
         asset_count: race.assets.len() as u8,
     });
     Ok(())
@@ -269,10 +331,39 @@ pub fn handle_open_betting(ctx: Context<OpenBetting>) -> Result<()> {
     Ok(())
 }
 
-fn init_creator_earnings(earnings: &mut Account<CreatorEarnings>, creator: Pubkey, bump: u8) {
+/// For an SPL race, creates the race vault and (if missing) the creator's
+/// earnings vault. Native-SOL races need neither.
+#[allow(clippy::too_many_arguments)]
+fn create_vaults<'info>(
+    stake_mint: &Pubkey,
+    payer: &AccountInfo<'info>,
+    race: &AccountInfo<'info>,
+    creator_earnings: &AccountInfo<'info>,
+    token_mint: &Option<InterfaceAccount<'info, Mint>>,
+    race_vault: &Option<UncheckedAccount<'info>>,
+    creator_vault: &Option<UncheckedAccount<'info>>,
+    token_program: &Option<Interface<'info, TokenInterface>>,
+    associated_token_program: &Option<Program<'info, AssociatedToken>>,
+    system_program: &AccountInfo<'info>,
+) -> Result<()> {
+    let Some(spl) = stake_funds::spl(stake_mint, token_mint, token_program)? else {
+        return Ok(());
+    };
+    let ata_program = required(associated_token_program)?.to_account_info();
+    spl.create_vault(payer, &required(race_vault)?.to_account_info(), race, system_program, &ata_program)?;
+    spl.create_vault(
+        payer,
+        &required(creator_vault)?.to_account_info(),
+        creator_earnings,
+        system_program,
+        &ata_program,
+    )
+}
+
+fn init_creator_earnings(earnings: &mut Account<CreatorEarnings>, creator: Pubkey, stake_mint: Pubkey, bump: u8) {
     if earnings.creator == Pubkey::default() {
         earnings.creator = creator;
-        earnings.stake_mint = NATIVE_SOL;
+        earnings.stake_mint = stake_mint;
         earnings.amount = 0;
         earnings.total_earned = 0;
         earnings.bump = bump;
@@ -333,6 +424,7 @@ pub struct RaceCreated {
     pub origin: Origin,
     pub category: Category,
     pub creator: Pubkey,
+    pub stake_mint: Pubkey,
     pub asset_count: u8,
 }
 

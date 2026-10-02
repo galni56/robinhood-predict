@@ -1,15 +1,20 @@
 use anchor_lang::prelude::*;
-use anchor_lang::system_program;
+use anchor_spl::token_interface::{Mint, TokenInterface};
 use solana_sdk_ids::sysvar::instructions as instructions_sysvar;
+use stake_funds::{deposit_native, pay_from_pda, required};
 
 use crate::{
     attestation::{load_verified_attestation, race_err},
     constants::*,
     error::RaceError,
     instructions::create::{CancelReason, RaceCancelled},
-    math::{add_time, calculate_return, mul_div, transfer_program_lamports},
+    math::{add_time, calculate_return, mul_div},
     state::*,
 };
+
+fn as_info<'a, 'info>(account: &'a Option<UncheckedAccount<'info>>) -> Option<&'a AccountInfo<'info>> {
+    account.as_ref().map(|a| a.as_ref())
+}
 
 #[derive(Accounts)]
 pub struct PlaceBet<'info> {
@@ -27,6 +32,14 @@ pub struct PlaceBet<'info> {
         bump
     )]
     pub position: Account<'info, Position>,
+    pub token_mint: Option<InterfaceAccount<'info, Mint>>,
+    /// CHECK: bettor's token account; the token program checks mint and owner.
+    #[account(mut)]
+    pub bettor_token: Option<UncheckedAccount<'info>>,
+    /// CHECK: checked against the race's associated token account.
+    #[account(mut)]
+    pub race_vault: Option<UncheckedAccount<'info>>,
+    pub token_program: Option<Interface<'info, TokenInterface>>,
     pub system_program: Program<'info, System>,
 }
 
@@ -36,7 +49,6 @@ pub fn handle_bet(ctx: Context<PlaceBet>, asset_index: u8, amount: u64) -> Resul
     let now = Clock::get()?.unix_timestamp;
     require!(!ctx.accounts.config.paused, RaceError::ActivityPaused);
     let race = &ctx.accounts.race;
-    require!(race.stake_mint == NATIVE_SOL, RaceError::UnsupportedStakeMint);
     require!(race.status == RaceStatus::Betting, RaceError::InvalidRaceStatus);
     require!(
         now >= race.betting_start_time && now < race.betting_end_time,
@@ -65,16 +77,16 @@ pub fn handle_bet(ctx: Context<PlaceBet>, asset_index: u8, amount: u64) -> Resul
     require!(new_stake <= race.max_stake_per_wallet, RaceError::StakeExceedsMaximum);
     position.stake = new_stake;
 
-    system_program::transfer(
-        CpiContext::new(
-            system_program::ID,
-            system_program::Transfer {
-                from: ctx.accounts.bettor.to_account_info(),
-                to: ctx.accounts.race.to_account_info(),
-            },
-        ),
-        amount,
-    )?;
+    let race_info = ctx.accounts.race.to_account_info();
+    let bettor_info = ctx.accounts.bettor.to_account_info();
+    match stake_funds::spl(&ctx.accounts.race.stake_mint, &ctx.accounts.token_mint, &ctx.accounts.token_program)? {
+        None => deposit_native(&bettor_info, &race_info, amount)?,
+        Some(spl) => {
+            let vault = required(&ctx.accounts.race_vault)?.to_account_info();
+            spl.require_vault(&vault, &race_key)?;
+            spl.transfer(&required(&ctx.accounts.bettor_token)?.to_account_info(), &vault, &bettor_info, amount, &[])?;
+        }
+    }
 
     let race = &mut ctx.accounts.race;
     let asset = &mut race.assets[asset_index as usize];
@@ -191,6 +203,17 @@ pub struct ResolveRace<'info> {
     /// CHECK: address-constrained to the instructions sysvar.
     #[account(address = instructions_sysvar::ID)]
     pub instructions: UncheckedAccount<'info>,
+    pub token_mint: Option<InterfaceAccount<'info, Mint>>,
+    /// CHECK: checked against the race's associated token account.
+    #[account(mut)]
+    pub race_vault: Option<UncheckedAccount<'info>>,
+    /// CHECK: checked against the treasury's associated token account.
+    #[account(mut)]
+    pub treasury_vault: Option<UncheckedAccount<'info>>,
+    /// CHECK: checked against the creator-earnings associated token account.
+    #[account(mut)]
+    pub creator_vault: Option<UncheckedAccount<'info>>,
+    pub token_program: Option<Interface<'info, TokenInterface>>,
 }
 
 /// Freezes every active contender's P1 at the race end and settles: a unique
@@ -251,10 +274,23 @@ pub fn handle_resolve_race(ctx: Context<ResolveRace>) -> Result<()> {
     race.remaining_liability -= fee;
     race.status = RaceStatus::Resolved;
     let race_key = race.key();
+    let id = race.id.to_le_bytes();
+    let bump = [race.bump];
+    let seeds: &[&[u8]] = &[RACE_SEED, &id, &bump];
 
-    let race_info = ctx.accounts.race.to_account_info();
-    transfer_program_lamports(&race_info, &ctx.accounts.treasury.to_account_info(), protocol_fee)?;
-    transfer_program_lamports(&race_info, &ctx.accounts.creator_earnings.to_account_info(), creator_fee)?;
+    let accounts = &ctx.accounts;
+    let spl = stake_funds::spl(&accounts.race.stake_mint, &accounts.token_mint, &accounts.token_program)?;
+    let treasury_info = accounts.treasury.to_account_info();
+    let creator_info = accounts.creator_earnings.to_account_info();
+    if let Some(spl) = &spl {
+        // Fees may only land in the protocol's own vaults.
+        spl.require_vault(required(&accounts.treasury_vault)?, &treasury_info.key())?;
+        spl.require_vault(required(&accounts.creator_vault)?, &creator_info.key())?;
+    }
+    let race_info = accounts.race.to_account_info();
+    let vault = as_info(&accounts.race_vault);
+    pay_from_pda(&spl, &race_info, &[seeds], vault, &treasury_info, as_info(&accounts.treasury_vault), protocol_fee)?;
+    pay_from_pda(&spl, &race_info, &[seeds], vault, &creator_info, as_info(&accounts.creator_vault), creator_fee)?;
 
     let treasury = &mut ctx.accounts.treasury;
     treasury.accumulated_fees = treasury
@@ -294,6 +330,32 @@ pub struct SettlePosition<'info> {
         has_one = race @ RaceError::Unauthorized
     )]
     pub position: Account<'info, Position>,
+    pub token_mint: Option<InterfaceAccount<'info, Mint>>,
+    /// CHECK: checked against the race's associated token account.
+    #[account(mut)]
+    pub race_vault: Option<UncheckedAccount<'info>>,
+    /// CHECK: owner's token account; the token program checks the mint.
+    #[account(mut)]
+    pub owner_token: Option<UncheckedAccount<'info>>,
+    pub token_program: Option<Interface<'info, TokenInterface>>,
+}
+
+fn pay_position(ctx: &Context<SettlePosition>, amount: u64) -> Result<()> {
+    let accounts = &ctx.accounts;
+    let race = &accounts.race;
+    let id = race.id.to_le_bytes();
+    let bump = [race.bump];
+    let seeds: &[&[u8]] = &[RACE_SEED, &id, &bump];
+    let spl = stake_funds::spl(&race.stake_mint, &accounts.token_mint, &accounts.token_program)?;
+    pay_from_pda(
+        &spl,
+        &race.to_account_info(),
+        &[seeds],
+        as_info(&accounts.race_vault),
+        &accounts.owner.to_account_info(),
+        as_info(&accounts.owner_token),
+        amount,
+    )
 }
 
 /// Pays a winning position its stake plus its pro-rata share of the losing
@@ -313,11 +375,7 @@ pub fn handle_claim(ctx: Context<SettlePosition>) -> Result<()> {
         .checked_sub(payout)
         .ok_or(error!(RaceError::InsufficientEscrow))?;
     let race_key = race.key();
-    transfer_program_lamports(
-        &ctx.accounts.race.to_account_info(),
-        &ctx.accounts.owner.to_account_info(),
-        payout,
-    )?;
+    pay_position(&ctx, payout)?;
     emit!(Claimed { race: race_key, owner: ctx.accounts.owner.key(), payout });
     Ok(())
 }
@@ -336,11 +394,7 @@ pub fn handle_refund(ctx: Context<SettlePosition>) -> Result<()> {
         .checked_sub(amount)
         .ok_or(error!(RaceError::InsufficientEscrow))?;
     let race_key = race.key();
-    transfer_program_lamports(
-        &ctx.accounts.race.to_account_info(),
-        &ctx.accounts.owner.to_account_info(),
-        amount,
-    )?;
+    pay_position(&ctx, amount)?;
     emit!(Refunded { race: race_key, owner: ctx.accounts.owner.key(), amount });
     Ok(())
 }
@@ -357,29 +411,46 @@ pub fn handle_close_losing_position(ctx: Context<SettlePosition>) -> Result<()> 
 }
 
 #[derive(Accounts)]
+#[instruction(stake_mint: Pubkey)]
 pub struct WithdrawCreatorFees<'info> {
     #[account(mut)]
     pub creator: Signer<'info>,
     #[account(
         mut,
-        seeds = [CREATOR_SEED, NATIVE_SOL.as_ref(), creator.key().as_ref()],
+        seeds = [CREATOR_SEED, stake_mint.as_ref(), creator.key().as_ref()],
         bump = creator_earnings.bump,
         has_one = creator @ RaceError::Unauthorized
     )]
     pub creator_earnings: Account<'info, CreatorEarnings>,
+    pub token_mint: Option<InterfaceAccount<'info, Mint>>,
+    /// CHECK: checked against the creator-earnings associated token account.
+    #[account(mut)]
+    pub creator_vault: Option<UncheckedAccount<'info>>,
+    /// CHECK: creator's token account; the token program checks the mint.
+    #[account(mut)]
+    pub creator_token: Option<UncheckedAccount<'info>>,
+    pub token_program: Option<Interface<'info, TokenInterface>>,
 }
 
-pub fn handle_withdraw_creator_fees(ctx: Context<WithdrawCreatorFees>) -> Result<()> {
+pub fn handle_withdraw_creator_fees(ctx: Context<WithdrawCreatorFees>, stake_mint: Pubkey) -> Result<()> {
     let earnings = &mut ctx.accounts.creator_earnings;
     let amount = earnings.amount;
     require!(amount > 0, RaceError::AmountZero);
     earnings.amount = 0;
-    transfer_program_lamports(
-        &earnings.to_account_info(),
+    let creator = ctx.accounts.creator.key();
+    let bump = [ctx.accounts.creator_earnings.bump];
+    let seeds: &[&[u8]] = &[CREATOR_SEED, stake_mint.as_ref(), creator.as_ref(), &bump];
+    let spl = stake_funds::spl(&stake_mint, &ctx.accounts.token_mint, &ctx.accounts.token_program)?;
+    pay_from_pda(
+        &spl,
+        &ctx.accounts.creator_earnings.to_account_info(),
+        &[seeds],
+        as_info(&ctx.accounts.creator_vault),
         &ctx.accounts.creator.to_account_info(),
+        as_info(&ctx.accounts.creator_token),
         amount,
     )?;
-    emit!(CreatorFeesWithdrawn { creator: ctx.accounts.creator.key(), amount });
+    emit!(CreatorFeesWithdrawn { creator, stake_mint, amount });
     Ok(())
 }
 
@@ -439,5 +510,6 @@ pub struct Refunded {
 #[event]
 pub struct CreatorFeesWithdrawn {
     pub creator: Pubkey,
+    pub stake_mint: Pubkey,
     pub amount: u64,
 }

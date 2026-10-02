@@ -7,6 +7,9 @@ pub const CONFIG_SEED: &[u8] = b"config";
 pub const TREASURY_SEED: &[u8] = b"treasury";
 
 #[constant]
+pub const STAKE_MINT_SEED: &[u8] = b"stake_mint";
+
+#[constant]
 pub const ASSET_SEED: &[u8] = b"asset";
 
 #[constant]
@@ -32,8 +35,7 @@ pub const MAX_DURATION_PRESETS: usize = 16;
 pub const MAX_PRICE_DECIMALS: u8 = 18;
 pub const NO_WINNER: u8 = u8::MAX;
 
-/// Stake-mint sentinel meaning "native SOL held as lamports". Any other value
-/// will name an SPL mint once token stakes are enabled.
-pub const NATIVE_SOL: Pubkey = Pubkey::new_from_array([0u8; 32]);
+/// Stake-mint sentinel meaning "native SOL held as lamports".
+pub use stake_funds::NATIVE_SOL;
 
 pub use pool_attestation::{ATTESTATION_DOMAIN, ATTESTATION_VERSION};

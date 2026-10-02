@@ -1,9 +1,9 @@
 mod common;
 
 use {
-    anchor_lang::{prelude::Pubkey, solana_program::instruction::Instruction, InstructionData, ToAccountMetas},
+    anchor_lang::{prelude::Pubkey, InstructionData},
     common::*,
-    price_arena::{accounts as acc, instruction as ix, state::*, LOBBY_DURATION, RESOLUTION_GRACE},
+    price_arena::{instruction as ix, state::*, LOBBY_DURATION, NATIVE_SOL, RESOLUTION_GRACE},
     solana_keypair::Keypair,
     solana_signer::Signer,
 };
@@ -16,7 +16,7 @@ fn initialize_requires_upgrade_authority() {
     assert_err(h.send(&[instruction], &stranger, &[]), "Unauthorized");
     let admin = h.admin.insecure_clone();
     h.send(&[h.initialize_ix(&admin.pubkey())], &admin, &[]).unwrap();
-    assert_eq!(h.config().max_stake, MAX_STAKE);
+    assert_eq!(h.config().admin, admin.pubkey());
 }
 
 #[test]
@@ -208,12 +208,7 @@ fn creation_validation() {
     let earnings: CreatorEarnings = h.fetch(&creator_pda(&creator.pubkey()));
     assert_eq!(earnings.amount, (SOL / 2) * 200 / 10_000 / 2);
 
-    let withdraw = Instruction::new_with_bytes(
-        price_arena::ID,
-        &ix::WithdrawCreatorFees {}.data(),
-        acc::WithdrawCreatorFees { creator: creator.pubkey(), creator_earnings: creator_pda(&creator.pubkey()) }
-            .to_account_metas(None),
-    );
+    let withdraw = h.withdraw_creator_ix(NATIVE_SOL, &creator.pubkey());
     let before = h.balance(&creator.pubkey());
     h.send_as(&[withdraw], &creator).unwrap();
     assert_eq!(h.balance(&creator.pubkey()), before + earnings.amount);
@@ -306,9 +301,7 @@ fn rejects_forged_attestations() {
 fn stake_limits_apply_to_new_arenas_only() {
     let mut h = Harness::new();
     let old_arena = h.create_arena(60).unwrap();
-    let admin = h.admin.insecure_clone();
-    let update = h.admin_config_ix(ix::SetStakeLimits { min_stake: SOL / 2, max_stake: 2 * SOL }.data());
-    h.send(&[update], &admin, &[]).unwrap();
+    h.set_stake_mint(NATIVE_SOL, true, SOL / 2, 2 * SOL).unwrap();
     let new_arena = h.create_arena(60).unwrap();
 
     let alice = h.user(10);
@@ -316,6 +309,8 @@ fn stake_limits_apply_to_new_arenas_only() {
     assert_err(h.enter(new_arena, &alice, 1_000, SOL / 10), "InvalidStake");
     h.enter(new_arena, &alice, 1_000, 2 * SOL).unwrap();
 
-    let bad = h.admin_config_ix(ix::SetStakeLimits { min_stake: 0, max_stake: SOL }.data());
-    assert_err(h.send(&[bad], &admin, &[]), "InvalidConfiguration");
+    assert_err(h.set_stake_mint(NATIVE_SOL, true, 0, SOL), "InvalidConfiguration");
+    // Disabling SOL blocks new SOL arenas.
+    h.set_stake_mint(NATIVE_SOL, false, SOL / 2, 2 * SOL).unwrap();
+    assert_err(h.create_arena(60).map(|_| ()), "UnsupportedStakeMint");
 }

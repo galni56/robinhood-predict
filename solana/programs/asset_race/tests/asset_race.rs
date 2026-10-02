@@ -3,10 +3,10 @@ mod common;
 use {
     anchor_lang::{
         prelude::Pubkey,
-        solana_program::{instruction::Instruction, system_program},
+        solana_program::instruction::Instruction,
         InstructionData, ToAccountMetas,
     },
-    asset_race::{accounts as acc, instruction as ix, state::*, CommunityPolicy},
+    asset_race::{accounts as acc, instruction as ix, state::*, CommunityPolicy, NATIVE_SOL},
     common::*,
     solana_keypair::Keypair,
     solana_signer::Signer,
@@ -107,30 +107,21 @@ fn full_lifecycle_pays_winner_and_splits_fees() {
     let admin = h.admin.insecure_clone();
     let treasury: Treasury = h.fetch(&treasury_pda());
     assert_eq!(treasury.accumulated_fees, fee / 2);
-    let withdraw = |amount: u64, admin: &Pubkey| {
-        Instruction::new_with_bytes(
-            asset_race::ID,
-            &ix::WithdrawFees { amount }.data(),
-            acc::WithdrawFees { admin: *admin, config: config_pda(), treasury: treasury_pda(), recipient: *admin }
-                .to_account_metas(None),
-        )
-    };
-    assert_err(h.send(&[withdraw(fee / 2 + 1, &admin.pubkey())], &admin, &[]), "InsufficientFeeBalance");
+    let withdraw = |amount: u64, admin: &Pubkey| h.withdraw_fees_ix(NATIVE_SOL, amount, admin, admin);
+    let too_much = withdraw(fee / 2 + 1, &admin.pubkey());
+    let exact = withdraw(fee / 2, &admin.pubkey());
+    assert_err(h.send(&[too_much], &admin, &[]), "InsufficientFeeBalance");
     let before = h.balance(&admin.pubkey());
-    h.send(&[withdraw(fee / 2, &admin.pubkey())], &admin, &[]).unwrap();
+    h.send(&[exact], &admin, &[]).unwrap();
     assert_eq!(h.balance(&admin.pubkey()), before + fee / 2 - 5_000);
     let stranger = h.user(1);
-    assert_err(h.send(&[withdraw(1, &stranger.pubkey())], &stranger, &[]), "Unauthorized");
+    let stolen = h.withdraw_fees_ix(NATIVE_SOL, 1, &stranger.pubkey(), &stranger.pubkey());
+    assert_err(h.send(&[stolen], &stranger, &[]), "Unauthorized");
 
     // Creator fees (the admin created this platform race).
     let earnings: CreatorEarnings = h.fetch(&creator_pda(&admin.pubkey()));
     assert_eq!(earnings.amount, fee / 2);
-    let withdraw_creator = Instruction::new_with_bytes(
-        asset_race::ID,
-        &ix::WithdrawCreatorFees {}.data(),
-        acc::WithdrawCreatorFees { creator: admin.pubkey(), creator_earnings: creator_pda(&admin.pubkey()) }
-            .to_account_metas(None),
-    );
+    let withdraw_creator = h.withdraw_creator_ix(NATIVE_SOL, &admin.pubkey());
     let before = h.balance(&admin.pubkey());
     h.send(&[withdraw_creator.clone()], &admin, &[]).unwrap();
     assert_eq!(h.balance(&admin.pubkey()), before + fee / 2 - 5_000);
@@ -351,31 +342,10 @@ fn community_race_lobby_flow() {
         resolution_grace: 300,
         fee_bp: 200,
         min_active_contenders: 2,
-        min_stake: SOL / 100,
-        max_stake_per_wallet: SOL,
     };
     let creator = h.user(10);
     let community = |h: &Harness, race_id: u64, creator: &Pubkey, duration: i64, assets: &[usize]| {
-        let mut metas = acc::CreateCommunityRace {
-            creator: *creator,
-            config: config_pda(),
-            race: race_pda(race_id),
-            creator_earnings: creator_pda(creator),
-            system_program: system_program::ID,
-        }
-        .to_account_metas(None);
-        for index in assets {
-            metas.push(anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
-                asset_pda(&h.assets[*index].id),
-                false,
-            ));
-        }
-        Instruction::new_with_bytes(
-            asset_race::ID,
-            &ix::CreateCommunityRace { title: "Community".into(), category: Category::Stock, race_duration: duration }
-                .data(),
-            metas,
-        )
+        h.create_community_ix(race_id, creator, duration, NATIVE_SOL, assets)
     };
 
     assert_err(

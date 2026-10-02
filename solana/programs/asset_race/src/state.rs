@@ -33,8 +33,6 @@ pub struct CommunityPolicy {
     pub resolution_grace: i64,
     pub fee_bp: u16,
     pub min_active_contenders: u8,
-    pub min_stake: u64,
-    pub max_stake_per_wallet: u64,
 }
 
 #[account]
@@ -55,8 +53,20 @@ pub struct Config {
     pub bump: u8,
 }
 
-/// Fee balance for one stake mint. Holds the protocol share as lamports
-/// (native SOL) above its rent-exempt minimum.
+/// An accepted stake currency: native SOL (`NATIVE_SOL`) or an SPL mint.
+/// Community races take their stake limits from here.
+#[account]
+#[derive(InitSpace)]
+pub struct StakeMintConfig {
+    pub mint: Pubkey,
+    pub enabled: bool,
+    pub min_stake: u64,
+    pub max_stake: u64,
+    pub bump: u8,
+}
+
+/// Fee balance for one stake mint: lamports above rent for native SOL, or the
+/// balance of its vault (associated token account) for an SPL mint.
 #[account]
 #[derive(InitSpace)]
 pub struct Treasury {

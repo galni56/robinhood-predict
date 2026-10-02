@@ -7,6 +7,9 @@ pub const CONFIG_SEED: &[u8] = b"config";
 pub const TREASURY_SEED: &[u8] = b"treasury";
 
 #[constant]
+pub const STAKE_MINT_SEED: &[u8] = b"stake_mint";
+
+#[constant]
 pub const ASSET_SEED: &[u8] = b"asset";
 
 #[constant]
@@ -33,15 +36,15 @@ pub const MAX_PARTICIPANTS: usize = 10;
 pub const MIN_ACCURACY_MULTIPLIER_BP: u64 = 10_000;
 pub const MAX_ACCURACY_MULTIPLIER_BP: u64 = 30_000;
 
-/// Upper bound on the configurable per-player stake. Keeps every payout
-/// product (pool x score) far below 2^128.
-pub const MAX_STAKE_CAP: u64 = 10_000 * 1_000_000_000;
+/// Upper bound on the configurable per-player stake, in base units of any
+/// stake mint. Keeps every payout product (pool x score) far below 2^128.
+pub const MAX_STAKE_CAP: u64 = 1_000_000_000_000_000;
 
 pub const MAX_TITLE_BYTES: usize = 64;
 pub const MAX_PRICE_DECIMALS: u8 = 18;
 pub const NO_RANK: u8 = 0;
 
 /// Stake-mint sentinel meaning "native SOL held as lamports".
-pub const NATIVE_SOL: Pubkey = Pubkey::new_from_array([0u8; 32]);
+pub use stake_funds::NATIVE_SOL;
 
 pub use pool_attestation::{ATTESTATION_DOMAIN, ATTESTATION_VERSION};

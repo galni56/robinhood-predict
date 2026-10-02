@@ -62,8 +62,18 @@ pub mod asset_race {
         admin::handle_set_approved_asset(ctx, asset_id, category, price_source, price_decimals, enabled)
     }
 
-    pub fn withdraw_fees(ctx: Context<WithdrawFees>, amount: u64) -> Result<()> {
-        admin::handle_withdraw_fees(ctx, amount)
+    pub fn set_stake_mint(
+        ctx: Context<SetStakeMint>,
+        stake_mint: Pubkey,
+        enabled: bool,
+        min_stake: u64,
+        max_stake: u64,
+    ) -> Result<()> {
+        admin::handle_set_stake_mint(ctx, stake_mint, enabled, min_stake, max_stake)
+    }
+
+    pub fn withdraw_fees(ctx: Context<WithdrawFees>, stake_mint: Pubkey, amount: u64) -> Result<()> {
+        admin::handle_withdraw_fees(ctx, stake_mint, amount)
     }
 
     pub fn create_platform_race(
@@ -79,8 +89,9 @@ pub mod asset_race {
         title: String,
         category: Category,
         race_duration: i64,
+        stake_mint: Pubkey,
     ) -> Result<()> {
-        create::handle_create_community_race(ctx, title, category, race_duration)
+        create::handle_create_community_race(ctx, title, category, race_duration, stake_mint)
     }
 
     pub fn add_lobby_asset(ctx: Context<AddLobbyAsset>) -> Result<()> {
@@ -123,7 +134,7 @@ pub mod asset_race {
         race::handle_close_losing_position(ctx)
     }
 
-    pub fn withdraw_creator_fees(ctx: Context<WithdrawCreatorFees>) -> Result<()> {
-        race::handle_withdraw_creator_fees(ctx)
+    pub fn withdraw_creator_fees(ctx: Context<WithdrawCreatorFees>, stake_mint: Pubkey) -> Result<()> {
+        race::handle_withdraw_creator_fees(ctx, stake_mint)
     }
 }
