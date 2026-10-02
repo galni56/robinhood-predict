@@ -3,7 +3,7 @@ use anchor_lang::system_program;
 use solana_sdk_ids::sysvar::instructions as instructions_sysvar;
 
 use crate::{
-    attestation::load_verified_attestation,
+    attestation::{load_verified_attestation, race_err},
     constants::*,
     error::RaceError,
     instructions::create::{CancelReason, RaceCancelled},
@@ -118,12 +118,12 @@ pub fn handle_start_race(ctx: Context<StartRace>) -> Result<()> {
     }
 
     let attestation = load_verified_attestation(&ctx.accounts.instructions, &race.oracle_signer)?;
-    attestation.validate_boundary(race.betting_end_time, now)?;
+    attestation.validate_boundary(race.betting_end_time, now).map_err(race_err)?;
     for asset in race.assets.iter_mut() {
         if asset.pool == 0 {
             continue;
         }
-        asset.start_price = attestation.price_for(&asset.price_source, asset.price_decimals)?;
+        asset.start_price = attestation.price_for(&asset.price_source, asset.price_decimals).map_err(race_err)?;
         asset.active = true;
     }
 
@@ -206,7 +206,7 @@ pub fn handle_resolve_race(ctx: Context<ResolveRace>) -> Result<()> {
     );
 
     let attestation = load_verified_attestation(&ctx.accounts.instructions, &race.oracle_signer)?;
-    attestation.validate_boundary(race.race_end_time, now)?;
+    attestation.validate_boundary(race.race_end_time, now).map_err(race_err)?;
 
     let mut leader: Option<(u8, i128)> = None;
     let mut top_tied = false;
@@ -214,7 +214,7 @@ pub fn handle_resolve_race(ctx: Context<ResolveRace>) -> Result<()> {
         if !asset.active {
             continue;
         }
-        let end_price = attestation.price_for(&asset.price_source, asset.price_decimals)?;
+        let end_price = attestation.price_for(&asset.price_source, asset.price_decimals).map_err(race_err)?;
         asset.end_price = end_price;
         asset.return_value = calculate_return(asset.start_price, end_price)?;
         match leader {

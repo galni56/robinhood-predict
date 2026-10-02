@@ -1,13 +1,13 @@
 [package]
-name = "asset_race"
+name = "price_arena"
 version = "0.1.0"
-description = "Prophet Asset Race: pari-mutuel races between DEX-pool-priced assets"
+description = "Prophet Price Arena: closest-half-wins price prediction contests"
 edition.workspace = true
 rust-version.workspace = true
 
 [lib]
 crate-type = ["cdylib", "lib"]
-name = "asset_race"
+name = "price_arena"
 
 [features]
 default = []

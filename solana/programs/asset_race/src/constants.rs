@@ -30,12 +30,10 @@ pub const MAX_ASSETS_PER_RACE: usize = 6;
 pub const MAX_TITLE_BYTES: usize = 64;
 pub const MAX_DURATION_PRESETS: usize = 16;
 pub const MAX_PRICE_DECIMALS: u8 = 18;
-pub const MAX_ATTESTATION_ENTRIES: usize = 12;
 pub const NO_WINNER: u8 = u8::MAX;
 
 /// Stake-mint sentinel meaning "native SOL held as lamports". Any other value
 /// will name an SPL mint once token stakes are enabled.
 pub const NATIVE_SOL: Pubkey = Pubkey::new_from_array([0u8; 32]);
 
-pub const ATTESTATION_DOMAIN: [u8; 8] = *b"PRPHPOOL";
-pub const ATTESTATION_VERSION: u8 = 1;
+pub use pool_attestation::{ATTESTATION_DOMAIN, ATTESTATION_VERSION};

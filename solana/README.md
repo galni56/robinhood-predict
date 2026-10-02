@@ -6,7 +6,8 @@ Anchor workspace for the Solana port. Plan and decisions:
 | Program | Status |
 |---|---|
 | `asset_race` | Implemented, localnet-tested. Not deployed. |
-| `price_arena` | Not started (max 10 participants, single-tx resolve). |
+| `price_arena` | Implemented, localnet-tested. Not deployed. |
+| `pool_attestation` (crate) | Shared Ed25519 pool-price attestation verification. |
 
 ## Build and test (WSL)
 
@@ -19,7 +20,7 @@ wsl
 cd /mnt/c/Users/Legion/robinhood-predict/solana
 export CARGO_TARGET_DIR=$HOME/prophet-target
 anchor build              # .so + IDL in $CARGO_TARGET_DIR/{deploy,idl}
-cargo test -p asset_race  # LiteSVM integration tests (needs a prior anchor build)
+cargo test --workspace    # LiteSVM integration tests (needs a prior anchor build)
 ```
 
 ## `asset_race` in one paragraph

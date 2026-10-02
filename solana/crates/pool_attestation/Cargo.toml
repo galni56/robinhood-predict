@@ -1,0 +1,17 @@
+[package]
+name = "pool_attestation"
+version = "0.1.0"
+description = "Ed25519-signed DEX-pool price attestations shared by Prophet programs"
+edition.workspace = true
+rust-version.workspace = true
+
+[lib]
+name = "pool_attestation"
+
+[features]
+idl-build = ["anchor-lang/idl-build"]
+
+[dependencies]
+anchor-lang = "1.1.2"
+solana-instructions-sysvar = "3.0.1"
+solana-sdk-ids = "3.1.0"

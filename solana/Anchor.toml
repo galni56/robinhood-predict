@@ -6,6 +6,7 @@ skip-lint = false
 
 [programs.localnet]
 asset_race = "H4fm2gjgc5bRcoXfAhnTXFpFJMijga43Czq5Z8yGXYKj"
+price_arena = "GWdUNY9nzmMCSUfNSsvQCZFzwGNrqDKeh5TdHg79DaQU"
 
 [provider]
 cluster = "localnet"

@@ -644,7 +644,7 @@ version = "0.1.0"
 dependencies = [
  "anchor-lang",
  "litesvm",
- "solana-instructions-sysvar",
+ "pool_attestation",
  "solana-keypair",
  "solana-message",
  "solana-sdk-ids",
@@ -2123,12 +2123,35 @@ dependencies = [
 ]
 
 [[package]]
+name = "pool_attestation"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+ "solana-instructions-sysvar",
+ "solana-sdk-ids",
+]
+
+[[package]]
 name = "ppv-lite86"
 version = "0.2.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "85eae3c4ed2f50dcfe72643da4befc30deadb458a9b590d720cde2f2b1e97da9"
 dependencies = [
  "zerocopy",
+]
+
+[[package]]
+name = "price_arena"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+ "litesvm",
+ "pool_attestation",
+ "solana-keypair",
+ "solana-message",
+ "solana-sdk-ids",
+ "solana-signer",
+ "solana-transaction",
 ]
 
 [[package]]

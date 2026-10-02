@@ -2,6 +2,8 @@
 
 Status: planning, branch `solana-migration`. Nothing here is deployed.
 
+What has actually been built, and how it differs from the EVM version: [`SOLANA_CHANGELOG.md`](./SOLANA_CHANGELOG.md) (Russian).
+
 ## Decisions (owner, 2026-10-03)
 
 | Topic | Decision |
@@ -95,7 +97,7 @@ Every step is a mainnet transaction run by the owner.
 
 0. **Toolchain** — done 2026-10-03: WSL2 Ubuntu (user `dev`, static DNS in `/etc/resolv.conf`), Rust, Solana CLI 3.1, Anchor 1.1.2.
 1. **Programs on localnet** — `asset_race` + oracle verification + vault (SOL), full test suite (Anchor/LiteSVM tests mirroring the Foundry ones). **`asset_race` done** in `solana/programs/asset_race` (11 LiteSVM integration tests + math unit tests). Build/test: see `solana/README.md`.
-2. **`price_arena`** — with the bounded-resolution design chosen.
+2. **`price_arena`** — done: max 10 players, single-tx resolve (~33k CU), permissionless cancel after a 1h resolution grace. Shared verification lives in `solana/crates/pool_attestation`.
 3. **Frontend** — remove PM, Solana wallet + IDL client, devnet build.
 4. **Collector + keepers** on devnet; pool registry review.
 5. **Devnet end-to-end rehearsal**, then tiny-value mainnet canary (owner-run). **Before mainnet: generate a fresh owner key** — the current WSL dev keypair is for localnet/devnet only.
