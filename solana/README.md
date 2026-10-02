@@ -7,6 +7,7 @@ Anchor workspace for the Solana port. Plan and decisions:
 |---|---|
 | `asset_race` | Implemented, localnet-tested. Not deployed. |
 | `price_arena` | Implemented, localnet-tested. Not deployed. |
+| `nickname_registry` | Implemented, localnet-tested. Not deployed. |
 | `pool_attestation` (crate) | Shared Ed25519 pool-price attestation verification. |
 
 ## Build and test (WSL)
@@ -41,5 +42,5 @@ today only native SOL is accepted.
 `target_timestamp: i64`, `prev_slot`, `prev_blockhash`, `prev_block_time`,
 `next_slot`, `next_parent_slot`, `next_parent_blockhash`, `next_block_time`,
 `entries: Vec<{ price_source: Pubkey, price: u64, decimals: u8 }>`.
-Prices are quoted in SOL. Use a different signer key per cluster so devnet
+Prices are quoted in USD (pools paired with USDC). Use a different signer key per cluster so devnet
 attestations can never be replayed on mainnet.

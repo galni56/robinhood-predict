@@ -6,6 +6,7 @@ skip-lint = false
 
 [programs.localnet]
 asset_race = "H4fm2gjgc5bRcoXfAhnTXFpFJMijga43Czq5Z8yGXYKj"
+nickname_registry = "9hbJLs2EGPdvVLcxQs2N2QqZUhh8r2J86PK8rYBRxJdt"
 price_arena = "GWdUNY9nzmMCSUfNSsvQCZFzwGNrqDKeh5TdHg79DaQU"
 
 [provider]

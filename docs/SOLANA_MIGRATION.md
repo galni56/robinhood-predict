@@ -13,7 +13,7 @@ What has actually been built, and how it differs from the EVM version: [`SOLANA_
 | Games kept | Asset Race, Price Arena, nicknames, buyback/burn (re-designed for SPL). |
 | Price source | DEX pools on Solana (Raydium / Orca / Meteora), via a signed-observation oracle. |
 | Stake currency | SOL now. Prophet SPL token later, as a second accepted mint. |
-| Price quote | All pool prices are quoted in SOL (pools paired with USDC are converted through the SOL/USDC pool at the same slot). |
+| Price quote | All pool prices are quoted in USD (pools paired with USDC; SOL-paired pools converted through SOL/USDC at the same slot). Changed from SOL on 2026-10-03. |
 | Price Arena size | Max 10 participants per arena; resolution in a single transaction. |
 | Mock demo | Removed (`/demo`, `src/store/`, `src/market/`, non-Onchain pages). |
 
