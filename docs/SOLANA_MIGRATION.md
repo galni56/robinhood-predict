@@ -40,9 +40,9 @@ program enforces an owner-managed allowlist of accepted mints. SOL ships
 first; adding the Prophet token later is a config call, not a migration.
 Fees and creator revenue are tracked per mint.
 
-**Admin.** Upgrade authority and config authority should be a Squads
-multisig, not a single key (the EVM version used one EOA — accepted risk
-then, avoidable now).
+**Admin.** Upgrade authority and config authority stay with one owner key
+(owner decision 2026-10-03, no Squads multisig) — same accepted
+centralization risk as the EVM version; say so in the UI disclaimer.
 
 ### 2. Price oracle from DEX pools
 
@@ -104,5 +104,4 @@ Every step is a mainnet transaction run by the owner.
 
 ## Open questions for the owner
 
-- Squads multisig as upgrade/config authority — OK?
 - External audit budget before mainnet?
