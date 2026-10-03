@@ -9,7 +9,9 @@ import { symbolFromAssetId } from '@/solana/pda'
 // live is derived from the arena's start time.
 
 export const PRICE_ARENA_CATEGORY = { STOCK: 0, MEME: 1, CRYPTO: 2 } as const
-export const PRICE_ARENA_STATUS = { OPEN: 0, RESOLVED: 1, CANCELLED: 2 } as const
+// UNKNOWN: a status variant this build does not know (program upgraded ahead
+// of the frontend). Fails closed: no gate matches it, so no actions render.
+export const PRICE_ARENA_STATUS = { OPEN: 0, RESOLVED: 1, CANCELLED: 2, UNKNOWN: 99 } as const
 export const PRICE_ARENA_PHASE = { LOBBY: 0, RUNNING: 1, RESOLVED: 2, CANCELLED: 3 } as const
 export const PRICE_ARENA_CANCEL_REASON = {
   NONE: 0,
@@ -156,7 +158,7 @@ export function arenaPhase(status: number, startsAt: bigint, nowSec: number) {
 }
 
 export function arenaFromAccount(address: PublicKey, a: ArenaAccount, nowSec = Date.now() / 1000): PriceArenaViewModel {
-  const status = STATUS_CODES[variant(a.status)] ?? PRICE_ARENA_STATUS.OPEN
+  const status = STATUS_CODES[variant(a.status)] ?? PRICE_ARENA_STATUS.UNKNOWN
   const startsAt = big(a.startsAt)
   const priceSource = a.priceSource.toBase58()
   const asset = priceArenaAssetForPool(priceSource)

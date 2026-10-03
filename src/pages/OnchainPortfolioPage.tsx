@@ -220,7 +220,9 @@ export function OnchainPortfolioPage() {
           <section className="mt-8">
             <h2 className="font-display text-xl font-bold">In play</h2>
             <div className="mt-3 space-y-2">
-              {!isLoading && inPlay.length === 0 ? (
+              {error && inPlay.length === 0 ? (
+                <p className="py-6 text-sm text-rose-300">Could not read your positions.</p>
+              ) : !isLoading && inPlay.length === 0 ? (
                 <p className="py-6 text-sm text-white/35">
                   No open games. <Link to="/onchain/races" className="font-bold text-[#F2A65A] hover:underline">Find a race</Link> or <Link to="/onchain/arenas" className="font-bold text-[#B7CEFF] hover:underline">join an arena</Link>.
                 </p>
@@ -233,7 +235,9 @@ export function OnchainPortfolioPage() {
           <section className="mt-8">
             <h2 className="font-display text-xl font-bold">Activity</h2>
             <div className="mt-3 overflow-hidden rounded-2xl border border-white/5">
-              {activity.length === 0 ? <p className="bg-[#241b2f] px-4 py-6 text-sm text-white/35">No activity yet.</p> : activity.map((item: HistoryActivity) => (
+              {history.isError && activity.length === 0 ? <p className="bg-[#241b2f] px-4 py-6 text-sm text-rose-300">Could not load your activity.</p>
+                : history.isLoading && activity.length === 0 ? <p className="bg-[#241b2f] px-4 py-6 text-sm text-white/35">Loading activity…</p>
+                : activity.length === 0 ? <p className="bg-[#241b2f] px-4 py-6 text-sm text-white/35">No activity yet.</p> : activity.map((item: HistoryActivity) => (
                 <div key={`${item.signature}:${item.type}`} className="grid grid-cols-[1fr_auto] items-center gap-3 border-t border-white/5 bg-[#241b2f] px-4 py-2.5 text-sm first:border-t-0 sm:grid-cols-[8rem_1fr_auto_auto]">
                   <span className="font-bold">{ACTIVITY_LABEL[item.type] ?? item.type}</span>
                   <Link to={`/onchain/${item.game === 'race' ? 'races' : 'arenas'}/${item.gameId ?? ''}`} className="hidden truncate text-white/50 hover:text-white sm:block">

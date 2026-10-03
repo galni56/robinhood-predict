@@ -14,6 +14,9 @@ export const ASSET_RACE_STATUS = {
   CANCELLED: 3,
   VOID: 4,
   LOBBY: 5,
+  /** A status variant this build does not know (program upgraded ahead of
+   * the frontend). Fails closed: no gate matches it, so no actions render. */
+  UNKNOWN: 99,
 } as const
 
 export const ASSET_RACE_CATEGORY = { STOCK: 0, MEME: 1, CRYPTO: 2 } as const
@@ -124,7 +127,7 @@ export function categoryCode(category: object) {
 }
 
 export function raceFromAccount(address: PublicKey, r: RaceAccount): AssetRaceViewModel {
-  const status = STATUS_CODES[variant(r.status)] ?? ASSET_RACE_STATUS.BETTING
+  const status = STATUS_CODES[variant(r.status)] ?? ASSET_RACE_STATUS.UNKNOWN
   return {
     id: big(r.id),
     address: address.toBase58(),
