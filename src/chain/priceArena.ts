@@ -22,7 +22,6 @@ export const PRICE_ARENA_CANCEL_REASON = {
 // Mirrors ARENA_DURATIONS, ARENA_LOBBY_DURATION and MAX_PARTICIPANTS in
 // solana/programs/prophet_games/src/constants.rs.
 export const PRICE_ARENA_DURATIONS = [60n, 300n, 900n, 3600n] as const
-export const PRICE_ARENA_LOBBY_SECONDS = 600n
 export const PRICE_ARENA_MAX_PARTICIPANTS = 10
 export type PriceArenaMode = 'stocks' | 'memes' | 'crypto'
 
@@ -56,9 +55,6 @@ const CATALOG_ASSETS = assetRaceCatalog.map((asset) => ({
   logoUrl: asset.logoUrl,
   enabled: asset.enabled,
 }))
-
-/** Assets new arenas may use on this cluster. */
-export const PRICE_ARENA_ASSETS: PriceArenaAsset[] = CATALOG_ASSETS.filter((asset) => asset.enabled)
 
 // Every reviewed asset, so past arenas keep their names and links.
 const ASSET_BY_POOL = new Map<string, PriceArenaAsset>(CATALOG_ASSETS.map((asset) => [asset.pool, asset]))

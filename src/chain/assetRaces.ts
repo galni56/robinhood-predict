@@ -27,7 +27,6 @@ export const STAKE_DECIMALS = SOL_DECIMALS
 export const RETURN_SCALE = 10n ** 18n
 export const BP_DENOMINATOR = 10_000n
 export const ASSET_RACE_TOKEN_LABEL = 'SOL'
-export const NO_WINNER = 255
 
 type RaceAccount = IdlAccounts<ProphetGames>['race']
 type PositionAccount = IdlAccounts<ProphetGames>['position']
@@ -59,7 +58,6 @@ export interface AssetRaceAsset {
   endOracleUpdatedAt: bigint
   livePrice?: bigint
   liveDecimals?: number
-  liveUpdatedAt?: bigint
   liveProvider?: 'PRICE_SERVICE'
   liveStale?: boolean
 }

@@ -61,10 +61,6 @@ export const assetRaceCatalog: AssetRaceCatalogAsset[] = (registryJson.assets as
 export const assetRaceCatalogById = new Map(assetRaceCatalog.map((asset) => [asset.assetId.toLowerCase(), asset]))
 export const assetRaceCatalogByPool = new Map(assetRaceCatalog.map((asset) => [asset.pool, asset]))
 
-/** Every game price is quoted in USD. */
-export const assetRaceMemeQuote = { symbol: 'USD' }
-export const assetRaceCryptoQuote = { symbol: 'USD' }
-
 export function priceSourceUrlForCatalogAsset(asset?: AssetRaceCatalogAsset): string | undefined {
   return asset?.priceUrl
 }
