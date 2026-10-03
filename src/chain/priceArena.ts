@@ -118,7 +118,6 @@ export interface PriceArenaViewModel {
   category: number
   status: number
   cancelReason: number
-  phase: number
   createdAt: bigint
   startsAt: bigint
   deadline: bigint
@@ -151,13 +150,18 @@ const CANCEL_CODES: Record<string, number> = {
 }
 const CATEGORY_CODES: Record<string, number> = { stock: 0, meme: 1, crypto: 2 }
 
+/** A view model joined with the clock-dependent phase. The base model holds
+ * only account state; pages add `phase` with the cluster-anchored clock so a
+ * cached decode can never serve a stale LOBBY/RUNNING. */
+export type PriceArenaWithPhase = PriceArenaViewModel & { phase: number }
+
 export function arenaPhase(status: number, startsAt: bigint, nowSec: number) {
   if (status === PRICE_ARENA_STATUS.RESOLVED) return PRICE_ARENA_PHASE.RESOLVED
   if (status === PRICE_ARENA_STATUS.CANCELLED) return PRICE_ARENA_PHASE.CANCELLED
   return BigInt(Math.floor(nowSec)) < startsAt ? PRICE_ARENA_PHASE.LOBBY : PRICE_ARENA_PHASE.RUNNING
 }
 
-export function arenaFromAccount(address: PublicKey, a: ArenaAccount, nowSec = Date.now() / 1000): PriceArenaViewModel {
+export function arenaFromAccount(address: PublicKey, a: ArenaAccount): PriceArenaViewModel {
   const status = STATUS_CODES[variant(a.status)] ?? PRICE_ARENA_STATUS.UNKNOWN
   const startsAt = big(a.startsAt)
   const priceSource = a.priceSource.toBase58()
@@ -175,7 +179,6 @@ export function arenaFromAccount(address: PublicKey, a: ArenaAccount, nowSec = D
     category: CATEGORY_CODES[variant(a.category)] ?? 0,
     status,
     cancelReason: CANCEL_CODES[variant(a.cancelReason)] ?? 0,
-    phase: arenaPhase(status, startsAt, nowSec),
     createdAt: big(a.createdAt),
     startsAt,
     deadline: big(a.deadline),

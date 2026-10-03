@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { ASSET_RACE_CATEGORY, ASSET_RACE_STATUS, type AssetRaceViewModel } from '@/chain/assetRaces'
 import { assetRaceCatalog, priceSourceUrlForAssetId, priceSourceUrlForCatalogAsset } from '@/chain/assetRaceRegistry'
 import { CRYPTO_ASSETS_ENABLED } from '@/chain/features'
-import { PRICE_ARENA_CATEGORY, PRICE_ARENA_MAX_PARTICIPANTS, PRICE_ARENA_PHASE, arenaDurationLabel, arenaPhase, type PriceArenaViewModel } from '@/chain/priceArena'
+import { PRICE_ARENA_CATEGORY, PRICE_ARENA_MAX_PARTICIPANTS, PRICE_ARENA_PHASE, arenaDurationLabel, arenaPhase, type PriceArenaWithPhase } from '@/chain/priceArena'
 import { useAssetRaceClock } from '@/chain/useAssetRaceClock'
 import { useAssetRaces } from '@/chain/useAssetRaces'
 import { usePriceArenas } from '@/chain/usePriceArenas'
@@ -262,7 +262,7 @@ function RacePreviewCard({ race, nowMs }: { race: AssetRaceViewModel; nowMs: num
   )
 }
 
-function ArenaPreviewCard({ arena, nowMs }: { arena: PriceArenaViewModel; nowMs: number }) {
+function ArenaPreviewCard({ arena, nowMs }: { arena: PriceArenaWithPhase; nowMs: number }) {
   const navigate = useNavigate()
   const inLobby = arena.phase === PRICE_ARENA_PHASE.LOBBY
   const settling = arena.phase === PRICE_ARENA_PHASE.RUNNING && Number(arena.deadline) * 1_000 <= nowMs
