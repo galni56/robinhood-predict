@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
+import { PublicKey } from '@solana/web3.js'
 import { useWallet } from '@solana/wallet-adapter-react'
 import type { ApprovedRaceAsset, AssetRaceMode } from '@/chain/assetRaces'
 import { categoryForRaceMode } from '@/chain/assetRaces'
@@ -9,6 +10,7 @@ import { createCommunityRaceInstructions } from '@/chain/gameTx'
 import { useApprovedRaceAssets } from '@/chain/useApprovedRaceAssets'
 import { useGameConfig } from '@/chain/useGameConfig'
 import { ClusterBanner } from '@/components/ClusterBanner'
+import { StakeCurrencySelect } from '@/components/StakeCurrencySelect'
 import { CompactAssetSelector } from '@/components/CompactAssetSelector'
 import { GameLifecycleGuide } from '@/components/GameLifecycleGuide'
 import { GameModeMotion } from '@/components/GameModeMotion'
@@ -45,6 +47,7 @@ export function OnchainCreateRacePage() {
   const [title, setTitle] = useState('')
   const [duration, setDuration] = useState<bigint>(0n)
   const [selected, setSelected] = useState<ApprovedRaceAsset[]>([])
+  const [stakeMint, setStakeMint] = useState(NATIVE_SOL.toBase58())
   const [txLabel, setTxLabel] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -76,7 +79,7 @@ export function OnchainCreateRacePage() {
         title: normalizedTitle,
         category,
         raceDuration: selectedDuration,
-        stakeMint: NATIVE_SOL,
+        stakeMint: new PublicKey(stakeMint),
         assetIds: selected.map((asset) => assetIdFromSymbol(asset.symbol)),
       })
       await send(instructions, {
@@ -114,7 +117,7 @@ export function OnchainCreateRacePage() {
               tone="race"
               eyebrow={`${selectedDuration > 0n ? durationLabel(selectedDuration) : 'Choose a duration'} race · full lifecycle`}
               title="From lobby to finish line"
-              intro="Creating a race places no bet. It costs a small SOL network fee plus the rent deposit for the race account. The creator defines the category and duration; the protocol fixes every later phase."
+              intro="Creating a race places no bet. It costs about 0.009 SOL of rent for the race account, which is not refunded, plus a small network fee. The creator defines the category and duration; the protocol fixes every later phase."
               stages={[
                 {
                   title: 'Build the grid',
@@ -173,7 +176,8 @@ export function OnchainCreateRacePage() {
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-bold text-white/60">Race duration</label>
+            <StakeCurrencySelect value={stakeMint} onChange={setStakeMint} tone="race" />
+            <label className="mb-2 mt-4 block text-sm font-bold text-white/60">Race duration</label>
             <select
               value={selectedDuration.toString()}
               onChange={(event) => setDuration(BigInt(event.target.value))}

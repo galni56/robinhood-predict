@@ -26,25 +26,34 @@ pub struct PlatformRaceInput {
 #[derive(Accounts)]
 #[instruction(title: String, input: PlatformRaceInput)]
 pub struct CreatePlatformRace<'info> {
+    /// The admin, or the configured race operator.
     #[account(mut)]
-    pub admin: Signer<'info>,
-    #[account(mut, seeds = [CONFIG_SEED], bump = config.bump, has_one = admin @ GameError::Unauthorized)]
+    pub authority: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [CONFIG_SEED],
+        bump = config.bump,
+        constraint = authority.key() == config.admin
+            || (config.race_operator != Pubkey::default() && authority.key() == config.race_operator)
+            @ GameError::Unauthorized
+    )]
     pub config: Account<'info, Config>,
     #[account(seeds = [STAKE_MINT_SEED, input.stake_mint.as_ref()], bump = stake_mint_config.bump)]
     pub stake_mint_config: Account<'info, StakeMintConfig>,
     #[account(
         init,
-        payer = admin,
+        payer = authority,
         space = 8 + Race::INIT_SPACE,
         seeds = [RACE_SEED, config.race_count.to_le_bytes().as_ref()],
         bump
     )]
     pub race: Account<'info, Race>,
+    /// Platform races always credit the admin, whoever signs.
     #[account(
         init_if_needed,
-        payer = admin,
+        payer = authority,
         space = 8 + CreatorEarnings::INIT_SPACE,
-        seeds = [CREATOR_SEED, input.stake_mint.as_ref(), admin.key().as_ref()],
+        seeds = [CREATOR_SEED, input.stake_mint.as_ref(), config.admin.as_ref()],
         bump
     )]
     pub creator_earnings: Account<'info, CreatorEarnings>,
@@ -93,10 +102,10 @@ pub fn handle_create_platform_race(
     add_time(input.betting_end_time, input.start_grace)?;
     add_time(race_end, input.resolution_grace)?;
 
-    let creator = ctx.accounts.admin.key();
+    let creator = ctx.accounts.config.admin;
     create_vaults(
         &input.stake_mint,
-        &ctx.accounts.admin.to_account_info(),
+        &ctx.accounts.authority.to_account_info(),
         &ctx.accounts.race.to_account_info(),
         &ctx.accounts.creator_earnings.to_account_info(),
         &ctx.accounts.token_mint,

@@ -791,12 +791,12 @@
       ],
       "accounts": [
         {
-          "name": "admin",
+          "name": "authority",
+          "docs": [
+            "The admin, or the configured race operator."
+          ],
           "writable": true,
-          "signer": true,
-          "relations": [
-            "config"
-          ]
+          "signer": true
         },
         {
           "name": "config",
@@ -867,6 +867,9 @@
         },
         {
           "name": "creator_earnings",
+          "docs": [
+            "Platform races always credit the admin, whoever signs."
+          ],
           "writable": true,
           "pda": {
             "seeds": [
@@ -888,7 +891,8 @@
               },
               {
                 "kind": "account",
-                "path": "admin"
+                "path": "config.admin",
+                "account": "Config"
               }
             ]
           }
@@ -1759,6 +1763,53 @@
       ]
     },
     {
+      "name": "set_race_operator",
+      "discriminator": [
+        61,
+        115,
+        249,
+        73,
+        88,
+        178,
+        108,
+        147
+      ],
+      "accounts": [
+        {
+          "name": "admin",
+          "signer": true,
+          "relations": [
+            "config"
+          ]
+        },
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "race_operator",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
       "name": "set_stake_mint",
       "discriminator": [
         98,
@@ -2495,6 +2546,19 @@
         210,
         225,
         9
+      ]
+    },
+    {
+      "name": "RaceOperatorSet",
+      "discriminator": [
+        224,
+        199,
+        44,
+        33,
+        202,
+        70,
+        199,
+        125
       ]
     },
     {
@@ -3380,6 +3444,15 @@
             "type": "pubkey"
           },
           {
+            "name": "race_operator",
+            "docs": [
+              "Optional hot key (the race scheduler) that may create platform races",
+              "and nothing else; their creator fees still accrue to the admin.",
+              "`Pubkey::default()` when unset."
+            ],
+            "type": "pubkey"
+          },
+          {
             "name": "paused",
             "docs": [
               "Pauses only creation and new bets/entries. Lifecycle, claims and refunds stay open."
@@ -4028,6 +4101,18 @@
           {
             "name": "asset_count",
             "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RaceOperatorSet",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "race_operator",
+            "type": "pubkey"
           }
         ]
       }

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { ASSET_RACE_CATEGORY, type ApprovedRaceAsset } from '@/chain/assetRaces'
-import { useLivePrices } from '@/chain/livePrices'
-import { formatUnits, formatUsdPrice } from '@/lib/format'
+import { marketCapUsd, useLivePrices } from '@/chain/livePrices'
+import { formatCompactUsd, formatUnits, formatUsdPrice } from '@/lib/format'
 import { PriceSourceLink } from '@/components/PriceSourceLink'
 import { TokenLogo } from '@/components/TokenLogo'
 
@@ -75,7 +75,9 @@ export function AssetRaceAssetPicker({
                   </span>
                   {live.assets[asset.symbol] && (
                     <span className="mt-0.5 block font-mono text-[11px] text-white/45">
-                      {formatUsdPrice(Number(formatUnits(live.assets[asset.symbol].raw, live.assets[asset.symbol].decimals)))}
+                      {marketCapUsd(live.assets[asset.symbol]) != null
+                        ? `MC ${formatCompactUsd(marketCapUsd(live.assets[asset.symbol])!)}`
+                        : formatUsdPrice(Number(formatUnits(live.assets[asset.symbol].raw, live.assets[asset.symbol].decimals)))}
                     </span>
                   )}
                 </span>

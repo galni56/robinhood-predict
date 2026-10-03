@@ -1,0 +1,4 @@
+{
+  "note": "Display symbols for SPL stake currencies, per cluster. The program decides which mints are accepted (set_stake_mint); this file only names them. Unlisted mints show a short address.",
+  "tokens": []
+}

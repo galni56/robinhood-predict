@@ -60,6 +60,8 @@ export interface AssetRaceAsset {
   liveDecimals?: number
   liveProvider?: 'PRICE_SERVICE'
   liveStale?: boolean
+  /** Display market cap from the live price and mint supply (memes). */
+  liveMarketCapUsd?: number
 }
 
 export interface AssetRacePosition {

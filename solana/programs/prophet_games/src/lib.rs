@@ -45,6 +45,10 @@ pub mod prophet_games {
         admin::handle_set_oracle_signer(ctx, oracle_signer)
     }
 
+    pub fn set_race_operator(ctx: Context<AdminConfig>, race_operator: Pubkey) -> Result<()> {
+        admin::handle_set_race_operator(ctx, race_operator)
+    }
+
     pub fn set_community_policy(ctx: Context<AdminConfig>, policy: CommunityPolicy) -> Result<()> {
         admin::handle_set_community_policy(ctx, policy)
     }

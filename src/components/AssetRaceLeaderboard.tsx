@@ -1,5 +1,5 @@
 import { priceSourceUrlForAssetId } from '@/chain/assetRaceRegistry'
-import { formatUnits } from '@/lib/format'
+import { formatCompactUsd, formatUnits } from '@/lib/format'
 import { PriceSourceLink } from '@/components/PriceSourceLink'
 import { TokenLogo } from '@/components/TokenLogo'
 import {
@@ -21,6 +21,7 @@ interface LeaderboardEntry {
   updatedAt?: bigint
   source?: string
   stale: boolean
+  marketCapUsd?: number
 }
 
 function raceLeaderboardEntries(race: AssetRaceViewModel, final = false): LeaderboardEntry[] {
@@ -42,6 +43,7 @@ function raceLeaderboardEntries(race: AssetRaceViewModel, final = false): Leader
       updatedAt: final ? asset.endOracleUpdatedAt : undefined,
       source: final ? 'final' : asset.liveProvider ? 'live' : undefined,
       stale: !final && !!asset.liveStale,
+      marketCapUsd: final ? undefined : asset.liveMarketCapUsd,
     }))
     .sort((a, b) => (a.returnValue > b.returnValue ? -1 : a.returnValue < b.returnValue ? 1 : a.assetIndex - b.assetIndex))
 }
@@ -112,6 +114,7 @@ export function AssetRaceLeaderboard({
               </div>
             </div>
             <div className="mt-2 ml-9 flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-white/35">
+              {entry.marketCapUsd != null && <span className="font-bold text-[#F2A65A]">MC {formatCompactUsd(entry.marketCapUsd)}</span>}
               {entry.startPrice > 0n && <span>P0 ${formatUnits(entry.startPrice, entry.decimals)}</span>}
               {entry.endPrice > 0n && <span>{final ? 'P1' : 'display'} ${formatUnits(entry.endPrice, entry.decimals)}</span>}
               {entry.source && <span>{entry.source}</span>}

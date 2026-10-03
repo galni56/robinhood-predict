@@ -12,7 +12,8 @@ import { usePriceArenas } from '@/chain/usePriceArenas'
 import { ClusterBanner } from '@/components/ClusterBanner'
 import { FilterChips } from '@/components/FilterChips'
 import { TokenLogo } from '@/components/TokenLogo'
-import { formatCompactSol, formatUnits, formatUsdPrice } from '@/lib/format'
+import { formatUnits, formatUsdPrice } from '@/lib/format'
+import { formatStakeAmount, useStakeTokenLookup } from '@/solana/stakeTokens'
 
 type ArchiveMode = 'races' | 'arenas'
 
@@ -32,6 +33,7 @@ export function OnchainArchivePage() {
   const mode: ArchiveMode = params.get('mode') === 'arenas' ? 'arenas' : 'races'
   const races = useAssetRaces()
   const arenas = usePriceArenas()
+  const tokenOf = useStakeTokenLookup()
 
   const finishedRaces = races.races.filter((race) => (
     race.status === ASSET_RACE_STATUS.RESOLVED
@@ -74,7 +76,7 @@ export function OnchainArchivePage() {
                     </div>
                     <div className="text-right">
                       <div className="text-sm font-bold">{winner ? <>{winner.symbol} <span className="font-mono text-emerald-300">{formatReturnWad(winner.returnValue)}</span></> : assetRaceStatusLabel(race.status)}</div>
-                      <div className="font-mono text-xs text-white/40">{formatCompactSol(race.totalPool)} pool</div>
+                      <div className="font-mono text-xs text-white/40">{formatStakeAmount(race.totalPool, tokenOf(race.stakeMint))} pool</div>
                     </div>
                   </Link>
                 )
@@ -97,7 +99,7 @@ export function OnchainArchivePage() {
                           ? <>Final <span className="font-mono">{formatUsdPrice(Number(formatUnits(arena.finalPrice, arena.priceDecimals)))}</span> · {arena.winnerCount} of {arena.participantCount} won</>
                           : 'Cancelled · refunded'}
                       </div>
-                      <div className="font-mono text-xs text-white/40">{formatCompactSol(arena.totalPool)} pool</div>
+                      <div className="font-mono text-xs text-white/40">{formatStakeAmount(arena.totalPool, tokenOf(arena.stakeMint))} pool</div>
                     </div>
                   </Link>
                 )

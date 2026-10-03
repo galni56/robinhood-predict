@@ -51,12 +51,18 @@ export function AssetRaceResultView({
   const meme = race.category === ASSET_RACE_CATEGORY.MEME
   const payout = won ? resolvedPositionPayout(race, position) : 0n
   const refundable = !resolved && position?.exists && !position.settled
+  // A settled position comes from history: its account is already closed.
+  const settled = !!position?.settled
 
   const action = !isConnected ? (
     <WalletOptionsList tone="race" />
-  ) : settlement && !position?.exists ? (
+  ) : settlement && (settled || !position?.exists) ? (
     <div className="w-full rounded-xl bg-white/5 py-3 text-center text-sm font-bold text-white/45">
       {settlement.type === 'claim' ? 'Claimed' : 'Refunded'} {formatStakeRaw(settlement.amount, tokenDecimals)} {tokenLabel}
+    </div>
+  ) : settled ? (
+    <div className="w-full rounded-xl bg-white/5 py-3 text-center text-sm font-bold text-white/45">
+      {lost ? 'Position closed · account deposit recovered' : 'Settled'}
     </div>
   ) : resolved && won ? (
     <button onClick={onClaim} disabled={!!txLabel} className="w-full rounded-xl bg-gradient-to-r from-[#F2A65A] to-[#ED8F3A] py-3 text-sm font-bold text-[#3b2416] disabled:opacity-40">
@@ -93,7 +99,7 @@ export function AssetRaceResultView({
           <div><div className="text-xs font-bold text-white/35">Your asset</div><div className="mt-1 flex items-center gap-2 font-display font-bold"><TokenLogo ticker={myAsset?.symbol} className="h-7 w-7 rounded-lg" />{myAsset?.symbol}</div></div>
           <div><div className="text-xs font-bold text-white/35">Your stake</div><div className="font-mono">{formatStakeRaw(position.stake, tokenDecimals)}</div></div>
           <div><div className="text-xs font-bold text-white/35">Result</div><div className={won ? 'font-bold text-[#F2A65A]' : resolved ? 'font-bold text-rose-400' : 'font-bold text-[#F2A65A]'}>{won ? 'Won' : resolved ? 'Lost' : 'Refund'}</div></div>
-          <div><div className="text-xs font-bold text-white/35">Claimable</div><div className="font-mono">{won ? formatStakeRaw(payout, tokenDecimals) : refundable ? formatStakeRaw(position.stake, tokenDecimals) : '0'} {tokenLabel}</div></div>
+          <div><div className="text-xs font-bold text-white/35">{settled ? 'Received' : 'Claimable'}</div><div className="font-mono">{settled ? formatStakeRaw(settlement?.amount ?? 0n, tokenDecimals) : won ? formatStakeRaw(payout, tokenDecimals) : refundable ? formatStakeRaw(position.stake, tokenDecimals) : '0'} {tokenLabel}</div></div>
         </div>
       )}
 

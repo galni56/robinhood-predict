@@ -5,7 +5,7 @@ import { WalletOptionsList } from '@/components/WalletOptionsList'
 import { PriceSourceLink } from '@/components/PriceSourceLink'
 import { TokenLogo } from '@/components/TokenLogo'
 import { priceSourceUrlForAssetId } from '@/chain/assetRaceRegistry'
-import { formatCountdown, formatUnits, formatUsdPrice } from '@/lib/format'
+import { formatCompactUsd, formatCountdown, formatUnits, formatUsdPrice } from '@/lib/format'
 import {
   ASSET_RACE_CATEGORY,
   estimateRacePayout,
@@ -33,9 +33,10 @@ export function AssetRaceBettingView({
   tokenDecimals,
   tokenLabel,
   amountRaw,
-  exactSol,
+  exactAmount,
   equivalentUsd,
   quoteReady,
+  usdQuoted = true,
 }: {
   race: AssetRaceViewModel
   position?: AssetRacePosition
@@ -54,9 +55,12 @@ export function AssetRaceBettingView({
   tokenDecimals: number
   tokenLabel: string
   amountRaw: bigint
-  exactSol: string | null
+  /** Exact amount the wallet will send, in `tokenLabel` units. */
+  exactAmount: string | null
   equivalentUsd: string | null
   quoteReady: boolean
+  /** SOL stakes are entered in USD or SOL; SPL stakes only in their token. */
+  usdQuoted?: boolean
 }) {
   const meme = race.category === ASSET_RACE_CATEGORY.MEME
   const crypto = race.category === ASSET_RACE_CATEGORY.CRYPTO
@@ -125,9 +129,14 @@ export function AssetRaceBettingView({
                     </div>
                     {asset.livePrice != null && (
                       <div>
-                        <div className="text-xs font-bold text-white/30">Price</div>
-                        <div className="font-mono text-sm text-[#F2A65A]">
-                          {formatUsdPrice(Number(formatUnits(asset.livePrice, asset.liveDecimals ?? asset.expectedDecimals)))}
+                        <div className="text-xs font-bold text-white/30">{asset.liveMarketCapUsd != null ? 'Market cap' : 'Price'}</div>
+                        <div
+                          title={asset.liveMarketCapUsd != null ? `Price ${formatUsdPrice(Number(formatUnits(asset.livePrice, asset.liveDecimals ?? asset.expectedDecimals)))}` : undefined}
+                          className="font-mono text-sm text-[#F2A65A]"
+                        >
+                          {asset.liveMarketCapUsd != null
+                            ? formatCompactUsd(asset.liveMarketCapUsd)
+                            : formatUsdPrice(Number(formatUnits(asset.livePrice, asset.liveDecimals ?? asset.expectedDecimals)))}
                         </div>
                       </div>
                     )}
@@ -177,15 +186,18 @@ export function AssetRaceBettingView({
               onInputUnitChange={setInputUnit}
               disabled={!!txLabel}
               tone="race"
+              token={usdQuoted ? undefined : { symbol: tokenLabel, native: false }}
             />
             <p className="mt-2 text-xs font-medium text-white/45">
-              {exactSol
-                ? inputUnit === 'SOL'
-                  ? `Wallet will send exactly ${exactSol} SOL · about ${equivalentUsd} at the displayed rate.`
-                  : `Wallet will send exactly ${exactSol} SOL`
-                : quoteReady
-                  ? `Enter a stake worth $1–$50 in ${inputUnit}.`
-                  : 'SOL/USD rate unavailable or stale.'}
+              {exactAmount
+                ? usdQuoted && inputUnit === 'SOL'
+                  ? `Wallet will send exactly ${exactAmount} SOL · about ${equivalentUsd} at the displayed rate.`
+                  : `Wallet will send exactly ${exactAmount} ${tokenLabel}`
+                : !usdQuoted
+                  ? `Enter a stake in ${tokenLabel}.`
+                  : quoteReady
+                    ? `Enter a stake worth $1–$50 in ${inputUnit}.`
+                    : 'SOL/USD rate unavailable or stale.'}
             </p>
             <div className="mt-1.5 flex flex-wrap justify-between gap-2 text-[11px] font-medium text-white/30">
               <span>

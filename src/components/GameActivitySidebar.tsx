@@ -4,6 +4,7 @@ import { BoltIcon, TrophyIcon } from '@/components/icons'
 import { TokenLogo } from '@/components/TokenLogo'
 import { explorerUrl } from '@/solana/config'
 import { formatCompactSol, formatSol } from '@/lib/format'
+import { SOL_STAKE_TOKEN, formatStakeAmount, formatStakeExact, useStakeTokenLookup } from '@/solana/stakeTokens'
 import { shortHash } from '@/lib/hash'
 
 export type GameActivityKind = 'race' | 'arena'
@@ -14,6 +15,7 @@ export function GameActivitySidebar({
   kind: GameActivityKind
 }) {
   const history = useHistory()
+  const tokenOf = useStakeTokenLookup()
   const leaderboard = history.data?.leaderboards?.[kind].slice(0, 10)
   const recent = history.data?.activity
     .filter((item) => item.game === kind && (item.type === 'bet' || item.type === 'entry') && item.wallet && item.amount)
@@ -58,13 +60,15 @@ export function GameActivitySidebar({
               : !recent?.length ? <p className="py-4 text-center text-xs text-white/30">No bets yet</p>
                 : recent.map((bet) => {
                   const amount = BigInt(bet.amount!)
+                  // Older snapshots carry no stake mint; those games were all SOL.
+                  const token = bet.stakeMint ? tokenOf(bet.stakeMint) : SOL_STAKE_TOKEN
                   return <div key={`${bet.signature}:${bet.wallet}`} className="rounded-xl bg-white/5 px-2.5 py-2 text-xs">
                     <div className="flex min-w-0 items-center justify-between gap-2">
                       <div className="flex min-w-0 items-center gap-1.5">
                         <TokenLogo ticker={bet.symbol ?? undefined} className="h-6 w-6 rounded-md" />
                         <div className="min-w-0 truncate font-bold text-white/75">{bet.symbol ?? `${kind} #${bet.gameId ?? '?'}`}</div>
                       </div>
-                      <div title={`${formatSol(amount)} SOL`} className="shrink-0 whitespace-nowrap text-right font-mono text-white/70 tabular-nums">{formatCompactSol(amount)}</div>
+                      <div title={formatStakeExact(amount, token)} className="shrink-0 whitespace-nowrap text-right font-mono text-white/70 tabular-nums">{formatStakeAmount(amount, token)}</div>
                     </div>
                     <div className="mt-1.5 grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 border-t border-white/5 pt-1.5">
                       <AddressLabel address={bet.wallet!} className="min-w-0 truncate font-mono text-white/40 hover:text-white" />

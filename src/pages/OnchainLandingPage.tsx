@@ -9,7 +9,8 @@ import { useAssetRaces } from '@/chain/useAssetRaces'
 import { usePriceArenas } from '@/chain/usePriceArenas'
 import { TokenLogo } from '@/components/TokenLogo'
 import { PriceSourceLink } from '@/components/PriceSourceLink'
-import { formatCompactSol, formatCountdown } from '@/lib/format'
+import { formatCountdown } from '@/lib/format'
+import { formatStakeAmount, useStakeToken } from '@/solana/stakeTokens'
 
 const GAME_GUIDES = [
   {
@@ -200,6 +201,7 @@ function GameColumn({
 }
 
 function RacePreviewCard({ race, nowMs }: { race: AssetRaceViewModel; nowMs: number }) {
+  const token = useStakeToken(race.stakeMint)
   const navigate = useNavigate()
   const inLobby = race.status === ASSET_RACE_STATUS.LOBBY
   const running = race.status === ASSET_RACE_STATUS.RUNNING
@@ -254,7 +256,7 @@ function RacePreviewCard({ race, nowMs }: { race: AssetRaceViewModel; nowMs: num
       </div>
       <div className="mt-4 flex items-center justify-between gap-3 text-xs">
         <span className="text-white/35">
-          {inLobby ? `${race.candidateCount} / 6 assets` : `${formatCompactSol(race.totalPool)} pool`}
+          {inLobby ? `${race.candidateCount} / 6 assets` : `${formatStakeAmount(race.totalPool, token)} pool`}
         </span>
         <span className="shrink-0 font-bold text-[#F2A65A]">{actionLabel} →</span>
       </div>
@@ -263,6 +265,7 @@ function RacePreviewCard({ race, nowMs }: { race: AssetRaceViewModel; nowMs: num
 }
 
 function ArenaPreviewCard({ arena, nowMs }: { arena: PriceArenaWithPhase; nowMs: number }) {
+  const token = useStakeToken(arena.stakeMint)
   const navigate = useNavigate()
   const inLobby = arena.phase === PRICE_ARENA_PHASE.LOBBY
   const settling = arena.phase === PRICE_ARENA_PHASE.RUNNING && Number(arena.deadline) * 1_000 <= nowMs
@@ -303,7 +306,7 @@ function ArenaPreviewCard({ arena, nowMs }: { arena: PriceArenaWithPhase; nowMs:
         </span>
       </div>
       <div className="mt-4 flex items-center justify-between gap-3 text-xs">
-        <span className="text-white/35">{arena.participantCount} / {PRICE_ARENA_MAX_PARTICIPANTS} players · {formatCompactSol(arena.totalPool)} pool</span>
+        <span className="text-white/35">{arena.participantCount} / {PRICE_ARENA_MAX_PARTICIPANTS} players · {formatStakeAmount(arena.totalPool, token)} pool</span>
         <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
           <PriceSourceLink href={arena.asset?.priceUrl} symbol={arena.asset?.symbol} tone="arena" className="bg-[#7A9FF0]/10 px-2 py-1" />
           <span className="font-bold text-[#B7CEFF]">{actionLabel} →</span>

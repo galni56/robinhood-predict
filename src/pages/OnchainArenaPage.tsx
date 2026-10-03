@@ -5,6 +5,7 @@ import { useWallet } from '@solana/wallet-adapter-react'
 import {
   formatUsdCents,
   freezeStakeQuote,
+  parseTokenAmount,
   stakeGuardrailMessage,
   stakeGuardrailViolation,
   stakeQuoteErrorMessage,
@@ -32,11 +33,10 @@ import { PriceSourceLink } from '@/components/PriceSourceLink'
 import { StakeAmountInput } from '@/components/StakeAmountInput'
 import { TokenLogo } from '@/components/TokenLogo'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
-import { NATIVE_SOL } from '@/solana/config'
-import { useSolBalance } from '@/solana/balance'
+import { formatStakeAmount, formatStakeExact, useStakeBalance, useStakeToken, type StakeToken } from '@/solana/stakeTokens'
 import { usePrograms } from '@/solana/programs'
 import { TxUnconfirmedError, useSendInstructions } from '@/solana/tx'
-import { formatCompactSol, formatCountdown, formatSol, formatUnits, formatUsdPrice, parseUnits, shortTxError } from '@/lib/format'
+import { formatCountdown, formatUnits, formatUsdPrice, parseUnits, shortTxError } from '@/lib/format'
 
 function parseId(value?: string) {
   if (!value || !/^\d+$/.test(value)) return null
@@ -69,8 +69,9 @@ function cancelReasonText(reason: number) {
   return 'The round was cancelled.'
 }
 
-function ArenaBoard({ rows, referencePrice, decimals, resolved, winnerCount }: {
+function ArenaBoard({ rows, referencePrice, decimals, resolved, winnerCount, token }: {
   rows: PriceArenaEntry[]
+  token: StakeToken
   referencePrice: bigint
   decimals: number
   resolved: boolean
@@ -86,6 +87,8 @@ function ArenaBoard({ rows, referencePrice, decimals, resolved, winnerCount }: {
     return left.predictionSeq - right.predictionSeq
   }), [referencePrice, resolved, rows])
   const provisionalWinners = resolved ? winnerCount : Math.floor(rows.length / 2)
+  const fmt = (raw: bigint) => formatStakeAmount(raw, token)
+  const fmtExact = (raw: bigint) => formatStakeExact(raw, token)
   return (
     <div className="space-y-2">
       {ranked.map((entry, index) => {
@@ -93,9 +96,9 @@ function ArenaBoard({ rows, referencePrice, decimals, resolved, winnerCount }: {
         const error = referencePrice > 0n ? Number(absError(entry.prediction, referencePrice) * 1_000_000n / referencePrice) / 10_000 : 0
         return <div key={entry.player} className={`grid gap-3 rounded-2xl border p-4 sm:grid-cols-[2.5rem_1fr_1fr_1fr] sm:items-center ${winning ? 'border-emerald-400/25 bg-emerald-400/[0.06]' : 'border-white/5 bg-white/[0.02]'}`}>
           <div className="font-mono text-lg text-white/40">#{resolved ? entry.rank : index + 1}</div>
-          <div className="min-w-0"><AddressLabel address={entry.player} className="font-bold text-white/80" /><div title={`${formatSol(entry.stake)} SOL`} className="truncate text-xs text-white/30">{formatCompactSol(entry.stake)}</div></div>
+          <div className="min-w-0"><AddressLabel address={entry.player} className="font-bold text-white/80" /><div title={fmtExact(entry.stake)} className="truncate text-xs text-white/30">{fmt(entry.stake)}</div></div>
           <div><div className="text-xs text-white/30">Prediction</div><div className="font-mono font-bold">{displayPrice(entry.prediction, decimals)}</div></div>
-          <div className="min-w-0 sm:text-right"><div className="text-xs text-white/30">{resolved ? (winning ? 'Payout' : 'Result') : 'Live deviation'}</div><div title={resolved && entry.payout > 0n ? `${formatSol(entry.payout)} SOL` : undefined} className={`truncate font-mono font-bold ${winning ? 'text-emerald-300' : 'text-white/50'}`}>{resolved ? (entry.payout > 0n ? formatCompactSol(entry.payout) : 'Lost') : `${error.toFixed(4)}%`}</div></div>
+          <div className="min-w-0 sm:text-right"><div className="text-xs text-white/30">{resolved ? (winning ? 'Payout' : 'Result') : 'Live deviation'}</div><div title={resolved && entry.payout > 0n ? fmtExact(entry.payout) : undefined} className={`truncate font-mono font-bold ${winning ? 'text-emerald-300' : 'text-white/50'}`}>{resolved ? (entry.payout > 0n ? fmt(entry.payout) : 'Lost') : `${error.toFixed(4)}%`}</div></div>
         </div>
       })}
     </div>
@@ -117,21 +120,31 @@ export function OnchainArenaPage() {
   const [error, setError] = useState<string | null>(null)
   const nowMs = useAssetRaceClock()
   const live = useLivePrices()
-  const balance = useSolBalance()
+  // SOL stakes are entered in USD or SOL at the live rate; SPL stakes in their own units.
+  const token = useStakeToken(arena?.stakeMint)
+  const usdQuoted = token?.native ?? true
+  const balance = useStakeBalance(token)
+  const fmt = (raw: bigint) => formatStakeAmount(raw, token)
+  const fmtExact = (raw: bigint) => formatStakeExact(raw, token)
   const phase = arena ? arenaPhase(arena.status, arena.startsAt, nowMs / 1000) : PRICE_ARENA_PHASE.LOBBY
   const liveAsset = arena ? live.assets[arena.symbol] : undefined
   const livePrice = liveAsset && liveAsset.decimals === arena?.priceDecimals ? liveAsset.raw : 0n
   const referencePrice = phase === PRICE_ARENA_PHASE.RESOLVED ? arena!.finalPrice : livePrice
-  const solStaked = arena?.stakeMint === NATIVE_SOL.toBase58()
   let quotedEntry: FrozenStakeQuote | undefined
   try {
-    quotedEntry = amount.trim() && live.solUsd ? freezeStakeQuote(amount, stakeInputUnit, live.solUsd) : undefined
+    quotedEntry = usdQuoted && amount.trim() && live.solUsd ? freezeStakeQuote(amount, stakeInputUnit, live.solUsd) : undefined
   } catch {
     quotedEntry = undefined
   }
   const displayedEntryQuote = frozenEntryQuote ?? quotedEntry
-  const displayedEntryLamports = displayedEntryQuote?.lamports ?? 0n
-  const violation = stakeGuardrailViolation(displayedEntryLamports, {
+  let tokenEntryAmount = 0n
+  try {
+    tokenEntryAmount = !usdQuoted && token && amount.trim() ? parseTokenAmount(amount, token.decimals) : 0n
+  } catch {
+    tokenEntryAmount = 0n
+  }
+  const displayedEntryAmount = usdQuoted ? displayedEntryQuote?.lamports ?? 0n : tokenEntryAmount
+  const violation = stakeGuardrailViolation(displayedEntryAmount, {
     minInitial: minStake,
     maxCumulative: maxStake,
     existingStake: walletEntry?.stake ?? 0n,
@@ -155,15 +168,15 @@ export function OnchainArenaPage() {
   }
 
   async function submitEntry() {
-    if (!arena || !publicKey) return
+    if (!arena || !publicKey || !token) return
     setError(null)
     try {
-      if (amount.trim() && !live.solUsd) throw new Error('SolUsdQuoteStale')
-      const frozenQuote = amount.trim() && live.solUsd ? freezeStakeQuote(amount, stakeInputUnit, live.solUsd) : null
-      const additional = frozenQuote?.lamports ?? 0n
+      if (usdQuoted && amount.trim() && !live.solUsd) throw new Error('SolUsdQuoteStale')
+      const frozenQuote = usdQuoted && amount.trim() && live.solUsd ? freezeStakeQuote(amount, stakeInputUnit, live.solUsd) : null
+      const additional = frozenQuote?.lamports ?? (!usdQuoted && amount.trim() ? parseTokenAmount(amount, token.decimals) : 0n)
       setFrozenEntryQuote(frozenQuote)
       const predicted = parsePrediction(prediction, arena.priceDecimals)
-      if (!walletEntry && (predicted <= 0n || additional <= 0n)) throw new EntryInputError('Enter a price and a stake from $1 to $50')
+      if (!walletEntry && (predicted <= 0n || additional <= 0n)) throw new EntryInputError(usdQuoted ? 'Enter a price and a stake from $1 to $50' : 'Enter a price and a stake')
       if (walletEntry && predicted === 0n && additional === 0n) throw new EntryInputError('Enter a new price or a top-up amount')
       const guardrail = stakeGuardrailViolation(additional, {
         minInitial: minStake,
@@ -231,15 +244,15 @@ export function OnchainArenaPage() {
 
         <div className="mt-6 grid gap-4 sm:grid-cols-3">
           <div className="min-w-0 rounded-2xl border border-white/5 bg-[#241b2f] p-4"><div className="text-xs text-white/35">Players</div><div className="mt-1 truncate font-mono text-2xl font-bold tabular-nums">{arena.participantCount} / {PRICE_ARENA_MAX_PARTICIPANTS}</div></div>
-          <div className="min-w-0 rounded-2xl border border-white/5 bg-[#241b2f] p-4"><div className="text-xs text-white/35">Prize pool</div><div title={`${formatSol(arena.totalPool)} SOL`} className="mt-1 truncate font-mono text-2xl font-bold tabular-nums">{formatCompactSol(arena.totalPool)}</div></div>
+          <div className="min-w-0 rounded-2xl border border-white/5 bg-[#241b2f] p-4"><div className="text-xs text-white/35">Prize pool</div><div title={fmtExact(arena.totalPool)} className="mt-1 truncate font-mono text-2xl font-bold tabular-nums">{fmt(arena.totalPool)}</div></div>
           <div className="min-w-0 rounded-2xl border border-white/5 bg-[#241b2f] p-4"><div className="text-xs text-white/35">{phase === PRICE_ARENA_PHASE.RESOLVED ? 'Final price' : 'Live price'}</div><div className="mt-1 truncate font-mono text-2xl font-bold tabular-nums">{displayPrice(referencePrice, arena.priceDecimals)}</div></div>
         </div>
 
-        {!solStaked ? <div className="mt-6 rounded-3xl border border-white/10 bg-[#241b2f] p-6 text-sm text-white/55">This arena is staked in an SPL token. This page supports SOL-staked arenas only for now.</div> : phase === PRICE_ARENA_PHASE.LOBBY ? <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_0.8fr]">
-          <section className="min-w-0"><h2 className="font-display text-xl font-bold">Lobby stakes</h2><p className="mt-1 text-sm text-white/40">Predictions stay hidden here until the game starts. Account data on Solana is public, so this is a display courtesy, not secrecy.</p><div className="mt-4 space-y-2">{entries.map((entry) => <div key={entry.player} className="flex min-w-0 items-center justify-between gap-3 rounded-xl border border-white/5 bg-[#241b2f] px-4 py-3"><AddressLabel address={entry.player} className="min-w-0 font-bold text-white/70" /><span title={`${formatSol(entry.stake)} SOL`} className="shrink-0 whitespace-nowrap font-mono">{formatCompactSol(entry.stake)} · prediction hidden</span></div>)}{entries.length === 0 && <p className="py-8 text-sm text-white/35">Be the first player.</p>}</div></section>
+        {!token ? <p className="py-10 text-center text-sm text-white/40">Loading stake currency…</p> : phase === PRICE_ARENA_PHASE.LOBBY ? <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_0.8fr]">
+          <section className="min-w-0"><h2 className="font-display text-xl font-bold">Lobby stakes</h2><p className="mt-1 text-sm text-white/40">Predictions stay hidden here until the game starts. Account data on Solana is public, so this is a display courtesy, not secrecy.</p><div className="mt-4 space-y-2">{entries.map((entry) => <div key={entry.player} className="flex min-w-0 items-center justify-between gap-3 rounded-xl border border-white/5 bg-[#241b2f] px-4 py-3"><AddressLabel address={entry.player} className="min-w-0 font-bold text-white/70" /><span title={fmtExact(entry.stake)} className="shrink-0 whitespace-nowrap font-mono">{fmt(entry.stake)} · prediction hidden</span></div>)}{entries.length === 0 && <p className="py-8 text-sm text-white/35">Be the first player.</p>}</div></section>
           <section className="rounded-3xl border border-[#7A9FF0]/20 bg-[#241b2f] p-5">
             <h2 className="font-display text-xl font-bold">{walletEntry ? 'Update your entry' : 'Make your prediction'}</h2>
-            {walletEntry && <p title={`${formatSol(walletEntry.stake)} SOL`} className="mt-2 text-sm text-white/50">Your current stake is {formatCompactSol(walletEntry.stake)}. Leave price empty to keep it. Money cannot be withdrawn before settlement.</p>}
+            {walletEntry && <p title={fmtExact(walletEntry.stake)} className="mt-2 text-sm text-white/50">Your current stake is {fmt(walletEntry.stake)}. Leave price empty to keep it. Money cannot be withdrawn before settlement.</p>}
             <label className="mt-5 block">
               <span className="mb-1.5 block text-sm text-white/50">{walletEntry ? 'New price · optional' : 'Predicted final price · USD'}</span>
               <input value={prediction} onChange={(event) => setPrediction(event.target.value)} inputMode="decimal" placeholder={walletEntry ? 'Keep current prediction' : '0.00'} className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 font-mono outline-none focus:border-[#7A9FF0]" />
@@ -260,32 +273,35 @@ export function OnchainArenaPage() {
                 }}
                 disabled={!!txLabel}
                 tone="arena"
+                token={token}
               />
             </div>
             <p className="mt-2 text-xs text-white/45">
               {violation
                 ? stakeGuardrailMessage(violation)
-                : displayedEntryQuote
-                  ? stakeInputUnit === 'SOL'
-                    ? `Wallet will send exactly ${formatSol(displayedEntryQuote.lamports)} SOL · about ${formatUsdCents(displayedEntryQuote.usdCents)} at the displayed rate.`
-                    : `Wallet will send exactly ${formatSol(displayedEntryQuote.lamports)} SOL.`
-                  : live.solUsd
-                    ? `Enter a stake worth $1–$50 in ${stakeInputUnit}.`
-                    : 'SOL/USD rate unavailable'}
+                : displayedEntryAmount > 0n
+                  ? usdQuoted && stakeInputUnit === 'SOL' && displayedEntryQuote
+                    ? `Wallet will send exactly ${fmtExact(displayedEntryAmount)} · about ${formatUsdCents(displayedEntryQuote.usdCents)} at the displayed rate.`
+                    : `Wallet will send exactly ${fmtExact(displayedEntryAmount)}.`
+                  : !usdQuoted
+                    ? `Enter a stake in ${token.symbol}.`
+                    : live.solUsd
+                      ? `Enter a stake worth $1–$50 in ${stakeInputUnit}.`
+                      : 'SOL/USD rate unavailable'}
             </p>
-            {balance.data != null && <p title={`${formatSol(balance.data)} SOL`} className="mt-1 text-xs text-white/30">Wallet balance: {formatCompactSol(balance.data)}</p>}
+            {balance.data != null && <p title={fmtExact(balance.data)} className="mt-1 text-xs text-white/30">Wallet balance: {fmt(balance.data)}</p>}
             {error && <p className="mt-3 text-sm text-rose-400">{error}</p>}
             {!connected
               ? <div className="mt-5"><WalletOptionsList tone="arena" /></div>
               : <button
                   onClick={submitEntry}
-                  disabled={!!txLabel || (!walletEntry && displayedEntryLamports <= 0n) || !!violation}
+                  disabled={!!txLabel || (!walletEntry && displayedEntryAmount <= 0n) || !!violation}
                   className="mt-5 w-full rounded-xl bg-gradient-to-r from-[#8EB1F8] to-[#7A9FF0] py-3 font-bold text-[#152447] disabled:opacity-40"
                 >
-                  {txLabel ?? (walletEntry ? 'Update entry' : 'Enter arena with SOL')}
+                  {txLabel ?? (walletEntry ? 'Update entry' : `Enter arena with ${token.symbol}`)}
                 </button>}
           </section>
-        </div> : phase === PRICE_ARENA_PHASE.CANCELLED ? <div className="mt-6 rounded-3xl border border-amber-400/20 bg-amber-400/10 p-6"><h2 className="font-display text-2xl font-bold">Arena cancelled</h2><p className="mt-2 text-sm text-white/55">{cancelReasonText(arena.cancelReason)} Every player gets a full refund.</p>{walletEntry && !walletEntry.settled && <button title={`${formatSol(walletEntry.stake)} SOL`} onClick={() => settle('refund')} disabled={!!txLabel} className="mt-5 max-w-full truncate rounded-xl bg-[#7A9FF0] px-6 py-3 font-bold text-[#152447] hover:bg-[#8EB1F8]">{txLabel ?? `Refund ${formatCompactSol(walletEntry.stake)}`}</button>}{walletEntry?.settled && <div className="mt-5 text-sm font-bold text-white/40">Refunded</div>}{error && <p className="mt-3 text-sm text-rose-400">{error}</p>}</div> : <section className="mt-7"><div className="mb-4 flex items-end justify-between"><div><h2 className="font-display text-2xl font-bold">{phase === PRICE_ARENA_PHASE.RUNNING ? underfilled ? 'Not enough players' : awaitingSettlement ? 'Settlement pending' : 'Live leaderboard' : 'Final standings'}</h2><p className="mt-1 text-sm text-white/40">{phase === PRICE_ARENA_PHASE.RUNNING ? underfilled ? 'Fewer than two players joined. The keeper cancels this arena and every stake becomes refundable.' : awaitingSettlement ? 'The round is closed. The keeper is fixing the deadline price and final ranking onchain.' : 'Positions update with the display price; settlement uses the signed pool price at the deadline.' : `Closest ${arena.winnerCount} player${arena.winnerCount === 1 ? '' : 's'} won.`}</p></div>{phase === PRICE_ARENA_PHASE.RUNNING && !awaitingSettlement && live.disconnected && <span className="text-xs font-bold text-amber-300">Live feed reconnecting…</span>}</div><ArenaBoard rows={entries} referencePrice={referencePrice} decimals={arena.priceDecimals} resolved={phase === PRICE_ARENA_PHASE.RESOLVED} winnerCount={arena.winnerCount} />{phase === PRICE_ARENA_PHASE.RESOLVED && walletEntry && walletEntry.payout > 0n && !walletEntry.settled ? (!connected ? <div className="mt-6"><WalletOptionsList tone="arena" /></div> : <button title={`${formatSol(walletEntry.payout)} SOL`} onClick={() => settle('claim')} disabled={!!txLabel} className="mt-6 w-full truncate rounded-xl bg-gradient-to-r from-[#8EB1F8] to-[#7A9FF0] py-3 font-bold text-[#152447]">{txLabel ?? `Claim ${formatCompactSol(walletEntry.payout)}`}</button>) : phase === PRICE_ARENA_PHASE.RESOLVED && walletEntry?.settled ? <div className="mt-6 rounded-xl bg-white/5 py-3 text-center font-bold text-white/40">Already claimed</div> : null}{error && <p className="mt-3 text-sm text-rose-400">{error}</p>}</section>}
+        </div> : phase === PRICE_ARENA_PHASE.CANCELLED ? <div className="mt-6 rounded-3xl border border-amber-400/20 bg-amber-400/10 p-6"><h2 className="font-display text-2xl font-bold">Arena cancelled</h2><p className="mt-2 text-sm text-white/55">{cancelReasonText(arena.cancelReason)} Every player gets a full refund.</p>{walletEntry && !walletEntry.settled && <button title={fmtExact(walletEntry.stake)} onClick={() => settle('refund')} disabled={!!txLabel} className="mt-5 max-w-full truncate rounded-xl bg-[#7A9FF0] px-6 py-3 font-bold text-[#152447] hover:bg-[#8EB1F8]">{txLabel ?? `Refund ${fmt(walletEntry.stake)}`}</button>}{walletEntry?.settled && <div className="mt-5 text-sm font-bold text-white/40">Refunded</div>}{error && <p className="mt-3 text-sm text-rose-400">{error}</p>}</div> : <section className="mt-7"><div className="mb-4 flex items-end justify-between"><div><h2 className="font-display text-2xl font-bold">{phase === PRICE_ARENA_PHASE.RUNNING ? underfilled ? 'Not enough players' : awaitingSettlement ? 'Settlement pending' : 'Live leaderboard' : 'Final standings'}</h2><p className="mt-1 text-sm text-white/40">{phase === PRICE_ARENA_PHASE.RUNNING ? underfilled ? 'Fewer than two players joined. The keeper cancels this arena and every stake becomes refundable.' : awaitingSettlement ? 'The round is closed. The keeper is fixing the deadline price and final ranking onchain.' : 'Positions update with the display price; settlement uses the signed pool price at the deadline.' : `Closest ${arena.winnerCount} player${arena.winnerCount === 1 ? '' : 's'} won.`}</p></div>{phase === PRICE_ARENA_PHASE.RUNNING && !awaitingSettlement && live.disconnected && <span className="text-xs font-bold text-amber-300">Live feed reconnecting…</span>}</div><ArenaBoard rows={entries} referencePrice={referencePrice} decimals={arena.priceDecimals} resolved={phase === PRICE_ARENA_PHASE.RESOLVED} winnerCount={arena.winnerCount} token={token} />{phase === PRICE_ARENA_PHASE.RESOLVED && walletEntry && walletEntry.payout > 0n && !walletEntry.settled ? (!connected ? <div className="mt-6"><WalletOptionsList tone="arena" /></div> : <button title={fmtExact(walletEntry.payout)} onClick={() => settle('claim')} disabled={!!txLabel} className="mt-6 w-full truncate rounded-xl bg-gradient-to-r from-[#8EB1F8] to-[#7A9FF0] py-3 font-bold text-[#152447]">{txLabel ?? `Claim ${fmt(walletEntry.payout)}`}</button>) : phase === PRICE_ARENA_PHASE.RESOLVED && walletEntry?.settled ? <div className="mt-6 rounded-xl bg-white/5 py-3 text-center font-bold text-white/40">Already claimed</div> : null}{error && <p className="mt-3 text-sm text-rose-400">{error}</p>}</section>}
       </>}
     </div>
   )

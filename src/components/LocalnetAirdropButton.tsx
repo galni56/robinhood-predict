@@ -20,7 +20,7 @@ export function LocalnetAirdropButton({ onDone }: { onDone?: () => void }) {
       const signature = await connection.requestAirdrop(publicKey!, Number(AIRDROP_SOL * LAMPORTS_PER_SOL))
       const latest = await connection.getLatestBlockhash('confirmed')
       await connection.confirmTransaction({ signature, ...latest }, 'confirmed')
-      await queryClient.invalidateQueries({ queryKey: ['sol-balance'] })
+      await queryClient.invalidateQueries({ queryKey: ['stake-balance'] })
       setState('done')
       onDone?.()
     } catch (error) {

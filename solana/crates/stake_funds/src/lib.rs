@@ -2,9 +2,10 @@
 //! game PDA, or an SPL / Token-2022 token held in that PDA's associated token
 //! account ("vault").
 //!
-//! Only plain mints may be approved as stake mints. Token-2022 transfer-fee or
-//! transfer-hook extensions would make the received amount differ from the
-//! recorded stake, so they are out of scope by policy.
+//! Only plain mints may be approved as stake mints (`Spl::require_plain_mint`):
+//! Token-2022 extensions such as transfer fees, transfer hooks or a permanent
+//! delegate would break stake accounting or let a third party move escrowed
+//! tokens. Metadata and group extensions are allowed; they change neither.
 
 use anchor_lang::prelude::*;
 use anchor_spl::{
@@ -29,7 +30,20 @@ pub enum FundsError {
     InsufficientEscrow,
     #[msg("Arithmetic overflow")]
     MathOverflow,
+    #[msg("Stake mints must not carry Token-2022 extensions other than metadata")]
+    UnsupportedMintExtension,
 }
+
+/// Length of a mint without extensions (SPL Token and Token-2022).
+const BASE_MINT_LEN: usize = 82;
+/// Token-2022 pads an extended mint to the token-account length, then stores
+/// the account type and the extension TLV entries.
+const ACCOUNT_TYPE_OFFSET: usize = 165;
+const ACCOUNT_TYPE_MINT: u8 = 1;
+/// Token-2022 `ExtensionType`s that touch neither balances nor transfers:
+/// MetadataPointer, TokenMetadata, GroupPointer, TokenGroup,
+/// GroupMemberPointer, TokenGroupMember.
+const HARMLESS_MINT_EXTENSIONS: [u16; 6] = [18, 19, 20, 21, 22, 23];
 
 /// Mint and token program for an SPL-denominated game.
 pub struct Spl<'a, 'info> {
@@ -65,6 +79,31 @@ pub fn required<'a, T>(account: &'a Option<T>) -> Result<&'a T> {
 }
 
 impl<'a, 'info> Spl<'a, 'info> {
+    /// Rejects mints with any Token-2022 extension outside the metadata/group
+    /// allowlist. Extensions are fixed when a mint is created, so checking at
+    /// approval time covers the mint's whole life.
+    pub fn require_plain_mint(&self) -> Result<()> {
+        let info = self.mint.to_account_info();
+        let data = info.try_borrow_data()?;
+        if data.len() == BASE_MINT_LEN {
+            return Ok(());
+        }
+        require!(
+            data.len() > ACCOUNT_TYPE_OFFSET && data[ACCOUNT_TYPE_OFFSET] == ACCOUNT_TYPE_MINT,
+            FundsError::UnsupportedMintExtension
+        );
+        let mut at = ACCOUNT_TYPE_OFFSET + 1;
+        while at + 4 <= data.len() {
+            let kind = u16::from_le_bytes([data[at], data[at + 1]]);
+            if kind == 0 {
+                break; // Uninitialized: the rest is unused space.
+            }
+            require!(HARMLESS_MINT_EXTENSIONS.contains(&kind), FundsError::UnsupportedMintExtension);
+            at += 4 + u16::from_le_bytes([data[at + 2], data[at + 3]]) as usize;
+        }
+        Ok(())
+    }
+
     pub fn vault_address(&self, authority: &Pubkey) -> Pubkey {
         get_associated_token_address_with_program_id(authority, &self.mint.key(), &self.token_program.key())
     }

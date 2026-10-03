@@ -13,7 +13,8 @@
 // service refuses to sign prices inside it (the game then cancels/voids and
 // refunds by rule).
 //
-//   GET /prices                      latest prices for display (not settlement)
+//   GET /prices                      latest prices for display (not settlement);
+//                                    meme entries also carry the mint supply
 //   GET /attestation?program=..&target=..&sources=pool1,pool2
 //       -> { message, instruction } base64; instruction is the Ed25519 precompile ix
 //   GET /health
@@ -21,9 +22,10 @@
 // Env: SOLANA_MAINNET_RPC_URL (use a paid RPC), SOLANA_MAINNET_WS_URL (optional),
 // ORACLE_KEYPAIR (read here, never printed), PRICE_SERVICE_PORT (8790),
 // PRICE_SERVICE_HOST (127.0.0.1), BUFFER_SECONDS (1200), RESYNC_SECONDS (30),
-// STALE_NOTIFICATION_MS (30000), ALLOWED_PROGRAM_IDS (comma list; set in
-// production), ALLOW_NON_MAINNET_PRICES=1 (explicit escape hatch for the
-// mainnet genesis check).
+// SUPPLY_REFRESH_SECONDS (600), STALE_NOTIFICATION_MS (30000),
+// ALLOWED_PROGRAM_IDS (comma list; set in production),
+// ALLOW_NON_MAINNET_PRICES=1 (explicit escape hatch for the mainnet genesis
+// check).
 
 import { readFileSync } from 'node:fs'
 import { createServer } from 'node:http'
@@ -36,8 +38,11 @@ import { accountsFor, buildPlan, pricesFromData } from './snapshot.mjs'
 const RPC = process.env.SOLANA_MAINNET_RPC_URL ?? 'https://api.mainnet-beta.solana.com'
 const WS = process.env.SOLANA_MAINNET_WS_URL
 const PORT = Number(process.env.PRICE_SERVICE_PORT ?? 8790)
+// Loopback by default: nginx is the only public entry (and WSL forwards IPv4 loopback to Windows).
+const HOST = process.env.PRICE_SERVICE_HOST ?? '127.0.0.1'
 const BUFFER_SECONDS = Number(process.env.BUFFER_SECONDS ?? 1200)
 const RESYNC_SECONDS = Number(process.env.RESYNC_SECONDS ?? 30)
+const SUPPLY_REFRESH_SECONDS = Number(process.env.SUPPLY_REFRESH_SECONDS ?? 600)
 if (!process.env.ORACLE_KEYPAIR) throw new Error('ORACLE_KEYPAIR is required')
 const oracle = Keypair.fromSecretKey(Uint8Array.from(JSON.parse(readFileSync(process.env.ORACLE_KEYPAIR, 'utf8'))))
 
@@ -262,6 +267,26 @@ async function attestation({ program, target, sources }) {
   }
 }
 
+// ------------------------------------------------------- display extras
+
+// Meme mint supply, for the market cap the UI shows next to meme prices. One
+// batched read every SUPPLY_REFRESH_SECONDS; display only, never signed.
+// Mint layout (SPL Token and Token-2022): supply u64 at 36, decimals u8 at 44.
+const memeMints = registry.assets.filter((a) => a.category === 'MEME').map((a) => ({ symbol: a.symbol, mint: new PublicKey(a.mint) }))
+const supplies = new Map()
+
+async function refreshSupplies() {
+  try {
+    const infos = await connection.getMultipleAccountsInfo(memeMints.map((m) => m.mint))
+    infos.forEach((info, i) => {
+      if (!info || info.data.length < 82) return
+      supplies.set(memeMints[i].symbol, { raw: info.data.readBigUInt64LE(36).toString(), decimals: info.data[44] })
+    })
+  } catch (error) {
+    console.warn(`supply refresh failed: ${error.message}`)
+  }
+}
+
 // --------------------------------------------------------------------- http
 
 const json = (res, status, body) => {
@@ -277,7 +302,12 @@ createServer(async (req, res) => {
       const data = Object.fromEntries(plan.accounts.map((a) => [a, history.latest(a)]))
       const { prices } = pricesFromData(plan, data)
       const out = Object.fromEntries(
-        [...prices].map(([symbol, p]) => [symbol, { price: formatScaled(p.scaled, p.decimals), raw: p.scaled.toString(), decimals: p.decimals }]),
+        [...prices].map(([symbol, p]) => [symbol, {
+          price: formatScaled(p.scaled, p.decimals),
+          raw: p.scaled.toString(),
+          decimals: p.decimals,
+          ...(supplies.has(symbol) ? { supply: supplies.get(symbol) } : {}),
+        }]),
       )
       // `updatedAt`/`now` share the server clock, so the client can compute
       // the real age of the snapshot instead of trusting its own receive time.
@@ -311,7 +341,7 @@ createServer(async (req, res) => {
   } catch (error) {
     json(res, 409, { error: error.message })
   }
-}).listen(PORT, process.env.PRICE_SERVICE_HOST ?? '127.0.0.1', () => {
+}).listen(PORT, HOST, () => {
   console.log(`price service on :${PORT} · ${plan.assets.length} assets · ${plan.accounts.length} subscriptions · oracle ${oracle.publicKey.toBase58()} · rpc ${new URL(RPC).host}`)
 })
 
@@ -321,3 +351,5 @@ slotTimes.push([start, Date.now()])
 ready = true
 console.log(`tracking from slot ${start}`)
 setInterval(resync, RESYNC_SECONDS * 1000)
+await refreshSupplies()
+setInterval(refreshSupplies, SUPPLY_REFRESH_SECONDS * 1000)

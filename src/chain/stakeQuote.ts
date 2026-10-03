@@ -49,6 +49,15 @@ export function parseSolLamports(value: string): bigint {
   return lamports
 }
 
+/** An SPL stake entered in its own units (no USD conversion). */
+export function parseTokenAmount(value: string, decimals: number): bigint {
+  const match = new RegExp(`^(0|[1-9]\\d*)(?:\\.(\\d{1,${Math.max(decimals, 1)}}))?$`).exec(normalizedDecimal(value))
+  if (!match || (decimals === 0 && match[2])) throw new Error('InvalidTokenAmount')
+  const raw = BigInt(match[1]) * 10n ** BigInt(decimals) + BigInt((match[2] ?? '').padEnd(decimals, '0') || '0')
+  if (raw <= 0n) throw new Error('InvalidTokenAmount')
+  return raw
+}
+
 function assertUsablePrice(priceRaw: bigint, decimals: number) {
   if (priceRaw <= 0n) throw new Error('InvalidSolUsdPrice')
   if (!Number.isSafeInteger(decimals) || decimals < 0 || decimals > 36) throw new Error('InvalidSolUsdPrice')
@@ -114,6 +123,7 @@ export function stakeQuoteErrorMessage(cause: unknown): string | undefined {
   const code = cause instanceof Error ? cause.message : String(cause)
   if (code === 'InvalidUsdAmount') return 'Enter a valid USD amount with no more than two decimal places.'
   if (code === 'InvalidSolAmount') return 'Enter a valid SOL amount with no more than 9 decimal places.'
+  if (code === 'InvalidTokenAmount') return 'Enter a valid token amount for this game’s stake currency.'
   if (code === 'UsdStakeOutOfRange') return 'The stake must be worth between $1 and $50 at the live SOL/USD rate.'
   if (code === 'SolUsdQuoteStale') return 'The SOL/USD rate is unavailable or stale. Try again in a moment.'
   if (code === 'InvalidSolUsdPrice' || code === 'SolStakeRoundsToZero') {
