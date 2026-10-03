@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { PRICE_SERVICE_URL } from '@/solana/services'
 
@@ -34,6 +35,8 @@ export const LIVE_PRICE_STALE_MS = 15_000
 
 interface PricesResponse {
   slot?: number
+  updatedAt?: number
+  now?: number
   prices?: Record<string, { price?: string; raw?: string; decimals?: number }>
 }
 
@@ -49,8 +52,19 @@ async function fetchPrices() {
     if (raw <= 0n) continue
     assets[symbol] = { symbol, raw, decimals: entry.decimals!, price: entry.price ?? '' }
   }
-  return { slot: body.slot, assets }
+  // How old the snapshot already was when the server answered, on the
+  // server's own clock. A frozen subscription feed keeps serving the same
+  // numbers with 200s - without this, the client would treat an hours-old
+  // SOL/USD rate as fresh just because the HTTP response is recent.
+  const serverAgeMs =
+    Number.isSafeInteger(body.now) && Number.isSafeInteger(body.updatedAt) && body.now! >= body.updatedAt!
+      ? body.now! - body.updatedAt!
+      : 0
+  return { slot: body.slot, assets, serverAgeMs }
 }
+
+const EMPTY_ASSETS: Record<string, LivePrice> = Object.freeze({})
+const DISCONNECTED: LivePrices = Object.freeze({ assets: EMPTY_ASSETS, disconnected: true })
 
 export function useLivePrices({ enabled = true }: { enabled?: boolean } = {}): LivePrices {
   const query = useQuery({
@@ -61,16 +75,22 @@ export function useLivePrices({ enabled = true }: { enabled?: boolean } = {}): L
     refetchIntervalInBackground: false,
     retry: 1,
   })
-  const receivedAt = query.dataUpdatedAt
-  // Successful polls keep the data at most one interval old; a failed poll
-  // means the feed is unreachable, so stop showing its last numbers.
-  const disconnected = !enabled || !query.data || query.isRefetchError
-  if (disconnected) return { assets: {}, disconnected: true }
-  const sol = query.data!.assets.SOL
-  return {
-    assets: query.data!.assets,
-    solUsd: sol ? { priceRaw: sol.raw, decimals: sol.decimals, receivedAt, staleAfterMs: LIVE_PRICE_STALE_MS } : undefined,
-    disconnected: false,
-    slot: query.data!.slot,
-  }
+  const data = query.data
+  const dataUpdatedAt = query.dataUpdatedAt
+  const result = useMemo((): LivePrices => {
+    // A failed poll means the feed is unreachable; a snapshot the server
+    // itself reports as old means the feed is frozen. Either way, stop
+    // showing the last numbers instead of quoting stakes against them.
+    if (!data || data.serverAgeMs > LIVE_PRICE_STALE_MS) return DISCONNECTED
+    const receivedAt = dataUpdatedAt - data.serverAgeMs
+    const sol = data.assets.SOL
+    return {
+      assets: data.assets,
+      solUsd: sol ? { priceRaw: sol.raw, decimals: sol.decimals, receivedAt, staleAfterMs: LIVE_PRICE_STALE_MS } : undefined,
+      disconnected: false,
+      slot: data.slot,
+    }
+  }, [data, dataUpdatedAt])
+  if (!enabled || query.isRefetchError) return DISCONNECTED
+  return result
 }

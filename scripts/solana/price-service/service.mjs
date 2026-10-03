@@ -45,6 +45,12 @@ const assetBySource = new Map(plan.assets.map((a) => [a.pool, a]))
 const history = new AccountHistory()
 let maxSlotSeen = 0
 let ready = false
+// Wall-clock time of the last account notification (or baseline read). The
+// tracked DEX pools change practically every slot on mainnet, so a silence
+// longer than STALE_NOTIFICATION_MS means the subscription feed is dead even
+// when the websocket never emitted `close`.
+let lastNotificationAt = 0
+const STALE_NOTIFICATION_MS = Number(process.env.STALE_NOTIFICATION_MS ?? 30_000)
 const slotTimes = [] // [slot, wall ms] samples, to prune by age
 
 // ---------------------------------------------------------------- tracking
@@ -55,6 +61,7 @@ for (const account of plan.accounts) {
     (info, context) => {
       history.record(account, context.slot, info.data)
       if (context.slot > maxSlotSeen) maxSlotSeen = context.slot
+      lastNotificationAt = Date.now()
     },
     { commitment: 'confirmed' },
   )
@@ -72,6 +79,7 @@ async function baseline() {
   const { slot, data } = await fetchAll()
   for (const account of plan.accounts) history.record(account, slot, data[account])
   if (slot > maxSlotSeen) maxSlotSeen = slot
+  lastNotificationAt = Date.now()
   return slot
 }
 
@@ -241,7 +249,9 @@ createServer(async (req, res) => {
       const out = Object.fromEntries(
         [...prices].map(([symbol, p]) => [symbol, { price: formatScaled(p.scaled, p.decimals), raw: p.scaled.toString(), decimals: p.decimals }]),
       )
-      return json(res, 200, { slot: maxSlotSeen, prices: out })
+      // `updatedAt`/`now` share the server clock, so the client can compute
+      // the real age of the snapshot instead of trusting its own receive time.
+      return json(res, 200, { slot: maxSlotSeen, updatedAt: lastNotificationAt, now: Date.now(), prices: out })
     }
     if (url.pathname === '/attestation') {
       const program = url.searchParams.get('program')
@@ -253,7 +263,18 @@ createServer(async (req, res) => {
       return json(res, 200, await attestation({ program, target, sources }))
     }
     if (url.pathname === '/health') {
-      return json(res, ready ? 200 : 503, { slot: maxSlotSeen, oracle: oracle.publicKey.toBase58(), accounts: plan.accounts.length })
+      // A dead-but-not-closed websocket freezes the feed silently; surface it
+      // so systemd/monitoring can restart the service instead of serving 200
+      // while every attestation times out.
+      const notificationAge = lastNotificationAt === 0 ? null : Date.now() - lastNotificationAt
+      const feedStale = ready && (notificationAge === null || notificationAge > STALE_NOTIFICATION_MS)
+      return json(res, ready && !feedStale ? 200 : 503, {
+        slot: maxSlotSeen,
+        oracle: oracle.publicKey.toBase58(),
+        accounts: plan.accounts.length,
+        notificationAgeMs: notificationAge,
+        feedStale,
+      })
     }
     json(res, 404, { error: 'not found' })
   } catch (error) {
