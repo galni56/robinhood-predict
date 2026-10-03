@@ -33,7 +33,7 @@ differs from the EVM product: [`SOLANA_CHANGELOG.md`](./SOLANA_CHANGELOG.md).
 | Race scheduler (`scripts/solana/race-scheduler.mjs`) | Done, **off by owner decision** (`"enabled": false` in `config/platform-races.json`): each race costs ~0.009 SOL of unrefunded rent | Localnet run (created 3 races) |
 | Indexer (`scripts/solana/indexer.mjs`) | Done: one `/history` snapshot (games with raw account data, activity, wallet stats, leaderboards) | Localnet run |
 | Frontend | Fully on Solana (wagmi/viem removed): races, arenas, create pages, portfolio, leaderboard, archive; SOL and SPL stake currencies; meme market cap | Clicked through on the local stand with burner wallets (race, arena, community race, SPL arena entries), phone width checked. SPL claim through the UI not yet watched end to end |
-| GitHub Pages | Solana preview from `solana-migration` (devnet, no price service/indexer: view only) | Workflow `.github/workflows/deploy.yml` |
+| GitHub Pages | Live at https://galni56.github.io/robinhood-predict/ — Solana preview from `solana-migration` (devnet, no price service/indexer: view only) | Workflow `.github/workflows/deploy.yml`; 7 pages checked, no console errors |
 | Devnet, VPS services, mainnet | Not started | — |
 | Redesign, $PROPHET token (pump.fun), buyback/burn | Later | — |
 
@@ -122,6 +122,9 @@ in your environment, never in the repo.
 - WSL: DNS is pinned in `/etc/resolv.conf`; run WSL work from script files when calling from Git Bash
   (`MSYS_NO_PATHCONV=1 wsl.exe -d Ubuntu -- bash <file>`); `wsl --shutdown` frees its RAM.
 - Git Bash: `git commit -m` breaks on apostrophes; use `git commit -F <file>`.
+- GitHub Pages needs two repo settings (done once by the owner): Settings → Pages → Source = GitHub
+  Actions, and Settings → Environments → github-pages → deployment branch `solana-migration`. A repo that
+  was ever private loses the Pages setting. CI uses Node 24: npm 10 rejects the npm 11 lockfile.
 - Local stand helpers: `admin.mjs quick-race` (2 min betting + 1 min race), `test-token`, `fund-token`.
 - Heavy WSL builds while the dev server runs can drop Vite's HMR socket and reload the page; the burner
   wallet then gets a new key. Do not rebuild programs during a burner click-through.
