@@ -24,7 +24,8 @@ in HANDOFF, not this map. Read AGENTS for permissions and startup rules.
 | Solana client layer | `src/solana/` (config, IDL clients, PDAs, wallet provider, tx helpers, nicknames) |
 | Program IDL for the frontend | `src/solana/idl/` (copied from `$HOME/prophet-target/{idl,types}` after `anchor build`) |
 | Game pages | `src/pages/Onchain*.tsx`; game UI in `src/components/AssetRace*.tsx` |
-| Old EVM read layer (to be removed) | `src/chain/`, `config/asset-race-assets.json`, wagmi/viem |
+| Game data layer | `src/chain/` (account view models, read hooks, `gameTx.ts` instruction builders, live prices, stake quote, indexer snapshot) |
+| Off-chain services | `scripts/solana/price-service/` (:8790), `keeper.mjs`, `indexer.mjs` (:8791), `e2e-localnet.mjs` |
 | Asset registry | `config/solana-assets.json` (generated; owner approves per asset) |
 | Catalog tooling | `scripts/solana-catalog-scan.mjs`, `solana-catalog-propose.mjs`, `solana-assets-config.mjs` |
 | Local stand / admin | `scripts/solana/localnet.sh`, `scripts/solana/admin.mjs` |
@@ -33,10 +34,10 @@ in HANDOFF, not this map. Read AGENTS for permissions and startup rules.
 ## Pricing and settlement pointers
 
 Each asset has one frozen pool (`price_source`) and a USD price precision. The
-price service (not built yet) signs one Ed25519 attestation per boundary time
+price service signs one Ed25519 attestation per boundary time
 covering all needed pools at the last block before T plus its direct child.
 Programs read the message from the Ed25519 precompile instruction immediately
-before `start_race` / `resolve_race` / `resolve`, bound to their own program ID.
+before `start_race` / `resolve_race` / `resolve_arena`, bound to their own program ID.
 Economics and irreversible snapshots live in the programs.
 
 ## Commands
@@ -63,11 +64,12 @@ Local stand (inside WSL): `bash scripts/solana/localnet.sh --background`, then
 ## Documentation instead of rediscovery
 
 - `CLAUDE.md`: authoritative overview and operating cautions.
+- `docs/HANDOFF.md`: status, full local stand runbook, next steps (for people).
 - `README.md`: layout, local run, environment variables.
 - `ROADMAP.md`: done / next / owner steps.
 - `docs/SOLANA_MIGRATION.md`: decisions and phases.
 - `docs/SOLANA_CHANGELOG.md`: what changed vs the EVM product and why (Russian).
-- `docs/SOLANA_ASSET_CATALOG.md`: proposed assets awaiting approval.
+- `docs/SOLANA_ASSET_CATALOG.md`: reviewed assets (owner approval in `config/solana-catalog-approved.json`).
 - `solana/README.md`: program build/test and attestation format.
 
 ## Sensitive areas

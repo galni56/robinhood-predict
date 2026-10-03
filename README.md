@@ -11,7 +11,8 @@ losing pool split between the game's creator and Prophet.
 
 > **Status:** migration from the earlier Robinhood Chain (EVM) product is in progress on branch
 > `solana-migration`. Nothing here is deployed to mainnet. There is no external security audit.
-> Plan: [`docs/SOLANA_MIGRATION.md`](./docs/SOLANA_MIGRATION.md). What changed and why:
+> New to the project: start with [`docs/HANDOFF.md`](./docs/HANDOFF.md). Plan:
+> [`docs/SOLANA_MIGRATION.md`](./docs/SOLANA_MIGRATION.md). What changed and why:
 > [`docs/SOLANA_CHANGELOG.md`](./docs/SOLANA_CHANGELOG.md).
 
 ## Layout

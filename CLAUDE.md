@@ -1,6 +1,7 @@
 # Prophet — project context for Claude
 
 Read this first on a new machine/session. It's the map — deeper detail lives in
+[`docs/HANDOFF.md`](./docs/HANDOFF.md) (status, full local stand runbook, next steps),
 [`README.md`](./README.md) (layout, local run, env vars),
 [`solana/README.md`](./solana/README.md) (program build/test, attestation
 format), [`docs/SOLANA_MIGRATION.md`](./docs/SOLANA_MIGRATION.md) (decisions,

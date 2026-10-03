@@ -1,6 +1,7 @@
 # Solana migration plan
 
-Status: planning, branch `solana-migration`. Nothing here is deployed.
+Status: programs, services and frontend built and tested on localnet, branch `solana-migration`. Nothing is
+deployed to devnet or mainnet. Current status and next steps: [`HANDOFF.md`](./HANDOFF.md).
 
 What has actually been built, and how it differs from the EVM version: [`SOLANA_CHANGELOG.md`](./SOLANA_CHANGELOG.md) (Russian).
 
@@ -23,15 +24,17 @@ What has actually been built, and how it differs from the EVM version: [`SOLANA_
 
 Solidity does not port line-by-line: Solana state lives in accounts (PDAs),
 not in contract storage, and every account a transaction touches must be
-passed in. Each EVM contract becomes one Anchor program.
+passed in. Asset Race and Price Arena were first ported as two programs, then merged into one,
+`prophet_games`, to share config, assets, stake mints, treasury and creator earnings and to halve
+deploy rent.
 
 | EVM contract | Solana program | Notes |
 |---|---|---|
-| `AssetRace.sol` | `asset_race` | `Race` PDA per race, `Position` PDA per (race, wallet). Max 6 assets per race fits in one account. |
-| `PriceArena.sol` | `price_arena` | Hard cap of 10 participants; all entries are ranked and paid out in one `resolve` transaction (fits the compute budget comfortably). |
-| `SignedPoolRaceOracle.sol` | shared `signed_oracle` module | Keeper signs pool observations with an **ed25519** key; programs verify via the Ed25519 native program + instructions sysvar. Replaces EIP-712/ECDSA. "Block pair" boundary proof becomes a slot pair (`slot`, `slot + 1` timestamps). |
+| `AssetRace.sol` | `prophet_games` (race part) | `Race` PDA per race, `Position` PDA per (race, wallet). Max 6 assets per race fits in one account. |
+| `PriceArena.sol` | `prophet_games` (arena part) | Hard cap of 10 participants; all entries are ranked and paid out in one `resolve` transaction (fits the compute budget comfortably). |
+| `SignedPoolRaceOracle.sol` | crate `pool_attestation` | Keeper signs pool observations with an **ed25519** key; programs verify via the Ed25519 native program + instructions sysvar. Replaces EIP-712/ECDSA. "Block pair" boundary proof becomes a slot pair (`slot`, `slot + 1` timestamps). |
 | `ChainlinkV3RaceOracle.sol` | dropped | Not needed with DEX-pool pricing. |
-| `NicknameRegistry.sol` | `nickname` (or a field in a user-profile PDA) | Trivial. |
+| `NicknameRegistry.sol` | `nickname_registry` | Separate program so a bug there cannot touch game funds. |
 | `Prophet*BuybackBurnExecutor.sol` | `buyback_burn` | The Prophet token launches on **pump.fun** (bonding curve, no liquidity of our own). Buyback goes through the pump.fun curve before graduation and **PumpSwap** after, then SPL `burn`. Built when the token exists. |
 | `PredictionMarket.sol` | — | Removed. |
 
@@ -96,10 +99,10 @@ Every step is a mainnet transaction run by the owner.
 ## Phases
 
 0. **Toolchain** — done 2026-10-03: WSL2 Ubuntu (user `dev`, static DNS in `/etc/resolv.conf`), Rust, Solana CLI 3.1, Anchor 1.1.2.
-1. **Programs on localnet** — `asset_race` + oracle verification + vault (SOL), full test suite (Anchor/LiteSVM tests mirroring the Foundry ones). **`asset_race` done** in `solana/programs/asset_race` (11 LiteSVM integration tests + math unit tests). Build/test: see `solana/README.md`.
-2. **`price_arena`** — done: max 10 players, single-tx resolve (~33k CU), permissionless cancel after a 1h resolution grace. Shared verification lives in `solana/crates/pool_attestation`.
-3. **Frontend** — remove PM, Solana wallet + IDL client, devnet build.
-4. **Collector + keepers** on devnet; pool registry review.
+1. **Programs on localnet** — done: `prophet_games` (both games, SOL and SPL stakes) and `nickname_registry`, 38 LiteSVM tests. Build/test: see `solana/README.md`.
+2. **Price Arena** — done: max 10 players, single-tx resolve (~33k CU), permissionless cancel after a 1h resolution grace.
+3. **Frontend** — done: PM removed, Solana wallets, all game pages on the program; not yet clicked through on the local stand.
+4. **Price service, keeper, indexer** — done and run end-to-end on localnet; pool registry reviewed and approved. Devnet next.
 5. **Devnet end-to-end rehearsal**, then tiny-value mainnet canary (owner-run). **Before mainnet: generate a fresh owner key** — the current WSL dev keypair is for localnet/devnet only.
 6. **SPL stake mint** support enabled when the Prophet token exists; buyback/burn.
 7. **Cutover** — EVM wind-down, domain switch, docs update.
