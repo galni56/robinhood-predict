@@ -35,10 +35,11 @@ history. Nothing from this branch is on mainnet. No external security audit.
 | Piece | Status |
 |---|---|
 | Programs (`solana/`) | `asset_race`, `price_arena`, `nickname_registry` + crates `pool_attestation`, `stake_funds`. 38 LiteSVM tests pass. Dev IDs: asset_race `H4fm2gjgc5bRcoXfAhnTXFpFJMijga43Czq5Z8yGXYKj`, price_arena `GWdUNY9nzmMCSUfNSsvQCZFzwGNrqDKeh5TdHg79DaQU`, nickname_registry `9hbJLs2EGPdvVLcxQs2N2QqZUhh8r2J86PK8rYBRxJdt`. Not deployed to devnet or mainnet. |
-| Asset catalog | 35 assets proposed in `docs/SOLANA_ASSET_CATALOG.md`; `config/solana-assets.json` has every asset `approved: false` until the owner approves. |
+| Asset catalog | Owner approved 26 assets (`config/solana-catalog-approved.json`): 3 crypto, 10 memes, 13 stocks. |
 | Frontend | Prediction Market and mock demo removed. Phantom/Solflare wallets, Anchor clients, nicknames on Solana. Race and arena pages still read through the old EVM layer (`src/chain/`, wagmi/viem) until they move to Solana. Portfolio, leaderboard and archive are placeholders. |
 | Local stand | `scripts/solana/localnet.sh` + `scripts/solana/admin.mjs setup|seed` work on a local validator in WSL. |
-| Not started | Price service, bots, indexer, devnet deploy, VPS services for Solana. |
+| Price service + keeper | `scripts/solana/price-service/` (accountSubscribe history, signed attestations) and `scripts/solana/keeper.mjs`. Full race and arena lifecycle passes on localnet with live mainnet prices (`scripts/solana/e2e-localnet.mjs --arena`). Needs a paid mainnet RPC; the public one returns 429. |
+| Not started | Frontend race/arena pages on Solana, indexer, devnet deploy, VPS services for Solana. |
 
 ### Product color system
 

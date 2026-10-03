@@ -50,6 +50,23 @@ node scripts/solana/admin.mjs seed
 
 Point the frontend at the local validator with `VITE_SOLANA_CLUSTER=localnet`.
 
+### Price service and keeper
+
+The price service (`scripts/solana/price-service/`) reads every approved pool on **mainnet** in one account
+read per tick, keeps a rolling buffer of slot-stamped USD prices and signs boundary attestations. The keeper
+(`scripts/solana/keeper.mjs`) watches games on the game cluster and calls the timer transitions with those
+attestations. Both are read-only on mainnet; only the keeper sends transactions, on the game cluster.
+
+```bash
+node scripts/solana/price-service/check-prices.mjs        # decoded pool prices vs Jupiter, read-only
+ORACLE_KEYPAIR=~/.config/solana/id.json node scripts/solana/price-service/service.mjs   # :8790
+node scripts/solana/keeper.mjs                              # localnet by default
+node scripts/solana/e2e-localnet.mjs [--arena]              # full lifecycle check on localnet
+```
+
+Set `SOLANA_MAINNET_RPC_URL` to a paid RPC: the public endpoint rate-limits (429) under the service's polling.
+On localnet the oracle key is the admin key; devnet and mainnet need a separate oracle key per cluster.
+
 ## Environment
 
 | Variable | Default | Purpose |

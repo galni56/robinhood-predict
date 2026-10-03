@@ -15,13 +15,15 @@ Change log: [`docs/SOLANA_CHANGELOG.md`](./docs/SOLANA_CHANGELOG.md).
    Anchor clients; nicknames on Solana.
 4. **Local stand** — local validator with all programs, admin setup and seeded sample games.
 5. **EVM cleanup (repo)** — Solidity contracts, EVM scripts and EVM docs removed.
+6. **Asset catalog approved** — 26 assets (3 crypto, 10 memes, 13 stocks).
+7. **Price service + keeper** — subscription-based exact pool state, signed attestations; full race and
+   arena lifecycle passes end-to-end on localnet with live mainnet prices.
 
 ## Next
 
 1. **Frontend on Solana** (no redesign yet) — races and arenas read and write the programs; USD/SOL stake
    input; portfolio, leaderboard and archive.
-2. **Price service** — read Raydium, Orca, Meteora and PumpSwap pools, price in USD, sign boundary attestations.
-3. **Bots** — start, resolve and cancel games on schedule; create platform races.
+2. **Bots, remaining** — scheduled platform race creation; SPL-stake games.
 4. **Indexer** — game history for portfolio, leaderboard and archive.
 5. **Remove the remaining EVM read layer** — `src/chain/`, wagmi, viem, `config/asset-race-assets.json`.
 6. **Devnet** — deploy and rehearse the full lifecycle.
@@ -29,7 +31,6 @@ Change log: [`docs/SOLANA_CHANGELOG.md`](./docs/SOLANA_CHANGELOG.md).
 
 ## Before mainnet (owner)
 
-- Approve the asset catalog.
 - Fresh admin key (the development key was exposed) and a separate mainnet oracle key.
 - ~9 SOL for program rent; decision on an external audit.
 - Wind down the EVM product, then merge to `main` (VPS keepers run from `main`).

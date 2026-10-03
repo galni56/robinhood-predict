@@ -48,6 +48,21 @@ export async function takeSnapshot(connection, plan, commitment = 'confirmed') {
     { commitment },
   )
   const data = Object.fromEntries(plan.accounts.map((a, i) => [a, value[i]?.data]))
+  return { slot: context.slot, ...pricesFromData(plan, data) }
+}
+
+/** Accounts an asset's USD price depends on: its pool, AMM vaults, and the
+ * SOL/USDC pool (plus its vaults) when the asset is quoted in SOL. */
+export function accountsFor(plan, asset, data) {
+  const own = [asset.pool, ...poolDependencies(asset.poolKind, data[asset.pool]).vaults]
+  const quotedInSol = poolDependencies(asset.poolKind, data[asset.pool]).mints.includes(WSOL_MINT) && asset.mint !== WSOL_MINT
+  if (!quotedInSol && asset.symbol !== 'SOL') return own
+  const sol = plan.solAsset
+  return [...new Set([...own, sol.pool, ...poolDependencies(sol.poolKind, data[sol.pool]).vaults])]
+}
+
+/** USD prices from account data (account -> Buffer), however it was obtained. */
+export function pricesFromData(plan, data, assets = plan.assets) {
   const priceOf = (asset) => assetPriceInQuote(asset.poolKind, data[asset.pool], asset.mint, plan.decimals, data)
 
   const solUsd = priceOf(plan.solAsset)
@@ -55,7 +70,7 @@ export async function takeSnapshot(connection, plan, commitment = 'confirmed') {
 
   const prices = new Map()
   const errors = []
-  for (const asset of plan.assets) {
+  for (const asset of assets) {
     try {
       const inQuote = priceOf(asset)
       const usd = inQuote.quoteMint === USDC_MINT
@@ -73,5 +88,5 @@ export async function takeSnapshot(connection, plan, commitment = 'confirmed') {
       errors.push(`${asset.symbol}: ${error.message}`)
     }
   }
-  return { slot: context.slot, prices, errors }
+  return { prices, errors }
 }
