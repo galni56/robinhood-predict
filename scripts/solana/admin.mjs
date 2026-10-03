@@ -106,9 +106,19 @@ async function fundedWallet(sol) {
 
 const bySymbol = (symbol) => catalog.assets.find((a) => a.symbol === symbol)
 
+// The validator's clock, not the machine's: they can drift apart, and the
+// programs reject games that start in the past.
+async function chainNow() {
+  const clock = await connection.getAccountInfo(new PublicKey('SysvarC1ock11111111111111111111111111111111'))
+  return Number(clock.data.readBigInt64LE(32))
+}
+
+async function waitForChainTime(target) {
+  while ((await chainNow()) < target) await new Promise((r) => setTimeout(r, 400))
+}
+
 async function seed() {
   if (!isLocal) throw new Error('seed only runs on localnet')
-  const now = Math.floor(Date.now() / 1000)
   const raceConfig = await race.account.config.fetch(pda(race, [enc('config')]))
 
   const platformRaces = [
@@ -118,6 +128,9 @@ async function seed() {
   ]
   let raceId = Number(raceConfig.raceCount)
   for (const spec of platformRaces) {
+    // Read per race: earlier races' bets take long enough for a start time
+    // computed once to fall into the past.
+    const now = (await chainNow()) + 5
     const raceKey = pda(race, [enc('race'), u64(raceId)])
     await race.methods
       .createPlatformRace(spec.title, {
@@ -144,6 +157,7 @@ async function seed() {
       })
       .remainingAccounts(spec.symbols.map((s) => ({ pubkey: pda(race, [enc('asset'), Buffer.from(assetId(s))]), isSigner: false, isWritable: false })))
       .rpc()
+    await waitForChainTime(now)
     // A few bettors on different assets.
     for (let i = 0; i < spec.symbols.length; i++) {
       const bettor = await fundedWallet(2)
