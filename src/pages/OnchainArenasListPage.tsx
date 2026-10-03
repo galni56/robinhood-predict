@@ -12,7 +12,7 @@ import {
   arenaPhase,
   arenaPhaseLabel,
   type PriceArenaMode,
-  type PriceArenaViewModel,
+  type PriceArenaWithPhase,
 } from '@/chain/priceArena'
 import { AddressLabel } from '@/components/AddressLabel'
 import { ClusterBanner } from '@/components/ClusterBanner'
@@ -27,20 +27,20 @@ import { formatStakeAmount, formatStakeExact, useStakeToken } from '@/solana/sta
 const FILTERS = ['ALL', 'LOBBY', 'LIVE', 'FINISHED', 'CANCELLED'] as const
 const FILTER_OPTIONS = FILTERS.map((filter) => ({ key: filter, label: filter.charAt(0) + filter.slice(1).toLowerCase() }))
 
-function countdown(arena: PriceArenaViewModel, nowMs: number) {
+function countdown(arena: PriceArenaWithPhase, nowMs: number) {
   if (!nowMs) return '…'
   const target = arena.phase === PRICE_ARENA_PHASE.LOBBY ? arena.startsAt : arena.phase === PRICE_ARENA_PHASE.RUNNING ? arena.deadline : 0n
   if (target > 0n && Number(target) * 1_000 > nowMs) return formatCountdown(Number(target) * 1_000 - nowMs)
   return arena.phase === PRICE_ARENA_PHASE.RUNNING ? 'Awaiting settlement' : arenaPhaseLabel(arena.phase)
 }
 
-function displayPhase(arena: PriceArenaViewModel, nowMs: number) {
+function displayPhase(arena: PriceArenaWithPhase, nowMs: number) {
   return arena.phase === PRICE_ARENA_PHASE.RUNNING && Number(arena.deadline) * 1_000 <= nowMs
     ? 'Settling'
     : arenaPhaseLabel(arena.phase)
 }
 
-function ArenaCard({ arena, nowMs }: { arena: PriceArenaViewModel; nowMs: number }) {
+function ArenaCard({ arena, nowMs }: { arena: PriceArenaWithPhase; nowMs: number }) {
   const navigate = useNavigate()
   const meme = arena.category === PRICE_ARENA_CATEGORY.MEME
   const crypto = arena.category === PRICE_ARENA_CATEGORY.CRYPTO

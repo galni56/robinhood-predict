@@ -19,7 +19,7 @@ import { WalletOptionsList } from '@/components/WalletOptionsList'
 import { NATIVE_SOL } from '@/solana/config'
 import { assetIdFromSymbol } from '@/solana/pda'
 import { usePrograms } from '@/solana/programs'
-import { useSendInstructions } from '@/solana/tx'
+import { TxUnconfirmedError, useSendInstructions } from '@/solana/tx'
 import { shortTxError } from '@/lib/format'
 
 function durationLabel(seconds: bigint) {
@@ -73,7 +73,7 @@ export function OnchainCreateRacePage() {
     setError(null)
     try {
       if (!publicKey || !validTitle || selectedDuration === 0n) return
-      setTxLabel('Confirm Community Race creation…')
+      setTxLabel('Preparing Community Race…')
       const { raceId, instructions } = await createCommunityRaceInstructions(games, {
         creator: publicKey,
         title: normalizedTitle,
@@ -82,13 +82,15 @@ export function OnchainCreateRacePage() {
         stakeMint: new PublicKey(stakeMint),
         assetIds: selected.map((asset) => assetIdFromSymbol(asset.symbol)),
       })
-      setTxLabel('Waiting for race confirmation…')
-      await send(instructions)
+      await send(instructions, {
+        onPhase: (phase) => setTxLabel(phase === 'signing' ? 'Confirm race creation in wallet…' : 'Waiting for race confirmation…'),
+      })
       await queryClient.invalidateQueries({ queryKey: ['history'] })
       navigate(`/onchain/races/${raceId}`)
     } catch (cause) {
       setTxLabel(null)
       setError(shortTxError(cause, 'create-race'))
+      if (cause instanceof TxUnconfirmedError) void queryClient.invalidateQueries({ queryKey: ['history'] })
     }
   }
 

@@ -38,7 +38,9 @@ function raceLeaderboardEntries(race: AssetRaceViewModel, final = false): Leader
       startPrice: asset.startPrice,
       endPrice: final ? asset.endPrice : (asset.livePrice ?? asset.startPrice),
       decimals: final ? asset.expectedDecimals : (asset.liveDecimals ?? asset.expectedDecimals),
-      updatedAt: final ? asset.endOracleUpdatedAt : asset.liveUpdatedAt,
+      // Live rows have no per-asset update time (the feed is one shared
+      // snapshot); only final rows carry the settlement timestamp.
+      updatedAt: final ? asset.endOracleUpdatedAt : undefined,
       source: final ? 'final' : asset.liveProvider ? 'live' : undefined,
       stale: !final && !!asset.liveStale,
       marketCapUsd: final ? undefined : asset.liveMarketCapUsd,

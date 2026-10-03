@@ -51,9 +51,11 @@ async function chainNow() {
 
 async function fetchAttestation(programId, target, sources) {
   const url = `${PRICE_SERVICE}/attestation?program=${programId.toBase58()}&target=${target}&sources=${sources.join(',')}`
-  const res = await fetch(url)
-  const body = await res.json()
-  if (!res.ok) throw new Error(`price service: ${body.error}`)
+  // Timeout: a hung price-service call must not stall the whole tick while
+  // other games pass their grace windows.
+  const res = await fetch(url, { signal: AbortSignal.timeout(10_000) })
+  const body = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(`price service ${res.status}: ${body.error ?? 'unexpected response'}`)
   return body
 }
 
@@ -117,7 +119,7 @@ async function tickRaces(now) {
         console.log(`${label}: resolved (P1 slot ${att.prevSlot}) -> ${outcome}`)
       }
     } catch (error) {
-      console.warn(`${label}: ${error.message?.split('\n')[0]}`)
+      logGameError(label, error)
     }
   }
 }
@@ -151,9 +153,20 @@ async function tickArenas(now) {
         console.log(`${label}: ${status(after.status)} (final price ${after.finalPrice.toString()}, ${after.winnerCount} winners)`)
       }
     } catch (error) {
-      console.warn(`${label}: ${error.message?.split('\n')[0]}`)
+      logGameError(label, error)
     }
   }
+}
+
+// One line per failure, but keep the parts that make it diagnosable: the
+// Anchor error code line and the program logs ("Simulation failed." alone
+// told us nothing in production).
+function logGameError(label, error) {
+  const firstLine = error.message?.split('\n')[0]
+  const codeLine = error.message?.split('\n').find((line) => line.includes('Error Code:'))
+  const logs = error.logs ?? error.transactionLogs
+  console.warn(`${label}: ${codeLine ?? firstLine}`)
+  if (!codeLine && Array.isArray(logs) && logs.length > 0) console.warn(`${label}: logs: ${logs.slice(-5).join(' | ')}`)
 }
 
 console.log(`keeper · rpc ${RPC} · price service ${PRICE_SERVICE} · payer ${payer.publicKey.toBase58()}`)
@@ -161,6 +174,7 @@ let running = false
 setInterval(async () => {
   if (running) return
   running = true
+  const startedAt = Date.now()
   try {
     const now = await chainNow()
     await tickRaces(now)
@@ -168,6 +182,8 @@ setInterval(async () => {
   } catch (error) {
     console.warn(`tick failed: ${error.message}`)
   } finally {
+    const elapsed = Date.now() - startedAt
+    if (elapsed > 30_000) console.error(`tick took ${Math.round(elapsed / 1000)}s; games may miss their grace windows`)
     running = false
   }
 }, INTERVAL)

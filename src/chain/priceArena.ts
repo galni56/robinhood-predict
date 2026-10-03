@@ -9,7 +9,9 @@ import { symbolFromAssetId } from '@/solana/pda'
 // live is derived from the arena's start time.
 
 export const PRICE_ARENA_CATEGORY = { STOCK: 0, MEME: 1, CRYPTO: 2 } as const
-export const PRICE_ARENA_STATUS = { OPEN: 0, RESOLVED: 1, CANCELLED: 2 } as const
+// UNKNOWN: a status variant this build does not know (program upgraded ahead
+// of the frontend). Fails closed: no gate matches it, so no actions render.
+export const PRICE_ARENA_STATUS = { OPEN: 0, RESOLVED: 1, CANCELLED: 2, UNKNOWN: 99 } as const
 export const PRICE_ARENA_PHASE = { LOBBY: 0, RUNNING: 1, RESOLVED: 2, CANCELLED: 3 } as const
 export const PRICE_ARENA_CANCEL_REASON = {
   NONE: 0,
@@ -20,7 +22,6 @@ export const PRICE_ARENA_CANCEL_REASON = {
 // Mirrors ARENA_DURATIONS, ARENA_LOBBY_DURATION and MAX_PARTICIPANTS in
 // solana/programs/prophet_games/src/constants.rs.
 export const PRICE_ARENA_DURATIONS = [60n, 300n, 900n, 3600n] as const
-export const PRICE_ARENA_LOBBY_SECONDS = 600n
 export const PRICE_ARENA_MAX_PARTICIPANTS = 10
 export type PriceArenaMode = 'stocks' | 'memes' | 'crypto'
 
@@ -54,9 +55,6 @@ const CATALOG_ASSETS = assetRaceCatalog.map((asset) => ({
   logoUrl: asset.logoUrl,
   enabled: asset.enabled,
 }))
-
-/** Assets new arenas may use on this cluster. */
-export const PRICE_ARENA_ASSETS: PriceArenaAsset[] = CATALOG_ASSETS.filter((asset) => asset.enabled)
 
 // Every reviewed asset, so past arenas keep their names and links.
 const ASSET_BY_POOL = new Map<string, PriceArenaAsset>(CATALOG_ASSETS.map((asset) => [asset.pool, asset]))
@@ -116,7 +114,6 @@ export interface PriceArenaViewModel {
   category: number
   status: number
   cancelReason: number
-  phase: number
   createdAt: bigint
   startsAt: bigint
   deadline: bigint
@@ -149,14 +146,19 @@ const CANCEL_CODES: Record<string, number> = {
 }
 const CATEGORY_CODES: Record<string, number> = { stock: 0, meme: 1, crypto: 2 }
 
+/** A view model joined with the clock-dependent phase. The base model holds
+ * only account state; pages add `phase` with the cluster-anchored clock so a
+ * cached decode can never serve a stale LOBBY/RUNNING. */
+export type PriceArenaWithPhase = PriceArenaViewModel & { phase: number }
+
 export function arenaPhase(status: number, startsAt: bigint, nowSec: number) {
   if (status === PRICE_ARENA_STATUS.RESOLVED) return PRICE_ARENA_PHASE.RESOLVED
   if (status === PRICE_ARENA_STATUS.CANCELLED) return PRICE_ARENA_PHASE.CANCELLED
   return BigInt(Math.floor(nowSec)) < startsAt ? PRICE_ARENA_PHASE.LOBBY : PRICE_ARENA_PHASE.RUNNING
 }
 
-export function arenaFromAccount(address: PublicKey, a: ArenaAccount, nowSec = Date.now() / 1000): PriceArenaViewModel {
-  const status = STATUS_CODES[variant(a.status)] ?? PRICE_ARENA_STATUS.OPEN
+export function arenaFromAccount(address: PublicKey, a: ArenaAccount): PriceArenaViewModel {
+  const status = STATUS_CODES[variant(a.status)] ?? PRICE_ARENA_STATUS.UNKNOWN
   const startsAt = big(a.startsAt)
   const priceSource = a.priceSource.toBase58()
   const asset = priceArenaAssetForPool(priceSource)
@@ -173,7 +175,6 @@ export function arenaFromAccount(address: PublicKey, a: ArenaAccount, nowSec = D
     category: CATEGORY_CODES[variant(a.category)] ?? 0,
     status,
     cancelReason: CANCEL_CODES[variant(a.cancelReason)] ?? 0,
-    phase: arenaPhase(status, startsAt, nowSec),
     createdAt: big(a.createdAt),
     startsAt,
     deadline: big(a.deadline),

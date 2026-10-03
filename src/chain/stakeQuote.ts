@@ -65,7 +65,13 @@ function assertUsablePrice(priceRaw: bigint, decimals: number) {
 
 export function usdCentsToLamports(usdCents: bigint, priceRaw: bigint, decimals: number): bigint {
   assertUsablePrice(priceRaw, decimals)
-  return (usdCents * 10n ** BigInt(decimals) * LAMPORTS_PER_SOL) / (USD_CENTS_SCALE * priceRaw)
+  // Round to nearest (flooring made a $1.00 entry convert to lamports worth
+  // a hair under $1.00, which then failed the exact SOL-side range check
+  // after a unit switch; the check-side tolerance covers the half-lamport
+  // that rounding can still miss).
+  const numerator = usdCents * 10n ** BigInt(decimals) * LAMPORTS_PER_SOL
+  const denominator = USD_CENTS_SCALE * priceRaw
+  return (numerator + denominator / 2n) / denominator
 }
 
 export function lamportsToUsdCents(lamports: bigint, priceRaw: bigint, decimals: number): bigint {
@@ -95,10 +101,15 @@ export function freezeStakeQuote(
     return { ...base, usdCents, lamports }
   }
   const lamports = parseSolLamports(input)
-  // Compare exactly, before rounding to cents.
+  // Compare exactly, before rounding to cents - but allow one lamport of
+  // tolerance at each edge (~$3e-6), so an amount produced by the USD
+  // conversion above always passes the same range it was quoted for.
   const scaled = lamports * priceRaw * USD_CENTS_SCALE
   const unit = LAMPORTS_PER_SOL * 10n ** BigInt(decimals)
-  if (scaled < MIN_STAKE_USD_CENTS * unit || scaled > MAX_STAKE_USD_CENTS * unit) throw new Error('UsdStakeOutOfRange')
+  const oneLamport = priceRaw * USD_CENTS_SCALE
+  if (scaled + oneLamport < MIN_STAKE_USD_CENTS * unit || scaled - oneLamport > MAX_STAKE_USD_CENTS * unit) {
+    throw new Error('UsdStakeOutOfRange')
+  }
   return { ...base, usdCents: lamportsToUsdCents(lamports, priceRaw, decimals), lamports }
 }
 

@@ -19,7 +19,7 @@
 // (default: the IDL address), INDEXER_PORT (8791), INDEXER_HOST (127.0.0.1), INDEXER_INTERVAL_MS (5000), INDEXER_STATE (default ~/.prophet/indexer-<cluster>.json),
 // ACTIVITY_LIMIT (500).
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
@@ -58,10 +58,14 @@ if (!state || state.genesis !== genesis) {
   state = { genesis, newest: null, events: [] }
 }
 let snapshot = null
+const parseAttempts = new Map()
 
 function save() {
   mkdirSync(dirname(STATE), { recursive: true })
-  writeFileSync(STATE, JSON.stringify(state))
+  // Atomic: write a temp file and rename, so a kill mid-write can never
+  // leave a truncated state file that crash-loops JSON.parse at startup.
+  writeFileSync(`${STATE}.tmp`, JSON.stringify(state))
+  renameSync(`${STATE}.tmp`, STATE)
 }
 
 // Event fields come back as BN / PublicKey / enum objects with the IDL's
@@ -104,8 +108,31 @@ async function ingest() {
       continue
     }
     const tx = await connection.getTransaction(sig.signature, { commitment: 'confirmed', maxSupportedTransactionVersion: 0 })
-    const logs = tx?.meta?.logMessages ?? []
-    for (const event of parser.parseLogs(logs)) {
+    if (!tx) {
+      // Common on load-balanced RPCs at confirmed commitment. Advancing
+      // `newest` here would silently drop the events for good; stop and
+      // retry the same signature next cycle instead.
+      console.warn(`transaction ${sig.signature} not found yet; retrying next cycle`)
+      break
+    }
+    const logs = tx.meta?.logMessages ?? []
+    if (logs.some((line) => line.includes('Log truncated'))) console.warn(`transaction ${sig.signature}: logs truncated; events may be incomplete`)
+    let events
+    try {
+      events = [...parser.parseLogs(logs)]
+    } catch (error) {
+      const attempts = (parseAttempts.get(sig.signature) ?? 0) + 1
+      if (attempts < 3) {
+        // Retry: a transient bad read must not poison every later cycle.
+        parseAttempts.set(sig.signature, attempts)
+        console.warn(`transaction ${sig.signature}: parseLogs failed (attempt ${attempts}): ${error.message}`)
+        break
+      }
+      console.error(`transaction ${sig.signature}: parseLogs failed ${attempts} times; skipping its events: ${error.message}`)
+      events = []
+    }
+    parseAttempts.delete(sig.signature)
+    for (const event of events) {
       state.events.push({ name: event.name, data: plain(event.data), signature: sig.signature, slot: sig.slot, time: sig.blockTime ?? null })
       added++
     }
@@ -343,6 +370,13 @@ createServer((req, res) => {
   if (url.pathname === '/health') return send(snapshot ? 200 : 503, { cluster, events: state.events.length, updatedAt: snapshot?.updatedAt ?? null })
   send(404, { error: 'not found' })
 }).listen(PORT, HOST, () => console.log(`indexer on :${PORT} · ${cluster} · program ${program.programId.toBase58()} · state ${STATE}`))
+
+for (const signal of ['SIGINT', 'SIGTERM']) {
+  process.on(signal, () => {
+    save()
+    process.exit(0)
+  })
+}
 
 await cycle()
 setInterval(cycle, INTERVAL)

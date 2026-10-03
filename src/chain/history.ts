@@ -104,9 +104,3 @@ export function useHistory({ enabled = true }: { enabled?: boolean } = {}) {
   })
 }
 
-export function decodeBase64(value: string) {
-  const binary = atob(value)
-  const bytes = new Uint8Array(binary.length)
-  for (let index = 0; index < binary.length; index++) bytes[index] = binary.charCodeAt(index)
-  return bytes
-}

@@ -45,6 +45,7 @@ export function OnchainArchivePage() {
       || isPlayedCancellation(arena.status, PRICE_ARENA_STATUS.CANCELLED, arena.totalPool)
   ))
   const loading = mode === 'races' ? races.isLoading : arenas.isLoading
+  const loadError = mode === 'races' ? races.error : arenas.error
 
   return (
     <div className="mx-auto max-w-[1100px] px-4 py-8">
@@ -59,6 +60,7 @@ export function OnchainArchivePage() {
 
       <div className="mt-6 space-y-2">
         {loading ? <p className="py-10 text-center text-sm text-white/35">Loading history…</p>
+          : loadError ? <p className="py-10 text-center text-sm text-rose-300">Could not load finished games. Refresh to retry.</p>
           : mode === 'races' ? (
             finishedRaces.length === 0 ? <p className="py-10 text-center text-sm text-white/35">No finished races yet.</p>
               : finishedRaces.map((race) => {

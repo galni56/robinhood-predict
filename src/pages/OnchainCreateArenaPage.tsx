@@ -23,7 +23,7 @@ import { GameModeMotion } from '@/components/GameModeMotion'
 import { NATIVE_SOL } from '@/solana/config'
 import { assetIdFromSymbol } from '@/solana/pda'
 import { usePrograms } from '@/solana/programs'
-import { useSendInstructions } from '@/solana/tx'
+import { TxUnconfirmedError, useSendInstructions } from '@/solana/tx'
 import { shortTxError } from '@/lib/format'
 
 export function OnchainCreateArenaPage() {
@@ -60,7 +60,7 @@ export function OnchainCreateArenaPage() {
     if (!publicKey || !selected || !valid) return
     setError(null)
     try {
-      setTxLabel('Confirm arena creation…')
+      setTxLabel('Preparing arena…')
       const { arenaId, instructions } = await createArenaInstructions(games, {
         creator: publicKey,
         title: title.trim(),
@@ -68,13 +68,15 @@ export function OnchainCreateArenaPage() {
         duration,
         stakeMint: new PublicKey(stakeMint),
       })
-      setTxLabel('Waiting for confirmation…')
-      await send(instructions)
+      await send(instructions, {
+        onPhase: (phase) => setTxLabel(phase === 'signing' ? 'Confirm arena creation in wallet…' : 'Waiting for confirmation…'),
+      })
       await queryClient.invalidateQueries({ queryKey: ['history'] })
       navigate(`/onchain/arenas/${arenaId}`)
     } catch (cause) {
       setTxLabel(null)
       setError(shortTxError(cause, 'create-arena'))
+      if (cause instanceof TxUnconfirmedError) void queryClient.invalidateQueries({ queryKey: ['history'] })
     }
   }
 

@@ -35,14 +35,14 @@ import { AssetRaceLiveView } from '@/components/AssetRaceLiveView'
 import { AssetRaceLobbyView } from '@/components/AssetRaceLobbyView'
 import { AssetRaceResultView } from '@/components/AssetRaceResultView'
 import { AddressLabel } from '@/components/AddressLabel'
-import { InfoBanner } from '@/components/InfoBanner'
+import { ClusterBanner } from '@/components/ClusterBanner'
 import { PriceSourceLink } from '@/components/PriceSourceLink'
 import { ShareInviteButton } from '@/components/ShareInviteButton'
 import { TokenLogo } from '@/components/TokenLogo'
-import { SOLANA_CLUSTER } from '@/solana/config'
+
 import { useStakeBalance, useStakeToken } from '@/solana/stakeTokens'
 import { usePrograms } from '@/solana/programs'
-import { useSendInstructions } from '@/solana/tx'
+import { TxUnconfirmedError, useSendInstructions } from '@/solana/tx'
 import { formatUnits, shortTxError } from '@/lib/format'
 
 type TxState = { label: string } | null
@@ -130,7 +130,7 @@ export function OnchainRacePage() {
       }
       setFrozenBetQuote(frozen)
       const assetIndex = position?.exists ? position.assetIndex : selectedAssetIndex
-      setTx({ label: 'Confirm race bet in wallet…' })
+      setTx({ label: 'Preparing race bet…' })
       const instructions = await betInstructions(games, {
         race: race.address,
         stakeMint: race.stakeMint,
@@ -138,8 +138,10 @@ export function OnchainRacePage() {
         assetIndex,
         amount: betAmount,
       })
-      setTx({ label: 'Waiting for bet confirmation…' })
-      await send(instructions)
+      await send(instructions, {
+        onPhase: (phase) =>
+          setTx({ label: phase === 'signing' ? 'Confirm race bet in wallet…' : 'Waiting for bet confirmation…' }),
+      })
       setTx(null)
       setFrozenBetQuote(null)
       setAmount('')
@@ -148,6 +150,9 @@ export function OnchainRacePage() {
       setTx(null)
       setFrozenBetQuote(null)
       setError(stakeQuoteErrorMessage(cause) ?? shortTxError(cause, 'race-bet'))
+      // Unknown outcome: the bet may have landed. Refresh so the UI shows
+      // the real position instead of inviting a duplicate bet.
+      if (cause instanceof TxUnconfirmedError) void refetchAll()
     }
   }
 
@@ -156,15 +161,18 @@ export function OnchainRacePage() {
     try {
       if (!race || !publicKey) return
       const label = action === 'claim' ? 'claim' : action === 'refund' ? 'refund' : 'close'
-      setTx({ label: `Confirm ${label} in wallet…` })
+      setTx({ label: `Preparing ${label}…` })
       const instructions = await settleRaceInstructions(games, { race: race.address, stakeMint: race.stakeMint, owner: publicKey, action })
-      setTx({ label: `Waiting for ${label} confirmation…` })
-      await send(instructions)
+      await send(instructions, {
+        onPhase: (phase) =>
+          setTx({ label: phase === 'signing' ? `Confirm ${label} in wallet…` : `Waiting for ${label} confirmation…` }),
+      })
       setTx(null)
       await refetchAll()
     } catch (cause) {
       setTx(null)
       setError(shortTxError(cause, 'race-settlement'))
+      if (cause instanceof TxUnconfirmedError) void refetchAll()
     }
   }
 
@@ -172,17 +180,20 @@ export function OnchainRacePage() {
     setError(null)
     try {
       if (!race || !publicKey) return
-      setTx({ label: kind === 'addLobbyAsset' ? 'Confirm asset addition…' : 'Confirm betting transition…' })
+      setTx({ label: kind === 'addLobbyAsset' ? 'Preparing asset addition…' : 'Preparing betting transition…' })
       const instructions = kind === 'addLobbyAsset'
         ? await addLobbyAssetInstructions(games, { race: race.address, adder: publicKey, assetId: hexToBytes(assetId!) })
         : await openBettingInstructions(games, { race: race.address })
-      setTx({ label: 'Waiting for confirmation…' })
-      await send(instructions)
+      await send(instructions, {
+        onPhase: (phase) =>
+          setTx({ label: phase === 'signing' ? 'Confirm in wallet…' : 'Waiting for confirmation…' }),
+      })
       setTx(null)
       await refetchAll()
     } catch (cause) {
       setTx(null)
       setError(shortTxError(cause, 'race-lobby'))
+      if (cause instanceof TxUnconfirmedError) void refetchAll()
     }
   }
 
@@ -192,11 +203,7 @@ export function OnchainRacePage() {
 
   return (
     <div className="mx-auto max-w-[1200px] px-4 py-8">
-      <InfoBanner tone="warning" className="mb-5">
-        {SOLANA_CLUSTER === 'mainnet-beta'
-          ? 'Live Asset Race on Solana. Enter the stake in USD or SOL; your wallet sends SOL directly to the race account.'
-          : `Solana ${SOLANA_CLUSTER} test race - test SOL only, no real funds. Prices come from live mainnet pools.`}
-      </InfoBanner>
+      <ClusterBanner className="mb-5" />
 
       <Link to={`/onchain/races${race ? `?mode=${raceModeForCategory(race.category)}` : ''}`} className="text-sm font-bold text-white/40 transition-colors hover:text-white/70">← All races</Link>
 

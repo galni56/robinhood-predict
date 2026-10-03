@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { ASSET_RACE_CATEGORY, ASSET_RACE_STATUS, type AssetRaceViewModel } from '@/chain/assetRaces'
 import { assetRaceCatalog, priceSourceUrlForAssetId, priceSourceUrlForCatalogAsset } from '@/chain/assetRaceRegistry'
 import { CRYPTO_ASSETS_ENABLED } from '@/chain/features'
-import { PRICE_ARENA_CATEGORY, PRICE_ARENA_MAX_PARTICIPANTS, PRICE_ARENA_PHASE, arenaDurationLabel, arenaPhase, type PriceArenaViewModel } from '@/chain/priceArena'
+import { PRICE_ARENA_CATEGORY, PRICE_ARENA_MAX_PARTICIPANTS, PRICE_ARENA_PHASE, arenaDurationLabel, arenaPhase, type PriceArenaWithPhase } from '@/chain/priceArena'
 import { useAssetRaceClock } from '@/chain/useAssetRaceClock'
 import { useAssetRaces } from '@/chain/useAssetRaces'
 import { usePriceArenas } from '@/chain/usePriceArenas'
@@ -123,6 +123,7 @@ function GameColumn({
   href,
   accent,
   loading,
+  error,
   empty,
   children,
 }: {
@@ -132,6 +133,7 @@ function GameColumn({
   href: string
   accent: 'purple' | 'orange' | 'blue'
   loading: boolean
+  error: boolean
   empty: string
   children: ReactNode
 }) {
@@ -180,6 +182,10 @@ function GameColumn({
                 </div>
               </div>
             ))}
+          </div>
+        ) : error && count === 0 ? (
+          <div className="grid flex-1 place-items-center rounded-2xl border border-rose-500/20 bg-rose-500/5 px-6 text-center text-sm leading-relaxed text-rose-300/80">
+            Could not load the game list. Check your connection and refresh.
           </div>
         ) : count === 0 ? (
           <div className="grid flex-1 place-items-center rounded-2xl border border-dashed border-white/10 px-6 text-center text-sm leading-relaxed text-white/35">{empty}</div>
@@ -258,7 +264,7 @@ function RacePreviewCard({ race, nowMs }: { race: AssetRaceViewModel; nowMs: num
   )
 }
 
-function ArenaPreviewCard({ arena, nowMs }: { arena: PriceArenaViewModel; nowMs: number }) {
+function ArenaPreviewCard({ arena, nowMs }: { arena: PriceArenaWithPhase; nowMs: number }) {
   const token = useStakeToken(arena.stakeMint)
   const navigate = useNavigate()
   const inLobby = arena.phase === PRICE_ARENA_PHASE.LOBBY
@@ -441,7 +447,8 @@ export function OnchainLandingPage() {
             count={activeRaces.length}
             href="/onchain/races"
             accent="orange"
-            loading={(racesLoading || !!racesError) && activeRaces.length === 0}
+            loading={racesLoading && !racesError && activeRaces.length === 0}
+            error={!!racesError}
             empty="No Asset Races are active right now."
           >
             {activeRaces.slice(0, 3).map((race) => (
@@ -455,7 +462,8 @@ export function OnchainLandingPage() {
             count={activeArenas.length}
             href="/onchain/arenas"
             accent="blue"
-            loading={(arenasLoading || !!arenasError) && activeArenas.length === 0}
+            loading={arenasLoading && !arenasError && activeArenas.length === 0}
+            error={!!arenasError}
             empty="No Price Arenas are active right now."
           >
             {activeArenas.slice(0, 3).map((arena) => (

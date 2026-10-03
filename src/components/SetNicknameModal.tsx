@@ -4,7 +4,8 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useWallet } from '@solana/wallet-adapter-react'
 import { MAX_NICKNAME_BYTES, nicknameQueryKey, useNickname } from '@/solana/nicknames'
 import { usePrograms } from '@/solana/programs'
-import { solanaTxError, useSendInstructions } from '@/solana/tx'
+import { useSendInstructions } from '@/solana/tx'
+import { shortTxError } from '@/lib/format'
 
 const byteLength = (value: string) => new TextEncoder().encode(value).length
 
@@ -18,8 +19,21 @@ export function SetNicknameModal({ onClose }: { onClose: () => void }) {
   const send = useSendInstructions()
   const queryClient = useQueryClient()
   const [value, setValue] = useState(current.data ?? '')
+  const [touched, setTouched] = useState(false)
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // The modal can open before the nickname query resolves, so the input
+  // starts empty. Fill it when the data arrives (unless the user already
+  // typed) - otherwise pressing Save with the untouched empty input would
+  // send clearNickname and silently delete the existing nickname.
+  useEffect(() => {
+    if (!touched && current.data) setValue(current.data)
+  }, [current.data, touched])
+
+  const closeUnlessPending = () => {
+    if (!pending) onClose()
+  }
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -46,7 +60,7 @@ export function SetNicknameModal({ onClose }: { onClose: () => void }) {
       queryClient.setQueryData(nicknameQueryKey(owner), nickname || null)
       onClose()
     } catch (e) {
-      setError(solanaTxError(e))
+      setError(shortTxError(e, 'set-nickname'))
     } finally {
       setPending(false)
     }
@@ -56,7 +70,7 @@ export function SetNicknameModal({ onClose }: { onClose: () => void }) {
     // Portaled to <body>: the navbar's backdrop-blur would otherwise become
     // the containing block for this fixed overlay. The backdrop scrolls so
     // the modal stays reachable on short viewports.
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60" onClick={onClose}>
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60" onClick={closeUnlessPending}>
       <div className="min-h-full flex items-center justify-center px-4 py-8">
         <div
           className="w-full max-w-sm rounded-2xl border border-white/10 bg-[#151622] p-5 shadow-2xl"
@@ -73,6 +87,7 @@ export function SetNicknameModal({ onClose }: { onClose: () => void }) {
             onChange={(e) => {
               let next = e.target.value
               while (byteLength(next) > MAX_NICKNAME_BYTES) next = next.slice(0, -1)
+              setTouched(true)
               setValue(next)
             }}
             placeholder="e.g. satoshi"
@@ -84,14 +99,15 @@ export function SetNicknameModal({ onClose }: { onClose: () => void }) {
 
           <div className="flex gap-2 mt-4">
             <button
-              onClick={onClose}
-              className="flex-1 rounded-lg border border-white/10 text-white/60 hover:text-white hover:border-white/30 py-2 text-sm transition-colors"
+              onClick={closeUnlessPending}
+              disabled={pending}
+              className="flex-1 rounded-lg border border-white/10 text-white/60 hover:text-white hover:border-white/30 py-2 text-sm transition-colors disabled:opacity-50"
             >
               Cancel
             </button>
             <button
               onClick={submit}
-              disabled={pending || !publicKey}
+              disabled={pending || !publicKey || current.isLoading}
               className="flex-1 rounded-lg bg-gradient-to-r from-[#8B7CF7] to-[#6A5AE0] hover:brightness-110 text-black font-semibold py-2 text-sm disabled:opacity-50 transition-all"
             >
               {pending ? 'Confirm in wallet…' : 'Save'}

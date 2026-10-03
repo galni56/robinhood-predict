@@ -65,8 +65,18 @@ export function accountsFor(plan, asset, data) {
 export function pricesFromData(plan, data, assets = plan.assets) {
   const priceOf = (asset) => assetPriceInQuote(asset.poolKind, data[asset.pool], asset.mint, plan.decimals, data)
 
-  const solUsd = priceOf(plan.solAsset)
-  if (solUsd.quoteMint !== USDC_MINT) throw new Error('SOL pool must be quoted in USDC')
+  // SOL/USD is only needed for assets quoted in WSOL. Attestations pass only
+  // the accounts the requested assets depend on (accountsFor), so for a
+  // purely USDC-quoted set the SOL pool is absent from `data` - computing it
+  // eagerly here used to abort the whole attestation with a TypeError.
+  let solUsdCached
+  const solUsd = () => {
+    if (solUsdCached === undefined) {
+      solUsdCached = priceOf(plan.solAsset)
+      if (solUsdCached.quoteMint !== USDC_MINT) throw new Error('SOL pool must be quoted in USDC')
+    }
+    return solUsdCached
+  }
 
   const prices = new Map()
   const errors = []
@@ -76,7 +86,7 @@ export function pricesFromData(plan, data, assets = plan.assets) {
       const usd = inQuote.quoteMint === USDC_MINT
         ? inQuote
         : inQuote.quoteMint === WSOL_MINT
-          ? multiply(inQuote, solUsd)
+          ? multiply(inQuote, solUsd())
           : null
       if (!usd) throw new Error(`unsupported quote ${inQuote.quoteMint}`)
       prices.set(asset.symbol, {

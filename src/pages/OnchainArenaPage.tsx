@@ -27,6 +27,7 @@ import {
   type PriceArenaEntry,
 } from '@/chain/priceArena'
 import { AddressLabel } from '@/components/AddressLabel'
+import { ClusterBanner } from '@/components/ClusterBanner'
 import { ShareInviteButton } from '@/components/ShareInviteButton'
 import { PriceSourceLink } from '@/components/PriceSourceLink'
 import { StakeAmountInput } from '@/components/StakeAmountInput'
@@ -34,7 +35,7 @@ import { TokenLogo } from '@/components/TokenLogo'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
 import { formatStakeAmount, formatStakeExact, useStakeBalance, useStakeToken, type StakeToken } from '@/solana/stakeTokens'
 import { usePrograms } from '@/solana/programs'
-import { useSendInstructions } from '@/solana/tx'
+import { TxUnconfirmedError, useSendInstructions } from '@/solana/tx'
 import { formatCountdown, formatUnits, formatUsdPrice, parseUnits, shortTxError } from '@/lib/format'
 
 function parseId(value?: string) {
@@ -162,6 +163,10 @@ export function OnchainArenaPage() {
       ? 'Pending'
       : displayedPhase
 
+  async function refetchAfterTx() {
+    await Promise.all([refetch(), balance.refetch(), queryClient.invalidateQueries({ queryKey: ['history'] })])
+  }
+
   async function submitEntry() {
     if (!arena || !publicKey || !token) return
     setError(null)
@@ -184,7 +189,7 @@ export function OnchainArenaPage() {
         setFrozenEntryQuote(null)
         return
       }
-      setTxLabel(walletEntry ? 'Confirm arena update…' : 'Confirm arena entry…')
+      setTxLabel(walletEntry ? 'Preparing arena update…' : 'Preparing arena entry…')
       const instructions = await arenaEntryInstructions(games, {
         arena: arena.address,
         stakeMint: arena.stakeMint,
@@ -193,14 +198,18 @@ export function OnchainArenaPage() {
         amount: additional,
         update: !!walletEntry,
       })
-      setTxLabel('Waiting for confirmation…')
-      await send(instructions)
+      await send(instructions, {
+        onPhase: (phase) => setTxLabel(phase === 'signing' ? 'Confirm in wallet…' : 'Waiting for confirmation…'),
+      })
       setPrediction(''); setAmount(''); setTxLabel(null); setFrozenEntryQuote(null)
-      await Promise.all([refetch(), balance.refetch(), queryClient.invalidateQueries({ queryKey: ['history'] })])
+      await refetchAfterTx()
     } catch (cause) {
       setTxLabel(null)
       setFrozenEntryQuote(null)
       setError(stakeQuoteErrorMessage(cause) ?? (cause instanceof EntryInputError ? cause.message : shortTxError(cause, 'arena-join')))
+      // Unknown outcome: the entry may have landed - show the real state
+      // instead of inviting a duplicate entry.
+      if (cause instanceof TxUnconfirmedError) void refetchAfterTx()
     }
   }
 
@@ -208,17 +217,24 @@ export function OnchainArenaPage() {
     if (!arena || !publicKey) return
     setError(null)
     try {
-      setTxLabel(`Confirm ${action}…`)
+      setTxLabel(`Preparing ${action}…`)
       const instructions = await settleArenaInstructions(games, { arena: arena.address, stakeMint: arena.stakeMint, player: publicKey, action })
-      await send(instructions)
+      await send(instructions, {
+        onPhase: (phase) => setTxLabel(phase === 'signing' ? `Confirm ${action} in wallet…` : `Waiting for ${action} confirmation…`),
+      })
       setTxLabel(null)
-      await Promise.all([refetch(), balance.refetch(), queryClient.invalidateQueries({ queryKey: ['history'] })])
-    } catch (cause) { setTxLabel(null); setError(shortTxError(cause, 'arena-settlement')) }
+      await refetchAfterTx()
+    } catch (cause) {
+      setTxLabel(null)
+      setError(shortTxError(cause, 'arena-settlement'))
+      if (cause instanceof TxUnconfirmedError) void refetchAfterTx()
+    }
   }
 
   if (arenaId == null) return <div className="mx-auto max-w-4xl px-4 py-12 text-rose-300">Invalid arena ID.</div>
   return (
     <div className="mx-auto max-w-[1200px] px-4 py-8">
+      <ClusterBanner className="mb-5" />
       <Link to={`/onchain/arenas${arena ? `?mode=${modeForArenaCategory(arena.category)}` : ''}`} className="text-sm font-bold text-white/40 hover:text-white">← All arenas</Link>
       {isLoading ? <p className="py-20 text-center text-white/40">Loading arena…</p> : readError ? <div className="mt-6 rounded-2xl border border-rose-500/25 bg-rose-500/10 p-5 text-rose-300">Could not read this arena.</div> : !arena ? <p className="py-20 text-center text-white/40">Arena not found.</p> : <>
         <div className="mt-5 flex flex-wrap items-end justify-between gap-4">

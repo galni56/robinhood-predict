@@ -19,7 +19,6 @@ export const nicknamePda = (owner: PublicKey) => find([enc('nickname'), owner.to
 const games = PROGRAM_IDS.games
 export const configPda = () => find([enc('config')], games)
 export const stakeMintPda = (mint: PublicKey) => find([enc('stake_mint'), mint.toBytes()], games)
-export const treasuryPda = (mint: PublicKey) => find([enc('treasury'), mint.toBytes()], games)
 export const assetPda = (assetId: Uint8Array) => find([enc('asset'), assetId], games)
 export const creatorEarningsPda = (mint: PublicKey, creator: PublicKey) =>
   find([enc('creator'), mint.toBytes(), creator.toBytes()], games)
