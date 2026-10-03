@@ -14,7 +14,7 @@ import { TokenLogo } from '@/components/TokenLogo'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
 import { NATIVE_SOL, explorerUrl } from '@/solana/config'
 import { usePrograms } from '@/solana/programs'
-import { useSendInstructions } from '@/solana/tx'
+import { TxUnconfirmedError, useSendInstructions } from '@/solana/tx'
 import { formatCompactSol, formatSol, shortTxError, timeAgo } from '@/lib/format'
 import { shortHash } from '@/lib/hash'
 
@@ -84,6 +84,9 @@ export function OnchainPortfolioPage() {
       await Promise.all([refetch(), queryClient.invalidateQueries({ queryKey: ['history'] }), queryClient.invalidateQueries({ queryKey: ['sol-balance'] })])
     } catch (cause) {
       setActionError(shortTxError(cause, 'portfolio'))
+      if (cause instanceof TxUnconfirmedError) {
+        void Promise.all([refetch(), queryClient.invalidateQueries({ queryKey: ['history'] }), queryClient.invalidateQueries({ queryKey: ['sol-balance'] })])
+      }
     } finally {
       setPending(null)
     }
