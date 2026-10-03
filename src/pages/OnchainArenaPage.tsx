@@ -26,6 +26,7 @@ import {
   type PriceArenaEntry,
 } from '@/chain/priceArena'
 import { AddressLabel } from '@/components/AddressLabel'
+import { ClusterBanner } from '@/components/ClusterBanner'
 import { ShareInviteButton } from '@/components/ShareInviteButton'
 import { PriceSourceLink } from '@/components/PriceSourceLink'
 import { StakeAmountInput } from '@/components/StakeAmountInput'
@@ -220,6 +221,7 @@ export function OnchainArenaPage() {
   if (arenaId == null) return <div className="mx-auto max-w-4xl px-4 py-12 text-rose-300">Invalid arena ID.</div>
   return (
     <div className="mx-auto max-w-[1200px] px-4 py-8">
+      <ClusterBanner className="mb-5" />
       <Link to={`/onchain/arenas${arena ? `?mode=${modeForArenaCategory(arena.category)}` : ''}`} className="text-sm font-bold text-white/40 hover:text-white">← All arenas</Link>
       {isLoading ? <p className="py-20 text-center text-white/40">Loading arena…</p> : readError ? <div className="mt-6 rounded-2xl border border-rose-500/25 bg-rose-500/10 p-5 text-rose-300">Could not read this arena.</div> : !arena ? <p className="py-20 text-center text-white/40">Arena not found.</p> : <>
         <div className="mt-5 flex flex-wrap items-end justify-between gap-4">

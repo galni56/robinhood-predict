@@ -36,11 +36,11 @@ import { AssetRaceLiveView } from '@/components/AssetRaceLiveView'
 import { AssetRaceLobbyView } from '@/components/AssetRaceLobbyView'
 import { AssetRaceResultView } from '@/components/AssetRaceResultView'
 import { AddressLabel } from '@/components/AddressLabel'
-import { InfoBanner } from '@/components/InfoBanner'
+import { ClusterBanner } from '@/components/ClusterBanner'
 import { PriceSourceLink } from '@/components/PriceSourceLink'
 import { ShareInviteButton } from '@/components/ShareInviteButton'
 import { TokenLogo } from '@/components/TokenLogo'
-import { NATIVE_SOL, SOLANA_CLUSTER } from '@/solana/config'
+import { NATIVE_SOL } from '@/solana/config'
 import { useSolBalance } from '@/solana/balance'
 import { usePrograms } from '@/solana/programs'
 import { TxUnconfirmedError, useSendInstructions } from '@/solana/tx'
@@ -192,11 +192,7 @@ export function OnchainRacePage() {
 
   return (
     <div className="mx-auto max-w-[1200px] px-4 py-8">
-      <InfoBanner tone="warning" className="mb-5">
-        {SOLANA_CLUSTER === 'mainnet-beta'
-          ? 'Live Asset Race on Solana. Enter the stake in USD or SOL; your wallet sends SOL directly to the race account.'
-          : `Solana ${SOLANA_CLUSTER} test race - test SOL only, no real funds. Prices come from live mainnet pools.`}
-      </InfoBanner>
+      <ClusterBanner className="mb-5" />
 
       <Link to={`/onchain/races${race ? `?mode=${raceModeForCategory(race.category)}` : ''}`} className="text-sm font-bold text-white/40 transition-colors hover:text-white/70">← All races</Link>
 

@@ -1,11 +1,12 @@
 import { useMemo } from 'react'
-import type { PublicKey } from '@solana/web3.js'
+import { PublicKey } from '@solana/web3.js'
 import { useQuery } from '@tanstack/react-query'
 import { usePrograms } from '@/solana/programs'
 import { creatorEarningsPda } from '@/solana/pda'
 import { NATIVE_SOL } from '@/solana/config'
 import {
   ASSET_RACE_STATUS,
+  raceFromAccount,
   resolvedPositionPayout,
   type AssetRacePosition,
   type AssetRaceViewModel,
@@ -79,15 +80,34 @@ export function useWalletGames(wallet?: PublicKey | null) {
     refetchInterval: 30_000,
   })
 
+  // A race can be missing from the indexed list (indexer lag or outage with
+  // the direct fallback still loading). Dropping the position would hide a
+  // claimable payout from the portfolio, so fetch the stragglers directly.
+  const missingRaceKeys = useMemo(() => {
+    if (!positions.data) return []
+    const known = new Set(races.map((race) => race.address))
+    return [...new Set(positions.data.map(({ account }) => account.race.toBase58()).filter((address) => !known.has(address)))].sort()
+  }, [positions.data, races])
+
+  const missingRaces = useQuery({
+    queryKey: ['wallet-missing-races', games.programId.toBase58(), missingRaceKeys],
+    queryFn: async () => {
+      const accounts = await games.account.race.fetchMultiple(missingRaceKeys.map((key) => new PublicKey(key)))
+      return accounts.flatMap((account, index) => (account ? [raceFromAccount(new PublicKey(missingRaceKeys[index]), account)] : []))
+    },
+    enabled: missingRaceKeys.length > 0,
+    staleTime: 10_000,
+  })
+
   const racePositions = useMemo<WalletRacePosition[]>(() => {
-    const byAddress = new Map(races.map((race) => [race.address, race]))
+    const byAddress = new Map([...races, ...(missingRaces.data ?? [])].map((race) => [race.address, race]))
     return (positions.data ?? []).flatMap(({ account }) => {
       const race = byAddress.get(account.race.toBase58())
       if (!race) return []
       const position: AssetRacePosition = { stake: BigInt(account.stake.toString()), assetIndex: account.assetIndex, exists: true, settled: false }
       return [{ race, position, ...raceAction(race, position) }]
     }).sort((a, b) => (a.race.id > b.race.id ? -1 : 1))
-  }, [positions.data, races])
+  }, [missingRaces.data, positions.data, races])
 
   const arenaEntries = useMemo<WalletArenaEntry[]>(() => (owner ? arenas.flatMap((arena) => {
     const entry = arena.entries.find((item) => item.player === owner)
