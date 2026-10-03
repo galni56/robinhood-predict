@@ -1,0 +1,15 @@
+{
+  "$comment": "Owner-approved assets. Only symbols listed here get approved: true in config/solana-assets.json. Edit only on the owner's instruction.",
+  "approvedBy": "owner",
+  "approvedAt": "2026-10-03",
+  "symbols": {
+    "CRYPTO": ["BTC", "SOL", "ETH"],
+    "MEME": ["TRUMP", "PENGU", "WIF", "FARTCOIN", "PONKE", "PNUT", "PIPPIN", "BOME", "POPCAT", "MEW"],
+    "STOCK": ["NVDAx", "TSLAx", "AAPLx", "METAx", "MSTRx", "AMZNx", "MSFTx", "GOOGLx", "COINx", "HOODx", "CRCLx", "SPYx", "QQQx"]
+  },
+  "rejected": {
+    "BONK": "best decodable pool $412k, below the $500k meme floor",
+    "AI16Z": "best pool $49k; price can be moved cheaply at a boundary",
+    "SLERF": "no supported USDC/SOL pool"
+  }
+}

@@ -20,10 +20,12 @@ const WSOL = 'So11111111111111111111111111111111111111112'
 // price is set by a launchpad formula, not a tradable pool.
 const SUPPORTED_DEXES = new Set(['raydium', 'orca', 'meteora', 'pumpswap'])
 
+// Owner-approved list (config/solana-catalog-approved.json). Jupiter symbols:
+// Bitcoin is scanned as cbBTC and shown as BTC.
 const CANDIDATES = {
-  crypto: ['SOL', 'cbBTC', 'WBTC', 'zBTC', 'ETH', 'JUP', 'JTO', 'PYTH', 'RAY', 'HNT', 'RENDER', 'W', 'ORCA', 'DRIFT', 'KMNO', 'TRUMP', 'JLP'],
-  meme: ['BONK', '$WIF', 'POPCAT', 'PENGU', 'FARTCOIN', 'MEW', 'BOME', 'MOODENG', 'GIGA', 'PNUT', 'USELESS', 'SPX', 'GOAT', 'AI16Z', 'CHILLGUY'],
-  stock: ['NVDAx', 'TSLAx', 'AAPLx', 'METAx', 'MSTRx', 'AMZNx', 'MSFTx', 'GOOGLx', 'COINx', 'HOODx', 'NFLXx', 'CRCLx', 'SPYx', 'QQQx', 'AMDx', 'PLTRx'],
+  crypto: ['SOL', 'cbBTC', 'ETH'],
+  meme: ['TRUMP', 'PENGU', '$WIF', 'FARTCOIN', 'PONKE', 'PNUT', 'PIPPIN', 'BOME', 'POPCAT', 'MEW'],
+  stock: ['NVDAx', 'TSLAx', 'AAPLx', 'METAx', 'MSTRx', 'AMZNx', 'MSFTx', 'GOOGLx', 'COINx', 'HOODx', 'CRCLx', 'SPYx', 'QQQx'],
 }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))

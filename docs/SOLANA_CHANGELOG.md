@@ -227,3 +227,17 @@ Buyback/burn для нашего токена — позже, когда у то
 - Пока остаются (уберутся после перевода страниц гонок и арен на Solana): `src/chain/`, wagmi/viem,
   `config/asset-race-assets.json`.
 - Живая EVM-версия на `main` не тронута — её контракты, боты и документы остаются там и в истории git.
+
+## 2026-10-03 — Каталог утверждён владельцем: 26 активов
+
+Решение записано в `config/solana-catalog-approved.json`; только эти активы получают `approved: true`
+в `config/solana-assets.json`.
+
+- **Крипта (3):** BTC (через cbBTC), SOL, ETH.
+- **Мемы (10):** TRUMP, PENGU, WIF, FARTCOIN, PONKE, PNUT, PIPPIN, BOME, POPCAT, MEW. TRUMP перенесён из крипты в мемы.
+- **Акции (13):** NVDA, TSLA, AAPL, META, MSTR, AMZN, MSFT, GOOGL, COIN, HOOD, CRCL, SPY, QQQ (xStocks).
+- **Отклонены:** BONK (лучший пул $412k — ниже порога), AI16Z (пул $49k — цену легко сдвинуть), SLERF (нет подходящего пула).
+- Убраны из каталога (не вошли в список владельца): WBTC, JUP, RAY, KMNO, JLP, MOODENG, GIGA, USELESS, SPX, GOAT, CHILLGUY.
+- Цены — только в USD. Пары к USDT/USDC для игрока не отличаются (оба ≈ $1); берётся самый ликвидный пул
+  к USDC или к SOL с пересчётом через SOL/USDC.
+- Все 26 заново проверены по живым данным: ликвидность выбранного пула от $1.6M (PONKE) до $36M (SOL).

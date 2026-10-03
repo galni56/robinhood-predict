@@ -1,5 +1,5 @@
 {
-  "scannedAt": "2026-10-02T23:46:43.212Z",
+  "scannedAt": "2026-10-03T10:01:41.320Z",
   "report": [
     {
       "category": "crypto",
@@ -18,9 +18,9 @@
         "kind": "standard",
         "quote": "USDC",
         "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-        "liquidityUsd": 36733400,
-        "volume24hUsd": 15406125,
-        "priceUsd": 118.89,
+        "liquidityUsd": 36443539,
+        "volume24hUsd": 13075784,
+        "priceUsd": 119.39,
         "url": "https://dexscreener.com/solana/58oqchx4ywmvkdwllzzbi4chocc2fqcuwbkwmihlyqo2"
       },
       "bestPool": {
@@ -29,9 +29,9 @@
         "kind": "standard",
         "quote": "USDC",
         "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-        "liquidityUsd": 36733400,
-        "volume24hUsd": 15406125,
-        "priceUsd": 118.89,
+        "liquidityUsd": 36443539,
+        "volume24hUsd": 13075784,
+        "priceUsd": 119.39,
         "url": "https://dexscreener.com/solana/58oqchx4ywmvkdwllzzbi4chocc2fqcuwbkwmihlyqo2"
       },
       "poolCount": 23
@@ -44,7 +44,7 @@
       "name": "Coinbase Wrapped BTC",
       "decimals": 8,
       "tokenProgram": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
-      "organicScore": 94,
+      "organicScore": 93,
       "mintAuthorityDisabled": null,
       "freezeAuthorityDisabled": null,
       "bestUsdcPool": {
@@ -53,9 +53,9 @@
         "kind": "wp",
         "quote": "USDC",
         "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-        "liquidityUsd": 6095883,
-        "volume24hUsd": 22469068,
-        "priceUsd": 84584.84,
+        "liquidityUsd": 6075706,
+        "volume24hUsd": 15389502,
+        "priceUsd": 84564.12,
         "url": "https://dexscreener.com/solana/hxa6skw5qa4o12fjvgtpxdq2ynz5zv1s7sb4ffomsylm"
       },
       "bestPool": {
@@ -64,82 +64,12 @@
         "kind": "wp",
         "quote": "SOL",
         "quoteMint": "So11111111111111111111111111111111111111112",
-        "liquidityUsd": 9620915,
-        "volume24hUsd": 11838911,
-        "priceUsd": 84490.88,
+        "liquidityUsd": 9707052,
+        "volume24hUsd": 7936411,
+        "priceUsd": 84796.94,
         "url": "https://dexscreener.com/solana/ceazcxbnlpjwtxzt58qqmfmbtjy8pqlvursxtjygqpbn"
       },
-      "poolCount": 24
-    },
-    {
-      "category": "crypto",
-      "symbol": "WBTC",
-      "status": "ok",
-      "mint": "3NZ9JMVBmGAqocybic2c7LQCJScmgsAZ6vQqTDzcqmJh",
-      "name": "Wrapped BTC (Portal)",
-      "decimals": 8,
-      "tokenProgram": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
-      "organicScore": 91,
-      "mintAuthorityDisabled": null,
-      "freezeAuthorityDisabled": true,
-      "bestUsdcPool": {
-        "pool": "3sehQcVywWcFJZ1ri3NmJ7MRkrXbViJMRNN5b6kz8Mqn",
-        "dex": "meteora",
-        "kind": "DLMM",
-        "quote": "USDC",
-        "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-        "liquidityUsd": 124577,
-        "volume24hUsd": 27903,
-        "priceUsd": 84486.82,
-        "url": "https://dexscreener.com/solana/3sehqcvywwcfjz1ri3nmj7mrkrxbvijmrnn5b6kz8mqn"
-      },
-      "bestPool": {
-        "pool": "B5EwJVDuAauzUEEdwvbuXzbFFgEYnUqqS37TUM1c4PQA",
-        "dex": "orca",
-        "kind": "wp",
-        "quote": "SOL",
-        "quoteMint": "So11111111111111111111111111111111111111112",
-        "liquidityUsd": 1978561,
-        "volume24hUsd": 5361922,
-        "priceUsd": 84469.51,
-        "url": "https://dexscreener.com/solana/b5ewjvduaauzueedwvbuxzbffgeynuqqs37tum1c4pqa"
-      },
-      "poolCount": 19
-    },
-    {
-      "category": "crypto",
-      "symbol": "zBTC",
-      "status": "ok",
-      "mint": "zBTCug3er3tLyffELcvDNrKkCymbPWysGcWihESYfLg",
-      "name": "zBTC",
-      "decimals": 8,
-      "tokenProgram": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
-      "organicScore": 52,
-      "mintAuthorityDisabled": null,
-      "freezeAuthorityDisabled": true,
-      "bestUsdcPool": {
-        "pool": "H6Bx3Yq4cavuVpNMhHpy96bzvZbbCXiR9P2nVqmAuFxQ",
-        "dex": "raydium",
-        "kind": "CLMM",
-        "quote": "USDC",
-        "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-        "liquidityUsd": 501,
-        "volume24hUsd": 637,
-        "priceUsd": 84187.52,
-        "url": "https://dexscreener.com/solana/h6bx3yq4cavuvpnmhhpy96bzvzbbcxir9p2nvqmaufxq"
-      },
-      "bestPool": {
-        "pool": "HWiKAo74K122frSYwwRfERZtwWUjkvdzfgiSpsC276iQ",
-        "dex": "meteora",
-        "kind": "DLMM",
-        "quote": "SOL",
-        "quoteMint": "So11111111111111111111111111111111111111112",
-        "liquidityUsd": 29919,
-        "volume24hUsd": 15601,
-        "priceUsd": 84147.71,
-        "url": "https://dexscreener.com/solana/hwikao74k122frsywwrferztwwujkvdzfgispsc276iq"
-      },
-      "poolCount": 6
+      "poolCount": 23
     },
     {
       "category": "crypto",
@@ -149,7 +79,7 @@
       "name": "Ether (Portal)",
       "decimals": 8,
       "tokenProgram": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
-      "organicScore": 93,
+      "organicScore": 92,
       "mintAuthorityDisabled": null,
       "freezeAuthorityDisabled": true,
       "bestUsdcPool": {
@@ -158,9 +88,9 @@
         "kind": "wp",
         "quote": "USDC",
         "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-        "liquidityUsd": 227652,
-        "volume24hUsd": 234326,
-        "priceUsd": 2671.59,
+        "liquidityUsd": 228228,
+        "volume24hUsd": 168969,
+        "priceUsd": 2681.86,
         "url": "https://dexscreener.com/solana/au971drpyhhrprnmebp5pdtwl2ny7nofb5vybjdjkr2e"
       },
       "bestPool": {
@@ -169,372 +99,22 @@
         "kind": "wp",
         "quote": "SOL",
         "quoteMint": "So11111111111111111111111111111111111111112",
-        "liquidityUsd": 6827610,
-        "volume24hUsd": 8719854,
-        "priceUsd": 2670.018,
+        "liquidityUsd": 6864930,
+        "volume24hUsd": 5280307,
+        "priceUsd": 2682.42,
         "url": "https://dexscreener.com/solana/hktfl7iwgkt5qhjywqkcdnzxscoh811k7akrmzjkccef"
-      },
-      "poolCount": 20
-    },
-    {
-      "category": "crypto",
-      "symbol": "JUP",
-      "status": "ok",
-      "mint": "JUPyiwrYJFskUPiHa7hkeR8VUtAeFoSYbKedZNsDvCN",
-      "name": "Jupiter",
-      "decimals": 6,
-      "tokenProgram": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
-      "organicScore": 99,
-      "mintAuthorityDisabled": true,
-      "freezeAuthorityDisabled": true,
-      "bestUsdcPool": {
-        "pool": "HfgjZDmexhFVD28Vkb1NbQwWeXP3uDcVTLPjSGHmRHhL",
-        "dex": "meteora",
-        "kind": "DLMM",
-        "quote": "USDC",
-        "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-        "liquidityUsd": 519192,
-        "volume24hUsd": 1270294,
-        "priceUsd": 0.3147,
-        "url": "https://dexscreener.com/solana/hfgjzdmexhfvd28vkb1nbqwwexp3udcvtlpjsghmrhhl"
-      },
-      "bestPool": {
-        "pool": "C8Gr6AUuq9hEdSYJzoEpNcdjpojPZwqG5MtQbeouNNwg",
-        "dex": "meteora",
-        "kind": "DLMM",
-        "quote": "SOL",
-        "quoteMint": "So11111111111111111111111111111111111111112",
-        "liquidityUsd": 2225421,
-        "volume24hUsd": 1678152,
-        "priceUsd": 0.3138,
-        "url": "https://dexscreener.com/solana/c8gr6auuq9hedsyjzoepncdjpojpzwqg5mtqbeounnwg"
-      },
-      "poolCount": 28
-    },
-    {
-      "category": "crypto",
-      "symbol": "JTO",
-      "status": "ok",
-      "mint": "jtojtomepa8beP8AuQc6eXt5FriJwfFMwQx2v2f9mCL",
-      "name": "JITO",
-      "decimals": 9,
-      "tokenProgram": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
-      "organicScore": 84,
-      "mintAuthorityDisabled": true,
-      "freezeAuthorityDisabled": true,
-      "bestUsdcPool": {
-        "pool": "Eqv1tJGkLFeH4giGy8vqKxF4NJBHtGR5cGmKG6cpVy4Z",
-        "dex": "meteora",
-        "kind": "DLMM",
-        "quote": "USDC",
-        "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-        "liquidityUsd": 52377,
-        "volume24hUsd": 62770,
-        "priceUsd": 0.5166,
-        "url": "https://dexscreener.com/solana/eqv1tjgklfeh4gigy8vqkxf4njbhtgr5cgmkg6cpvy4z"
-      },
-      "bestPool": {
-        "pool": "JVoPtWWDsRcLvQosu5fWc2CaNF6jEtJzbxdPtcEuvZo",
-        "dex": "raydium",
-        "kind": "CLMM",
-        "quote": "SOL",
-        "quoteMint": "So11111111111111111111111111111111111111112",
-        "liquidityUsd": 72387,
-        "volume24hUsd": 22195,
-        "priceUsd": 0.5134,
-        "url": "https://dexscreener.com/solana/jvoptwwdsrclvqosu5fwc2canf6jetjzbxdptceuvzo"
       },
       "poolCount": 19
     },
     {
-      "category": "crypto",
-      "symbol": "PYTH",
-      "status": "ok",
-      "mint": "HZ1JovNiVvGrGNiiYvEozEVgZ58xaU3RKwX8eACQBCt3",
-      "name": "Pyth Network",
-      "decimals": 6,
-      "tokenProgram": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
-      "organicScore": 79,
-      "mintAuthorityDisabled": true,
-      "freezeAuthorityDisabled": true,
-      "bestUsdcPool": {
-        "pool": "3piNpZjdmfHMggyA3oCY5qAmg2dq6Rd5HdUp6iYVEXur",
-        "dex": "meteora",
-        "kind": "DYN2",
-        "quote": "USDC",
-        "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-        "liquidityUsd": 16609,
-        "volume24hUsd": 724,
-        "priceUsd": 0.07759,
-        "url": "https://dexscreener.com/solana/3pinpzjdmfhmggya3ocy5qamg2dq6rd5hdup6iyvexur"
-      },
-      "bestPool": {
-        "pool": "9n3dSLrERZQp95dHXywft7xV8D8xnGFLaUHtEhQVaXaC",
-        "dex": "raydium",
-        "kind": "CLMM",
-        "quote": "SOL",
-        "quoteMint": "So11111111111111111111111111111111111111112",
-        "liquidityUsd": 426347,
-        "volume24hUsd": 478254,
-        "priceUsd": 0.07839,
-        "url": "https://dexscreener.com/solana/9n3dslrerzqp95dhxywft7xv8d8xngflauhtehqvaxac"
-      },
-      "poolCount": 24
-    },
-    {
-      "category": "crypto",
-      "symbol": "RAY",
-      "status": "ok",
-      "mint": "4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R",
-      "name": "Raydium",
-      "decimals": 6,
-      "tokenProgram": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
-      "organicScore": 94,
-      "mintAuthorityDisabled": true,
-      "freezeAuthorityDisabled": true,
-      "bestUsdcPool": {
-        "pool": "6UmmUiYoBjSrhakAobJw8BvkmJtDVxaeBtbt7rxWo1mg",
-        "dex": "raydium",
-        "kind": "standard",
-        "quote": "USDC",
-        "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-        "liquidityUsd": 6657489,
-        "volume24hUsd": 1048856,
-        "priceUsd": 1.93,
-        "url": "https://dexscreener.com/solana/6ummuiyobjsrhakaobjw8bvkmjtdvxaebtbt7rxwo1mg"
-      },
-      "bestPool": {
-        "pool": "6UmmUiYoBjSrhakAobJw8BvkmJtDVxaeBtbt7rxWo1mg",
-        "dex": "raydium",
-        "kind": "standard",
-        "quote": "USDC",
-        "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-        "liquidityUsd": 6657489,
-        "volume24hUsd": 1048856,
-        "priceUsd": 1.93,
-        "url": "https://dexscreener.com/solana/6ummuiyobjsrhakaobjw8bvkmjtdvxaebtbt7rxwo1mg"
-      },
-      "poolCount": 24
-    },
-    {
-      "category": "crypto",
-      "symbol": "HNT",
-      "status": "ok",
-      "mint": "hntyVP6YFm1Hg25TN9WGLqM12b8TQmcknKrdu1oxWux",
-      "name": "Helium Network Token",
-      "decimals": 8,
-      "tokenProgram": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
-      "organicScore": 76,
-      "mintAuthorityDisabled": null,
-      "freezeAuthorityDisabled": true,
-      "bestUsdcPool": {
-        "pool": "Eqw3bZU92t5LbTFKbaA4MTBvHcvYZDBnW7dxi14wemCF",
-        "dex": "raydium",
-        "kind": "CPMM",
-        "quote": "USDC",
-        "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-        "liquidityUsd": 120217,
-        "volume24hUsd": 21837,
-        "priceUsd": 0.493,
-        "url": "https://dexscreener.com/solana/eqw3bzu92t5lbtfkbaa4mtbvhcvyzdbnw7dxi14wemcf"
-      },
-      "bestPool": {
-        "pool": "91axdGmMoqQQg2MPUXKxT3bdqX4p2RMLXqZSQgXn2JpM",
-        "dex": "raydium",
-        "kind": "standard",
-        "quote": "SOL",
-        "quoteMint": "So11111111111111111111111111111111111111112",
-        "liquidityUsd": 424596,
-        "volume24hUsd": 246207,
-        "priceUsd": 0.4965,
-        "url": "https://dexscreener.com/solana/91axdgmmoqqqg2mpuxkxt3bdqx4p2rmlxqzsqgxn2jpm"
-      },
-      "poolCount": 13
-    },
-    {
-      "category": "crypto",
-      "symbol": "RENDER",
-      "status": "ok",
-      "mint": "rndrizKT3MK1iimdxRdWabcF7Zg7AR5T4nud4EkHBof",
-      "name": "Render Token",
-      "decimals": 8,
-      "tokenProgram": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
-      "organicScore": 74,
-      "mintAuthorityDisabled": null,
-      "freezeAuthorityDisabled": null,
-      "bestUsdcPool": {
-        "pool": "HAWNPF6UZ8YgWisd2gsECNSchdn3hQTEujsZtGxKM1MW",
-        "dex": "orca",
-        "kind": "wp",
-        "quote": "USDC",
-        "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-        "liquidityUsd": 35432,
-        "volume24hUsd": 13477,
-        "priceUsd": 1.96,
-        "url": "https://dexscreener.com/solana/hawnpf6uz8ygwisd2gsecnschdn3hqteujsztgxkm1mw"
-      },
-      "bestPool": {
-        "pool": "FZ8MJvdTPbp8juhtFCCzb7LsKunhexgzShGQ59SUJkNL",
-        "dex": "raydium",
-        "kind": "CLMM",
-        "quote": "SOL",
-        "quoteMint": "So11111111111111111111111111111111111111112",
-        "liquidityUsd": 373314,
-        "volume24hUsd": 184801,
-        "priceUsd": 1.96,
-        "url": "https://dexscreener.com/solana/fz8mjvdtpbp8juhtfcczb7lskunhexgzshgq59sujknl"
-      },
-      "poolCount": 18
-    },
-    {
-      "category": "crypto",
-      "symbol": "W",
-      "status": "ok",
-      "mint": "85VBFQZC9TZkfaptBWjvUw7YbZjy52A6mjtPGjstQAmQ",
-      "name": "Wormhole Token",
-      "decimals": 6,
-      "tokenProgram": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
-      "organicScore": 61,
-      "mintAuthorityDisabled": true,
-      "freezeAuthorityDisabled": true,
-      "bestUsdcPool": {
-        "pool": "4gBdoceUxqqcyzgAqkN3wC5FivB34FwFJvTvgdUf6vLz",
-        "dex": "pumpswap",
-        "kind": "standard",
-        "quote": "USDC",
-        "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-        "liquidityUsd": 119700,
-        "volume24hUsd": 18591,
-        "priceUsd": 0.01325,
-        "url": "https://dexscreener.com/solana/4gbdoceuxqqcyzgaqkn3wc5fivb34fwfjvtvgduf6vlz"
-      },
-      "bestPool": {
-        "pool": "4gBdoceUxqqcyzgAqkN3wC5FivB34FwFJvTvgdUf6vLz",
-        "dex": "pumpswap",
-        "kind": "standard",
-        "quote": "USDC",
-        "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-        "liquidityUsd": 119700,
-        "volume24hUsd": 18591,
-        "priceUsd": 0.01325,
-        "url": "https://dexscreener.com/solana/4gbdoceuxqqcyzgaqkn3wc5fivb34fwfjvtvgduf6vlz"
-      },
-      "poolCount": 18
-    },
-    {
-      "category": "crypto",
-      "symbol": "ORCA",
-      "status": "ok",
-      "mint": "orcaEKTdK7LKz57vaAYr9QeNsVEPfiu6QeMU1kektZE",
-      "name": "Orca",
-      "decimals": 6,
-      "tokenProgram": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
-      "organicScore": 79,
-      "mintAuthorityDisabled": null,
-      "freezeAuthorityDisabled": true,
-      "bestUsdcPool": {
-        "pool": "2p7nYbtPBgtmY69NsE8DAW6szpRJn7tQvDnqvoEWQvjY",
-        "dex": "orca",
-        "kind": "v2",
-        "quote": "USDC",
-        "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-        "liquidityUsd": 728759,
-        "volume24hUsd": 60555,
-        "priceUsd": 1.74,
-        "url": "https://dexscreener.com/solana/2p7nybtpbgtmy69nse8daw6szprjn7tqvdnqvoewqvjy"
-      },
-      "bestPool": {
-        "pool": "2ZnVuidTHpi5WWKUwFXauYGhvdT9jRKYv5MDahtbwtYr",
-        "dex": "orca",
-        "kind": "v2",
-        "quote": "SOL",
-        "quoteMint": "So11111111111111111111111111111111111111112",
-        "liquidityUsd": 926800,
-        "volume24hUsd": 42729,
-        "priceUsd": 1.74,
-        "url": "https://dexscreener.com/solana/2znvuidthpi5wwkuwfxauyghvdt9jrkyv5mdahtbwtyr"
-      },
-      "poolCount": 17
-    },
-    {
-      "category": "crypto",
-      "symbol": "DRIFT",
-      "status": "ok",
-      "mint": "DriFtupJYLTosbwoN8koMbEYSx54aFAVLddWsbksjwg7",
-      "name": "Drift",
-      "decimals": 6,
-      "tokenProgram": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
-      "organicScore": 62,
-      "mintAuthorityDisabled": true,
-      "freezeAuthorityDisabled": true,
-      "bestUsdcPool": {
-        "pool": "BCJtr7zCmbYqEovXcGZvyJRQcw8RfQFSWCaG3PxrMypH",
-        "dex": "meteora",
-        "kind": "DLMM",
-        "quote": "USDC",
-        "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-        "liquidityUsd": 5520,
-        "volume24hUsd": 182,
-        "priceUsd": 0.01925,
-        "url": "https://dexscreener.com/solana/bcjtr7zcmbyqeovxcgzvyjrqcw8rfqfswcag3pxrmyph"
-      },
-      "bestPool": {
-        "pool": "9kx6CHCKtGqDYMq4KPhpxFCZorgJZDFXT9a5iJx9S1Ab",
-        "dex": "orca",
-        "kind": "wp",
-        "quote": "SOL",
-        "quoteMint": "So11111111111111111111111111111111111111112",
-        "liquidityUsd": 14937,
-        "volume24hUsd": 24886,
-        "priceUsd": 0.01929,
-        "url": "https://dexscreener.com/solana/9kx6chcktgqdymq4kphpxfczorgjzdfxt9a5ijx9s1ab"
-      },
-      "poolCount": 12
-    },
-    {
-      "category": "crypto",
-      "symbol": "KMNO",
-      "status": "ok",
-      "mint": "KMNo3nJsBXfcpJTVhZcXLW7RmTwTt4GVFE7suUBo9sS",
-      "name": "Kamino",
-      "decimals": 6,
-      "tokenProgram": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
-      "organicScore": 80,
-      "mintAuthorityDisabled": true,
-      "freezeAuthorityDisabled": true,
-      "bestUsdcPool": {
-        "pool": "3ndjN1nJVUKGrJBc1hhVpER6kWTZKHdyDrPyCJyX3CXK",
-        "dex": "orca",
-        "kind": "wp",
-        "quote": "USDC",
-        "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-        "liquidityUsd": 2007681,
-        "volume24hUsd": 3127962,
-        "priceUsd": 0.04042,
-        "url": "https://dexscreener.com/solana/3ndjn1njvukgrjbc1hhvper6kwtzkhdydrpycjyx3cxk"
-      },
-      "bestPool": {
-        "pool": "3ndjN1nJVUKGrJBc1hhVpER6kWTZKHdyDrPyCJyX3CXK",
-        "dex": "orca",
-        "kind": "wp",
-        "quote": "USDC",
-        "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-        "liquidityUsd": 2007681,
-        "volume24hUsd": 3127962,
-        "priceUsd": 0.04042,
-        "url": "https://dexscreener.com/solana/3ndjn1njvukgrjbc1hhvper6kwtzkhdydrpycjyx3cxk"
-      },
-      "poolCount": 21
-    },
-    {
-      "category": "crypto",
+      "category": "meme",
       "symbol": "TRUMP",
       "status": "ok",
       "mint": "6p6xgHyF7AeE6TZkSmFsko444wqoP15icUSqi2jfGiPN",
       "name": "OFFICIAL TRUMP",
       "decimals": 6,
       "tokenProgram": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
-      "organicScore": 87,
+      "organicScore": 88,
       "mintAuthorityDisabled": true,
       "freezeAuthorityDisabled": true,
       "bestUsdcPool": {
@@ -543,9 +123,9 @@
         "kind": "DLMM",
         "quote": "USDC",
         "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-        "liquidityUsd": 11833277,
-        "volume24hUsd": 6618646,
-        "priceUsd": 2.1,
+        "liquidityUsd": 11802183,
+        "volume24hUsd": 5814692,
+        "priceUsd": 2.068,
         "url": "https://dexscreener.com/solana/3c5ye97hadpdxzehyq9cis8axr9anyrusczkze1ndbw9"
       },
       "bestPool": {
@@ -554,82 +134,47 @@
         "kind": "DLMM",
         "quote": "USDC",
         "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-        "liquidityUsd": 11833277,
-        "volume24hUsd": 6618646,
-        "priceUsd": 2.1,
+        "liquidityUsd": 11802183,
+        "volume24hUsd": 5814692,
+        "priceUsd": 2.068,
         "url": "https://dexscreener.com/solana/3c5ye97hadpdxzehyq9cis8axr9anyrusczkze1ndbw9"
       },
       "poolCount": 26
     },
     {
-      "category": "crypto",
-      "symbol": "JLP",
+      "category": "meme",
+      "symbol": "PENGU",
       "status": "ok",
-      "mint": "27G8MtK7VtTcCHkpASjSDdkWWYfoqT6ggEuKidVJidD4",
-      "name": "Jupiter Perps",
+      "mint": "2zMMhcVQEXDtdE6vsFS7S7D5oUodfJHE8vd1gnBouauv",
+      "name": "Pudgy Penguins",
       "decimals": 6,
       "tokenProgram": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
-      "organicScore": 89,
-      "mintAuthorityDisabled": null,
-      "freezeAuthorityDisabled": null,
-      "bestUsdcPool": {
-        "pool": "HD8i7qr1hd9ida6sN71RbkLxbWcbvZS4NA5CY6vfcDpj",
-        "dex": "orca",
-        "kind": "wp",
-        "quote": "USDC",
-        "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-        "liquidityUsd": 638776,
-        "volume24hUsd": 320554,
-        "priceUsd": 4.84,
-        "url": "https://dexscreener.com/solana/hd8i7qr1hd9ida6sn71rbklxbwcbvzs4na5cy6vfcdpj"
-      },
-      "bestPool": {
-        "pool": "6a3m2EgFFKfsFuQtP4LJJXPcAe3TQYXNyHUjjZpUxYgd",
-        "dex": "orca",
-        "kind": "wp",
-        "quote": "SOL",
-        "quoteMint": "So11111111111111111111111111111111111111112",
-        "liquidityUsd": 2542959,
-        "volume24hUsd": 2483374,
-        "priceUsd": 4.84,
-        "url": "https://dexscreener.com/solana/6a3m2egffkfsfuqtp4ljjxpcae3tqyxnyhujjzpuxygd"
-      },
-      "poolCount": 24
-    },
-    {
-      "category": "meme",
-      "symbol": "BONK",
-      "status": "ok",
-      "mint": "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263",
-      "name": "Bonk",
-      "decimals": 5,
-      "tokenProgram": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
-      "organicScore": 95,
+      "organicScore": 92,
       "mintAuthorityDisabled": true,
       "freezeAuthorityDisabled": true,
       "bestUsdcPool": {
-        "pool": "31p1hptjhFo6ZD8oBqkfutNXQKGGPyi7YcEAfsyKW777",
+        "pool": "DdMA1cHcHEqYfttc1z1sJEY978CcU1pyjNuTWTNmdvzU",
         "dex": "meteora",
         "kind": "DLMM",
         "quote": "USDC",
         "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-        "liquidityUsd": 260825,
-        "volume24hUsd": 416857,
-        "priceUsd": 0.000003624,
-        "url": "https://dexscreener.com/solana/31p1hptjhfo6zd8obqkfutnxqkggpyi7yceafsykw777"
+        "liquidityUsd": 4218560,
+        "volume24hUsd": 4433957,
+        "priceUsd": 0.009057,
+        "url": "https://dexscreener.com/solana/ddma1chcheqyfttc1z1sjey978ccu1pyjnutwtnmdvzu"
       },
       "bestPool": {
-        "pool": "5zpyutJu9ee6jFymDGoK7F6S5Kczqtc9FomP3ueKuyA9",
-        "dex": "orca",
-        "kind": "wp",
-        "quote": "SOL",
-        "quoteMint": "So11111111111111111111111111111111111111112",
-        "liquidityUsd": 412527,
-        "volume24hUsd": 3297447,
-        "priceUsd": 0.00000363,
-        "url": "https://dexscreener.com/solana/5zpyutju9ee6jfymdgok7f6s5kczqtc9fomp3uekuya9"
+        "pool": "DdMA1cHcHEqYfttc1z1sJEY978CcU1pyjNuTWTNmdvzU",
+        "dex": "meteora",
+        "kind": "DLMM",
+        "quote": "USDC",
+        "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+        "liquidityUsd": 4218560,
+        "volume24hUsd": 4433957,
+        "priceUsd": 0.009057,
+        "url": "https://dexscreener.com/solana/ddma1chcheqyfttc1z1sjey978ccu1pyjnutwtnmdvzu"
       },
-      "poolCount": 24
+      "poolCount": 29
     },
     {
       "category": "meme",
@@ -649,7 +194,7 @@
         "quote": "USDC",
         "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
         "liquidityUsd": 20661,
-        "volume24hUsd": 2799,
+        "volume24hUsd": 1917,
         "priceUsd": 0.2504,
         "url": "https://dexscreener.com/solana/adejbfryutjfrjtpzffprmfhf7xbispy63awe79evhe9"
       },
@@ -659,82 +204,12 @@
         "kind": "standard",
         "quote": "SOL",
         "quoteMint": "So11111111111111111111111111111111111111112",
-        "liquidityUsd": 6812261,
-        "volume24hUsd": 880136,
-        "priceUsd": 0.2487,
+        "liquidityUsd": 6770898,
+        "volume24hUsd": 652026,
+        "priceUsd": 0.2443,
         "url": "https://dexscreener.com/solana/ep2ib6dydeeqd8mfe2ezhcxx3kp3k2elkkirfpm5eymx"
       },
-      "poolCount": 22
-    },
-    {
-      "category": "meme",
-      "symbol": "POPCAT",
-      "status": "ok",
-      "mint": "7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr",
-      "name": "Popcat",
-      "decimals": 9,
-      "tokenProgram": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
-      "organicScore": 75,
-      "mintAuthorityDisabled": true,
-      "freezeAuthorityDisabled": true,
-      "bestUsdcPool": {
-        "pool": "HBS7a3br8GMMWuqVa7VB3SMFa7xVi1tSFdoF5w4ZZ3kS",
-        "dex": "raydium",
-        "kind": "standard",
-        "quote": "USDC",
-        "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-        "liquidityUsd": 642548,
-        "volume24hUsd": 101192,
-        "priceUsd": 0.05311,
-        "url": "https://dexscreener.com/solana/hbs7a3br8gmmwuqva7vb3smfa7xvi1tsfdof5w4zz3ks"
-      },
-      "bestPool": {
-        "pool": "FRhB8L7Y9Qq41qZXYLtC2nw8An1RJfLLxRF2x9RwLLMo",
-        "dex": "raydium",
-        "kind": "standard",
-        "quote": "SOL",
-        "quoteMint": "So11111111111111111111111111111111111111112",
-        "liquidityUsd": 4089666,
-        "volume24hUsd": 376138,
-        "priceUsd": 0.05313,
-        "url": "https://dexscreener.com/solana/frhb8l7y9qq41qzxyltc2nw8an1rjfllxrf2x9rwllmo"
-      },
-      "poolCount": 14
-    },
-    {
-      "category": "meme",
-      "symbol": "PENGU",
-      "status": "ok",
-      "mint": "2zMMhcVQEXDtdE6vsFS7S7D5oUodfJHE8vd1gnBouauv",
-      "name": "Pudgy Penguins",
-      "decimals": 6,
-      "tokenProgram": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
-      "organicScore": 95,
-      "mintAuthorityDisabled": true,
-      "freezeAuthorityDisabled": true,
-      "bestUsdcPool": {
-        "pool": "DdMA1cHcHEqYfttc1z1sJEY978CcU1pyjNuTWTNmdvzU",
-        "dex": "meteora",
-        "kind": "DLMM",
-        "quote": "USDC",
-        "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-        "liquidityUsd": 4158970,
-        "volume24hUsd": 5088512,
-        "priceUsd": 0.008923,
-        "url": "https://dexscreener.com/solana/ddma1chcheqyfttc1z1sjey978ccu1pyjnutwtnmdvzu"
-      },
-      "bestPool": {
-        "pool": "DdMA1cHcHEqYfttc1z1sJEY978CcU1pyjNuTWTNmdvzU",
-        "dex": "meteora",
-        "kind": "DLMM",
-        "quote": "USDC",
-        "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-        "liquidityUsd": 4158970,
-        "volume24hUsd": 5088512,
-        "priceUsd": 0.008923,
-        "url": "https://dexscreener.com/solana/ddma1chcheqyfttc1z1sjey978ccu1pyjnutwtnmdvzu"
-      },
-      "poolCount": 29
+      "poolCount": 23
     },
     {
       "category": "meme",
@@ -744,7 +219,7 @@
       "name": "Fartcoin",
       "decimals": 6,
       "tokenProgram": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
-      "organicScore": 89,
+      "organicScore": 91,
       "mintAuthorityDisabled": true,
       "freezeAuthorityDisabled": true,
       "bestUsdcPool": {
@@ -753,9 +228,9 @@
         "kind": "wp",
         "quote": "USDC",
         "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-        "liquidityUsd": 35397,
-        "volume24hUsd": 176878,
-        "priceUsd": 0.1758,
+        "liquidityUsd": 35377,
+        "volume24hUsd": 295234,
+        "priceUsd": 0.1746,
         "url": "https://dexscreener.com/solana/j5jzvt22u1mt6de4gkbheststjbfys7a6af5jzu9ihkc"
       },
       "bestPool": {
@@ -764,8 +239,8 @@
         "kind": "standard",
         "quote": "SOL",
         "quoteMint": "So11111111111111111111111111111111111111112",
-        "liquidityUsd": 8760628,
-        "volume24hUsd": 1533549,
+        "liquidityUsd": 8793892,
+        "volume24hUsd": 2587714,
         "priceUsd": 0.1749,
         "url": "https://dexscreener.com/solana/bzc9nzfmqkxr6fz1dbph7bdf9broyef6pnzesp7v5iiw"
       },
@@ -773,143 +248,38 @@
     },
     {
       "category": "meme",
-      "symbol": "MEW",
+      "symbol": "PONKE",
       "status": "ok",
-      "mint": "MEW1gQWJ3nEXg2qgERiKu7FAFj79PHvQVREQUzScPP5",
-      "name": "cat in a dogs world",
-      "decimals": 5,
+      "mint": "5z3EqYQo9HiCEs3R84RCDMu2n7anpDMxRhdK8PSWmrRC",
+      "name": "PONKE",
+      "decimals": 9,
       "tokenProgram": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
-      "organicScore": 68,
+      "organicScore": 66,
       "mintAuthorityDisabled": true,
       "freezeAuthorityDisabled": true,
       "bestUsdcPool": {
-        "pool": "CyLPZjsWrD5e2pLvvbrmAxtb9hhErtTLLKRMJDimRqWp",
-        "dex": "meteora",
-        "kind": "DLMM",
-        "quote": "USDC",
-        "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-        "liquidityUsd": 2405,
-        "volume24hUsd": 91,
-        "priceUsd": 0.0005241,
-        "url": "https://dexscreener.com/solana/cylpzjswrd5e2plvvbrmaxtb9hherttllkrmjdimrqwp"
-      },
-      "bestPool": {
-        "pool": "879F697iuDJGMevRkRcnW21fcXiAeLJK1ffsw2ATebce",
-        "dex": "raydium",
-        "kind": "standard",
-        "quote": "SOL",
-        "quoteMint": "So11111111111111111111111111111111111111112",
-        "liquidityUsd": 10572336,
-        "volume24hUsd": 640320,
-        "priceUsd": 0.0005237,
-        "url": "https://dexscreener.com/solana/879f697iudjgmevrkrcnw21fcxiaeljk1ffsw2atebce"
-      },
-      "poolCount": 13
-    },
-    {
-      "category": "meme",
-      "symbol": "BOME",
-      "status": "ok",
-      "mint": "ukHH6c7mMyiWCf1b9pnWe25TSpkDDt3H5pQZgZ74J82",
-      "name": "BOOK OF MEME",
-      "decimals": 6,
-      "tokenProgram": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
-      "organicScore": 62,
-      "mintAuthorityDisabled": true,
-      "freezeAuthorityDisabled": true,
-      "bestUsdcPool": {
-        "pool": "8r2K7WbWZ22F9TpVNFZc3uyhtpgfzmGimWtv9PeJ83s7",
+        "pool": "CsJTG4mospaCYvwQghmL5SAqh8YUkBw6YyzBrbfvTDSN",
         "dex": "orca",
         "kind": "wp",
         "quote": "USDC",
         "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-        "liquidityUsd": 19,
-        "volume24hUsd": 0,
-        "priceUsd": 0.001012,
-        "url": "https://dexscreener.com/solana/8r2k7wbwz22f9tpvnfzc3uyhtpgfzmgimwtv9pej83s7"
+        "liquidityUsd": 522,
+        "volume24hUsd": 4,
+        "priceUsd": 0.02418,
+        "url": "https://dexscreener.com/solana/csjtg4mospacyvwqghml5saqh8yukbw6yyzbrbfvtdsn"
       },
       "bestPool": {
-        "pool": "DSUvc5qf5LJHHV5e2tD184ixotSnCnwj7i4jJa4Xsrmt",
+        "pool": "5uTwG3y3F5cx4YkodgTjWEHDrX5HDKZ5bZZ72x8eQ6zE",
         "dex": "raydium",
         "kind": "standard",
         "quote": "SOL",
         "quoteMint": "So11111111111111111111111111111111111111112",
-        "liquidityUsd": 18054954,
-        "volume24hUsd": 1596451,
-        "priceUsd": 0.00102,
-        "url": "https://dexscreener.com/solana/dsuvc5qf5ljhhv5e2td184ixotsncnwj7i4jja4xsrmt"
+        "liquidityUsd": 1647918,
+        "volume24hUsd": 39873,
+        "priceUsd": 0.02418,
+        "url": "https://dexscreener.com/solana/5utwg3y3f5cx4ykodgtjwehdrx5hdkz5bzz72x8eq6ze"
       },
-      "poolCount": 9
-    },
-    {
-      "category": "meme",
-      "symbol": "MOODENG",
-      "status": "ok",
-      "mint": "ED5nyyWEzpPPiWimP8vYm7sD7TD3LAt3Q3gRTWHzPJBY",
-      "name": "Moo Deng",
-      "decimals": 6,
-      "tokenProgram": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
-      "organicScore": 59,
-      "mintAuthorityDisabled": true,
-      "freezeAuthorityDisabled": true,
-      "bestUsdcPool": {
-        "pool": "EgcL1dmW1NS94mV5Tukd4VoedGj5qtP3ijuar9QHKLcn",
-        "dex": "orca",
-        "kind": "wp",
-        "quote": "USDC",
-        "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-        "liquidityUsd": 337,
-        "volume24hUsd": 6,
-        "priceUsd": 0.04596,
-        "url": "https://dexscreener.com/solana/egcl1dmw1ns94mv5tukd4voedgj5qtp3ijuar9qhklcn"
-      },
-      "bestPool": {
-        "pool": "22WrmyTj8x2TRVQen3fxxi2r4Rn6JDHWoMTpsSmn8RUd",
-        "dex": "raydium",
-        "kind": "standard",
-        "quote": "SOL",
-        "quoteMint": "So11111111111111111111111111111111111111112",
-        "liquidityUsd": 3033539,
-        "volume24hUsd": 191566,
-        "priceUsd": 0.04611,
-        "url": "https://dexscreener.com/solana/22wrmytj8x2trvqen3fxxi2r4rn6jdhwomtpssmn8rud"
-      },
-      "poolCount": 10
-    },
-    {
-      "category": "meme",
-      "symbol": "GIGA",
-      "status": "ok",
-      "mint": "63LfDmNb3MQ8mw9MtZ2To9bEA2M71kZUUGq5tiJxcqj9",
-      "name": "GIGACHAD",
-      "decimals": 5,
-      "tokenProgram": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
-      "organicScore": 70,
-      "mintAuthorityDisabled": true,
-      "freezeAuthorityDisabled": true,
-      "bestUsdcPool": {
-        "pool": "BPWVoUbY9RWaUgYqSViuS5jLpGY4hJ4SHNXNx7mnsiJM",
-        "dex": "meteora",
-        "kind": "DLMM",
-        "quote": "USDC",
-        "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-        "liquidityUsd": 220969,
-        "volume24hUsd": 7996,
-        "priceUsd": 0.002222,
-        "url": "https://dexscreener.com/solana/bpwvouby9rwaugyqsvius5jlpgy4hj4shnxnx7mnsijm"
-      },
-      "bestPool": {
-        "pool": "4xxM4cdb6MEsCxM52xvYqkNbzvdeWWsPDZrBcTqVGUar",
-        "dex": "raydium",
-        "kind": "standard",
-        "quote": "SOL",
-        "quoteMint": "So11111111111111111111111111111111111111112",
-        "liquidityUsd": 1777825,
-        "volume24hUsd": 134051,
-        "priceUsd": 0.002223,
-        "url": "https://dexscreener.com/solana/4xxm4cdb6mescxm52xvyqknbzvdewwspdzrbctqvguar"
-      },
-      "poolCount": 8
+      "poolCount": 5
     },
     {
       "category": "meme",
@@ -919,7 +289,7 @@
       "name": "Peanut the Squirrel",
       "decimals": 6,
       "tokenProgram": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
-      "organicScore": 61,
+      "organicScore": 57,
       "mintAuthorityDisabled": true,
       "freezeAuthorityDisabled": true,
       "bestUsdcPool": {
@@ -939,187 +309,152 @@
         "kind": "standard",
         "quote": "SOL",
         "quoteMint": "So11111111111111111111111111111111111111112",
-        "liquidityUsd": 3683573,
-        "volume24hUsd": 226550,
-        "priceUsd": 0.05373,
+        "liquidityUsd": 3670392,
+        "volume24hUsd": 218885,
+        "priceUsd": 0.05298,
         "url": "https://dexscreener.com/solana/4azrpnefcj7iw28rju5auyeqhycvdcnm8cswyl51ay9i"
       },
-      "poolCount": 11
+      "poolCount": 10
     },
     {
       "category": "meme",
-      "symbol": "USELESS",
+      "symbol": "PIPPIN",
       "status": "ok",
-      "mint": "Dz9mQ9NzkBcCsuGPFJ3r1bS4wgqKMHBPiVuniW8Mbonk",
-      "name": "USELESS COIN",
+      "mint": "Dfh5DzRgSvvCFDoYc2ciTkMrbDfRKybA4SoFbPmApump",
+      "name": "Pippin",
       "decimals": 6,
       "tokenProgram": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
-      "organicScore": 95,
+      "organicScore": 62,
       "mintAuthorityDisabled": true,
       "freezeAuthorityDisabled": true,
       "bestUsdcPool": {
-        "pool": "9Ux4vtd8juEH4NMF4ae3tXYpKBdeCUUipX8z3EficKme",
+        "pool": "FCBXrsrg6XXJ9yPBFouCsx4nd6Jxi6Jh2aPW6wgXpzj",
+        "dex": "raydium",
+        "kind": "CPMM",
+        "quote": "USDC",
+        "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+        "liquidityUsd": 153,
+        "volume24hUsd": 6,
+        "priceUsd": 0.01857,
+        "url": "https://dexscreener.com/solana/fcbxrsrg6xxj9ypbfoucsx4nd6jxi6jh2apw6wgxpzj"
+      },
+      "bestPool": {
+        "pool": "8WwcNqdZjCY5Pt7AkhupAFknV2txca9sq6YBkGzLbvdt",
+        "dex": "raydium",
+        "kind": "standard",
+        "quote": "SOL",
+        "quoteMint": "So11111111111111111111111111111111111111112",
+        "liquidityUsd": 4296602,
+        "volume24hUsd": 341155,
+        "priceUsd": 0.01856,
+        "url": "https://dexscreener.com/solana/8wwcnqdzjcy5pt7akhupafknv2txca9sq6ybkgzlbvdt"
+      },
+      "poolCount": 10
+    },
+    {
+      "category": "meme",
+      "symbol": "BOME",
+      "status": "ok",
+      "mint": "ukHH6c7mMyiWCf1b9pnWe25TSpkDDt3H5pQZgZ74J82",
+      "name": "BOOK OF MEME",
+      "decimals": 6,
+      "tokenProgram": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+      "organicScore": 59,
+      "mintAuthorityDisabled": true,
+      "freezeAuthorityDisabled": true,
+      "bestUsdcPool": {
+        "pool": "8r2K7WbWZ22F9TpVNFZc3uyhtpgfzmGimWtv9PeJ83s7",
+        "dex": "orca",
+        "kind": "wp",
+        "quote": "USDC",
+        "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+        "liquidityUsd": 19,
+        "volume24hUsd": 0,
+        "priceUsd": 0.001012,
+        "url": "https://dexscreener.com/solana/8r2k7wbwz22f9tpvnfzc3uyhtpgfzmgimwtv9pej83s7"
+      },
+      "bestPool": {
+        "pool": "DSUvc5qf5LJHHV5e2tD184ixotSnCnwj7i4jJa4Xsrmt",
+        "dex": "raydium",
+        "kind": "standard",
+        "quote": "SOL",
+        "quoteMint": "So11111111111111111111111111111111111111112",
+        "liquidityUsd": 17995641,
+        "volume24hUsd": 1405462,
+        "priceUsd": 0.001007,
+        "url": "https://dexscreener.com/solana/dsuvc5qf5ljhhv5e2td184ixotsncnwj7i4jja4xsrmt"
+      },
+      "poolCount": 8
+    },
+    {
+      "category": "meme",
+      "symbol": "POPCAT",
+      "status": "ok",
+      "mint": "7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr",
+      "name": "Popcat",
+      "decimals": 9,
+      "tokenProgram": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+      "organicScore": 74,
+      "mintAuthorityDisabled": true,
+      "freezeAuthorityDisabled": true,
+      "bestUsdcPool": {
+        "pool": "HBS7a3br8GMMWuqVa7VB3SMFa7xVi1tSFdoF5w4ZZ3kS",
+        "dex": "raydium",
+        "kind": "standard",
+        "quote": "USDC",
+        "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+        "liquidityUsd": 637725,
+        "volume24hUsd": 84264,
+        "priceUsd": 0.05231,
+        "url": "https://dexscreener.com/solana/hbs7a3br8gmmwuqva7vb3smfa7xvi1tsfdof5w4zz3ks"
+      },
+      "bestPool": {
+        "pool": "FRhB8L7Y9Qq41qZXYLtC2nw8An1RJfLLxRF2x9RwLLMo",
+        "dex": "raydium",
+        "kind": "standard",
+        "quote": "SOL",
+        "quoteMint": "So11111111111111111111111111111111111111112",
+        "liquidityUsd": 4071118,
+        "volume24hUsd": 331834,
+        "priceUsd": 0.05229,
+        "url": "https://dexscreener.com/solana/frhb8l7y9qq41qzxyltc2nw8an1rjfllxrf2x9rwllmo"
+      },
+      "poolCount": 14
+    },
+    {
+      "category": "meme",
+      "symbol": "MEW",
+      "status": "ok",
+      "mint": "MEW1gQWJ3nEXg2qgERiKu7FAFj79PHvQVREQUzScPP5",
+      "name": "cat in a dogs world",
+      "decimals": 5,
+      "tokenProgram": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+      "organicScore": 59,
+      "mintAuthorityDisabled": true,
+      "freezeAuthorityDisabled": true,
+      "bestUsdcPool": {
+        "pool": "CyLPZjsWrD5e2pLvvbrmAxtb9hhErtTLLKRMJDimRqWp",
         "dex": "meteora",
         "kind": "DLMM",
         "quote": "USDC",
         "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-        "liquidityUsd": 1831332,
-        "volume24hUsd": 17591,
-        "priceUsd": 0.2239,
-        "url": "https://dexscreener.com/solana/9ux4vtd8jueh4nmf4ae3txypkbdecuuipx8z3efickme"
+        "liquidityUsd": 2227,
+        "volume24hUsd": 74,
+        "priceUsd": 0.0005189,
+        "url": "https://dexscreener.com/solana/cylpzjswrd5e2plvvbrmaxtb9hherttllkrmjdimrqwp"
       },
       "bestPool": {
-        "pool": "Q2sPHPdUWFMg7M7wwrQKLrn619cAucfRsmhVJffodSp",
-        "dex": "raydium",
-        "kind": "CPMM",
-        "quote": "SOL",
-        "quoteMint": "So11111111111111111111111111111111111111112",
-        "liquidityUsd": 5152601,
-        "volume24hUsd": 5869590,
-        "priceUsd": 0.2235,
-        "url": "https://dexscreener.com/solana/q2sphpduwfmg7m7wwrqklrn619caucfrsmhvjffodsp"
-      },
-      "poolCount": 26
-    },
-    {
-      "category": "meme",
-      "symbol": "SPX",
-      "status": "ok",
-      "mint": "J3NKxxXZcnNiMjKw9hYb2K4LUxgwB6t1FtPtQVsv3KFr",
-      "name": "SPX6900 (Wormhole)",
-      "decimals": 8,
-      "tokenProgram": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
-      "organicScore": 79,
-      "mintAuthorityDisabled": null,
-      "freezeAuthorityDisabled": true,
-      "bestUsdcPool": {
-        "pool": "AgeSxtVWWMojFWYNrXKnVp9cFuC5CQ7M4rzmrseLxfUj",
-        "dex": "orca",
-        "kind": "wp",
-        "quote": "USDC",
-        "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-        "liquidityUsd": 350984,
-        "volume24hUsd": 141326,
-        "priceUsd": 0.4226,
-        "url": "https://dexscreener.com/solana/agesxtvwwmojfwynrxknvp9cfuc5cq7m4rzmrselxfuj"
-      },
-      "bestPool": {
-        "pool": "9t1H1uDJ558iMPNkEPSN1fqkpC4XSPQ6cqSf6uEsTfTR",
+        "pool": "879F697iuDJGMevRkRcnW21fcXiAeLJK1ffsw2ATebce",
         "dex": "raydium",
         "kind": "standard",
         "quote": "SOL",
         "quoteMint": "So11111111111111111111111111111111111111112",
-        "liquidityUsd": 2377035,
-        "volume24hUsd": 298857,
-        "priceUsd": 0.4231,
-        "url": "https://dexscreener.com/solana/9t1h1udj558impnkepsn1fqkpc4xspq6cqsf6uestftr"
+        "liquidityUsd": 10556298,
+        "volume24hUsd": 698929,
+        "priceUsd": 0.000519,
+        "url": "https://dexscreener.com/solana/879f697iudjgmevrkrcnw21fcxiaeljk1ffsw2atebce"
       },
-      "poolCount": 16
-    },
-    {
-      "category": "meme",
-      "symbol": "GOAT",
-      "status": "ok",
-      "mint": "CzLSujWBLFsSjncfkh59rUFqvafWcY5tzedWJSuypump",
-      "name": "Goatseus Maximus",
-      "decimals": 6,
-      "tokenProgram": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
-      "organicScore": 58,
-      "mintAuthorityDisabled": true,
-      "freezeAuthorityDisabled": true,
-      "bestUsdcPool": {
-        "pool": "2RXUayuMQjkGQqGrhp8tCNJgFmZJWwCeQSUtvqCpLAJb",
-        "dex": "orca",
-        "kind": "wp",
-        "quote": "USDC",
-        "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-        "liquidityUsd": 308,
-        "volume24hUsd": 0,
-        "priceUsd": 0.0183,
-        "url": "https://dexscreener.com/solana/2rxuayumqjkgqqgrhp8tcnjgfmzjwwceqsutvqcplajb"
-      },
-      "bestPool": {
-        "pool": "9Tb2ohu5P16BpBarqd3N27WnkF51Ukfs8Z1GzzLDxVZW",
-        "dex": "raydium",
-        "kind": "standard",
-        "quote": "SOL",
-        "quoteMint": "So11111111111111111111111111111111111111112",
-        "liquidityUsd": 1757293,
-        "volume24hUsd": 106913,
-        "priceUsd": 0.01839,
-        "url": "https://dexscreener.com/solana/9tb2ohu5p16bpbarqd3n27wnkf51ukfs8z1gzzldxvzw"
-      },
-      "poolCount": 7
-    },
-    {
-      "category": "meme",
-      "symbol": "AI16Z",
-      "status": "ok",
-      "mint": "HeLp6NuQkmYB4pYWo2zYs22mESHXPQYzXbB8n4V98jwC",
-      "name": "ai16z",
-      "decimals": 9,
-      "tokenProgram": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
-      "organicScore": 61,
-      "mintAuthorityDisabled": null,
-      "freezeAuthorityDisabled": true,
-      "bestUsdcPool": {
-        "pool": "AogLVpRGYideoiLpTAuuQTuALjXLi2xZFNxQ2vqrKTJR",
-        "dex": "orca",
-        "kind": "wp",
-        "quote": "USDC",
-        "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-        "liquidityUsd": 261,
-        "volume24hUsd": 4,
-        "priceUsd": 0.0003565,
-        "url": "https://dexscreener.com/solana/aoglvprgyideoilptauuqtualjxli2xzfnxq2vqrktjr"
-      },
-      "bestPool": {
-        "pool": "7qAVrzrbULwg1B13YseqA95Uapf8EVp9jQE5uipqFMoP",
-        "dex": "raydium",
-        "kind": "CPMM",
-        "quote": "SOL",
-        "quoteMint": "So11111111111111111111111111111111111111112",
-        "liquidityUsd": 49775,
-        "volume24hUsd": 24073,
-        "priceUsd": 0.000356,
-        "url": "https://dexscreener.com/solana/7qavrzrbulwg1b13yseqa95uapf8evp9jqe5uipqfmop"
-      },
-      "poolCount": 21
-    },
-    {
-      "category": "meme",
-      "symbol": "CHILLGUY",
-      "status": "ok",
-      "mint": "Df6yfrKC8kZE3KNkrHERKzAetSxbrWeniQfyJY4Jpump",
-      "name": "Just a chill guy",
-      "decimals": 6,
-      "tokenProgram": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
-      "organicScore": 65,
-      "mintAuthorityDisabled": true,
-      "freezeAuthorityDisabled": true,
-      "bestUsdcPool": {
-        "pool": "5HygKG1zJK7zb6w6Vy3xuoKp2ubjTNLEgQqg2k5pZw7x",
-        "dex": "orca",
-        "kind": "wp",
-        "quote": "USDC",
-        "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-        "liquidityUsd": 50,
-        "volume24hUsd": 1,
-        "priceUsd": 0.01296,
-        "url": "https://dexscreener.com/solana/5hygkg1zjk7zb6w6vy3xuokp2ubjtnlegqqg2k5pzw7x"
-      },
-      "bestPool": {
-        "pool": "93tjgwff5Ac5ThyMi8C4WejVVQq4tuMeMuYW1LEYZ7bu",
-        "dex": "raydium",
-        "kind": "standard",
-        "quote": "SOL",
-        "quoteMint": "So11111111111111111111111111111111111111112",
-        "liquidityUsd": 1578692,
-        "volume24hUsd": 145728,
-        "priceUsd": 0.01312,
-        "url": "https://dexscreener.com/solana/93tjgwff5ac5thymi8c4wejvvqq4tumemuyw1leyz7bu"
-      },
-      "poolCount": 10
+      "poolCount": 12
     },
     {
       "category": "stock",
@@ -1138,9 +473,9 @@
         "kind": "CLMM",
         "quote": "USDC",
         "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-        "liquidityUsd": 3088371,
-        "volume24hUsd": 3719830,
-        "priceUsd": 234.45,
+        "liquidityUsd": 3139638,
+        "volume24hUsd": 2656062,
+        "priceUsd": 234.99,
         "url": "https://dexscreener.com/solana/49imatqtoyabsyaqc8gafvq6aebfvdxsrh44oiatyyw6"
       },
       "bestPool": {
@@ -1149,9 +484,9 @@
         "kind": "CLMM",
         "quote": "USDC",
         "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-        "liquidityUsd": 3088371,
-        "volume24hUsd": 3719830,
-        "priceUsd": 234.45,
+        "liquidityUsd": 3139638,
+        "volume24hUsd": 2656062,
+        "priceUsd": 234.99,
         "url": "https://dexscreener.com/solana/49imatqtoyabsyaqc8gafvq6aebfvdxsrh44oiatyyw6"
       },
       "poolCount": 18
@@ -1164,7 +499,7 @@
       "name": "Tesla xStock",
       "decimals": 8,
       "tokenProgram": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
-      "organicScore": 72,
+      "organicScore": 74,
       "mintAuthorityDisabled": null,
       "freezeAuthorityDisabled": null,
       "bestUsdcPool": {
@@ -1173,9 +508,9 @@
         "kind": "CLMM",
         "quote": "USDC",
         "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-        "liquidityUsd": 2278541,
-        "volume24hUsd": 1248121,
-        "priceUsd": 370.81,
+        "liquidityUsd": 2297068,
+        "volume24hUsd": 1263916,
+        "priceUsd": 370.79,
         "url": "https://dexscreener.com/solana/8adabqktrs6hvmjyc6ezebgdiaxhlygridwkwwp1npff"
       },
       "bestPool": {
@@ -1184,9 +519,9 @@
         "kind": "CLMM",
         "quote": "USDC",
         "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-        "liquidityUsd": 2278541,
-        "volume24hUsd": 1248121,
-        "priceUsd": 370.81,
+        "liquidityUsd": 2297068,
+        "volume24hUsd": 1263916,
+        "priceUsd": 370.79,
         "url": "https://dexscreener.com/solana/8adabqktrs6hvmjyc6ezebgdiaxhlygridwkwwp1npff"
       },
       "poolCount": 20
@@ -1199,7 +534,7 @@
       "name": "Apple xStock",
       "decimals": 8,
       "tokenProgram": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
-      "organicScore": 70,
+      "organicScore": 68,
       "mintAuthorityDisabled": null,
       "freezeAuthorityDisabled": null,
       "bestUsdcPool": {
@@ -1208,9 +543,9 @@
         "kind": "CLMM",
         "quote": "USDC",
         "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-        "liquidityUsd": 296645,
-        "volume24hUsd": 257605,
-        "priceUsd": 334.25,
+        "liquidityUsd": 305830,
+        "volume24hUsd": 230602,
+        "priceUsd": 334.34,
         "url": "https://dexscreener.com/solana/ckwjzwm7oj3nu4653n1epdrqxbxayxopfipeenlouf8y"
       },
       "bestPool": {
@@ -1219,9 +554,9 @@
         "kind": "CLMM",
         "quote": "USDC",
         "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-        "liquidityUsd": 296645,
-        "volume24hUsd": 257605,
-        "priceUsd": 334.25,
+        "liquidityUsd": 305830,
+        "volume24hUsd": 230602,
+        "priceUsd": 334.34,
         "url": "https://dexscreener.com/solana/ckwjzwm7oj3nu4653n1epdrqxbxayxopfipeenlouf8y"
       },
       "poolCount": 10
@@ -1234,7 +569,7 @@
       "name": "Meta xStock",
       "decimals": 8,
       "tokenProgram": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
-      "organicScore": 72,
+      "organicScore": 69,
       "mintAuthorityDisabled": null,
       "freezeAuthorityDisabled": null,
       "bestUsdcPool": {
@@ -1243,9 +578,9 @@
         "kind": "CLMM",
         "quote": "USDC",
         "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-        "liquidityUsd": 937857,
-        "volume24hUsd": 762202,
-        "priceUsd": 730.54,
+        "liquidityUsd": 880823,
+        "volume24hUsd": 697741,
+        "priceUsd": 730.14,
         "url": "https://dexscreener.com/solana/3l7kbpvaaqa4utecagqysm6ucq5f3szm9zaykxqyt63j"
       },
       "bestPool": {
@@ -1254,9 +589,9 @@
         "kind": "CLMM",
         "quote": "USDC",
         "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-        "liquidityUsd": 937857,
-        "volume24hUsd": 762202,
-        "priceUsd": 730.54,
+        "liquidityUsd": 880823,
+        "volume24hUsd": 697741,
+        "priceUsd": 730.14,
         "url": "https://dexscreener.com/solana/3l7kbpvaaqa4utecagqysm6ucq5f3szm9zaykxqyt63j"
       },
       "poolCount": 10
@@ -1278,9 +613,9 @@
         "kind": "CLMM",
         "quote": "USDC",
         "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-        "liquidityUsd": 707526,
-        "volume24hUsd": 825717,
-        "priceUsd": 160.48,
+        "liquidityUsd": 707938,
+        "volume24hUsd": 636921,
+        "priceUsd": 160.57,
         "url": "https://dexscreener.com/solana/ryhf4cksvzy7vcqjpoythcxcgnkrp27peghsneppbgv"
       },
       "bestPool": {
@@ -1289,9 +624,9 @@
         "kind": "CLMM",
         "quote": "SOL",
         "quoteMint": "So11111111111111111111111111111111111111112",
-        "liquidityUsd": 861376,
-        "volume24hUsd": 555812,
-        "priceUsd": 160.67,
+        "liquidityUsd": 864001,
+        "volume24hUsd": 439872,
+        "priceUsd": 160.68,
         "url": "https://dexscreener.com/solana/2ngtup7xa581dqx9ujkgrqxmkuehy3k4sdfpebeorg2j"
       },
       "poolCount": 16
@@ -1304,7 +639,7 @@
       "name": "Amazon xStock",
       "decimals": 8,
       "tokenProgram": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
-      "organicScore": 56,
+      "organicScore": 57,
       "mintAuthorityDisabled": null,
       "freezeAuthorityDisabled": null,
       "bestUsdcPool": {
@@ -1313,9 +648,9 @@
         "kind": "CLMM",
         "quote": "USDC",
         "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-        "liquidityUsd": 398161,
-        "volume24hUsd": 80892,
-        "priceUsd": 251.039,
+        "liquidityUsd": 398267,
+        "volume24hUsd": 76426,
+        "priceUsd": 251.33,
         "url": "https://dexscreener.com/solana/6m5axave4uh6kt4ytkyclwnmjd8pyp5vujwnctycruid"
       },
       "bestPool": {
@@ -1324,9 +659,9 @@
         "kind": "CLMM",
         "quote": "USDC",
         "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-        "liquidityUsd": 398161,
-        "volume24hUsd": 80892,
-        "priceUsd": 251.039,
+        "liquidityUsd": 398267,
+        "volume24hUsd": 76426,
+        "priceUsd": 251.33,
         "url": "https://dexscreener.com/solana/6m5axave4uh6kt4ytkyclwnmjd8pyp5vujwnctycruid"
       },
       "poolCount": 10
@@ -1348,9 +683,9 @@
         "kind": "CLMM",
         "quote": "USDC",
         "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-        "liquidityUsd": 885977,
-        "volume24hUsd": 1787577,
-        "priceUsd": 519.22,
+        "liquidityUsd": 891673,
+        "volume24hUsd": 1670268,
+        "priceUsd": 519.52,
         "url": "https://dexscreener.com/solana/clu4kfm4nb67xrdn7vjnmxxxir8z5ha4hjuzpfccxjsl"
       },
       "bestPool": {
@@ -1359,12 +694,12 @@
         "kind": "CLMM",
         "quote": "USDC",
         "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-        "liquidityUsd": 885977,
-        "volume24hUsd": 1787577,
-        "priceUsd": 519.22,
+        "liquidityUsd": 891673,
+        "volume24hUsd": 1670268,
+        "priceUsd": 519.52,
         "url": "https://dexscreener.com/solana/clu4kfm4nb67xrdn7vjnmxxxir8z5ha4hjuzpfccxjsl"
       },
-      "poolCount": 10
+      "poolCount": 11
     },
     {
       "category": "stock",
@@ -1374,7 +709,7 @@
       "name": "Alphabet xStock",
       "decimals": 8,
       "tokenProgram": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
-      "organicScore": 71,
+      "organicScore": 67,
       "mintAuthorityDisabled": null,
       "freezeAuthorityDisabled": null,
       "bestUsdcPool": {
@@ -1383,9 +718,9 @@
         "kind": "CLMM",
         "quote": "USDC",
         "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-        "liquidityUsd": 784177,
-        "volume24hUsd": 231047,
-        "priceUsd": 343.99,
+        "liquidityUsd": 784315,
+        "volume24hUsd": 190951,
+        "priceUsd": 343.91,
         "url": "https://dexscreener.com/solana/b8yawjgyk6qidwzgbxmaxp7nyfg8g74ez3y4gfssobrw"
       },
       "bestPool": {
@@ -1394,12 +729,12 @@
         "kind": "CLMM",
         "quote": "USDC",
         "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-        "liquidityUsd": 784177,
-        "volume24hUsd": 231047,
-        "priceUsd": 343.99,
+        "liquidityUsd": 784315,
+        "volume24hUsd": 190951,
+        "priceUsd": 343.91,
         "url": "https://dexscreener.com/solana/b8yawjgyk6qidwzgbxmaxp7nyfg8g74ez3y4gfssobrw"
       },
-      "poolCount": 19
+      "poolCount": 18
     },
     {
       "category": "stock",
@@ -1409,7 +744,7 @@
       "name": "Coinbase xStock",
       "decimals": 8,
       "tokenProgram": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
-      "organicScore": 70,
+      "organicScore": 62,
       "mintAuthorityDisabled": null,
       "freezeAuthorityDisabled": null,
       "bestUsdcPool": {
@@ -1418,9 +753,9 @@
         "kind": "CLMM",
         "quote": "USDC",
         "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-        "liquidityUsd": 1446786,
-        "volume24hUsd": 787924,
-        "priceUsd": 182.64,
+        "liquidityUsd": 1444065,
+        "volume24hUsd": 555117,
+        "priceUsd": 182.63,
         "url": "https://dexscreener.com/solana/w7sgmpexomcsjvxqgsamun56uypydsjatsxevkaiqxa"
       },
       "bestPool": {
@@ -1429,9 +764,9 @@
         "kind": "CLMM",
         "quote": "USDC",
         "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-        "liquidityUsd": 1446786,
-        "volume24hUsd": 787924,
-        "priceUsd": 182.64,
+        "liquidityUsd": 1444065,
+        "volume24hUsd": 555117,
+        "priceUsd": 182.63,
         "url": "https://dexscreener.com/solana/w7sgmpexomcsjvxqgsamun56uypydsjatsxevkaiqxa"
       },
       "poolCount": 7
@@ -1453,8 +788,8 @@
         "kind": "CLMM",
         "quote": "USDC",
         "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-        "liquidityUsd": 1456741,
-        "volume24hUsd": 591296,
+        "liquidityUsd": 1456457,
+        "volume24hUsd": 553428,
         "priceUsd": 113.6,
         "url": "https://dexscreener.com/solana/dxwbip5lducmabdssplyz9xik3253epeayqufqtx7lxs"
       },
@@ -1464,47 +799,12 @@
         "kind": "CLMM",
         "quote": "USDC",
         "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-        "liquidityUsd": 1456741,
-        "volume24hUsd": 591296,
+        "liquidityUsd": 1456457,
+        "volume24hUsd": 553428,
         "priceUsd": 113.6,
         "url": "https://dexscreener.com/solana/dxwbip5lducmabdssplyz9xik3253epeayqufqtx7lxs"
       },
-      "poolCount": 8
-    },
-    {
-      "category": "stock",
-      "symbol": "NFLXx",
-      "status": "ok",
-      "mint": "XsEH7wWfJJu2ZT3UCFeVfALnVA6CP5ur7Ee11KmzVpL",
-      "name": "Netflix xStock",
-      "decimals": 8,
-      "tokenProgram": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
-      "organicScore": null,
-      "mintAuthorityDisabled": null,
-      "freezeAuthorityDisabled": null,
-      "bestUsdcPool": {
-        "pool": "7RQXW5KEBgHCcy1eSNs1Kh7BWaEL46q8jb9t18S151bL",
-        "dex": "raydium",
-        "kind": "CLMM",
-        "quote": "USDC",
-        "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-        "liquidityUsd": 10030,
-        "volume24hUsd": 6882,
-        "priceUsd": 684.44,
-        "url": "https://dexscreener.com/solana/7rqxw5kebghccy1esns1kh7bwael46q8jb9t18s151bl"
-      },
-      "bestPool": {
-        "pool": "7RQXW5KEBgHCcy1eSNs1Kh7BWaEL46q8jb9t18S151bL",
-        "dex": "raydium",
-        "kind": "CLMM",
-        "quote": "USDC",
-        "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-        "liquidityUsd": 10030,
-        "volume24hUsd": 6882,
-        "priceUsd": 684.44,
-        "url": "https://dexscreener.com/solana/7rqxw5kebghccy1esns1kh7bwael46q8jb9t18s151bl"
-      },
-      "poolCount": 3
+      "poolCount": 9
     },
     {
       "category": "stock",
@@ -1523,9 +823,9 @@
         "kind": "CLMM",
         "quote": "USDC",
         "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-        "liquidityUsd": 3214543,
-        "volume24hUsd": 4824694,
-        "priceUsd": 81.69,
+        "liquidityUsd": 3206554,
+        "volume24hUsd": 4107405,
+        "priceUsd": 82.068,
         "url": "https://dexscreener.com/solana/gyqhjudztiw7i52xv1qohde6ejr6eszpsrbvikgzyafv"
       },
       "bestPool": {
@@ -1534,12 +834,12 @@
         "kind": "CLMM",
         "quote": "USDC",
         "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-        "liquidityUsd": 3214543,
-        "volume24hUsd": 4824694,
-        "priceUsd": 81.69,
+        "liquidityUsd": 3206554,
+        "volume24hUsd": 4107405,
+        "priceUsd": 82.068,
         "url": "https://dexscreener.com/solana/gyqhjudztiw7i52xv1qohde6ejr6eszpsrbvikgzyafv"
       },
-      "poolCount": 13
+      "poolCount": 14
     },
     {
       "category": "stock",
@@ -1558,9 +858,9 @@
         "kind": "CLMM",
         "quote": "USDC",
         "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-        "liquidityUsd": 3041170,
-        "volume24hUsd": 2176805,
-        "priceUsd": 773.58,
+        "liquidityUsd": 3100294,
+        "volume24hUsd": 1853310,
+        "priceUsd": 774.51,
         "url": "https://dexscreener.com/solana/6truu3rzuib9rkqg4vyc3dt3qwv7dgwgqxryucrvndde"
       },
       "bestPool": {
@@ -1569,12 +869,12 @@
         "kind": "CLMM",
         "quote": "USDC",
         "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-        "liquidityUsd": 3041170,
-        "volume24hUsd": 2176805,
-        "priceUsd": 773.58,
+        "liquidityUsd": 3100294,
+        "volume24hUsd": 1853310,
+        "priceUsd": 774.51,
         "url": "https://dexscreener.com/solana/6truu3rzuib9rkqg4vyc3dt3qwv7dgwgqxryucrvndde"
       },
-      "poolCount": 15
+      "poolCount": 14
     },
     {
       "category": "stock",
@@ -1584,7 +884,7 @@
       "name": "Nasdaq xStock",
       "decimals": 8,
       "tokenProgram": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
-      "organicScore": 68,
+      "organicScore": 66,
       "mintAuthorityDisabled": null,
       "freezeAuthorityDisabled": null,
       "bestUsdcPool": {
@@ -1593,9 +893,9 @@
         "kind": "CLMM",
         "quote": "USDC",
         "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-        "liquidityUsd": 2242480,
-        "volume24hUsd": 375191,
-        "priceUsd": 751.58,
+        "liquidityUsd": 2242257,
+        "volume24hUsd": 352833,
+        "priceUsd": 752.1,
         "url": "https://dexscreener.com/solana/gmjglwzvk75lpetrgamdexnvxc4fuuqpwjxeqqtdu1ag"
       },
       "bestPool": {
@@ -1604,82 +904,12 @@
         "kind": "CLMM",
         "quote": "USDC",
         "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-        "liquidityUsd": 2242480,
-        "volume24hUsd": 375191,
-        "priceUsd": 751.58,
+        "liquidityUsd": 2242257,
+        "volume24hUsd": 352833,
+        "priceUsd": 752.1,
         "url": "https://dexscreener.com/solana/gmjglwzvk75lpetrgamdexnvxc4fuuqpwjxeqqtdu1ag"
       },
       "poolCount": 10
-    },
-    {
-      "category": "stock",
-      "symbol": "AMDx",
-      "status": "ok",
-      "mint": "XsXcJ6GZ9kVnjqGsjBnktRcuwMBmvKWh8S93RefZ1rF",
-      "name": "AMD xStock",
-      "decimals": 8,
-      "tokenProgram": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
-      "organicScore": null,
-      "mintAuthorityDisabled": null,
-      "freezeAuthorityDisabled": null,
-      "bestUsdcPool": {
-        "pool": "9cprLgGXPfbkur11KpYzRPjooSycahSknTmmao45jt8R",
-        "dex": "orca",
-        "kind": "wp",
-        "quote": "USDC",
-        "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-        "liquidityUsd": 9742,
-        "volume24hUsd": 54,
-        "priceUsd": 620.5,
-        "url": "https://dexscreener.com/solana/9cprlggxpfbkur11kpyzrpjoosycahskntmmao45jt8r"
-      },
-      "bestPool": {
-        "pool": "9cprLgGXPfbkur11KpYzRPjooSycahSknTmmao45jt8R",
-        "dex": "orca",
-        "kind": "wp",
-        "quote": "USDC",
-        "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-        "liquidityUsd": 9742,
-        "volume24hUsd": 54,
-        "priceUsd": 620.5,
-        "url": "https://dexscreener.com/solana/9cprlggxpfbkur11kpyzrpjoosycahskntmmao45jt8r"
-      },
-      "poolCount": 3
-    },
-    {
-      "category": "stock",
-      "symbol": "PLTRx",
-      "status": "ok",
-      "mint": "XsoBhf2ufR8fTyNSjqfU71DYGaE6Z3SUGAidpzriAA4",
-      "name": "Palantir xStock",
-      "decimals": 8,
-      "tokenProgram": "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
-      "organicScore": 57,
-      "mintAuthorityDisabled": null,
-      "freezeAuthorityDisabled": null,
-      "bestUsdcPool": {
-        "pool": "5bY2fh9rgTYaBDxFGFJmddhaDkm5zwiWP6b2ZsjJZyP",
-        "dex": "orca",
-        "kind": "wp",
-        "quote": "USDC",
-        "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-        "liquidityUsd": 141695,
-        "volume24hUsd": 218602,
-        "priceUsd": 187.67,
-        "url": "https://dexscreener.com/solana/5by2fh9rgtyabdxfgfjmddhadkm5zwiwp6b2zsjjzyp"
-      },
-      "bestPool": {
-        "pool": "5bY2fh9rgTYaBDxFGFJmddhaDkm5zwiWP6b2ZsjJZyP",
-        "dex": "orca",
-        "kind": "wp",
-        "quote": "USDC",
-        "quoteMint": "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
-        "liquidityUsd": 141695,
-        "volume24hUsd": 218602,
-        "priceUsd": 187.67,
-        "url": "https://dexscreener.com/solana/5by2fh9rgtyabdxfgfjmddhadkm5zwiwp6b2zsjjzyp"
-      },
-      "poolCount": 8
     }
   ]
 }

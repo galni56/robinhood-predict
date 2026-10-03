@@ -19,6 +19,7 @@ const DECODABLE = new Set([
 ])
 
 const scan = JSON.parse(readFileSync('docs/solana-catalog/scan.json', 'utf8'))
+const approval = JSON.parse(readFileSync('config/solana-catalog-approved.json', 'utf8'))
 const kind = (p) => `${p.dex} ${p.kind}`
 const fmt = (n) => (n >= 1e6 ? `$${(n / 1e6).toFixed(1)}M` : `$${Math.round(n / 1e3)}k`)
 
@@ -63,10 +64,12 @@ writeFileSync('docs/solana-catalog/proposed.json', JSON.stringify({ scannedAt: s
 
 const titles = { crypto: 'Крипта', meme: 'Мемы', stock: 'Акции (xStocks)' }
 const lines = [
-  '# Каталог активов на Solana — на утверждение',
+  '# Каталог активов на Solana',
   '',
   `Собрано скриптами \`scripts/solana-catalog-scan.mjs\` → \`scripts/solana-catalog-propose.mjs\` по живым данным Jupiter и DexScreener (${scan.scannedAt}).`,
-  'Адреса токенов — только «verified» в Jupiter. **Ничего не одобрено, пока владелец не подтвердит.**',
+  'Адреса токенов — только «verified» в Jupiter.',
+  '',
+  `**Утверждено владельцем ${approval.approvedAt}** (\`config/solana-catalog-approved.json\`): ${Object.values(approval.symbols).flat().length} активов. В программы и интерфейс mainnet попадают только они.`,
   '',
   '## Правила отбора',
   '',
@@ -84,7 +87,9 @@ for (const category of ['crypto', 'meme', 'stock']) {
   }
   lines.push('')
 }
-lines.push('## Не прошли отбор', '', '| Категория | Актив | Причина |', '|---|---|---|')
+lines.push('## Отклонены владельцем', '', '| Актив | Причина |', '|---|---|')
+for (const [symbol, reason] of Object.entries(approval.rejected ?? {})) lines.push(`| ${symbol} | ${reason} |`)
+lines.push('', '## Не прошли автоматический отбор', '', '| Категория | Актив | Причина |', '|---|---|---|')
 for (const r of rejected) lines.push(`| ${r.category} | ${r.symbol} | ${r.reason} |`)
 lines.push(
   '',
