@@ -27,8 +27,10 @@ const admin = Keypair.fromSecretKey(Uint8Array.from(JSON.parse(readFileSync(keyp
 const oracle = new PublicKey(process.env.ORACLE_PUBKEY ?? admin.publicKey.toBase58())
 const connection = new Connection(RPC, 'confirmed')
 const provider = new AnchorProvider(connection, new Wallet(admin), { commitment: 'confirmed' })
-const race = new Program(readJson('src/solana/idl/asset_race.json'), provider)
-const arena = new Program(readJson('src/solana/idl/price_arena.json'), provider)
+// Asset Race and Price Arena live in one program.
+const games = new Program(readJson('src/solana/idl/prophet_games.json'), provider)
+const race = games
+const arena = games
 const catalog = readJson('config/solana-assets.json')
 
 const NATIVE_SOL = PublicKey.default
@@ -78,7 +80,7 @@ async function setupProgram(program, label, { initArgs }) {
 }
 
 async function setup() {
-  await setupProgram(race, 'asset_race', { initArgs: [oracle] })
+  await setupProgram(games, 'prophet_games', { initArgs: [oracle] })
   await race.methods
     .setCommunityPolicy({
       lobbyDuration: new BN(600),
@@ -93,8 +95,7 @@ async function setup() {
   for (const duration of [300, 900, 3600]) {
     await race.methods.setDurationPreset(new BN(duration), true).accountsPartial({ admin: admin.publicKey }).rpc()
   }
-  console.log('asset_race: community policy and durations (5m, 15m, 1h) set')
-  await setupProgram(arena, 'price_arena', { initArgs: [oracle] })
+  console.log('prophet_games: community race policy and durations (5m, 15m, 1h) set')
 }
 
 async function fundedWallet(sol) {
@@ -204,7 +205,7 @@ async function seed() {
       const player = await fundedWallet(2)
       const prediction = new BN(Math.round(guess * 10 ** Math.min(asset.priceDecimals, 8))).mul(new BN(10).pow(new BN(Math.max(asset.priceDecimals - 8, 0))))
       await arena.methods
-        .enter(prediction, new BN(LAMPORTS_PER_SOL / 20))
+        .enterArena(prediction, new BN(LAMPORTS_PER_SOL / 20))
         .accountsPartial({
           player: player.publicKey,
           arena: arenaKey,

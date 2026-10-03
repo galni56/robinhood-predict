@@ -28,8 +28,10 @@ const admin = Keypair.fromSecretKey(
 )
 const connection = new Connection(RPC, 'confirmed')
 const provider = new AnchorProvider(connection, new Wallet(admin), { commitment: 'confirmed' })
-const race = new Program(readJson('src/solana/idl/asset_race.json'), provider)
-const arena = new Program(readJson('src/solana/idl/price_arena.json'), provider)
+// Asset Race and Price Arena live in one program.
+const games = new Program(readJson('src/solana/idl/prophet_games.json'), provider)
+const race = games
+const arena = games
 const catalog = readJson('config/solana-assets.json')
 const NATIVE_SOL = PublicKey.default
 const enc = (s) => Buffer.from(s)
@@ -119,7 +121,7 @@ async function raceLifecycle() {
 
   if (status(done.status) === 'void') {
     for (const bettor of bettors) {
-      await race.methods.refund().accountsPartial({ owner: bettor.publicKey, race: raceKey, tokenMint: null, raceVault: null, ownerToken: null, tokenProgram: null }).signers([bettor]).rpc()
+      await race.methods.refundRace().accountsPartial({ owner: bettor.publicKey, race: raceKey, tokenMint: null, raceVault: null, ownerToken: null, tokenProgram: null }).signers([bettor]).rpc()
     }
     check(true, 'tie: every bettor refunded')
     return
@@ -137,7 +139,7 @@ async function raceLifecycle() {
     const rent = BigInt(await connection.getBalance(position))
     const before = BigInt(await connection.getBalance(bettor.publicKey))
     if (i === winner) {
-      await race.methods.claim().accountsPartial(accounts).signers([bettor]).rpc()
+      await race.methods.claimRace().accountsPartial(accounts).signers([bettor]).rpc()
       const gained = BigInt(await connection.getBalance(bettor.publicKey)) - before
       // gained = payout + position rent (the admin provider pays the tx fee)
       check(gained === expectedPayout + rent, `winner claimed ${sol(expectedPayout)} SOL (stake ${sol(stakes[i])} + losers' pool minus 2%)`)
@@ -166,7 +168,7 @@ async function arenaLifecycle() {
   for (const guess of guesses) {
     const player = await wallet(2)
     await arena.methods
-      .enter(new BN(guess.toString()), new BN(LAMPORTS_PER_SOL / 10))
+      .enterArena(new BN(guess.toString()), new BN(LAMPORTS_PER_SOL / 10))
       .accountsPartial({ player: player.publicKey, arena: arenaKey, tokenMint: null, playerToken: null, arenaVault: null, tokenProgram: null })
       .signers([player])
       .rpc()
@@ -180,7 +182,7 @@ async function arenaLifecycle() {
   for (let i = 0; i < players.length; i++) {
     const entry = done.entries.find((e) => e.player.equals(players[i].publicKey))
     if (entry.payout.isZero()) continue
-    await arena.methods.claim().accountsPartial({ player: players[i].publicKey, arena: arenaKey, tokenMint: null, arenaVault: null, playerToken: null, tokenProgram: null }).signers([players[i]]).rpc()
+    await arena.methods.claimArena().accountsPartial({ player: players[i].publicKey, arena: arenaKey, tokenMint: null, arenaVault: null, playerToken: null, tokenProgram: null }).signers([players[i]]).rpc()
     check(true, `player ${i} (rank ${entry.rank}) claimed ${sol(entry.payout)} SOL`)
   }
   const after = await arena.account.arena.fetch(arenaKey)

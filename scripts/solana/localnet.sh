@@ -1,5 +1,5 @@
 #!/bin/bash
-# Starts a local Solana validator (WSL) with the three Prophet programs
+# Starts a local Solana validator (WSL) with the Prophet programs
 # deployed as upgradeable, the local keypair as upgrade authority, so
 # `initialize` passes its upgrade-authority check. Ledger is reset each run.
 #
@@ -13,7 +13,7 @@ AUTHORITY="$(solana address)"
 id_of() { grep -oE "^$1 = \"[^\"]+\"" "$ROOT/solana/Anchor.toml" | head -1 | cut -d'"' -f2; }
 
 ARGS=(--reset --quiet --ledger "$LEDGER")
-for program in asset_race price_arena nickname_registry; do
+for program in prophet_games nickname_registry; do
   ARGS+=(--upgradeable-program "$(id_of "$program")" "$TARGET/$program.so" "$AUTHORITY")
 done
 

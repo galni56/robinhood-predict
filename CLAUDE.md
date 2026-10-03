@@ -34,7 +34,7 @@ history. Nothing from this branch is on mainnet. No external security audit.
 
 | Piece | Status |
 |---|---|
-| Programs (`solana/`) | `asset_race`, `price_arena`, `nickname_registry` + crates `pool_attestation`, `stake_funds`. 38 LiteSVM tests pass. Dev IDs: asset_race `H4fm2gjgc5bRcoXfAhnTXFpFJMijga43Czq5Z8yGXYKj`, price_arena `GWdUNY9nzmMCSUfNSsvQCZFzwGNrqDKeh5TdHg79DaQU`, nickname_registry `9hbJLs2EGPdvVLcxQs2N2QqZUhh8r2J86PK8rYBRxJdt`. Not deployed to devnet or mainnet. |
+| Programs (`solana/`) | `prophet_games` (Asset Race + Price Arena in one program, shared config/assets/stake mints/treasury/creator earnings) and `nickname_registry`, + crates `pool_attestation`, `stake_funds`. 38 LiteSVM tests pass. Built with `opt-level = "z"`: 644 KB + 155 KB ≈ 5.6 SOL deploy rent. Dev IDs: prophet_games `G1xjFqQ976m5xsybUCjLxjJxRCcx3PCwpxBgj7VM6ME7`, nickname_registry `9hbJLs2EGPdvVLcxQs2N2QqZUhh8r2J86PK8rYBRxJdt`. Not deployed to devnet or mainnet. |
 | Asset catalog | Owner approved 26 assets (`config/solana-catalog-approved.json`): 3 crypto, 10 memes, 13 stocks. |
 | Frontend | Prediction Market and mock demo removed. Phantom/Solflare wallets, Anchor clients, nicknames on Solana. Race and arena pages still read through the old EVM layer (`src/chain/`, wagmi/viem) until they move to Solana. Portfolio, leaderboard and archive are placeholders. |
 | Local stand | `scripts/solana/localnet.sh` + `scripts/solana/admin.mjs setup|seed` work on a local validator in WSL. |

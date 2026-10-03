@@ -15,23 +15,19 @@ const find = (seeds: Uint8Array[], program: PublicKey) => PublicKey.findProgramA
 
 export const nicknamePda = (owner: PublicKey) => find([enc('nickname'), owner.toBytes()], PROGRAM_IDS.nicknameRegistry)
 
-export const raceConfigPda = () => find([enc('config')], PROGRAM_IDS.assetRace)
-export const raceStakeMintPda = (mint: PublicKey) => find([enc('stake_mint'), mint.toBytes()], PROGRAM_IDS.assetRace)
-export const raceTreasuryPda = (mint: PublicKey) => find([enc('treasury'), mint.toBytes()], PROGRAM_IDS.assetRace)
-export const raceAssetPda = (assetId: Uint8Array) => find([enc('asset'), assetId], PROGRAM_IDS.assetRace)
-export const racePda = (raceId: bigint | number) => find([enc('race'), u64le(raceId)], PROGRAM_IDS.assetRace)
-export const racePositionPda = (race: PublicKey, owner: PublicKey) =>
-  find([enc('position'), race.toBytes(), owner.toBytes()], PROGRAM_IDS.assetRace)
-export const raceCreatorPda = (mint: PublicKey, creator: PublicKey) =>
-  find([enc('creator'), mint.toBytes(), creator.toBytes()], PROGRAM_IDS.assetRace)
+// Shared by both games.
+const games = PROGRAM_IDS.games
+export const configPda = () => find([enc('config')], games)
+export const stakeMintPda = (mint: PublicKey) => find([enc('stake_mint'), mint.toBytes()], games)
+export const treasuryPda = (mint: PublicKey) => find([enc('treasury'), mint.toBytes()], games)
+export const assetPda = (assetId: Uint8Array) => find([enc('asset'), assetId], games)
+export const creatorEarningsPda = (mint: PublicKey, creator: PublicKey) =>
+  find([enc('creator'), mint.toBytes(), creator.toBytes()], games)
 
-export const arenaConfigPda = () => find([enc('config')], PROGRAM_IDS.priceArena)
-export const arenaStakeMintPda = (mint: PublicKey) => find([enc('stake_mint'), mint.toBytes()], PROGRAM_IDS.priceArena)
-export const arenaTreasuryPda = (mint: PublicKey) => find([enc('treasury'), mint.toBytes()], PROGRAM_IDS.priceArena)
-export const arenaAssetPda = (assetId: Uint8Array) => find([enc('asset'), assetId], PROGRAM_IDS.priceArena)
-export const arenaPda = (arenaId: bigint | number) => find([enc('arena'), u64le(arenaId)], PROGRAM_IDS.priceArena)
-export const arenaCreatorPda = (mint: PublicKey, creator: PublicKey) =>
-  find([enc('creator'), mint.toBytes(), creator.toBytes()], PROGRAM_IDS.priceArena)
+export const racePda = (raceId: bigint | number) => find([enc('race'), u64le(raceId)], games)
+export const racePositionPda = (race: PublicKey, owner: PublicKey) =>
+  find([enc('position'), race.toBytes(), owner.toBytes()], games)
+export const arenaPda = (arenaId: bigint | number) => find([enc('arena'), u64le(arenaId)], games)
 
 /** On-chain asset ids are the UTF-8 symbol, zero-padded to 32 bytes. */
 export function assetIdFromSymbol(symbol: string) {

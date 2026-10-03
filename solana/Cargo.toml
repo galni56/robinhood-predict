@@ -10,6 +10,9 @@ edition = "2021"
 rust-version = "1.89.0"
 
 [profile.release]
+# Optimize for size: program bytes are paid for as rent (~0.007 SOL per KB).
+# Overflow checks stay on - they guard fund accounting.
+opt-level = "z"
 overflow-checks = true
 lto = "fat"
 codegen-units = 1

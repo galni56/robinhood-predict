@@ -5,9 +5,8 @@ Anchor workspace for the Solana port. Plan and decisions:
 
 | Program | Status |
 |---|---|
-| `asset_race` | Implemented, localnet-tested. Not deployed. |
-| `price_arena` | Implemented, localnet-tested. Not deployed. |
-| `nickname_registry` | Implemented, localnet-tested. Not deployed. |
+| `prophet_games` | Asset Race + Price Arena in one program (shared admin, oracle key, asset registry, stake currencies, treasury, creator earnings). Implemented, localnet-tested. Not deployed. |
+| `nickname_registry` | Implemented, localnet-tested. Not deployed. Kept separate on purpose: a bug there cannot touch game funds. |
 | `pool_attestation` (crate) | Shared Ed25519 pool-price attestation verification. |
 | `stake_funds` (crate) | Shared native-SOL / SPL / Token-2022 stake movement and vault checks. |
 
@@ -15,7 +14,8 @@ Anchor workspace for the Solana port. Plan and decisions:
 
 The toolchain lives in WSL (Ubuntu, user `dev`). Build artifacts go to a
 WSL-native target dir — much faster than `/mnt/c`, and it keeps the program
-keypair (`asset_race-keypair.json`) out of the repository.
+keypairs (`*-keypair.json`) out of the repository. Release builds use
+`opt-level = "z"`: program bytes are paid for as rent.
 
 ```bash
 wsl
@@ -25,7 +25,7 @@ anchor build              # .so + IDL in $CARGO_TARGET_DIR/{deploy,idl}
 cargo test --workspace    # LiteSVM integration tests (needs a prior anchor build)
 ```
 
-## `asset_race` in one paragraph
+## Asset Race in one paragraph
 
 Port of `contracts/src/AssetRace.sol`. Each race is a PDA that also escrows
 its native-SOL stakes. P0 and P1 come from one Ed25519-signed attestation per

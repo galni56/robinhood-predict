@@ -5,9 +5,8 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-asset_race = "H4fm2gjgc5bRcoXfAhnTXFpFJMijga43Czq5Z8yGXYKj"
 nickname_registry = "9hbJLs2EGPdvVLcxQs2N2QqZUhh8r2J86PK8rYBRxJdt"
-price_arena = "GWdUNY9nzmMCSUfNSsvQCZFzwGNrqDKeh5TdHg79DaQU"
+prophet_games = "G1xjFqQ976m5xsybUCjLxjJxRCcx3PCwpxBgj7VM6ME7"
 
 [provider]
 cluster = "localnet"

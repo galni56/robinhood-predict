@@ -18,7 +18,7 @@ losing pool split between the game's creator and Prophet.
 
 | Path | What |
 |---|---|
-| `solana/` | Anchor workspace: programs `asset_race`, `price_arena`, `nickname_registry`; shared crates `pool_attestation`, `stake_funds`. See [`solana/README.md`](./solana/README.md). |
+| `solana/` | Anchor workspace: programs `prophet_games` (Asset Race + Price Arena) and `nickname_registry`; shared crates `pool_attestation`, `stake_funds`. See [`solana/README.md`](./solana/README.md). |
 | `src/` | React 19 + TypeScript + Vite frontend. `src/solana/` holds cluster config, IDL clients, PDAs, wallet and transaction helpers. |
 | `config/solana-assets.json` | Asset registry (mints, pools, price precision) shared by frontend, admin scripts and price service. Owner approval required per asset. |
 | `scripts/solana/` | Local validator and admin setup/seed scripts. |

@@ -7,7 +7,7 @@ Change log: [`docs/SOLANA_CHANGELOG.md`](./docs/SOLANA_CHANGELOG.md).
 
 ## Done
 
-1. **Programs** — `asset_race`, `price_arena` (max 10 players, single-transaction resolve),
+1. **Programs** — `prophet_games` (Asset Race + Price Arena, max 10 arena players, single-transaction resolve),
    `nickname_registry`; Ed25519-signed DEX-pool price attestations; SOL and SPL/Token-2022 stakes;
    38 LiteSVM tests.
 2. **Asset catalog** — scanned from live Jupiter and DexScreener data; owner approved 26 assets (see 6).

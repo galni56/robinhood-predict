@@ -17,7 +17,7 @@ in HANDOFF, not this map. Read AGENTS for permissions and startup rules.
 
 | Area | Principal paths/files |
 | --- | --- |
-| Programs | `solana/programs/asset_race`, `price_arena`, `nickname_registry` |
+| Programs | `solana/programs/prophet_games` (both games), `solana/programs/nickname_registry` |
 | Shared program crates | `solana/crates/pool_attestation` (signed prices), `stake_funds` (SOL/SPL movement, vault checks) |
 | Program tests | `solana/programs/*/tests/` (LiteSVM), unit tests in `src/math.rs` |
 | Frontend bootstrap/routes | `src/main.tsx`, `src/App.tsx` |

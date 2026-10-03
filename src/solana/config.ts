@@ -9,8 +9,8 @@ import { PublicKey } from '@solana/web3.js'
 export type SolanaCluster = 'localnet' | 'devnet' | 'mainnet-beta'
 
 const DEV_PROGRAM_IDS = {
-  assetRace: 'H4fm2gjgc5bRcoXfAhnTXFpFJMijga43Czq5Z8yGXYKj',
-  priceArena: 'GWdUNY9nzmMCSUfNSsvQCZFzwGNrqDKeh5TdHg79DaQU',
+  // Asset Race and Price Arena share one program.
+  games: 'G1xjFqQ976m5xsybUCjLxjJxRCcx3PCwpxBgj7VM6ME7',
   nicknameRegistry: '9hbJLs2EGPdvVLcxQs2N2QqZUhh8r2J86PK8rYBRxJdt',
 } as const
 
@@ -42,8 +42,7 @@ function programId(envValue: string | undefined, fallback: string) {
 }
 
 export const PROGRAM_IDS = {
-  assetRace: programId(import.meta.env.VITE_ASSET_RACE_PROGRAM_ID, DEV_PROGRAM_IDS.assetRace),
-  priceArena: programId(import.meta.env.VITE_PRICE_ARENA_PROGRAM_ID, DEV_PROGRAM_IDS.priceArena),
+  games: programId(import.meta.env.VITE_GAMES_PROGRAM_ID, DEV_PROGRAM_IDS.games),
   nicknameRegistry: programId(import.meta.env.VITE_NICKNAME_PROGRAM_ID, DEV_PROGRAM_IDS.nicknameRegistry),
 }
 

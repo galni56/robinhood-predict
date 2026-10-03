@@ -31,8 +31,10 @@ const keypairPath = process.env.SOLANA_KEYPAIR ?? join(homedir(), '.config/solan
 const payer = Keypair.fromSecretKey(Uint8Array.from(JSON.parse(readFileSync(keypairPath, 'utf8'))))
 const connection = new Connection(RPC, 'confirmed')
 const provider = new AnchorProvider(connection, new Wallet(payer), { commitment: 'confirmed' })
-const race = new Program(readJson('src/solana/idl/asset_race.json'), provider)
-const arena = new Program(readJson('src/solana/idl/price_arena.json'), provider)
+// Asset Race and Price Arena live in one program.
+const games = new Program(readJson('src/solana/idl/prophet_games.json'), provider)
+const race = games
+const arena = games
 const NATIVE_SOL = PublicKey.default
 const SYSVAR_INSTRUCTIONS = new PublicKey('Sysvar1nstructions1111111111111111111111111')
 const status = (enumValue) => Object.keys(enumValue)[0]
@@ -126,7 +128,7 @@ async function tickArenas(now) {
     const label = `arena #${Number(a.id)}`
     try {
       if (now >= Number(a.startsAt) && a.entries.length < 2 && now < Number(a.deadline)) {
-        await arena.methods.cancelIfInsufficient().accountsPartial({ arena: publicKey }).rpc()
+        await arena.methods.cancelArenaIfInsufficient().accountsPartial({ arena: publicKey }).rpc()
         console.log(`${label}: cancelled (fewer than two players)`)
       } else if (now > Number(a.deadline) + 3600) {
         await arena.methods.cancelExpiredArena().accountsPartial({ arena: publicKey }).rpc()
@@ -134,7 +136,7 @@ async function tickArenas(now) {
       } else if (now >= Number(a.deadline) + SETTLE_DELAY) {
         tokenAccountsFor(a.stakeMint)
         const resolveIx = await arena.methods
-          .resolve()
+          .resolveArena()
           .accountsPartial({ arena: publicKey, instructions: SYSVAR_INSTRUCTIONS, ...feeAccounts(arena, a), ...nullArenaTokenAccounts })
           .instruction()
         if (a.entries.length < 2) {
