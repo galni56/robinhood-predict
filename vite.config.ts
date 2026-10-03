@@ -140,6 +140,8 @@ export default defineConfig({
       validateCryptoAssetsBuild(config.env)
     },
   }],
+  // web3.js and its dependencies reference Node's `global`.
+  define: { global: 'globalThis' },
   resolve: {
     alias: {
       '@': path.resolve(import.meta.dirname, './src'),

@@ -1,21 +1,22 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { useAccount, useWriteContract } from 'wagmi'
-import { waitForTransactionReceipt } from 'wagmi/actions'
-import { wagmiConfig } from '@/chain/config'
-import { nicknameRegistryAbi, NICKNAME_REGISTRY_ADDRESS, useNickname } from '@/chain/nicknames'
-import { shortTxError } from '@/lib/format'
+import { useQueryClient } from '@tanstack/react-query'
+import { useWallet } from '@solana/wallet-adapter-react'
+import { MAX_NICKNAME_BYTES, nicknameQueryKey, useNickname } from '@/solana/nicknames'
+import { usePrograms } from '@/solana/programs'
+import { solanaTxError, useSendInstructions } from '@/solana/tx'
 
-const MAX_LENGTH = 24
+const byteLength = (value: string) => new TextEncoder().encode(value).length
 
-/** A real transaction (setNickname on NicknameRegistry) -- the nickname is
- * public and permanent until changed, same as everything else in real mode.
- * Rendered as a modal overlay; `onClose` is called after a successful set
- * or when the user backs out. */
+/** A real transaction on nickname_registry: the nickname is public until
+ * changed. Saving an empty value clears it and refunds the account rent. */
 export function SetNicknameModal({ onClose }: { onClose: () => void }) {
-  const { address } = useAccount()
-  const current = useNickname(address)
-  const { writeContractAsync } = useWriteContract()
+  const { publicKey } = useWallet()
+  const owner = publicKey?.toBase58()
+  const current = useNickname(owner)
+  const programs = usePrograms()
+  const send = useSendInstructions()
+  const queryClient = useQueryClient()
   const [value, setValue] = useState(current.data ?? '')
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -29,34 +30,32 @@ export function SetNicknameModal({ onClose }: { onClose: () => void }) {
   }, [onClose, pending])
 
   async function submit() {
+    if (!publicKey) return
     setError(null)
     setPending(true)
     try {
-      const hash = await writeContractAsync({
-        address: NICKNAME_REGISTRY_ADDRESS,
-        abi: nicknameRegistryAbi,
-        functionName: 'setNickname',
-        args: [value.trim()],
-      })
-      await waitForTransactionReceipt(wagmiConfig, { hash })
-      await current.refetch()
+      const nickname = value.trim()
+      const ix = nickname
+        ? await programs.nicknameRegistry.methods.setNickname(nickname).accounts({ owner: publicKey }).instruction()
+        : await programs.nicknameRegistry.methods.clearNickname().accounts({ owner: publicKey }).instruction()
+      if (!nickname && !current.data) {
+        onClose()
+        return
+      }
+      await send([ix])
+      queryClient.setQueryData(nicknameQueryKey(owner), nickname || null)
       onClose()
     } catch (e) {
-      setError(shortTxError(e, 'set-nickname'))
+      setError(solanaTxError(e))
     } finally {
       setPending(false)
     }
   }
 
   return createPortal(
-    // Portaled to <body>: this modal opens from inside the navbar, whose
-    // backdrop-blur makes the header the containing block for fixed
-    // descendants - without the portal the overlay gets trapped inside
-    // the header strip and the ticker tape paints over the input.
-    // The backdrop itself scrolls (rather than just centering with no
-    // overflow handling) so the modal stays fully reachable on a short
-    // viewport instead of its top clipping off-screen with no way to get
-    // to it -- happened for real on a short/zoomed browser window.
+    // Portaled to <body>: the navbar's backdrop-blur would otherwise become
+    // the containing block for this fixed overlay. The backdrop scrolls so
+    // the modal stays reachable on short viewports.
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60" onClick={onClose}>
       <div className="min-h-full flex items-center justify-center px-4 py-8">
         <div
@@ -65,17 +64,21 @@ export function SetNicknameModal({ onClose }: { onClose: () => void }) {
         >
           <h2 className="text-sm font-bold mb-1">Set your nickname</h2>
           <p className="text-white/40 text-xs mb-3">
-            A real on-chain transaction - public, and visible to everyone wherever your address shows up. Leave blank
-            to clear it.
+            A real Solana transaction - public, and visible wherever your address shows up. Storing it costs a small
+            refundable rent deposit (~0.001 SOL). Leave blank to clear it and get the deposit back.
           </p>
           <input
             autoFocus
             value={value}
-            onChange={(e) => setValue(e.target.value.slice(0, MAX_LENGTH))}
+            onChange={(e) => {
+              let next = e.target.value
+              while (byteLength(next) > MAX_NICKNAME_BYTES) next = next.slice(0, -1)
+              setValue(next)
+            }}
             placeholder="e.g. satoshi"
             className="w-full rounded-lg bg-black/30 border border-white/10 px-3 py-2 text-sm outline-none focus:border-[#8B7CF7]/60 transition-colors"
           />
-          <p className="text-[11px] text-white/30 mt-1">{value.length}/{MAX_LENGTH}</p>
+          <p className="text-[11px] text-white/30 mt-1">{byteLength(value)}/{MAX_NICKNAME_BYTES}</p>
 
           {error && <p className="text-rose-400 text-xs mt-2">{error}</p>}
 
@@ -88,7 +91,7 @@ export function SetNicknameModal({ onClose }: { onClose: () => void }) {
             </button>
             <button
               onClick={submit}
-              disabled={pending}
+              disabled={pending || !publicKey}
               className="flex-1 rounded-lg bg-gradient-to-r from-[#8B7CF7] to-[#6A5AE0] hover:brightness-110 text-black font-semibold py-2 text-sm disabled:opacity-50 transition-all"
             >
               {pending ? 'Confirm in wallet…' : 'Save'}

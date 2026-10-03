@@ -1,27 +1,23 @@
 import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
-import { useAccount, useDisconnect } from 'wagmi'
+import { useWallet } from '@solana/wallet-adapter-react'
 import { AddressAvatar } from '@/components/AddressAvatar'
 import { AddressLabel } from '@/components/AddressLabel'
 import { SetNicknameModal } from '@/components/SetNicknameModal'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
-import { robinhoodMainnet } from '@/chain/config'
+import { explorerUrl } from '@/solana/config'
 
-/** Wallet connect entry point for the real (mainnet) side - connects only
- * through the installed MetaMask extension. When connected, shows
- * an address-derived avatar (see AddressAvatar) plus its nickname if one's
- * set (see AddressLabel/NicknameRegistry), and an account menu (portfolio,
- * set nickname, copy address, view on explorer, disconnect) - there's no
- * backend/profile system here, so this menu is the closest thing to a
- * "личный кабинет" a wallet-only app has. */
+/** Wallet connect entry point (Phantom or Solflare). When connected, shows
+ * an address-derived avatar plus the wallet's nickname if it has one, and an
+ * account menu (portfolio, nickname, copy address, explorer, disconnect). */
 export function ConnectWalletButton() {
-  const { address, isConnected } = useAccount()
-  const { disconnect } = useDisconnect()
+  const { publicKey, connected, disconnect } = useWallet()
   const [open, setOpen] = useState(false)
   const [copied, setCopied] = useState(false)
   const [nicknameModalOpen, setNicknameModalOpen] = useState(false)
+  const address = publicKey?.toBase58()
 
-  if (isConnected && address) {
+  if (connected && address) {
     return (
       <div className="relative">
         <button
@@ -62,7 +58,7 @@ export function ConnectWalletButton() {
                 {copied ? 'Copied!' : 'Copy address'}
               </button>
               <a
-                href={`${robinhoodMainnet.blockExplorers.default.url}/address/${address}`}
+                href={explorerUrl('address', address)}
                 target="_blank"
                 rel="noreferrer"
                 onClick={() => setOpen(false)}
@@ -74,7 +70,7 @@ export function ConnectWalletButton() {
               <button
                 onClick={() => {
                   setOpen(false)
-                  disconnect()
+                  void disconnect()
                 }}
                 className="w-full text-left px-3 py-2 text-rose-400 hover:bg-white/5"
               >
