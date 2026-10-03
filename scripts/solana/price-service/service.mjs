@@ -20,7 +20,10 @@
 //
 // Env: SOLANA_MAINNET_RPC_URL (use a paid RPC), SOLANA_MAINNET_WS_URL (optional),
 // ORACLE_KEYPAIR (read here, never printed), PRICE_SERVICE_PORT (8790),
-// BUFFER_SECONDS (1200), RESYNC_SECONDS (30).
+// PRICE_SERVICE_HOST (127.0.0.1), BUFFER_SECONDS (1200), RESYNC_SECONDS (30),
+// STALE_NOTIFICATION_MS (30000), ALLOWED_PROGRAM_IDS (comma list; set in
+// production), ALLOW_NON_MAINNET_PRICES=1 (explicit escape hatch for the
+// mainnet genesis check).
 
 import { readFileSync } from 'node:fs'
 import { createServer } from 'node:http'
@@ -40,6 +43,25 @@ const oracle = Keypair.fromSecretKey(Uint8Array.from(JSON.parse(readFileSync(pro
 
 const registry = JSON.parse(readFileSync(new URL('../../../config/solana-assets.json', import.meta.url), 'utf8'))
 const connection = new Connection(RPC, { commitment: 'confirmed', ...(WS ? { wsEndpoint: WS } : {}) })
+
+// Attestations sign real settlement prices, so refuse to track anything but
+// Solana mainnet (a misconfigured RPC pointing at a test validator with
+// cloned pools would otherwise get arbitrary prices signed). Localnet e2e
+// also reads real mainnet pools, so this holds everywhere by default;
+// ALLOW_NON_MAINNET_PRICES=1 is an explicit, deliberate escape hatch.
+const MAINNET_GENESIS = '5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d'
+if (process.env.ALLOW_NON_MAINNET_PRICES !== '1') {
+  const observedGenesis = await connection.getGenesisHash()
+  if (observedGenesis !== MAINNET_GENESIS) {
+    throw new Error(`RPC genesis ${observedGenesis} is not Solana mainnet; set ALLOW_NON_MAINNET_PRICES=1 only if you mean it`)
+  }
+}
+
+// Optional allowlist of program ids /attestation may sign for. Unset, any
+// requested program is signed (needed for localnet's generated ids) - set it
+// in production.
+const ALLOWED_PROGRAM_IDS = (process.env.ALLOWED_PROGRAM_IDS ?? '').split(',').map((v) => v.trim()).filter(Boolean)
+if (ALLOWED_PROGRAM_IDS.length === 0) console.warn('ALLOWED_PROGRAM_IDS is unset; /attestation will sign for any requested program id')
 const plan = await buildPlan(connection, registry)
 const assetBySource = new Map(plan.assets.map((a) => [a.pool, a]))
 const history = new AccountHistory()
@@ -202,7 +224,15 @@ async function boundaryBlocks(target) {
 }
 
 async function attestation({ program, target, sources }) {
-  const assets = sources.map((source) => {
+  if (ALLOWED_PROGRAM_IDS.length > 0 && !ALLOWED_PROGRAM_IDS.includes(program)) {
+    throw new Error(`program ${program} is not in ALLOWED_PROGRAM_IDS`)
+  }
+  const nowSec = Date.now() / 1000
+  // The history buffer only spans BUFFER_SECONDS; a target outside it can
+  // never be served honestly, and a future target is a malformed request.
+  if (target > nowSec + 60) throw new Error('target is in the future')
+  if (target < nowSec - BUFFER_SECONDS) throw new Error('target is older than the history buffer')
+  const assets = [...new Set(sources)].map((source) => {
     const asset = assetBySource.get(source)
     if (!asset) throw new Error(`unknown price source ${source}`)
     return asset
@@ -254,6 +284,7 @@ createServer(async (req, res) => {
       return json(res, 200, { slot: maxSlotSeen, updatedAt: lastNotificationAt, now: Date.now(), prices: out })
     }
     if (url.pathname === '/attestation') {
+      if (!ready) return json(res, 503, { error: 'warming up' })
       const program = url.searchParams.get('program')
       const target = Number(url.searchParams.get('target'))
       const sources = (url.searchParams.get('sources') ?? '').split(',').filter(Boolean)
@@ -280,7 +311,7 @@ createServer(async (req, res) => {
   } catch (error) {
     json(res, 409, { error: error.message })
   }
-}).listen(PORT, () => {
+}).listen(PORT, process.env.PRICE_SERVICE_HOST ?? '127.0.0.1', () => {
   console.log(`price service on :${PORT} · ${plan.assets.length} assets · ${plan.accounts.length} subscriptions · oracle ${oracle.publicKey.toBase58()} · rpc ${new URL(RPC).host}`)
 })
 
