@@ -1,12 +1,11 @@
 import { useState } from 'react'
-import { NavLink, useLocation } from 'react-router-dom'
+import { NavLink } from 'react-router-dom'
 import clsx from 'clsx'
-import { isLocalAssetRace, robinhoodMainnet } from '@/chain/config'
+import { SOLANA_CLUSTER } from '@/solana/config'
 import { ConnectWalletButton } from '@/components/ConnectWalletButton'
 import { PROPHET_X_URL } from '@/lib/social'
 
 const links = [
-  { to: '/onchain', label: 'Markets', end: true },
   { to: '/onchain/races', label: 'Races' },
   { to: '/onchain/arenas', label: 'Arena' },
   { to: '/onchain/portfolio', label: 'Portfolio' },
@@ -15,19 +14,13 @@ const links = [
   { to: '/roadmap', label: 'Roadmap' },
 ]
 
-/** Full-size navbar for the real (mainnet) side of the site - the landing
- * page at "/" and everything under /onchain - mirroring the mock <Navbar>'s
- * visual size and layout so the real side doesn't look like a stripped-down
- * afterthought. Links go to the real onchain routes instead of the mock
- * ones, and the right side shows ConnectWalletButton (address avatar once
- * connected) plus a "Try the demo" link instead of Log in/Sign up, which
- * don't apply to a wallet-based flow. ConnectWalletButton also appears in
- * the collapsed mobile row, not just the hamburger menu - connecting a
- * wallet shouldn't be buried an extra tap deep. */
+const explorerHref = `https://explorer.solana.com/${SOLANA_CLUSTER === 'mainnet-beta' ? '' : `?cluster=${SOLANA_CLUSTER === 'localnet' ? 'custom' : SOLANA_CLUSTER}`}`
+
+/** Site navbar. ConnectWalletButton also appears in the collapsed mobile row,
+ * not just the hamburger menu - connecting a wallet shouldn't be buried an
+ * extra tap deep. */
 export function RealNavbar() {
   const [mobileOpen, setMobileOpen] = useState(false)
-  const { pathname } = useLocation()
-  const localRaceRoute = isLocalAssetRace && pathname.startsWith('/onchain/races')
 
   return (
     <header className="sticky top-0 z-20 border-b border-white/10 bg-[#17111f]/95 xl:bg-[#17111f]/85 xl:backdrop-blur">
@@ -37,7 +30,7 @@ export function RealNavbar() {
           <span className="font-display font-bold text-xl leading-none text-[#f7f1e3]">
             Prophet<span className="hidden sm:inline"> Markets</span><span className="text-[#8B7CF7]">.</span>
           </span>
-          {localRaceRoute && <span className="hidden text-xs font-normal text-white/30 sm:inline">on Local Anvil (test only)</span>}
+          {SOLANA_CLUSTER !== 'mainnet-beta' && <span className="hidden text-xs font-normal text-white/30 sm:inline">{SOLANA_CLUSTER}</span>}
         </NavLink>
 
         <nav className="hidden xl:flex items-center gap-0.5 text-[13px] shrink-0">
@@ -45,7 +38,6 @@ export function RealNavbar() {
             <NavLink
               key={l.to}
               to={l.to}
-              end={l.end}
               className={({ isActive }) =>
                 clsx(
                   'px-2.5 py-1.5 rounded-full transition-colors font-bold whitespace-nowrap',
@@ -56,17 +48,6 @@ export function RealNavbar() {
               {l.label}
             </NavLink>
           ))}
-          <NavLink
-            to="/onchain/create"
-            className={({ isActive }) =>
-              clsx(
-                'px-2.5 py-1.5 rounded-full transition-colors font-bold text-[#B3A7FA] whitespace-nowrap',
-                isActive ? 'bg-[#8B7CF7]/15' : 'hover:bg-[#8B7CF7]/10',
-              )
-            }
-          >
-            + Market
-          </NavLink>
           <NavLink
             to="/onchain/races/create"
             className={({ isActive }) =>
@@ -89,14 +70,14 @@ export function RealNavbar() {
           >
             + Arena
           </NavLink>
-          {!localRaceRoute && <a
-            href={robinhoodMainnet.blockExplorers.default.url}
+          <a
+            href={explorerHref}
             target="_blank"
             rel="noreferrer"
             className="px-2.5 py-1.5 rounded-full transition-colors font-bold text-white/40 hover:text-white hover:bg-white/5 whitespace-nowrap"
           >
-            Chain explorer ↗
-          </a>}
+            Solana explorer ↗
+          </a>
           <NavLink
             to="/whitepaper"
             className={({ isActive }) =>
@@ -122,12 +103,6 @@ export function RealNavbar() {
         </nav>
 
         <div className="ml-auto hidden xl:flex items-center gap-2">
-          <NavLink
-            to="/demo"
-            className="hidden text-xs px-2.5 py-1.5 rounded-full border border-white/10 text-white/50 hover:text-white hover:border-white/30 transition-colors font-bold 2xl:block"
-          >
-            Demo →
-          </NavLink>
           <ConnectWalletButton />
         </div>
 
@@ -154,7 +129,6 @@ export function RealNavbar() {
             <NavLink
               key={l.to}
               to={l.to}
-              end={l.end}
               onClick={() => setMobileOpen(false)}
               className={({ isActive }) =>
                 clsx(
@@ -166,13 +140,6 @@ export function RealNavbar() {
               {l.label}
             </NavLink>
           ))}
-          <NavLink
-            to="/onchain/create"
-            onClick={() => setMobileOpen(false)}
-            className="block px-3 py-2 rounded-lg text-sm font-bold text-[#B3A7FA] hover:bg-[#8B7CF7]/10"
-          >
-            + Create market
-          </NavLink>
           <NavLink
             to="/onchain/races/create"
             onClick={() => setMobileOpen(false)}
@@ -187,14 +154,14 @@ export function RealNavbar() {
           >
             + Create Arena
           </NavLink>
-          {!localRaceRoute && <a
-            href={robinhoodMainnet.blockExplorers.default.url}
+          <a
+            href={explorerHref}
             target="_blank"
             rel="noreferrer"
             className="block px-3 py-2 rounded-lg text-sm font-bold text-white/40 hover:bg-white/5"
           >
-            Chain explorer ↗
-          </a>}
+            Solana explorer ↗
+          </a>
           <NavLink
             to="/whitepaper"
             onClick={() => setMobileOpen(false)}
@@ -219,13 +186,6 @@ export function RealNavbar() {
             </svg>
             X
           </a>
-          <NavLink
-            to="/demo"
-            onClick={() => setMobileOpen(false)}
-            className="block px-3 py-2 rounded-lg text-sm font-bold text-white/50 hover:bg-white/5"
-          >
-            Demo →
-          </NavLink>
         </div>
       )}
     </header>

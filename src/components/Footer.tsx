@@ -1,22 +1,12 @@
-import { Link, useLocation } from 'react-router-dom'
-import { RHCHAIN_META } from '@/market/tokens'
+import { Link } from 'react-router-dom'
 import { PROPHET_X_URL } from '@/lib/social'
 
-const realModeLinks = [
-  { to: '/onchain', label: 'Markets' },
+const productLinks = [
   { to: '/onchain/races', label: 'Asset Races' },
   { to: '/onchain/arenas', label: 'Price Arena' },
   { to: '/onchain/portfolio', label: 'Portfolio' },
   { to: '/onchain/leaderboard', label: 'Leaderboard' },
-  { to: '/demo', label: 'Try the demo' },
-]
-
-const mockModeLinks = [
-  { to: '/markets', label: 'Markets' },
-  { to: '/leaderboard', label: 'Leaderboard' },
-  { to: '/archive', label: 'Archive' },
-  { to: '/explorer', label: 'Explorer' },
-  { to: '/', label: 'Live mainnet' },
+  { to: '/onchain/archive', label: 'Archive' },
 ]
 
 const resourceLinks = [
@@ -26,10 +16,6 @@ const resourceLinks = [
 ]
 
 export function Footer() {
-  const { pathname } = useLocation()
-  const isOnchain = pathname === '/' || pathname.startsWith('/onchain') || pathname === '/roadmap' || pathname === '/whitepaper' || pathname === '/terms'
-  const productLinks = isOnchain ? realModeLinks : mockModeLinks
-
   return (
     <footer className="border-t border-white/10 bg-[#120d19]">
       <div className="max-w-[1500px] mx-auto px-4 py-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
@@ -41,8 +27,8 @@ export function Footer() {
             </span>
           </div>
           <p className="text-white/40 text-sm mt-3">
-            Three onchain prediction games for tokenized assets: call a target, back the fastest mover, or name the
-            final price. Stakes and payouts use native ETH.
+            Onchain prediction games on Solana: back the fastest mover or name the final price of stocks, memes and
+            crypto. Stakes and payouts in SOL.
           </p>
           <a
             href={PROPHET_X_URL}
@@ -87,11 +73,7 @@ export function Footer() {
       <div className="border-t border-white/5">
         <div className="max-w-[1500px] mx-auto px-4 py-4 flex flex-wrap items-center justify-between gap-2 text-xs text-white/30">
           <span>© {new Date().getFullYear()} Prophet Markets</span>
-          <span>
-            {isOnchain
-              ? 'Independent project on Robinhood Chain, not affiliated with Robinhood Markets, Inc.'
-              : RHCHAIN_META.disclaimer}
-          </span>
+          <span>Independent project on Solana. Not affiliated with Solana Labs, Robinhood or any listed issuer.</span>
         </div>
       </div>
     </footer>

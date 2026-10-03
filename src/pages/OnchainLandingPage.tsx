@@ -1,49 +1,19 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { formatEther, formatUnits } from 'viem'
-import {
-  BETTING_WINDOW_BP,
-  BP_DENOMINATOR,
-  MarketStatusOnchain,
-} from '@/chain/contracts'
+import { formatEther } from 'viem'
 import { ASSET_RACE_CATEGORY, ASSET_RACE_STATUS, type AssetRaceViewModel } from '@/chain/assetRaces'
-import { assetRaceCatalog, priceSourceUrlForAssetId, priceSourceUrlForCatalogAsset, priceSourceUrlForSymbol } from '@/chain/assetRaceRegistry'
-import { demoPools, isDemoMode } from '@/chain/demo'
+import { assetRaceCatalog, priceSourceUrlForAssetId, priceSourceUrlForCatalogAsset } from '@/chain/assetRaceRegistry'
 import { CRYPTO_ASSETS_ENABLED } from '@/chain/features'
-import { predictionModeForAssetId, predictionQuoteForAssetId, tickerForPredictionAssetId } from '@/chain/predictionMarketAssets'
 import { PRICE_ARENA_CATEGORY, PRICE_ARENA_MAX_PARTICIPANTS, PRICE_ARENA_PHASE, arenaDurationLabel, type PriceArenaViewModel } from '@/chain/priceArena'
 import { useAssetRaceClock } from '@/chain/useAssetRaceClock'
-import { useAssetRaceLiveDisplay } from '@/chain/useAssetRaceLiveDisplay'
 import { useAssetRaces } from '@/chain/useAssetRaces'
 import { usePriceArenas } from '@/chain/usePriceArenas'
-import { usePredictionMarkets } from '@/chain/usePredictionMarkets'
-import { useTokenLogos } from '@/chain/robinhoodApi'
 import { isActiveOnchainStatus } from '@/chain/gameSnapshots'
 import { TokenLogo } from '@/components/TokenLogo'
 import { PriceSourceLink } from '@/components/PriceSourceLink'
-import { formatAssetPrice, formatCountdown } from '@/lib/format'
+import { formatCountdown } from '@/lib/format'
 
 const GAME_GUIDES = [
-  {
-    eyebrow: 'YES / NO',
-    title: 'Prediction Markets',
-    summary: CRYPTO_ASSETS_ENABLED
-      ? 'Call whether a stock, meme or crypto asset finishes above or below a target.'
-      : 'Call whether a tokenized stock finishes above or below a target.',
-    accent: '#6A5AE0',
-    soft: '#eeeafd',
-    image: 'brand/game-guides/prediction-markets.webp',
-    href: '/onchain',
-    cta: 'Explore markets',
-    steps: [
-      ['Choose the question', CRYPTO_ASSETS_ENABLED
-        ? 'Open a market - or create one with a reviewed stock, meme or crypto asset, target price and deadline.'
-        : 'Open a market - or create one with a reviewed stock, target price and deadline.'],
-      ['Take YES or NO', 'Enter a stake in USD or ETH. Your wallet sends the exact amount as native ETH in one transaction.'],
-      ['Bet before the cutoff', 'Earlier bets carry more pool-share weight. Betting closes before the final price deadline.'],
-      ['Settle the pool', 'The last valid price before the deadline decides it. Both sides and two wallets are required; otherwise every stake is refundable. Winners recover principal and split the losing pool. The 2% profit fee is split equally between the market creator and Prophet.'],
-    ],
-  },
   {
     eyebrow: 'FASTEST MOVER',
     title: 'Asset Races',
@@ -57,7 +27,7 @@ const GAME_GUIDES = [
       ['Pick a race', CRYPTO_ASSETS_ENABLED
         ? 'Choose a stock, meme or crypto race. Community lobbies can assemble 2-6 approved assets before betting.'
         : 'Choose a stock or meme race. Community lobbies can assemble 2-6 approved assets before betting.'],
-      ['Back one contender', 'During the betting window, choose one asset and stake in USD or ETH; top-ups stay on that asset.'],
+      ['Back one contender', 'During the betting window, choose one asset and stake in USD or SOL; top-ups stay on that asset.'],
       ['Watch T0 → T1', 'Every contender uses the same fixed start and finish snapshots. The highest percentage return wins - even if all returns are negative.'],
       ['Claim or refund', 'Backers of the winner recover principal and share the losing pools after the 2% profit fee. An exact top tie voids the race and makes stakes refundable.'],
     ],
@@ -72,8 +42,8 @@ const GAME_GUIDES = [
     href: '/onchain/arenas',
     cta: 'Explore arenas',
     steps: [
-      ['Enter the lobby', 'Submit one exact price and a USD or ETH stake. Forecasts stay hidden while entry is open.'],
-      ['Refine your call', 'Change the prediction or add stake before the lobby closes. Each arena accepts up to 20 players.'],
+      ['Enter the lobby', 'Submit one exact price and a USD or SOL stake. Forecasts stay hidden while entry is open.'],
+      ['Refine your call', 'Change the prediction or add stake before the lobby closes. Each arena accepts up to 10 players.'],
       ['Follow the round', 'Predictions become visible when play starts. The fixed deadline price ranks everyone by absolute error.'],
       ['Closest half wins', 'The closest half recover principal and share the losing half’s pool after the 2% profit fee. If the arena cannot settle by rule, stakes are refundable.'],
     ],
@@ -89,10 +59,10 @@ const FEATURES = [
     links: [],
   },
   {
-    tag: 'USD ↔ ETH',
+    tag: 'USD ↔ SOL',
     color: '#F2A65A',
     title: 'Choose how you enter the amount',
-    body: 'Type a convenient dollar amount or enter ETH directly. Every stake form shows the matching value from one shared ETH/USD quote before the wallet opens; the contract receives native ETH.',
+    body: 'Type a convenient dollar amount or enter SOL directly. Every stake form shows the matching value from one shared SOL/USD quote before the wallet opens; the program receives SOL.',
     links: [],
   },
   {
@@ -106,9 +76,8 @@ const FEATURES = [
     tag: 'YOUR IDEA, ONCHAIN',
     color: '#7A9FF0',
     title: 'If the game does not exist, create it',
-    body: 'Any wallet can create a YES/NO market, assemble an Asset Race or open a Price Arena from reviewed assets. Set the rules up front, then invite the community into the pool.',
+    body: 'Any wallet can assemble an Asset Race or open a Price Arena from reviewed assets. Set the rules up front, then invite the community into the pool.',
     links: [
-      { label: '+ Market', to: '/onchain/create', className: 'bg-[#6A5AE0] text-white hover:bg-[#5B49C7]' },
       { label: '+ Race', to: '/onchain/races/create', className: 'bg-[#ED8F3A] text-[#3b2416] hover:bg-[#F2A65A]' },
       { label: '+ Arena', to: '/onchain/arenas/create', className: 'bg-[#7A9FF0] text-[#152447] hover:bg-[#8EB1F8]' },
     ],
@@ -230,14 +199,6 @@ function useRevealOnScroll<T extends HTMLElement>() {
     return () => obs.disconnect()
   }, [])
   return { ref, visible }
-}
-
-function formatDeadlineUtc(deadline: bigint) {
-  const d = new Date(Number(deadline) * 1000)
-  const day = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })
-  const hh = String(d.getUTCHours()).padStart(2, '0')
-  const mm = String(d.getUTCMinutes()).padStart(2, '0')
-  return `${day} · ${hh}:${mm} UTC`
 }
 
 function compactEth(value: bigint) {
@@ -444,24 +405,11 @@ function ArenaPreviewCard({ arena, nowMs }: { arena: PriceArenaViewModel; nowMs:
 }
 
 export function OnchainLandingPage() {
-  const navigate = useNavigate()
-  const { markets, isLoading: marketsLoading, error: marketsError } = usePredictionMarkets()
-
-  const live = useAssetRaceLiveDisplay({ enabled: true })
   const { races, isPreview: racesPreview, isLoading: racesLoading, error: racesError } = useAssetRaces()
   const { arenas, isLoading: arenasLoading, error: arenasError } = usePriceArenas()
   const clockMs = useAssetRaceClock()
   const [initialNowMs] = useState(() => Date.now())
   const nowMs = clockMs || initialNowMs
-  const nowSeconds = BigInt(Math.floor(nowMs / 1_000))
-
-  const activeMarkets = markets
-    .filter((market) => market.status === MarketStatusOnchain.Open
-      && (CRYPTO_ASSETS_ENABLED || predictionModeForAssetId(market.assetId) === 'stocks'))
-    // Newest first -- a higher id was created later, since ids increment
-    // sequentially. Otherwise the preview here always shows the same oldest
-    // handful forever as more get created.
-    .sort((a, b) => (a.id > b.id ? -1 : a.id < b.id ? 1 : 0))
 
   // The contract status is authoritative. Local countdowns are display-only:
   // removing cards from them made valid games vanish before keeper transitions.
@@ -474,7 +422,6 @@ export function OnchainLandingPage() {
     && (CRYPTO_ASSETS_ENABLED || arena.category !== PRICE_ARENA_CATEGORY.CRYPTO)
   ))
 
-  const logos = useTokenLogos()
   const stepsReveal = useRevealOnScroll<HTMLDivElement>()
   const featuresReveal = useRevealOnScroll<HTMLDivElement>()
 
@@ -489,26 +436,19 @@ export function OnchainLandingPage() {
               <div className="min-w-0">
                 <p className="inline-flex items-center gap-2 rounded-full bg-white/60 px-3.5 py-1.5 text-xs font-bold text-[#241a33]/70 mb-6">
                   <span className="text-[#8B7CF7]">✦</span>
-                  Three ways to call the market
+                  Two ways to call the market
                 </p>
                 <h1 className="font-display text-5xl sm:text-[4rem] font-bold tracking-tight leading-[1.04]">
-                  Call it. Race it.
+                  Race it.
                   <br />
                   Name the price.
                 </h1>
                 <p className="text-[#241a33]/70 text-base sm:text-lg mt-5 max-w-md font-medium">
-                  Play YES/NO Prediction Markets, back the fastest mover in Asset Races, or forecast the exact finish
-                  in Price Arena. Enter your stake in USD or ETH; your wallet sends native ETH.
+                  Back the fastest mover in Asset Races, or forecast the exact finish in Price Arena. Enter your
+                  stake in USD or SOL; your wallet sends SOL on Solana.
                 </p>
 
                 <div className="mt-8 flex flex-col items-start gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-                  <Link
-                    to="/onchain"
-                    className="inline-flex min-w-[190px] items-center justify-between gap-3 rounded-full bg-[#6A5AE0] py-2.5 pl-6 pr-2.5 text-sm font-bold text-white shadow-[0_12px_28px_-16px_rgba(106,90,224,0.9)] transition-all hover:-translate-y-0.5 hover:bg-[#5B49C7]"
-                  >
-                    Prediction Markets
-                    <span className="grid h-8 w-8 place-items-center rounded-full bg-white/20 text-sm text-white">↗</span>
-                  </Link>
                   <Link
                     to="/onchain/races"
                     className="inline-flex min-w-[190px] items-center justify-between gap-3 rounded-full bg-[#ED8F3A] py-2.5 pl-6 pr-2.5 text-sm font-bold text-[#3b2416] shadow-[0_12px_28px_-16px_rgba(237,143,58,0.9)] transition-all hover:-translate-y-0.5 hover:bg-[#F2A65A]"
@@ -539,19 +479,6 @@ export function OnchainLandingPage() {
                 >
                   ✦
                 </span>
-                {/* YES / NO tiles, straight from the brand posters */}
-                <div
-                  className="absolute left-[2%] sm:left-[6%] top-[30%] -rotate-[10deg] rounded-2xl bg-[#8B7CF7] px-5 py-3 shadow-[0_14px_30px_-12px_rgba(106,90,224,0.7)] font-display font-bold text-xl text-[#f7f1e3] z-10"
-                  style={{ animation: 'mascot-float 6s ease-in-out infinite', animationDelay: '0.6s' }}
-                >
-                  YES
-                </div>
-                <div
-                  className="absolute right-[2%] sm:right-[6%] bottom-[26%] rotate-[9deg] rounded-2xl bg-[#F2A65A] px-5 py-3 shadow-[0_14px_30px_-12px_rgba(237,143,58,0.7)] font-display font-bold text-xl text-[#3b2416] z-10"
-                  style={{ animation: 'mascot-float 6.8s ease-in-out infinite', animationDelay: '1.4s' }}
-                >
-                  NO
-                </div>
                 <div className="absolute -top-1 right-[4%] sm:right-[10%] rotate-2 rounded-2xl rounded-br-sm bg-[#fdf9ee] px-4 py-2.5 shadow-lg text-sm font-bold z-10">
                   The future called.
                   <br />
@@ -582,13 +509,10 @@ export function OnchainLandingPage() {
                 <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.18em] text-white/65">✦ Create onchain</p>
                 <h2 className="font-display text-2xl font-bold tracking-tight text-white sm:text-3xl">Don’t just play. Create the game.</h2>
                 <p className="mt-2 text-sm leading-relaxed text-white/70 sm:text-base">
-                  Any wallet can ask a YES / NO question, assemble an Asset Race, or launch a Price Arena for the community.
+                  Any wallet can assemble an Asset Race or launch a Price Arena for the community.
                 </p>
               </div>
-              <div className="grid gap-2.5 sm:grid-cols-3">
-                <Link to="/onchain/create" className="inline-flex min-w-40 items-center justify-between gap-3 rounded-full bg-[#f7f1e3] py-2.5 pl-5 pr-2.5 text-sm font-extrabold text-[#241a33] transition-all hover:-translate-y-0.5 hover:bg-white">
-                  Market <span className="grid h-8 w-8 place-items-center rounded-full bg-[#8B7CF7] text-white">↗</span>
-                </Link>
+              <div className="grid gap-2.5 sm:grid-cols-2">
                 <Link to="/onchain/races/create" className="inline-flex min-w-40 items-center justify-between gap-3 rounded-full bg-[#f7f1e3] py-2.5 pl-5 pr-2.5 text-sm font-extrabold text-[#241a33] transition-all hover:-translate-y-0.5 hover:bg-white">
                   Race <span className="grid h-8 w-8 place-items-center rounded-full bg-[#ED8F3A] text-[#3b2416]">↗</span>
                 </Link>
@@ -606,72 +530,7 @@ export function OnchainLandingPage() {
         <p className="mb-2 text-sm font-bold text-[#B3A7FA]">Active now</p>
         <h2 className="mb-8 font-display text-3xl font-bold tracking-tight sm:text-4xl">Choose your game.</h2>
 
-        <div className="grid gap-5 lg:grid-cols-3">
-          <GameColumn
-            eyebrow="YES / NO"
-            title="Prediction Markets"
-            count={activeMarkets.length}
-            href="/onchain"
-            accent="purple"
-            loading={(marketsLoading || !!marketsError) && activeMarkets.length === 0}
-            empty="No Prediction Markets are active right now."
-          >
-            {activeMarkets.slice(0, 3).map((market) => {
-              const ticker = tickerForPredictionAssetId(market.assetId)
-              const quoteSymbol = predictionQuoteForAssetId(market.assetId)
-              const price = ticker ? live.assets[ticker] : undefined
-              const targetUsd = Number(formatUnits(market.targetPrice, market.priceDecimals))
-              const currentUsd = price && !price.stale ? Number(formatUnits(BigInt(price.priceRaw), price.decimals)) : null
-              const pools = isDemoMode() ? demoPools(market.id) : { poolYes: market.poolYes, poolNo: market.poolNo }
-              const totalPool = pools.poolYes + pools.poolNo
-              const bettingEnd = market.createdAt + ((market.deadline - market.createdAt) * BETTING_WINDOW_BP) / BP_DENOMINATOR
-              const acceptingBets = nowSeconds < bettingEnd
-
-              return (
-                <div
-                  key={market.id.toString()}
-                  role="link"
-                  tabIndex={0}
-                  aria-label={`Open ${ticker ?? 'prediction'} market #${market.id.toString()}`}
-                  onClick={(event) => {
-                    if ((event.target as HTMLElement).closest('a, button')) return
-                    navigate(`/onchain/${market.id}`)
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.target === event.currentTarget && (event.key === 'Enter' || event.key === ' ')) {
-                      event.preventDefault()
-                      navigate(`/onchain/${market.id}`)
-                    }
-                  }}
-                  className="group block cursor-pointer rounded-2xl border border-white/5 bg-black/10 p-4 transition-all hover:-translate-y-0.5 hover:border-[#8B7CF7]/40 hover:bg-[#8B7CF7]/10"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex min-w-0 items-center gap-2.5">
-                      <TokenLogo ticker={ticker} logoUrl={ticker ? logos.get(ticker) : undefined} className="h-9 w-9 rounded-xl text-base" />
-                      <div className="min-w-0">
-                        <div className="font-bold">{ticker ?? 'Market'}</div>
-                        <div className="truncate text-xs text-white/35">{formatDeadlineUtc(market.deadline)}</div>
-                      </div>
-                    </div>
-                    <span className="shrink-0 rounded-full bg-[#8B7CF7]/15 px-2.5 py-1 text-xs font-bold text-[#B3A7FA]">
-                      {acceptingBets ? timeLeft(bettingEnd, nowMs) : `SETTLES · ${timeLeft(market.deadline, nowMs)}`}
-                    </span>
-                  </div>
-                  <h3 className="mt-3 font-display text-lg font-bold leading-snug transition-colors group-hover:text-[#B3A7FA]">
-                    Will {ticker ?? 'it'} finish at or above {formatAssetPrice(targetUsd, quoteSymbol)}?
-                  </h3>
-                  <div className="mt-4 flex items-center justify-between gap-3 text-xs">
-                    <span className="text-white/35">{compactEth(totalPool)} pool{currentUsd != null ? ` · now ${formatAssetPrice(currentUsd, quoteSymbol)}` : ''}</span>
-                    <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
-                      <PriceSourceLink href={priceSourceUrlForSymbol(ticker)} symbol={ticker} tone="market" className="bg-[#8B7CF7]/10 px-2 py-1" />
-                      <span className="font-bold text-[#B3A7FA]">{acceptingBets ? 'Place a bet' : 'View market'} →</span>
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
-          </GameColumn>
-
+        <div className="grid gap-5 lg:grid-cols-2">
           <GameColumn
             eyebrow="FASTEST MOVER"
             title="Asset Races"
@@ -701,7 +560,7 @@ export function OnchainLandingPage() {
           </GameColumn>
         </div>
 
-        <p className="pt-6 text-xs font-medium text-white/30">Native ETH wagers · One wallet transaction · Onchain settlement</p>
+        <p className="pt-6 text-xs font-medium text-white/30">SOL wagers · One wallet transaction · Onchain settlement</p>
       </section>
 
       {/* Three product flows in one glance. */}

@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { PREDICTION_MARKET_ASSETS } from '@/chain/predictionMarketAssets'
+import { assetRaceCatalog } from '@/chain/assetRaceRegistry'
 
 // Robinhood Chain's own read-only REST API (see docs.robinhood.com/chain/stock-token-apis)
 // - gives token metadata + live prices for every tokenized stock, separate
@@ -89,11 +89,11 @@ export function useRobinhoodPrices(symbols: string[]) {
   })
 }
 
-// Keep the global strip and stock browser aligned with the reviewed assets
-// accepted by the current PredictionMarket contract.
-export const CORE_TICKERS = PREDICTION_MARKET_ASSETS
+// Reviewed stock assets from the race catalog. Replaced by Solana pool
+// prices when the chain layer moves to Solana.
+export const CORE_TICKERS = assetRaceCatalog
   .filter((asset) => asset.category === 'STOCK')
-  .map((asset) => asset.ticker)
+  .map((asset) => asset.symbol)
 
 /** Prices for CORE_TICKERS on a fixed query key (not parameterized by any
  * caller-supplied array), so every component using this hook shares the
