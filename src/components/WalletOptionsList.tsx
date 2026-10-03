@@ -44,8 +44,9 @@ export function WalletOptionsList({ onConnect, tone = 'market' }: {
       const index = PREFERRED.indexOf(name)
       return index === -1 ? PREFERRED.length : index
     }
+    // Loadable covers the localnet-only burner wallet (see SolanaProvider).
     return wallets
-      .filter((w) => PREFERRED.includes(w.adapter.name) || w.readyState === WalletReadyState.Installed)
+      .filter((w) => PREFERRED.includes(w.adapter.name) || w.readyState === WalletReadyState.Installed || w.readyState === WalletReadyState.Loadable)
       .sort((a, b) => rank(a.adapter.name) - rank(b.adapter.name))
   }, [wallets])
 

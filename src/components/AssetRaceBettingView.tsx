@@ -1,14 +1,11 @@
-import { assetRaceChain } from '@/chain/config'
-import type { StakeInputUnit } from '@/chain/ethUsd'
-import { formatCompactUsd, memeMarketCapUsd, useMemeTokenSupplies } from '@/chain/memeMarketCap'
-import { useAssetRaceLiveDisplay } from '@/chain/useAssetRaceLiveDisplay'
+import type { StakeInputUnit } from '@/chain/stakeQuote'
 import { ClockIcon } from '@/components/icons'
 import { StakeAmountInput } from '@/components/StakeAmountInput'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
 import { PriceSourceLink } from '@/components/PriceSourceLink'
 import { TokenLogo } from '@/components/TokenLogo'
 import { priceSourceUrlForAssetId } from '@/chain/assetRaceRegistry'
-import { formatCountdown } from '@/lib/format'
+import { formatCountdown, formatUnits, formatUsdPrice } from '@/lib/format'
 import {
   ASSET_RACE_CATEGORY,
   estimateRacePayout,
@@ -29,9 +26,6 @@ export function AssetRaceBettingView({
   setInputUnit,
   balance,
   isConnected,
-  onRightChain,
-  isSwitching,
-  onSwitchChain,
   onBet,
   txLabel,
   error,
@@ -39,7 +33,7 @@ export function AssetRaceBettingView({
   tokenDecimals,
   tokenLabel,
   amountRaw,
-  exactEth,
+  exactSol,
   equivalentUsd,
   quoteReady,
 }: {
@@ -53,9 +47,6 @@ export function AssetRaceBettingView({
   setInputUnit: (value: StakeInputUnit) => void
   balance?: bigint
   isConnected: boolean
-  onRightChain: boolean
-  isSwitching: boolean
-  onSwitchChain: () => void
   onBet: () => void
   txLabel: string | null
   error: string | null
@@ -63,17 +54,12 @@ export function AssetRaceBettingView({
   tokenDecimals: number
   tokenLabel: string
   amountRaw: bigint
-  exactEth: string | null
+  exactSol: string | null
   equivalentUsd: string | null
   quoteReady: boolean
 }) {
   const meme = race.category === ASSET_RACE_CATEGORY.MEME
   const crypto = race.category === ASSET_RACE_CATEGORY.CRYPTO
-  // Memes trade on market cap: each contender card shows MC computed from
-  // the live ETH-quoted price, onchain supply and the ETH/USD quote.
-  // Display-only; the label hides until all inputs resolve.
-  const memeSupplies = useMemeTokenSupplies(meme)
-  const { ethUsd } = useAssetRaceLiveDisplay({ enabled: meme })
   const accentText = 'text-[#F2A65A]'
   const selected = race.assets[selectedAssetIndex]
   const existingStake = position?.exists ? position.stake : 0n
@@ -137,22 +123,14 @@ export function AssetRaceBettingView({
                         {formatStakeRaw(asset.pool, tokenDecimals)} {tokenLabel}
                       </div>
                     </div>
-                    {(() => {
-                      const cap = meme
-                        ? memeMarketCapUsd({
-                            priceRaw: asset.livePrice ?? 0n,
-                            priceDecimals: asset.liveDecimals ?? asset.expectedDecimals,
-                            supply: memeSupplies.get(asset.symbol),
-                            ethUsd,
-                          })
-                        : undefined
-                      return cap != null ? (
-                        <div>
-                          <div className="text-xs font-bold text-white/30">Market cap</div>
-                          <div className="font-mono text-sm text-[#F2A65A]">{formatCompactUsd(cap)}</div>
+                    {asset.livePrice != null && (
+                      <div>
+                        <div className="text-xs font-bold text-white/30">Price</div>
+                        <div className="font-mono text-sm text-[#F2A65A]">
+                          {formatUsdPrice(Number(formatUnits(asset.livePrice, asset.liveDecimals ?? asset.expectedDecimals)))}
                         </div>
-                      ) : null
-                    })()}
+                      </div>
+                    )}
                     <div className="font-mono text-sm text-white/55">{formatPoolShare(asset.pool, race.totalPool)}</div>
                   </div>
                 </button>
@@ -201,13 +179,13 @@ export function AssetRaceBettingView({
               tone="race"
             />
             <p className="mt-2 text-xs font-medium text-white/45">
-              {exactEth
-                ? inputUnit === 'ETH'
-                  ? `Wallet will send exactly ${exactEth} ETH · about ${equivalentUsd} at the displayed quote.`
-                  : `Wallet will send exactly ${exactEth} ETH`
+              {exactSol
+                ? inputUnit === 'SOL'
+                  ? `Wallet will send exactly ${exactSol} SOL · about ${equivalentUsd} at the displayed rate.`
+                  : `Wallet will send exactly ${exactSol} SOL`
                 : quoteReady
                   ? `Enter a stake worth $1–$50 in ${inputUnit}.`
-                  : 'ETH/USD quote unavailable or stale.'}
+                  : 'SOL/USD rate unavailable or stale.'}
             </p>
             <div className="mt-1.5 flex flex-wrap justify-between gap-2 text-[11px] font-medium text-white/30">
               <span>
@@ -251,20 +229,8 @@ export function AssetRaceBettingView({
           {exceedsMax && <p className="text-xs font-bold text-rose-400">This would exceed your cumulative maximum stake.</p>}
           {error && <p className="text-sm text-rose-400">{error}</p>}
 
-          {race.source === 'preview' ? (
-            <button disabled className="w-full rounded-xl bg-white/10 py-3 text-sm font-bold text-white/45">
-              Preview only - no transaction will be sent
-            </button>
-          ) : !isConnected ? (
+          {!isConnected ? (
             <WalletOptionsList tone="race" />
-          ) : !onRightChain ? (
-            <button
-              onClick={onSwitchChain}
-              disabled={isSwitching}
-              className="w-full rounded-full bg-[#F2A65A] py-3 text-sm font-bold text-[#3b2416] disabled:opacity-50"
-            >
-              {isSwitching ? 'Switching…' : `Switch to ${assetRaceChain.name}`}
-            </button>
           ) : (
             <button
               onClick={onBet}

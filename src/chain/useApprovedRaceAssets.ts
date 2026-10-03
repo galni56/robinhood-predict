@@ -1,89 +1,47 @@
 import { useMemo } from 'react'
-import { zeroAddress, type Address, type Hex } from 'viem'
-import { useReadContract, useReadContracts } from 'wagmi'
-import { ASSET_RACE_ADDRESS, assetRaceAbi, symbolForRaceAsset, type ApprovedRaceAsset } from '@/chain/assetRaces'
-import { assetRaceChain, assetRaceNetworkKey, isLocalAssetRace } from '@/chain/config'
-import { approvedAssetMatchesCatalog, assetRaceCatalogById, priceSourceUrlForCatalogAsset } from '@/chain/assetRaceRegistry'
-import { useRobinhoodAssets } from '@/chain/robinhoodApi'
+import { useQuery } from '@tanstack/react-query'
+import { usePrograms } from '@/solana/programs'
+import { assetRaceCatalogByPool } from '@/chain/assetRaceRegistry'
+import { categoryCode, type ApprovedRaceAsset } from '@/chain/assetRaces'
+import { useGameConfig } from '@/chain/useGameConfig'
 
+const CATEGORY_NAMES = ['STOCK', 'MEME', 'CRYPTO'] as const
+
+/** Assets approved on-chain for both games, shown only when they match a
+ * reviewed catalog entry (same pool, category and price precision). */
 export function useApprovedRaceAssets() {
-  const address = ASSET_RACE_ADDRESS ?? zeroAddress
-  const enabled = !!ASSET_RACE_ADDRESS
-  const catalog = useRobinhoodAssets(!isLocalAssetRace)
-  const idsQuery = useReadContract({
-    address,
-    chainId: assetRaceChain.id,
-    abi: assetRaceAbi,
-    functionName: 'getApprovedAssetIds',
-    query: { enabled, refetchInterval: 15_000 },
-  })
-  const durationsQuery = useReadContract({
-    address,
-    chainId: assetRaceChain.id,
-    abi: assetRaceAbi,
-    functionName: 'getApprovedRaceDurations',
-    query: { enabled, refetchInterval: 15_000 },
+  const { games } = usePrograms()
+  const config = useGameConfig()
+  const approved = useQuery({
+    queryKey: ['approved-assets', games.programId.toBase58()],
+    queryFn: () => games.account.approvedAsset.all(),
+    refetchInterval: 60_000,
   })
 
-  const ids = useMemo(() => (idsQuery.data ?? []) as readonly Hex[], [idsQuery.data])
-  const registryQueries = useReadContracts({
-    contracts: ids.map((assetId) => ({
-      address,
-      chainId: assetRaceChain.id,
-      abi: assetRaceAbi,
-      functionName: 'approvedAssets',
-      args: [assetId],
-    }) as const),
-    query: { enabled: enabled && ids.length > 0, refetchInterval: 15_000 },
-  })
-
-  const assets = useMemo(() => {
-    const metadata = new Map((catalog.data ?? []).map((item) => [item.tokenSymbol.toUpperCase(), item]))
-    return ids.flatMap((assetId, index): ApprovedRaceAsset[] => {
-      const result = registryQueries.data?.[index]
-      if (result?.status !== 'success') return []
-      const [registered, assetEnabled, category, oracle, oracleId, expectedDecimals, maxPriceAge, maxEndpointLag] = result.result
-      if (!registered || !assetEnabled) return []
-      const catalogAsset = assetRaceCatalogById.get(assetId.toLowerCase())
-      if (!catalogAsset || !approvedAssetMatchesCatalog({
-        asset: catalogAsset,
-        network: assetRaceNetworkKey,
-        category,
-        oracle: oracle as Address,
-        oracleId,
-        expectedDecimals,
-        maxPriceAge,
-        maxEndpointLag,
-      })) return []
-      const symbol = symbolForRaceAsset(assetId, oracleId, index)
-      const item = metadata.get(symbol)
-      return [{
-        assetId,
-        registered,
-        enabled: assetEnabled,
-        category,
-        oracle: oracle as Address,
-        oracleId,
-        expectedDecimals,
-        maxPriceAge,
-        maxEndpointLag,
-        symbol,
-        name: catalogAsset.displayName ?? item?.tokenName.replace(/\s*•\s*Robinhood Token$/i, '') ?? symbol,
-        logoUrl: item?.logoUrl,
-        priceUrl: priceSourceUrlForCatalogAsset(catalogAsset),
-      }]
-    })
-  }, [catalog.data, ids, registryQueries.data])
-
-  async function refetch() {
-    await Promise.all([idsQuery.refetch(), durationsQuery.refetch(), registryQueries.refetch()])
-  }
+  const assets = useMemo(() => (approved.data ?? []).flatMap(({ account }): ApprovedRaceAsset[] => {
+    if (!account.enabled) return []
+    const priceSource = account.priceSource.toBase58()
+    const catalog = assetRaceCatalogByPool.get(priceSource)
+    const category = categoryCode(account.category)
+    if (!catalog?.enabled || CATEGORY_NAMES[category] !== catalog.category || catalog.priceDecimals !== account.priceDecimals) return []
+    return [{
+      assetId: catalog.assetId,
+      enabled: true,
+      category,
+      priceSource,
+      expectedDecimals: account.priceDecimals,
+      symbol: catalog.symbol,
+      name: catalog.displayName,
+      logoUrl: catalog.logoUrl,
+      priceUrl: catalog.priceUrl,
+    }]
+  }).sort((a, b) => a.symbol.localeCompare(b.symbol)), [approved.data])
 
   return {
     assets,
-    durations: (durationsQuery.data ?? []) as readonly bigint[],
-    isLoading: idsQuery.isLoading || durationsQuery.isLoading || registryQueries.isLoading,
-    error: idsQuery.error ?? durationsQuery.error ?? registryQueries.error,
-    refetch,
+    durations: config.data?.raceDurations ?? [],
+    isLoading: approved.isLoading || config.isLoading,
+    error: approved.error ?? config.error,
+    refetch: async () => { await Promise.all([approved.refetch(), config.refetch()]) },
   }
 }

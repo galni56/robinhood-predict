@@ -1,121 +1,44 @@
 import { useMemo } from 'react'
-import { zeroAddress } from 'viem'
-import { useReadContract, useReadContracts } from 'wagmi'
-import { assetRaceChain } from '@/chain/config'
-import { useStableGameCount, useStableGameSnapshots } from '@/chain/useStableGameSnapshots'
-import {
-  ACTIVE_GAME_POLL_INTERVAL_MS,
-  ACTIVE_GAME_REFRESH_OPTIONS,
-  GAME_SNAPSHOT_MULTICALL_BATCH_SIZE,
-  HISTORICAL_GAME_POLL_INTERVAL_MS,
-  splitProgressiveGameIds,
-} from '@/chain/gameSnapshots'
-import { useAssetRaceHistoryIndex, visibleIdsThroughCount } from '@/chain/gameHistory'
-import {
-  ASSET_RACE_ADDRESS,
-  ETH_DECIMALS,
-  assetRaceAbi,
-  buildPreviewRaces,
-  normalizeRaceAssets,
-  type AssetRaceAsset,
-  type AssetRaceData,
-  type AssetRaceViewModel,
-} from '@/chain/assetRaces'
+import { Buffer } from 'buffer'
+import { PublicKey } from '@solana/web3.js'
+import { useQuery } from '@tanstack/react-query'
+import { usePrograms } from '@/solana/programs'
+import { raceFromAccount, type AssetRaceViewModel } from '@/chain/assetRaces'
+import { useHistory } from '@/chain/history'
 
+const byNewest = (a: { id: bigint }, b: { id: bigint }) => (a.id > b.id ? -1 : a.id < b.id ? 1 : 0)
+
+/** Every race. Read from the indexer snapshot (one shared server-side scan);
+ * if the indexer is unreachable or serves another program, scan the program
+ * directly instead. */
 export function useAssetRaces() {
-  const isPreview = !ASSET_RACE_ADDRESS
-  const previewRaces = useMemo(() => buildPreviewRaces(), [])
-  const readAddress = ASSET_RACE_ADDRESS ?? zeroAddress
-
-  const countQuery = useReadContract({
-    address: readAddress,
-    chainId: assetRaceChain.id,
-    abi: assetRaceAbi,
-    functionName: 'raceCount',
-    query: { enabled: !isPreview, refetchInterval: ACTIVE_GAME_POLL_INTERVAL_MS, ...ACTIVE_GAME_REFRESH_OPTIONS },
+  const { games } = usePrograms()
+  const history = useHistory()
+  const programId = games.programId.toBase58()
+  const indexed = history.data?.programId === programId ? history.data : undefined
+  const useDirect = history.isError || (history.data != null && !indexed)
+  const direct = useQuery({
+    queryKey: ['races', programId],
+    queryFn: async () => (await games.account.race.all()).map((r) => raceFromAccount(r.publicKey, r.account)),
+    enabled: useDirect,
+    refetchInterval: 10_000,
   })
 
-  const count = Number(useStableGameCount('asset-race-count', countQuery.data))
-  const historyIndex = useAssetRaceHistoryIndex(!isPreview)
-  const ids = useMemo(
-    () => historyIndex.data
-      ? visibleIdsThroughCount(historyIndex.data, count)
-      : historyIndex.isError
-        ? Array.from({ length: count }, (_, index) => BigInt(index)).reverse()
-        : [],
-    [count, historyIndex.data, historyIndex.isError],
-  )
-
-  const { fastIds, historyIds } = useMemo(
-    () => splitProgressiveGameIds(ids, 12, true),
-    [ids],
-  )
-  const readsFor = (queryIds: readonly bigint[]) => queryIds.flatMap((id) => [
-    ({ address: readAddress, chainId: assetRaceChain.id, abi: assetRaceAbi, functionName: 'getRace', args: [id] }) as const,
-    ({ address: readAddress, chainId: assetRaceChain.id, abi: assetRaceAbi, functionName: 'getRaceAssets', args: [id] }) as const,
-  ])
-  const fastQueries = useReadContracts({
-    // One ordered multicall keeps each race and its asset grid on the same
-    // refresh cycle and halves the HTTP round trips used by the old split reads.
-    contracts: readsFor(fastIds),
-    batchSize: GAME_SNAPSHOT_MULTICALL_BATCH_SIZE,
-    query: {
-      enabled: !isPreview && fastIds.length > 0,
-      refetchInterval: ACTIVE_GAME_POLL_INTERVAL_MS,
-      ...ACTIVE_GAME_REFRESH_OPTIONS,
-    },
-  })
-  const indexScanComplete = isPreview || historyIndex.data != null || historyIndex.isError
-  const countScanComplete = (countQuery.data != null || countQuery.isError) && indexScanComplete
-  const fastScanComplete = countScanComplete && (
-    fastIds.length === 0 || fastQueries.data != null || fastQueries.isError
-  )
-  const historyQueries = useReadContracts({
-    contracts: readsFor(historyIds),
-    batchSize: GAME_SNAPSHOT_MULTICALL_BATCH_SIZE,
-    query: {
-      enabled: !isPreview && fastScanComplete && historyIds.length > 0,
-      refetchInterval: HISTORICAL_GAME_POLL_INTERVAL_MS,
-      ...ACTIVE_GAME_REFRESH_OPTIONS,
-    },
-  })
-  const historyScanComplete = fastScanComplete && (
-    historyIds.length === 0 || historyQueries.data != null || historyQueries.isError
-  )
-
-  const observedRaces = useMemo(() => {
-    const byId = new Map<string, AssetRaceViewModel>()
-    const collect = (queryIds: readonly bigint[], data: typeof fastQueries.data) => {
-      queryIds.forEach((id, index) => {
-        const raceResult = data?.[index * 2]
-        const assetsResult = data?.[index * 2 + 1]
-        if (raceResult?.status !== 'success' || assetsResult?.status !== 'success') return
-        const race = raceResult.result as AssetRaceData
-        const assets = normalizeRaceAssets(assetsResult.result as readonly Omit<AssetRaceAsset, 'assetIndex' | 'symbol' | 'feedAddress'>[])
-        byId.set(id.toString(), { ...race, id, assets, source: 'onchain' })
-      })
-    }
-    collect(fastIds, fastQueries.data)
-    collect(historyIds, historyQueries.data)
-    return ids.map((id) => byId.get(id.toString()) ?? null)
-  }, [fastIds, fastQueries.data, historyIds, historyQueries.data, ids])
-  const onchainRaces = useStableGameSnapshots(ids, observedRaces, {
-    cacheKey: 'asset-races',
-    idsReady: isPreview || (countQuery.data != null && indexScanComplete),
-  })
-
-  async function refetch() {
-    await Promise.all([historyIndex.refetch(), countQuery.refetch(), fastQueries.refetch(), historyQueries.refetch()])
-  }
+  const races = useMemo<AssetRaceViewModel[]>(() => {
+    if (!indexed) return direct.data ?? []
+    return indexed.races.flatMap((row) => {
+      try {
+        return [raceFromAccount(new PublicKey(row.address), games.coder.accounts.decode('race', Buffer.from(row.data, 'base64')))]
+      } catch {
+        return []
+      }
+    })
+  }, [direct.data, games, indexed]).sort(byNewest)
 
   return {
-    races: isPreview ? previewRaces : onchainRaces,
-    isPreview,
-    configuredAddress: ASSET_RACE_ADDRESS,
-    tokenDecimals: ETH_DECIMALS,
-    totalRaceCount: isPreview ? previewRaces.length : count,
-    isLoading: !isPreview && !historyScanComplete,
-    error: countQuery.error ?? historyIndex.error ?? fastQueries.error ?? historyQueries.error,
-    refetch,
+    races,
+    isLoading: indexed ? false : useDirect ? direct.isLoading : history.isLoading,
+    error: useDirect ? direct.error : null,
+    refetch: async () => { await Promise.all([history.refetch(), useDirect ? direct.refetch() : null]) },
   }
 }

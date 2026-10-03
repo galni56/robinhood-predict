@@ -1,11 +1,11 @@
-import { formatUnits } from 'viem'
 import { AssetRaceLeaderboard } from '@/components/AssetRaceLeaderboard'
 import { TrophyIcon } from '@/components/icons'
 import { PriceSourceLink } from '@/components/PriceSourceLink'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
 import { TokenLogo } from '@/components/TokenLogo'
-import { assetRaceChain } from '@/chain/config'
 import { priceSourceUrlForAssetId } from '@/chain/assetRaceRegistry'
+import type { RaceSettlement } from '@/chain/useAssetRace'
+import { formatUnits } from '@/lib/format'
 import {
   ASSET_RACE_CATEGORY,
   ASSET_RACE_STATUS,
@@ -19,12 +19,11 @@ import {
 export function AssetRaceResultView({
   race,
   position,
+  settlement,
   isConnected,
-  onRightChain,
-  isSwitching,
-  onSwitchChain,
   onClaim,
   onRefund,
+  onCloseLosing,
   txLabel,
   error,
   tokenDecimals,
@@ -32,12 +31,12 @@ export function AssetRaceResultView({
 }: {
   race: AssetRaceViewModel
   position?: AssetRacePosition
+  /** A claim or refund already made (the position account is then closed). */
+  settlement?: RaceSettlement
   isConnected: boolean
-  onRightChain: boolean
-  isSwitching: boolean
-  onSwitchChain: () => void
   onClaim: () => void
   onRefund: () => void
+  onCloseLosing: () => void
   txLabel: string | null
   error: string | null
   tokenDecimals: number
@@ -53,17 +52,19 @@ export function AssetRaceResultView({
   const payout = won ? resolvedPositionPayout(race, position) : 0n
   const refundable = !resolved && position?.exists && !position.settled
 
-  const action = race.source === 'preview' ? (
-    <button disabled className="w-full rounded-lg bg-white/10 py-2.5 text-sm font-semibold text-white/45">Preview only - no transaction will be sent</button>
-  ) : !isConnected ? (
+  const action = !isConnected ? (
     <WalletOptionsList tone="race" />
-  ) : !onRightChain ? (
-    <button onClick={onSwitchChain} disabled={isSwitching} className="w-full rounded-full bg-[#F2A65A] py-3 text-sm font-bold text-[#3b2416] disabled:opacity-50">
-      {isSwitching ? 'Switching…' : `Switch to ${assetRaceChain.name}`}
-    </button>
+  ) : settlement && !position?.exists ? (
+    <div className="w-full rounded-xl bg-white/5 py-3 text-center text-sm font-bold text-white/45">
+      {settlement.type === 'claim' ? 'Claimed' : 'Refunded'} {formatStakeRaw(settlement.amount, tokenDecimals)} {tokenLabel}
+    </div>
   ) : resolved && won ? (
-    <button onClick={onClaim} disabled={!!txLabel || position?.settled} className="w-full rounded-xl bg-gradient-to-r from-[#F2A65A] to-[#ED8F3A] py-3 text-sm font-bold text-[#3b2416] disabled:opacity-40">
-      {position?.settled ? 'Already claimed' : txLabel ?? `Claim ${formatStakeRaw(payout, tokenDecimals)} ${tokenLabel}`}
+    <button onClick={onClaim} disabled={!!txLabel} className="w-full rounded-xl bg-gradient-to-r from-[#F2A65A] to-[#ED8F3A] py-3 text-sm font-bold text-[#3b2416] disabled:opacity-40">
+      {txLabel ?? `Claim ${formatStakeRaw(payout, tokenDecimals)} ${tokenLabel}`}
+    </button>
+  ) : lost ? (
+    <button onClick={onCloseLosing} disabled={!!txLabel} className="w-full rounded-xl border border-white/15 py-3 text-sm font-bold text-white/60 transition-colors hover:border-white/30 disabled:opacity-40">
+      {txLabel ?? 'Close position and recover its account deposit'}
     </button>
   ) : refundable ? (
     <button onClick={onRefund} disabled={!!txLabel} className="w-full rounded-xl border border-[#F2A65A]/35 bg-[#F2A65A]/15 py-3 text-sm font-bold text-[#F2A65A] transition-colors hover:bg-[#F2A65A]/25 disabled:opacity-40">
@@ -83,7 +84,7 @@ export function AssetRaceResultView({
         <div className="relative text-sm font-bold text-[#F2A65A]">{resolved ? won ? 'You won' : 'Winner' : voided ? 'Race void' : 'Race cancelled'}</div>
         <h2 className="relative mt-1 flex items-center gap-3 pr-16 font-display text-3xl font-bold">{winner && <TokenLogo ticker={winner.symbol} className="h-11 w-11 rounded-xl" />}{winner ? `${winner.symbol} ${formatReturnWad(winner.returnValue)}` : voided ? 'No legitimate winner' : 'Race never started'}</h2>
         <p className="mt-2 text-sm text-white/50">
-          {won ? `Your pick took the crown. ${meme ? 'Absolute scenes.' : 'Claim your payout below.'}` : lost ? 'Better luck next race. Final ranking uses the immutable P0/P1 values.' : resolved ? 'Final ranking uses the immutable P0/P1 values stored by AssetRace.' : voided ? 'Every principal stake is refundable. No protocol fee was charged.' : 'The start conditions were not met. Every principal stake is refundable with no fee.'}
+          {won ? `Your pick took the crown. ${meme ? 'Absolute scenes.' : 'Claim your payout below.'}` : lost ? 'Better luck next race. Final ranking uses the immutable P0/P1 values.' : resolved ? 'Final ranking uses the immutable P0/P1 values stored by the program.' : voided ? 'Every principal stake is refundable. No protocol fee was charged.' : 'The start conditions were not met. Every principal stake is refundable with no fee.'}
         </p>
       </div>
 

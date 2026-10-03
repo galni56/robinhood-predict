@@ -1,9 +1,8 @@
 import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { isLocalAssetRace } from '@/chain/config'
 import {
-  ASSET_RACE_CONFIG_ERROR,
   ASSET_RACE_CATEGORY,
+  STAKE_DECIMALS,
   ASSET_RACE_ORIGIN,
   ASSET_RACE_STATUS,
   assetRaceStatusLabel,
@@ -19,7 +18,7 @@ import { CRYPTO_ASSETS_ENABLED } from '@/chain/features'
 import { priceSourceUrlForAssetId } from '@/chain/assetRaceRegistry'
 import { AddressLabel } from '@/components/AddressLabel'
 import { FilterChips, GAME_MODE_CHIP_OPTIONS } from '@/components/FilterChips'
-import { InfoBanner } from '@/components/InfoBanner'
+import { ClusterBanner } from '@/components/ClusterBanner'
 import { ClockIcon } from '@/components/icons'
 import { GameActivitySidebar } from '@/components/GameActivitySidebar'
 import { GameListLoadingGrid } from '@/components/GameListLoadingGrid'
@@ -104,7 +103,7 @@ function RaceCard({ race, nowMs, tokenDecimals }: { race: AssetRaceViewModel; no
             {!platform && (
               <>
                 {' '}
-                · by <AddressLabel address={race.creator} link={!isLocalAssetRace} className="text-white/50" />
+                · by <AddressLabel address={race.creator} className="text-white/50" />
               </>
             )}
           </div>
@@ -177,7 +176,8 @@ function RaceCard({ race, nowMs, tokenDecimals }: { race: AssetRaceViewModel; no
 }
 
 export function OnchainRacesListPage() {
-  const { races, isPreview, tokenDecimals, isLoading, error } = useAssetRaces()
+  const { races, isLoading, error } = useAssetRaces()
+  const tokenDecimals = STAKE_DECIMALS
   const [searchParams, setSearchParams] = useSearchParams()
   const requestedMode = searchParams.get('mode')
   const mode: AssetRaceMode = requestedMode === 'memes' || (CRYPTO_ASSETS_ENABLED && requestedMode === 'crypto')
@@ -209,29 +209,22 @@ export function OnchainRacesListPage() {
 
   return (
     <div className="mx-auto max-w-[1500px] px-4 py-8">
-      {isPreview ? (
-        <InfoBanner tone="warning">
-          Preview data - AssetRace is not deployed or configured, so these cards are local examples and cannot send transactions.
-          {ASSET_RACE_CONFIG_ERROR && <span className="mt-1 block text-rose-300">{ASSET_RACE_CONFIG_ERROR}</span>}
-        </InfoBanner>
-      ) : isLocalAssetRace ? (
-        <InfoBanner tone="warning">Local test network - races use Anvil and local ETH, no real funds.</InfoBanner>
-      ) : null}
+      <ClusterBanner />
 
       <div className="mb-8 flex flex-wrap items-end justify-between gap-6">
         <div className="max-w-2xl">
           <p className="mb-1 text-sm font-bold text-[#F2A65A]">
-            Prophet races · {modeRaceCount} {isPreview ? 'preview' : mode === 'memes' ? 'meme' : mode === 'crypto' ? 'crypto' : 'stock'} race{modeRaceCount === 1 ? '' : 's'}
+            Prophet races · {modeRaceCount} {mode === 'memes' ? 'meme' : mode === 'crypto' ? 'crypto' : 'stock'} race{modeRaceCount === 1 ? '' : 's'}
           </p>
           <h1 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">
-            {mode === 'memes' ? 'Pick the meme that moons.' : mode === 'crypto' ? 'BTC or ETH. Back the move.' : 'Back the fastest asset.'}
+            {mode === 'memes' ? 'Pick the meme that moons.' : mode === 'crypto' ? 'BTC, SOL or ETH. Back the move.' : 'Back the fastest asset.'}
           </h1>
           <p className="mt-2 text-sm leading-relaxed text-white/50">
             {mode === 'memes'
-              ? 'Curated demo memes. The same transparent P0 to P1 race engine, with more chaos in the paint.'
+              ? 'Reviewed Solana memes. The same transparent P0 to P1 race engine, with more chaos in the paint.'
               : mode === 'crypto'
-                ? 'Race Bitcoin against Ethereum using deterministic prices from reviewed liquid USDG pools on Robinhood Chain.'
-                : 'Featured races concentrate liquidity. Community races let wallets assemble an approved Stock Token grid before betting begins.'}
+                ? 'Race the majors using USD prices from reviewed, liquid Solana DEX pools.'
+                : 'Featured races concentrate liquidity. Community races let wallets assemble an approved tokenized-stock grid before betting begins.'}
           </p>
         </div>
         <Link

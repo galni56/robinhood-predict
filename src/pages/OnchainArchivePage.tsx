@@ -1,21 +1,106 @@
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
+import {
+  ASSET_RACE_STATUS,
+  assetRaceCategoryLabel,
+  assetRaceStatusLabel,
+  formatReturnWad,
+} from '@/chain/assetRaces'
+import { isPlayedCancellation } from '@/chain/gameVisibility'
+import { PRICE_ARENA_CATEGORY, PRICE_ARENA_STATUS, arenaDurationLabel } from '@/chain/priceArena'
+import { useAssetRaces } from '@/chain/useAssetRaces'
+import { usePriceArenas } from '@/chain/usePriceArenas'
+import { ClusterBanner } from '@/components/ClusterBanner'
+import { FilterChips } from '@/components/FilterChips'
+import { TokenLogo } from '@/components/TokenLogo'
+import { formatCompactSol, formatUnits, formatUsdPrice } from '@/lib/format'
 
-/** Placeholder while archive is rebuilt on Solana accounts and
- * game events (Asset Race positions and Price Arena entries). */
+type ArchiveMode = 'races' | 'arenas'
+
+const MODE_OPTIONS = [
+  { key: 'races', label: 'Asset Races', accent: 'race' },
+  { key: 'arenas', label: 'Price Arena', accent: 'arena' },
+] as const
+
+function dateLabel(seconds: bigint) {
+  return seconds > 0n ? new Date(Number(seconds) * 1000).toLocaleString() : '—'
+}
+
+/** Finished games: settled ones, voided races, and cancellations that had
+ * real stakes in them (empty cancelled lobbies are not history). */
 export function OnchainArchivePage() {
+  const [params, setParams] = useSearchParams()
+  const mode: ArchiveMode = params.get('mode') === 'arenas' ? 'arenas' : 'races'
+  const races = useAssetRaces()
+  const arenas = usePriceArenas()
+
+  const finishedRaces = races.races.filter((race) => (
+    race.status === ASSET_RACE_STATUS.RESOLVED
+      || race.status === ASSET_RACE_STATUS.VOID
+      || isPlayedCancellation(race.status, ASSET_RACE_STATUS.CANCELLED, race.totalPool)
+  ))
+  const finishedArenas = arenas.arenas.filter((arena) => (
+    arena.status === PRICE_ARENA_STATUS.RESOLVED
+      || isPlayedCancellation(arena.status, PRICE_ARENA_STATUS.CANCELLED, arena.totalPool)
+  ))
+  const loading = mode === 'races' ? races.isLoading : arenas.isLoading
+
   return (
-    <div className="mx-auto max-w-3xl px-4 py-16">
-      <div className="rounded-3xl border border-white/10 bg-white/[0.03] p-8 text-center">
-        <h1 className="font-display text-3xl font-bold tracking-tight">Archive</h1>
-        <p className="mt-3 text-sm text-white/55">Finished races and arenas will be listed here once the Solana history indexer is live.</p>
-        <div className="mt-6 flex justify-center gap-3">
-          <Link to="/onchain/races" className="rounded-full bg-[#ED8F3A] px-5 py-2 text-sm font-bold text-[#3b2416] hover:bg-[#F2A65A]">
-            Asset Races
-          </Link>
-          <Link to="/onchain/arenas" className="rounded-full bg-[#7A9FF0] px-5 py-2 text-sm font-bold text-[#152447] hover:bg-[#8EB1F8]">
-            Price Arena
-          </Link>
+    <div className="mx-auto max-w-[1100px] px-4 py-8">
+      <ClusterBanner />
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">Archive</h1>
+          <p className="mt-2 text-sm text-white/45">Every finished game with its final result. Results are read from the program accounts.</p>
         </div>
+        <FilterChips options={MODE_OPTIONS} value={mode} onChange={(next) => setParams(next === 'races' ? {} : { mode: next })} />
+      </div>
+
+      <div className="mt-6 space-y-2">
+        {loading ? <p className="py-10 text-center text-sm text-white/35">Loading history…</p>
+          : mode === 'races' ? (
+            finishedRaces.length === 0 ? <p className="py-10 text-center text-sm text-white/35">No finished races yet.</p>
+              : finishedRaces.map((race) => {
+                const winner = race.status === ASSET_RACE_STATUS.RESOLVED ? race.assets[race.winningAssetIndex] : undefined
+                return (
+                  <Link key={race.address} to={`/onchain/races/${race.id}`} className="flex flex-wrap items-center gap-3 rounded-2xl border border-white/5 bg-[#241b2f] px-4 py-3 transition-colors hover:border-[#F2A65A]/40">
+                    <div className="flex shrink-0 -space-x-2">
+                      {race.assets.slice(0, 4).map((asset) => <TokenLogo key={asset.assetIndex} ticker={asset.symbol} className="h-8 w-8 rounded-lg border-2 border-[#241b2f]" />)}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate font-bold">{race.title || race.assets.map((asset) => asset.symbol).join(' vs ')}</div>
+                      <div className="truncate text-xs text-[#F2A65A]">{assetRaceCategoryLabel(race.category)} race #{race.id.toString()} · {dateLabel(race.resolvedAt || race.raceEndTime)}</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm font-bold">{winner ? <>{winner.symbol} <span className="font-mono text-emerald-300">{formatReturnWad(winner.returnValue)}</span></> : assetRaceStatusLabel(race.status)}</div>
+                      <div className="font-mono text-xs text-white/40">{formatCompactSol(race.totalPool)} pool</div>
+                    </div>
+                  </Link>
+                )
+              })
+          ) : (
+            finishedArenas.length === 0 ? <p className="py-10 text-center text-sm text-white/35">No finished arenas yet.</p>
+              : finishedArenas.map((arena) => {
+                const resolved = arena.status === PRICE_ARENA_STATUS.RESOLVED
+                const category = arena.category === PRICE_ARENA_CATEGORY.MEME ? 'Meme' : arena.category === PRICE_ARENA_CATEGORY.CRYPTO ? 'Crypto' : 'Stock'
+                return (
+                  <Link key={arena.address} to={`/onchain/arenas/${arena.id}`} className="flex flex-wrap items-center gap-3 rounded-2xl border border-white/5 bg-[#241b2f] px-4 py-3 transition-colors hover:border-[#7A9FF0]/40">
+                    <TokenLogo ticker={arena.symbol} className="h-8 w-8 shrink-0 rounded-lg" />
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate font-bold">{arena.title}</div>
+                      <div className="truncate text-xs text-[#B7CEFF]">{category} arena #{arena.id.toString()} · {arena.symbol} · {arenaDurationLabel(arena.duration)} · {dateLabel(arena.resolvedAt || arena.deadline)}</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm font-bold">
+                        {resolved
+                          ? <>Final <span className="font-mono">{formatUsdPrice(Number(formatUnits(arena.finalPrice, arena.priceDecimals)))}</span> · {arena.winnerCount} of {arena.participantCount} won</>
+                          : 'Cancelled · refunded'}
+                      </div>
+                      <div className="font-mono text-xs text-white/40">{formatCompactSol(arena.totalPool)} pool</div>
+                    </div>
+                  </Link>
+                )
+              })
+          )}
       </div>
     </div>
   )

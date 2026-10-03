@@ -1,6 +1,11 @@
-import { getAddress, hexToString, isAddress, type Address, type Hex } from 'viem'
-import { assetRaceNetworkConfigError, isLocalAssetRace } from '@/chain/config'
-import { ALLOWLISTED_FEEDS, DENIED_USDG_ASSET_RACE_ADDRESS } from '@/chain/contracts'
+import type { PublicKey } from '@solana/web3.js'
+import type { IdlAccounts } from '@anchor-lang/core'
+import type { ProphetGames } from '@/solana/idl/prophet_games'
+import { assetRaceCatalogByPool, assetIdHexForSymbol } from '@/chain/assetRaceRegistry'
+import { SOL_DECIMALS } from '@/solana/config'
+
+// Asset Race view model on top of the `prophet_games` program's Race account.
+// Numeric status/category codes are kept stable for the UI components.
 
 export const ASSET_RACE_STATUS = {
   BETTING: 0,
@@ -14,80 +19,22 @@ export const ASSET_RACE_STATUS = {
 export const ASSET_RACE_CATEGORY = { STOCK: 0, MEME: 1, CRYPTO: 2 } as const
 export type AssetRaceMode = 'stocks' | 'memes' | 'crypto'
 export const ASSET_RACE_ORIGIN = { PLATFORM: 0, COMMUNITY: 1 } as const
-export const ETH_DECIMALS = 18
+/** Stake currency decimals (native SOL). */
+export const STAKE_DECIMALS = SOL_DECIMALS
 export const RETURN_SCALE = 10n ** 18n
 export const BP_DENOMINATOR = 10_000n
-export const ASSET_RACE_TOKEN_LABEL = isLocalAssetRace ? 'local ETH' : 'ETH'
+export const ASSET_RACE_TOKEN_LABEL = 'SOL'
+export const NO_WINNER = 255
 
-const configuredAddress = import.meta.env.VITE_ASSET_RACE_ADDRESS?.trim()
-const normalizedAddress = configuredAddress && isAddress(configuredAddress) ? getAddress(configuredAddress) : undefined
-const usesDeniedUsdG = normalizedAddress?.toLowerCase() === DENIED_USDG_ASSET_RACE_ADDRESS.toLowerCase()
-
-export const ASSET_RACE_ADDRESS: Address | undefined =
-  !assetRaceNetworkConfigError && normalizedAddress && !usesDeniedUsdG ? normalizedAddress : undefined
-
-export const LEGACY_ASSET_RACE_ADDRESS = getAddress('0x02F030Bd9D9DC86d713CDF0772ae4d1E3b81f235')
-export const NATIVE_ETH_ASSET_RACE_V2_ADDRESS = getAddress('0x98f9af1756148c8995729E9ccEA770fd15124bC9')
-export const LEGACY_ASSET_RACE_DEPLOYMENTS = [
-  { key: 'v1', label: 'Asset Race V1', address: LEGACY_ASSET_RACE_ADDRESS },
-  { key: 'native-v2', label: 'Asset Race V2', address: NATIVE_ETH_ASSET_RACE_V2_ADDRESS },
-].filter((deployment) => deployment.address.toLowerCase() !== ASSET_RACE_ADDRESS?.toLowerCase())
-
-export function legacyAssetRaceAddress(value: string | null) {
-  if (!value || !isAddress(value)) return LEGACY_ASSET_RACE_ADDRESS
-  const normalized = getAddress(value)
-  return LEGACY_ASSET_RACE_DEPLOYMENTS.find(
-    (deployment) => deployment.address.toLowerCase() === normalized.toLowerCase(),
-  )?.address ?? LEGACY_ASSET_RACE_ADDRESS
-}
-
-export const ASSET_RACE_CONFIG_ERROR =
-  assetRaceNetworkConfigError
-  ?? (usesDeniedUsdG ? 'VITE_ASSET_RACE_ADDRESS points to a denied USDG contract.' : null)
-  ?? (configuredAddress && !ASSET_RACE_ADDRESS ? 'VITE_ASSET_RACE_ADDRESS is not a valid EVM address.' : null)
-
-export interface AssetRaceData {
-  category: number
-  status: number
-  bettingStartTime: bigint
-  bettingEndTime: bigint
-  actualStartTime: bigint
-  raceEndTime: bigint
-  resolvedAt: bigint
-  raceDuration: bigint
-  startGrace: bigint
-  resolutionGrace: bigint
-  maxOracleTimestampSkew: bigint
-  feeBp: number
-  minActiveContenders: number
-  candidateCount: number
-  activeCount: number
-  winningAssetIndex: number
-  endSnapshotsCaptured: boolean
-  minStake: bigint
-  maxStakePerWallet: bigint
-  totalPool: bigint
-  winningPool: bigint
-  distributableLosingPool: bigint
-  protocolFee: bigint
-  remainingLiability: bigint
-  origin: number
-  creator: Address
-  title: string
-  lobbyEndTime: bigint
-  bettingWindow: bigint
-}
+type RaceAccount = IdlAccounts<ProphetGames>['race']
+type PositionAccount = IdlAccounts<ProphetGames>['position']
 
 export interface ApprovedRaceAsset {
-  assetId: Hex
-  registered: boolean
+  assetId: string
   enabled: boolean
   category: number
-  oracle: Address
-  oracleId: Hex
+  priceSource: string
   expectedDecimals: number
-  maxPriceAge: bigint
-  maxEndpointLag: bigint
   symbol: string
   name: string
   logoUrl?: string
@@ -96,27 +43,21 @@ export interface ApprovedRaceAsset {
 
 export interface AssetRaceAsset {
   assetIndex: number
-  assetId: Hex
-  oracle: Address
-  oracleId: Hex
+  assetId: string
+  symbol: string
+  priceSource: string
+  /** USD price precision of the signed pool price. */
   expectedDecimals: number
-  maxPriceAge: bigint
-  maxEndpointLag: bigint
   active: boolean
   pool: bigint
   startPrice: bigint
   endPrice: bigint
-  startOracleUpdatedAt: bigint
-  endOracleUpdatedAt: bigint
-  startObservationId: Hex
-  endObservationId: Hex
   returnValue: bigint
-  symbol: string
-  feedAddress?: Address
+  endOracleUpdatedAt: bigint
   livePrice?: bigint
   liveDecimals?: number
   liveUpdatedAt?: bigint
-  liveProvider?: 'ROBINHOOD_POOL_RPC' | 'ORACLE'
+  liveProvider?: 'PRICE_SERVICE'
   liveStale?: boolean
 }
 
@@ -124,243 +65,126 @@ export interface AssetRacePosition {
   stake: bigint
   assetIndex: number
   exists: boolean
+  /** Positions close on claim/refund, so a settled position no longer exists. */
   settled: boolean
 }
 
-export interface AssetRaceViewModel extends AssetRaceData {
+export interface AssetRaceViewModel {
   id: bigint
+  address: string
+  category: number
+  status: number
+  origin: number
+  creator: string
+  stakeMint: string
+  title: string
+  bettingStartTime: bigint
+  bettingEndTime: bigint
+  actualStartTime: bigint
+  raceEndTime: bigint
+  resolvedAt: bigint
+  raceDuration: bigint
+  startGrace: bigint
+  resolutionGrace: bigint
+  lobbyEndTime: bigint
+  bettingWindow: bigint
+  feeBp: number
+  minActiveContenders: number
+  candidateCount: number
+  activeCount: number
+  winningAssetIndex: number
+  minStake: bigint
+  maxStakePerWallet: bigint
+  totalPool: bigint
+  winningPool: bigint
+  distributableLosingPool: bigint
+  protocolFee: bigint
+  creatorFee: bigint
+  remainingLiability: bigint
+  /** Wallets that already used their one lobby addition. */
+  lobbyAdders: string[]
   assets: AssetRaceAsset[]
-  source: 'onchain' | 'preview'
-  previewPosition?: AssetRacePosition
+  source: 'onchain'
 }
 
-export const assetRaceAbi = [
-  {
-    type: 'function',
-    name: 'raceCount',
-    stateMutability: 'view',
-    inputs: [],
-    outputs: [{ type: 'uint256' }],
-  },
-  {
-    type: 'function',
-    name: 'getRace',
-    stateMutability: 'view',
-    inputs: [{ name: 'raceId', type: 'uint256' }],
-    outputs: [
-      {
-        type: 'tuple',
-        components: [
-          { name: 'category', type: 'uint8' },
-          { name: 'status', type: 'uint8' },
-          { name: 'bettingStartTime', type: 'uint64' },
-          { name: 'bettingEndTime', type: 'uint64' },
-          { name: 'actualStartTime', type: 'uint64' },
-          { name: 'raceEndTime', type: 'uint64' },
-          { name: 'resolvedAt', type: 'uint64' },
-          { name: 'raceDuration', type: 'uint64' },
-          { name: 'startGrace', type: 'uint64' },
-          { name: 'resolutionGrace', type: 'uint64' },
-          { name: 'maxOracleTimestampSkew', type: 'uint64' },
-          { name: 'feeBp', type: 'uint16' },
-          { name: 'minActiveContenders', type: 'uint8' },
-          { name: 'candidateCount', type: 'uint8' },
-          { name: 'activeCount', type: 'uint8' },
-          { name: 'winningAssetIndex', type: 'uint8' },
-          { name: 'endSnapshotsCaptured', type: 'bool' },
-          { name: 'minStake', type: 'uint256' },
-          { name: 'maxStakePerWallet', type: 'uint256' },
-          { name: 'totalPool', type: 'uint256' },
-          { name: 'winningPool', type: 'uint256' },
-          { name: 'distributableLosingPool', type: 'uint256' },
-          { name: 'protocolFee', type: 'uint256' },
-          { name: 'remainingLiability', type: 'uint256' },
-          { name: 'origin', type: 'uint8' },
-          { name: 'creator', type: 'address' },
-          { name: 'title', type: 'string' },
-          { name: 'lobbyEndTime', type: 'uint64' },
-          { name: 'bettingWindow', type: 'uint64' },
-        ],
-      },
-    ],
-  },
-  {
-    type: 'function',
-    name: 'getApprovedAssetIds',
-    stateMutability: 'view',
-    inputs: [],
-    outputs: [{ type: 'bytes32[]' }],
-  },
-  {
-    type: 'function',
-    name: 'getApprovedRaceDurations',
-    stateMutability: 'view',
-    inputs: [],
-    outputs: [{ type: 'uint64[]' }],
-  },
-  {
-    type: 'function',
-    name: 'approvedAssets',
-    stateMutability: 'view',
-    inputs: [{ name: 'assetId', type: 'bytes32' }],
-    outputs: [
-      { name: 'registered', type: 'bool' },
-      { name: 'enabled', type: 'bool' },
-      { name: 'category', type: 'uint8' },
-      { name: 'oracle', type: 'address' },
-      { name: 'oracleId', type: 'bytes32' },
-      { name: 'expectedDecimals', type: 'uint8' },
-      { name: 'maxPriceAge', type: 'uint64' },
-      { name: 'maxEndpointLag', type: 'uint64' },
-    ],
-  },
-  {
-    type: 'function',
-    name: 'lobbyAssetAddedByWallet',
-    stateMutability: 'view',
-    inputs: [
-      { name: 'raceId', type: 'uint256' },
-      { name: 'wallet', type: 'address' },
-    ],
-    outputs: [{ type: 'bool' }],
-  },
-  {
-    type: 'function',
-    name: 'createCommunityRace',
-    stateMutability: 'nonpayable',
-    inputs: [
-      { name: 'title', type: 'string' },
-      { name: 'category', type: 'uint8' },
-      { name: 'raceDuration', type: 'uint64' },
-      { name: 'initialAssetIds', type: 'bytes32[]' },
-    ],
-    outputs: [{ name: 'raceId', type: 'uint256' }],
-  },
-  {
-    type: 'function',
-    name: 'addLobbyAsset',
-    stateMutability: 'nonpayable',
-    inputs: [
-      { name: 'raceId', type: 'uint256' },
-      { name: 'assetId', type: 'bytes32' },
-    ],
-    outputs: [],
-  },
-  {
-    type: 'function',
-    name: 'openBetting',
-    stateMutability: 'nonpayable',
-    inputs: [{ name: 'raceId', type: 'uint256' }],
-    outputs: [],
-  },
-  {
-    type: 'function',
-    name: 'getRaceAssets',
-    stateMutability: 'view',
-    inputs: [{ name: 'raceId', type: 'uint256' }],
-    outputs: [
-      {
-        type: 'tuple[]',
-        components: [
-          { name: 'assetId', type: 'bytes32' },
-          { name: 'oracle', type: 'address' },
-          { name: 'oracleId', type: 'bytes32' },
-          { name: 'expectedDecimals', type: 'uint8' },
-          { name: 'maxPriceAge', type: 'uint64' },
-          { name: 'maxEndpointLag', type: 'uint64' },
-          { name: 'active', type: 'bool' },
-          { name: 'pool', type: 'uint256' },
-          { name: 'startPrice', type: 'uint256' },
-          { name: 'endPrice', type: 'uint256' },
-          { name: 'startOracleUpdatedAt', type: 'uint256' },
-          { name: 'endOracleUpdatedAt', type: 'uint256' },
-          { name: 'startObservationId', type: 'bytes32' },
-          { name: 'endObservationId', type: 'bytes32' },
-          { name: 'returnValue', type: 'int256' },
-        ],
-      },
-    ],
-  },
-  {
-    type: 'function',
-    name: 'getPosition',
-    stateMutability: 'view',
-    inputs: [
-      { name: 'raceId', type: 'uint256' },
-      { name: 'user', type: 'address' },
-    ],
-    outputs: [
-      {
-        type: 'tuple',
-        components: [
-          { name: 'stake', type: 'uint256' },
-          { name: 'assetIndex', type: 'uint8' },
-          { name: 'exists', type: 'bool' },
-          { name: 'settled', type: 'bool' },
-        ],
-      },
-    ],
-  },
-  {
-    type: 'function',
-    name: 'bet',
-    stateMutability: 'payable',
-    inputs: [
-      { name: 'raceId', type: 'uint256' },
-      { name: 'assetIndex', type: 'uint8' },
-      { name: 'amount', type: 'uint256' },
-    ],
-    outputs: [],
-  },
-  {
-    type: 'function',
-    name: 'claim',
-    stateMutability: 'nonpayable',
-    inputs: [{ name: 'raceId', type: 'uint256' }],
-    outputs: [{ name: 'payout', type: 'uint256' }],
-  },
-  {
-    type: 'function',
-    name: 'creatorEarnings',
-    stateMutability: 'view',
-    inputs: [{ name: 'creator', type: 'address' }],
-    outputs: [{ type: 'uint256' }],
-  },
-  {
-    type: 'function',
-    name: 'withdrawCreatorFees',
-    stateMutability: 'nonpayable',
-    inputs: [],
-    outputs: [{ name: 'amount', type: 'uint256' }],
-  },
-  {
-    type: 'function',
-    name: 'refund',
-    stateMutability: 'nonpayable',
-    inputs: [{ name: 'raceId', type: 'uint256' }],
-    outputs: [{ name: 'amount', type: 'uint256' }],
-  },
-] as const
+const STATUS_CODES: Record<string, number> = {
+  betting: ASSET_RACE_STATUS.BETTING,
+  running: ASSET_RACE_STATUS.RUNNING,
+  resolved: ASSET_RACE_STATUS.RESOLVED,
+  cancelled: ASSET_RACE_STATUS.CANCELLED,
+  void: ASSET_RACE_STATUS.VOID,
+  lobby: ASSET_RACE_STATUS.LOBBY,
+}
+const CATEGORY_CODES: Record<string, number> = { stock: 0, meme: 1, crypto: 2 }
+const variant = (value: object) => Object.keys(value)[0]
+const big = (value: { toString(): string }) => BigInt(value.toString())
 
-export const mockRaceOracleAbi = [
-  {
-    type: 'function',
-    name: 'latestObservation',
-    stateMutability: 'view',
-    inputs: [{ name: 'oracleId', type: 'bytes32' }],
-    outputs: [
-      {
-        type: 'tuple',
-        components: [
-          { name: 'price', type: 'uint256' },
-          { name: 'decimals', type: 'uint8' },
-          { name: 'updatedAt', type: 'uint256' },
-          { name: 'observationId', type: 'bytes32' },
-        ],
-      },
-    ],
-  },
-] as const
+export function categoryCode(category: object) {
+  return CATEGORY_CODES[variant(category)] ?? 0
+}
+
+export function raceFromAccount(address: PublicKey, r: RaceAccount): AssetRaceViewModel {
+  const status = STATUS_CODES[variant(r.status)] ?? ASSET_RACE_STATUS.BETTING
+  return {
+    id: big(r.id),
+    address: address.toBase58(),
+    category: categoryCode(r.category),
+    status,
+    origin: variant(r.origin) === 'community' ? ASSET_RACE_ORIGIN.COMMUNITY : ASSET_RACE_ORIGIN.PLATFORM,
+    creator: r.creator.toBase58(),
+    stakeMint: r.stakeMint.toBase58(),
+    title: r.title,
+    bettingStartTime: big(r.bettingStartTime),
+    bettingEndTime: big(r.bettingEndTime),
+    // P0 is fixed at the betting cutoff.
+    actualStartTime: status === ASSET_RACE_STATUS.BETTING || status === ASSET_RACE_STATUS.LOBBY ? 0n : big(r.bettingEndTime),
+    raceEndTime: big(r.raceEndTime),
+    resolvedAt: big(r.resolvedAt),
+    raceDuration: big(r.raceDuration),
+    startGrace: big(r.startGrace),
+    resolutionGrace: big(r.resolutionGrace),
+    lobbyEndTime: big(r.lobbyEndTime),
+    bettingWindow: big(r.bettingWindow),
+    feeBp: r.feeBp,
+    minActiveContenders: r.minActiveContenders,
+    candidateCount: r.assets.length,
+    activeCount: r.activeCount,
+    winningAssetIndex: r.winningAssetIndex,
+    minStake: big(r.minStake),
+    maxStakePerWallet: big(r.maxStakePerWallet),
+    totalPool: big(r.totalPool),
+    winningPool: big(r.winningPool),
+    distributableLosingPool: big(r.distributableLosingPool),
+    protocolFee: big(r.protocolFee),
+    creatorFee: big(r.creatorFee),
+    remainingLiability: big(r.remainingLiability),
+    lobbyAdders: r.lobbyAdders.map((adder) => adder.toBase58()),
+    assets: r.assets.map((a, assetIndex) => {
+      const source = a.priceSource.toBase58()
+      const catalog = assetRaceCatalogByPool.get(source)
+      const symbol = catalog?.symbol ?? new TextDecoder().decode(Uint8Array.from(a.assetId)).replaceAll('\0', '')
+      return {
+        assetIndex,
+        assetId: catalog?.assetId ?? assetIdHexForSymbol(symbol),
+        symbol,
+        priceSource: source,
+        expectedDecimals: a.priceDecimals,
+        active: a.active,
+        pool: big(a.pool),
+        startPrice: big(a.startPrice),
+        endPrice: big(a.endPrice),
+        returnValue: big(a.returnValue),
+        endOracleUpdatedAt: big(r.endPriceTime),
+      }
+    }),
+    source: 'onchain',
+  }
+}
+
+export function positionFromAccount(p: PositionAccount | null): AssetRacePosition | undefined {
+  if (!p) return undefined
+  return { stake: big(p.stake), assetIndex: p.assetIndex, exists: true, settled: false }
+}
 
 export function assetRaceStatusLabel(status: number) {
   if (status === ASSET_RACE_STATUS.LOBBY) return 'LOBBY'
@@ -390,44 +214,7 @@ export function raceModeForCategory(category: number): AssetRaceMode {
   return 'stocks'
 }
 
-export function oracleIdToFeedAddress(oracleId: Hex): Address | undefined {
-  const raw = oracleId.slice(2)
-  if (raw.length !== 64 || !/^0{24}/.test(raw)) return undefined
-  const candidate = `0x${raw.slice(24)}`
-  return isAddress(candidate) && candidate !== '0x0000000000000000000000000000000000000000'
-    ? getAddress(candidate)
-    : undefined
-}
-
-function symbolFromAssetId(assetId: Hex) {
-  try {
-    const decoded = hexToString(assetId).replaceAll('\0', '').trim()
-    return /^[A-Z0-9.-]{1,12}$/.test(decoded) ? decoded : undefined
-  } catch {
-    return undefined
-  }
-}
-
-export function symbolForRaceAsset(assetId: Hex, oracleId: Hex, index: number) {
-  const encodedSymbol = symbolFromAssetId(assetId)
-  if (encodedSymbol) return encodedSymbol
-  const feed = oracleIdToFeedAddress(oracleId)
-  const match = feed
-    ? ALLOWLISTED_FEEDS.find((item) => item.address.toLowerCase() === feed.toLowerCase())
-    : undefined
-  return match?.ticker ?? `ASSET ${index + 1}`
-}
-
-export function normalizeRaceAssets(assets: readonly Omit<AssetRaceAsset, 'assetIndex' | 'symbol' | 'feedAddress'>[]) {
-  return assets.map((asset, assetIndex) => ({
-    ...asset,
-    assetIndex,
-    symbol: symbolForRaceAsset(asset.assetId, asset.oracleId, assetIndex),
-    feedAddress: oracleIdToFeedAddress(asset.oracleId),
-  }))
-}
-
-export function formatStakeRaw(raw: bigint, decimals = ETH_DECIMALS, maxFractionDigits = 6) {
+export function formatStakeRaw(raw: bigint, decimals = STAKE_DECIMALS, maxFractionDigits = 6) {
   const negative = raw < 0n
   const value = negative ? -raw : raw
   const base = 10n ** BigInt(decimals)
@@ -478,161 +265,4 @@ export function estimateRacePayout(
 export function resolvedPositionPayout(race: AssetRaceViewModel, position?: AssetRacePosition) {
   if (!position?.exists || position.assetIndex !== race.winningAssetIndex || race.winningPool === 0n) return 0n
   return position.stake + (position.stake * race.distributableLosingPool) / race.winningPool
-}
-
-const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000' as Address
-const ZERO_BYTES = `0x${'0'.repeat(64)}` as Hex
-const PREVIEW_SIX_DECIMAL_UNITS_TO_WEI = 10n ** 9n
-
-function previewAsset(
-  assetIndex: number,
-  symbol: string,
-  pool: bigint,
-  startPrice: bigint,
-  returnValue = 0n,
-): AssetRaceAsset {
-  const feed = ALLOWLISTED_FEEDS.find((item) => item.ticker === symbol)?.address
-  const endPrice = startPrice + (startPrice * returnValue) / RETURN_SCALE
-  const poolWei = pool * PREVIEW_SIX_DECIMAL_UNITS_TO_WEI
-  return {
-    assetIndex,
-    assetId: ZERO_BYTES,
-    oracle: ZERO_ADDRESS,
-    oracleId: ZERO_BYTES,
-    expectedDecimals: 8,
-    maxPriceAge: 120n,
-    maxEndpointLag: 120n,
-    active: poolWei > 0n,
-    pool: poolWei,
-    startPrice,
-    endPrice,
-    startOracleUpdatedAt: 0n,
-    endOracleUpdatedAt: 0n,
-    startObservationId: ZERO_BYTES,
-    endObservationId: ZERO_BYTES,
-    returnValue,
-    symbol,
-    feedAddress: feed,
-    livePrice: endPrice || startPrice,
-    liveDecimals: 8,
-  }
-}
-
-function previewRace(
-  id: bigint,
-  status: number,
-  now: bigint,
-  assets: AssetRaceAsset[],
-  winningAssetIndex = 255,
-  category: number = ASSET_RACE_CATEGORY.STOCK,
-  title?: string,
-): AssetRaceViewModel {
-  const totalPool = assets.reduce((sum, asset) => sum + asset.pool, 0n)
-  const winningPool = winningAssetIndex < assets.length ? assets[winningAssetIndex].pool : 0n
-  const fee = status === ASSET_RACE_STATUS.RESOLVED ? ((totalPool - winningPool) * 200n) / BP_DENOMINATOR : 0n
-  return {
-    id,
-    source: 'preview',
-    category,
-    status,
-    bettingStartTime: now - 600n,
-    bettingEndTime: status === ASSET_RACE_STATUS.BETTING ? now + 1_200n : now - 700n,
-    actualStartTime: status === ASSET_RACE_STATUS.BETTING || status === ASSET_RACE_STATUS.CANCELLED ? 0n : now - 600n,
-    raceEndTime: status === ASSET_RACE_STATUS.RUNNING ? now + 300n : now - 60n,
-    resolvedAt: status >= ASSET_RACE_STATUS.RESOLVED ? now - 45n : 0n,
-    raceDuration: 900n,
-    startGrace: 120n,
-    resolutionGrace: 120n,
-    maxOracleTimestampSkew: 10n,
-    feeBp: 200,
-    minActiveContenders: 2,
-    candidateCount: assets.length,
-    activeCount: status === ASSET_RACE_STATUS.BETTING ? 0 : assets.filter((asset) => asset.active).length,
-    winningAssetIndex,
-    endSnapshotsCaptured: status === ASSET_RACE_STATUS.RESOLVED || status === ASSET_RACE_STATUS.VOID,
-    minStake: 1_000_000n * PREVIEW_SIX_DECIMAL_UNITS_TO_WEI,
-    maxStakePerWallet: 50_000_000n * PREVIEW_SIX_DECIMAL_UNITS_TO_WEI,
-    totalPool,
-    winningPool,
-    distributableLosingPool: totalPool - winningPool - fee,
-    protocolFee: fee / 2n,
-    remainingLiability: totalPool - fee,
-    origin: ASSET_RACE_ORIGIN.PLATFORM,
-    creator: ZERO_ADDRESS,
-    title: title ?? (id === 0n ? 'PROPHET TECH RACE' : 'FEATURED ASSET RACE'),
-    lobbyEndTime: 0n,
-    bettingWindow: 0n,
-    assets,
-    previewPosition:
-      status === ASSET_RACE_STATUS.BETTING
-        ? undefined
-        : {
-            stake: 12_000_000n * PREVIEW_SIX_DECIMAL_UNITS_TO_WEI,
-            assetIndex: status === ASSET_RACE_STATUS.RESOLVED ? winningAssetIndex : status === ASSET_RACE_STATUS.CANCELLED ? 0 : 1,
-            exists: true,
-            settled: false,
-          },
-  }
-}
-
-export function buildPreviewRaces(nowSeconds = BigInt(Math.floor(Date.now() / 1000))) {
-  // Mirror the currently enabled production meme set in preview cards, so
-  // every preview contender has the same supplied artwork as real games.
-  const memeSymbols = ['AI', 'CASHCAT', 'HOOD', 'BLORB']
-
-  return [
-    previewRace(0n, ASSET_RACE_STATUS.BETTING, nowSeconds, [
-      previewAsset(0, 'NVDA', 125_000_000n, 119_43000000n),
-      previewAsset(1, 'TSLA', 95_000_000n, 347_21000000n),
-      previewAsset(2, 'META', 60_000_000n, 642_88000000n),
-      previewAsset(3, 'AAPL', 20_000_000n, 228_64000000n),
-    ]),
-    previewRace(1n, ASSET_RACE_STATUS.RUNNING, nowSeconds, [
-      previewAsset(0, 'NVDA', 180_000_000n, 119_43000000n, 48_200_000_000_000_000n),
-      previewAsset(1, 'TSLA', 140_000_000n, 347_21000000n, 31_100_000_000_000_000n),
-      previewAsset(2, 'META', 90_000_000n, 642_88000000n, 7_300_000_000_000_000n),
-      previewAsset(3, 'AAPL', 65_000_000n, 228_64000000n, -10_400_000_000_000_000n),
-    ]),
-    previewRace(
-      2n,
-      ASSET_RACE_STATUS.RESOLVED,
-      nowSeconds,
-      [
-        previewAsset(0, 'NVDA', 200_000_000n, 118_00000000n, 61_000_000_000_000_000n),
-        previewAsset(1, 'TSLA', 180_000_000n, 350_00000000n, 22_000_000_000_000_000n),
-        previewAsset(2, 'META', 120_000_000n, 640_00000000n, -8_000_000_000_000_000n),
-        previewAsset(3, 'AAPL', 100_000_000n, 230_00000000n, -17_000_000_000_000_000n),
-      ],
-      0,
-    ),
-    previewRace(3n, ASSET_RACE_STATUS.VOID, nowSeconds, [
-      previewAsset(0, 'NVDA', 75_000_000n, 120_00000000n, 20_000_000_000_000_000n),
-      previewAsset(1, 'TSLA', 75_000_000n, 350_00000000n, 20_000_000_000_000_000n),
-      previewAsset(2, 'META', 45_000_000n, 640_00000000n, -5_000_000_000_000_000n),
-    ]),
-    previewRace(4n, ASSET_RACE_STATUS.CANCELLED, nowSeconds, [
-      previewAsset(0, 'NVDA', 25_000_000n, 0n),
-      previewAsset(1, 'TSLA', 0n, 0n),
-      previewAsset(2, 'META', 0n, 0n),
-      previewAsset(3, 'AAPL', 0n, 0n),
-    ]),
-    previewRace(5n, ASSET_RACE_STATUS.BETTING, nowSeconds, [
-      previewAsset(0, memeSymbols[0], 95_000_000n, 100_00000000n),
-      previewAsset(1, memeSymbols[1], 82_000_000n, 100_00000000n),
-      previewAsset(2, memeSymbols[2], 64_000_000n, 100_00000000n),
-      previewAsset(3, memeSymbols[3], 39_000_000n, 100_00000000n),
-    ], 255, ASSET_RACE_CATEGORY.MEME, 'MEME MAYHEM'),
-    previewRace(6n, ASSET_RACE_STATUS.RUNNING, nowSeconds, [
-      previewAsset(0, memeSymbols[0], 110_000_000n, 100_00000000n, 30_000_000_000_000_000n),
-      previewAsset(1, memeSymbols[1], 105_000_000n, 100_00000000n, 80_000_000_000_000_000n),
-      previewAsset(2, memeSymbols[2], 70_000_000n, 100_00000000n, 60_000_000_000_000_000n),
-      previewAsset(3, memeSymbols[3], 45_000_000n, 100_00000000n, -10_000_000_000_000_000n),
-    ], 255, ASSET_RACE_CATEGORY.MEME, 'WHO LET THE MEMES RUN?'),
-    previewRace(7n, ASSET_RACE_STATUS.RESOLVED, nowSeconds, [
-      previewAsset(0, memeSymbols[0], 120_000_000n, 100_00000000n, 30_000_000_000_000_000n),
-      previewAsset(1, memeSymbols[1], 115_000_000n, 100_00000000n, 80_000_000_000_000_000n),
-      previewAsset(2, memeSymbols[2], 75_000_000n, 100_00000000n, 60_000_000_000_000_000n),
-      previewAsset(3, memeSymbols[3], 50_000_000n, 100_00000000n, -10_000_000_000_000_000n),
-    ], 1, ASSET_RACE_CATEGORY.MEME, 'MEME CHAMPIONSHIP'),
-  ]
 }

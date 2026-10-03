@@ -1,17 +1,15 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { formatEther } from 'viem'
 import { ASSET_RACE_CATEGORY, ASSET_RACE_STATUS, type AssetRaceViewModel } from '@/chain/assetRaces'
 import { assetRaceCatalog, priceSourceUrlForAssetId, priceSourceUrlForCatalogAsset } from '@/chain/assetRaceRegistry'
 import { CRYPTO_ASSETS_ENABLED } from '@/chain/features'
-import { PRICE_ARENA_CATEGORY, PRICE_ARENA_MAX_PARTICIPANTS, PRICE_ARENA_PHASE, arenaDurationLabel, type PriceArenaViewModel } from '@/chain/priceArena'
+import { PRICE_ARENA_CATEGORY, PRICE_ARENA_MAX_PARTICIPANTS, PRICE_ARENA_PHASE, arenaDurationLabel, arenaPhase, type PriceArenaViewModel } from '@/chain/priceArena'
 import { useAssetRaceClock } from '@/chain/useAssetRaceClock'
 import { useAssetRaces } from '@/chain/useAssetRaces'
 import { usePriceArenas } from '@/chain/usePriceArenas'
-import { isActiveOnchainStatus } from '@/chain/gameSnapshots'
 import { TokenLogo } from '@/components/TokenLogo'
 import { PriceSourceLink } from '@/components/PriceSourceLink'
-import { formatCountdown } from '@/lib/format'
+import { formatCompactSol, formatCountdown } from '@/lib/format'
 
 const GAME_GUIDES = [
   {
@@ -84,98 +82,9 @@ const FEATURES = [
   },
 ] as const
 
-const SUPPORTED_STOCKS = assetRaceCatalog.filter((asset) => (
-  asset.category === 'STOCK' && asset.networks['robinhood-mainnet'].enabled
-))
-
-const SUPPORTED_MEMES = assetRaceCatalog.filter((asset) => (
-  asset.category === 'MEME' && asset.networks['robinhood-mainnet'].enabled
-))
-
-const SUPPORTED_CRYPTO = assetRaceCatalog.filter((asset) => (
-  asset.category === 'CRYPTO' && asset.networks['robinhood-mainnet'].enabled
-))
-
-const PROPHET_TOKEN_ADDRESS = '0x410f2bd350f3d88795cfc29b61ca664c30987efd'
-
-function copyWithTextarea(value: string) {
-  const textarea = document.createElement('textarea')
-  textarea.value = value
-  textarea.setAttribute('readonly', '')
-  textarea.style.position = 'fixed'
-  textarea.style.opacity = '0'
-  document.body.appendChild(textarea)
-  textarea.select()
-  const copied = document.execCommand('copy')
-  textarea.remove()
-  if (!copied) throw new Error('Copy failed')
-}
-
-function ProphetTokenContract() {
-  const [copyState, setCopyState] = useState<'idle' | 'copied' | 'error'>('idle')
-  const resetTimer = useRef<number | null>(null)
-
-  useEffect(() => () => {
-    if (resetTimer.current != null) window.clearTimeout(resetTimer.current)
-  }, [])
-
-  async function copyAddress() {
-    try {
-      if (navigator.clipboard?.writeText) await navigator.clipboard.writeText(PROPHET_TOKEN_ADDRESS)
-      else copyWithTextarea(PROPHET_TOKEN_ADDRESS)
-      setCopyState('copied')
-    } catch {
-      try {
-        copyWithTextarea(PROPHET_TOKEN_ADDRESS)
-        setCopyState('copied')
-      } catch {
-        setCopyState('error')
-      }
-    }
-
-    if (resetTimer.current != null) window.clearTimeout(resetTimer.current)
-    resetTimer.current = window.setTimeout(() => setCopyState('idle'), 2_000)
-  }
-
-  const buttonLabel = copyState === 'copied' ? 'Copied!' : copyState === 'error' ? 'Try again' : 'Copy'
-
-  return (
-    <div className="mt-6 max-w-[610px] rounded-2xl border border-[#6A5AE0]/20 bg-white/50 p-3 shadow-[0_14px_36px_-28px_rgba(36,26,51,0.8)] backdrop-blur-sm sm:flex sm:items-center sm:gap-3 sm:p-3.5">
-      <div className="flex min-w-0 flex-1 items-center gap-3">
-        <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#6A5AE0] text-lg text-white shadow-[0_8px_20px_-10px_rgba(106,90,224,0.9)]" aria-hidden="true">
-          ✦
-        </span>
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-            <p className="text-[11px] font-extrabold uppercase tracking-[0.15em] text-[#6A5AE0]">$PROPHET contract</p>
-            <span className="text-[10px] font-bold text-[#241a33]/45">Robinhood Chain</span>
-          </div>
-          <p className="mt-1 break-all font-mono text-[10px] font-semibold leading-relaxed text-[#241a33]/75 sm:truncate sm:text-xs">
-            {PROPHET_TOKEN_ADDRESS}
-          </p>
-        </div>
-      </div>
-      <button
-        type="button"
-        onClick={copyAddress}
-        className="mt-3 inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-[#6A5AE0] px-4 py-2.5 text-xs font-extrabold text-white transition-all hover:-translate-y-0.5 hover:bg-[#5B49C7] active:translate-y-0 sm:mt-0 sm:w-auto"
-        aria-label="Copy Prophet token contract address"
-      >
-        {copyState === 'copied' ? (
-          <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4 fill-none stroke-current" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="m5 12 4 4L19 6" />
-          </svg>
-        ) : (
-          <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4 fill-none stroke-current" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="9" y="9" width="11" height="11" rx="2" />
-            <path d="M15 9V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h3" />
-          </svg>
-        )}
-        <span aria-live="polite">{buttonLabel}</span>
-      </button>
-    </div>
-  )
-}
+const SUPPORTED_STOCKS = assetRaceCatalog.filter((asset) => asset.category === 'STOCK' && asset.enabled)
+const SUPPORTED_MEMES = assetRaceCatalog.filter((asset) => asset.category === 'MEME' && asset.enabled)
+const SUPPORTED_CRYPTO = assetRaceCatalog.filter((asset) => asset.category === 'CRYPTO' && asset.enabled)
 
 // One-shot reveal for scroll-triggered stagger animations: flips to
 // visible the first time the element enters the viewport, then stops
@@ -199,12 +108,6 @@ function useRevealOnScroll<T extends HTMLElement>() {
     return () => obs.disconnect()
   }, [])
   return { ref, visible }
-}
-
-function compactEth(value: bigint) {
-  const amount = Number(formatEther(value))
-  if (amount === 0) return '0 ETH'
-  return `${amount.toLocaleString('en-US', { maximumFractionDigits: 4 })} ETH`
 }
 
 function timeLeft(target: bigint, nowMs: number) {
@@ -345,7 +248,7 @@ function RacePreviewCard({ race, nowMs }: { race: AssetRaceViewModel; nowMs: num
       </div>
       <div className="mt-4 flex items-center justify-between gap-3 text-xs">
         <span className="text-white/35">
-          {inLobby ? `${race.candidateCount} / 6 assets` : `${compactEth(race.totalPool)} pool`}
+          {inLobby ? `${race.candidateCount} / 6 assets` : `${formatCompactSol(race.totalPool)} pool`}
         </span>
         <span className="shrink-0 font-bold text-[#F2A65A]">{actionLabel} →</span>
       </div>
@@ -394,7 +297,7 @@ function ArenaPreviewCard({ arena, nowMs }: { arena: PriceArenaViewModel; nowMs:
         </span>
       </div>
       <div className="mt-4 flex items-center justify-between gap-3 text-xs">
-        <span className="text-white/35">{arena.participantCount} / {PRICE_ARENA_MAX_PARTICIPANTS} players · {compactEth(arena.totalPool)} pool</span>
+        <span className="text-white/35">{arena.participantCount} / {PRICE_ARENA_MAX_PARTICIPANTS} players · {formatCompactSol(arena.totalPool)} pool</span>
         <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
           <PriceSourceLink href={arena.asset?.priceUrl} symbol={arena.asset?.symbol} tone="arena" className="bg-[#7A9FF0]/10 px-2 py-1" />
           <span className="font-bold text-[#B7CEFF]">{actionLabel} →</span>
@@ -405,7 +308,7 @@ function ArenaPreviewCard({ arena, nowMs }: { arena: PriceArenaViewModel; nowMs:
 }
 
 export function OnchainLandingPage() {
-  const { races, isPreview: racesPreview, isLoading: racesLoading, error: racesError } = useAssetRaces()
+  const { races, isLoading: racesLoading, error: racesError } = useAssetRaces()
   const { arenas, isLoading: arenasLoading, error: arenasError } = usePriceArenas()
   const clockMs = useAssetRaceClock()
   const [initialNowMs] = useState(() => Date.now())
@@ -413,12 +316,12 @@ export function OnchainLandingPage() {
 
   // The contract status is authoritative. Local countdowns are display-only:
   // removing cards from them made valid games vanish before keeper transitions.
-  const activeRaces = (racesPreview ? [] : races).filter((race) => (
-    isActiveOnchainStatus(race.status, [ASSET_RACE_STATUS.RESOLVED, ASSET_RACE_STATUS.CANCELLED, ASSET_RACE_STATUS.VOID])
+  const activeRaces = races.filter((race) => (
+    ![ASSET_RACE_STATUS.RESOLVED, ASSET_RACE_STATUS.CANCELLED, ASSET_RACE_STATUS.VOID].includes(race.status as 2 | 3 | 4)
     && (CRYPTO_ASSETS_ENABLED || race.category !== ASSET_RACE_CATEGORY.CRYPTO)
   ))
-  const activeArenas = arenas.filter((arena) => (
-    isActiveOnchainStatus(arena.phase, [PRICE_ARENA_PHASE.RESOLVED, PRICE_ARENA_PHASE.CANCELLED])
+  const activeArenas = arenas.map((arena) => ({ ...arena, phase: arenaPhase(arena.status, arena.startsAt, nowMs / 1000) })).filter((arena) => (
+    arena.phase !== PRICE_ARENA_PHASE.RESOLVED && arena.phase !== PRICE_ARENA_PHASE.CANCELLED
     && (CRYPTO_ASSETS_ENABLED || arena.category !== PRICE_ARENA_CATEGORY.CRYPTO)
   ))
 
@@ -464,8 +367,6 @@ export function OnchainLandingPage() {
                     <span className="grid h-8 w-8 place-items-center rounded-full bg-[#152447]/15 text-sm">↗</span>
                   </Link>
                 </div>
-
-                <ProphetTokenContract />
 
               </div>
 
@@ -579,11 +480,11 @@ export function OnchainLandingPage() {
           <div className="mb-10 max-w-2xl">
             <p className="mb-4 inline-flex items-center gap-2 rounded-full bg-white/60 px-3.5 py-1.5 text-xs font-bold text-[#241a33]/70">
               <span className="text-[#8B7CF7]">✦</span>
-              Three games · one wallet flow
+              Two games · one wallet flow
             </p>
             <h2 className="font-display text-3xl font-bold tracking-tight sm:text-5xl">How each game works</h2>
             <p className="mt-3 text-sm font-medium leading-relaxed text-[#241a33]/55 sm:text-base">
-              Choose the format, make your call, send native ETH and let the published rules settle the result.
+              Choose the format, make your call, send SOL and let the published rules settle the result.
             </p>
           </div>
 
@@ -746,8 +647,8 @@ export function OnchainLandingPage() {
                 accent: '#6A5AE0',
                 soft: '#EEEAFD',
                 ctaText: '#FFFFFF',
-                href: '/onchain/create',
-                cta: 'Create a stock market',
+                href: '/onchain/races',
+                cta: 'Explore stock races',
               },
               {
                 eyebrow: 'MEME ASSETS',
@@ -757,19 +658,19 @@ export function OnchainLandingPage() {
                 accent: '#ED8F3A',
                 soft: '#FFF0DF',
                 ctaText: '#3B2416',
-                href: '/onchain?mode=memes',
-                cta: 'Explore meme markets',
+                href: '/onchain/races?mode=memes',
+                cta: 'Explore meme races',
               },
               ...(CRYPTO_ASSETS_ENABLED ? [{
                 eyebrow: 'CRYPTO ASSETS',
                 title: 'Liquid crypto majors',
-                description: 'Bitcoin and Ethereum priced from reviewed liquid USDG pools directly on Robinhood Chain.',
+                description: 'Bitcoin, Solana and Ethereum priced in USD from reviewed, liquid Solana DEX pools.',
                 assets: SUPPORTED_CRYPTO,
                 accent: '#3B82F6',
                 soft: '#E8F0FF',
                 ctaText: '#FFFFFF',
-                href: '/onchain?mode=crypto',
-                cta: 'Explore crypto markets',
+                href: '/onchain/races?mode=crypto',
+                cta: 'Explore crypto races',
               }] : []),
             ].map((group) => (
               <div key={group.eyebrow} className="flex flex-col rounded-[2rem] border border-[#241a33]/10 bg-white/60 p-5 shadow-[0_20px_45px_-35px_rgba(36,26,51,0.45)] sm:p-7">
@@ -794,7 +695,7 @@ export function OnchainLandingPage() {
                         href={priceUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        aria-label={`View ${asset.symbol} price from the exact settlement pool on Uniswap (opens in a new tab)`}
+                        aria-label={`View ${asset.symbol} price from the exact settlement pool (opens in a new tab)`}
                         className="group/asset flex min-w-0 items-center gap-2.5 rounded-2xl border border-[#241a33]/[0.07] bg-white/75 p-2.5 transition-all hover:-translate-y-0.5 hover:border-[#241a33]/20 hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-2"
                         style={{ outlineColor: group.accent }}
                         title={`View ${asset.symbol} exact pool chart`}

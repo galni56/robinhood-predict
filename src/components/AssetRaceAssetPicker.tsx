@@ -1,8 +1,7 @@
 import { useMemo, useState } from 'react'
-import type { Hex } from 'viem'
 import { ASSET_RACE_CATEGORY, type ApprovedRaceAsset } from '@/chain/assetRaces'
-import { formatCompactUsd, memeMarketCapUsd, useMemeTokenSupplies } from '@/chain/memeMarketCap'
-import { useAssetRaceLiveDisplay } from '@/chain/useAssetRaceLiveDisplay'
+import { useLivePrices } from '@/chain/livePrices'
+import { formatUnits, formatUsdPrice } from '@/lib/format'
 import { PriceSourceLink } from '@/components/PriceSourceLink'
 import { TokenLogo } from '@/components/TokenLogo'
 
@@ -16,19 +15,17 @@ export function AssetRaceAssetPicker({
   compact = false,
 }: {
   assets: ApprovedRaceAsset[]
-  selectedIds: readonly Hex[]
+  selectedIds: readonly string[]
   onSelect: (asset: ApprovedRaceAsset) => void
-  highlightedId?: Hex
+  highlightedId?: string
   maxSelected?: number
   category?: number
   compact?: boolean
 }) {
   const meme = category === ASSET_RACE_CATEGORY.MEME
   const crypto = category === ASSET_RACE_CATEGORY.CRYPTO
-  // Memes are picked by market cap: show MC per contender from the live
-  // ETH-quoted price, onchain supply and ETH/USD. Display-only.
-  const memeSupplies = useMemeTokenSupplies(meme)
-  const live = useAssetRaceLiveDisplay({ enabled: meme })
+  // Display-only USD price per contender.
+  const live = useLivePrices()
   const [query, setQuery] = useState('')
   const selected = new Set(selectedIds.map((id) => id.toLowerCase()))
   const matches = useMemo(() => {
@@ -76,20 +73,11 @@ export function AssetRaceAssetPicker({
                   <span className="block text-xs font-bold text-[#F2A65A]">
                     {alreadySelected ? 'Added' : highlighted ? 'Selected' : 'Approved'}
                   </span>
-                  {(() => {
-                    const livePrice = meme ? live.assets[asset.symbol] : undefined
-                    const cap = livePrice && !livePrice.stale
-                      ? memeMarketCapUsd({
-                          priceRaw: BigInt(livePrice.priceRaw),
-                          priceDecimals: livePrice.decimals,
-                          supply: memeSupplies.get(asset.symbol),
-                          ethUsd: live.ethUsd,
-                        })
-                      : undefined
-                    return cap != null ? (
-                      <span className="mt-0.5 block font-mono text-[11px] text-white/45">MC {formatCompactUsd(cap)}</span>
-                    ) : null
-                  })()}
+                  {live.assets[asset.symbol] && (
+                    <span className="mt-0.5 block font-mono text-[11px] text-white/45">
+                      {formatUsdPrice(Number(formatUnits(live.assets[asset.symbol].raw, live.assets[asset.symbol].decimals)))}
+                    </span>
+                  )}
                 </span>
               </button>
               <PriceSourceLink

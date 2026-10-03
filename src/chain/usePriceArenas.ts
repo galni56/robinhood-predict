@@ -1,110 +1,42 @@
 import { useMemo } from 'react'
-import { zeroAddress } from 'viem'
-import { useReadContract, useReadContracts } from 'wagmi'
-import { assetRaceChain } from '@/chain/config'
-import { useStableGameCount, useStableGameSnapshots } from '@/chain/useStableGameSnapshots'
-import {
-  ACTIVE_GAME_POLL_INTERVAL_MS,
-  ACTIVE_GAME_REFRESH_OPTIONS,
-  GAME_SNAPSHOT_MULTICALL_BATCH_SIZE,
-  HISTORICAL_GAME_POLL_INTERVAL_MS,
-  splitProgressiveGameIds,
-} from '@/chain/gameSnapshots'
-import { usePriceArenaHistoryIndex, visibleIdsThroughCount } from '@/chain/gameHistory'
-import {
-  PRICE_ARENA_ADDRESS,
-  priceArenaAbi,
-  priceArenaAsset,
-  type PriceArenaData,
-  type PriceArenaViewModel,
-} from '@/chain/priceArena'
-import { isCoherentPriceArenaSnapshot } from '@/chain/priceArenaSnapshot'
+import { Buffer } from 'buffer'
+import { PublicKey } from '@solana/web3.js'
+import { useQuery } from '@tanstack/react-query'
+import { usePrograms } from '@/solana/programs'
+import { arenaFromAccount, type PriceArenaViewModel } from '@/chain/priceArena'
+import { useHistory } from '@/chain/history'
 
+const byNewest = (a: { id: bigint }, b: { id: bigint }) => (a.id > b.id ? -1 : a.id < b.id ? 1 : 0)
+
+/** Every arena, from the indexer snapshot or, as a fallback, a direct program scan. */
 export function usePriceArenas() {
-  const address = PRICE_ARENA_ADDRESS ?? zeroAddress
-  const enabled = !!PRICE_ARENA_ADDRESS
-  const countQuery = useReadContract({
-    address, chainId: assetRaceChain.id, abi: priceArenaAbi, functionName: 'arenaCount',
-    query: { enabled, refetchInterval: ACTIVE_GAME_POLL_INTERVAL_MS, ...ACTIVE_GAME_REFRESH_OPTIONS },
+  const { games } = usePrograms()
+  const history = useHistory()
+  const programId = games.programId.toBase58()
+  const indexed = history.data?.programId === programId ? history.data : undefined
+  const useDirect = history.isError || (history.data != null && !indexed)
+  const direct = useQuery({
+    queryKey: ['arenas', programId],
+    queryFn: async () => (await games.account.arena.all()).map((a) => arenaFromAccount(a.publicKey, a.account)),
+    enabled: useDirect,
+    refetchInterval: 10_000,
   })
-  const count = Number(useStableGameCount('price-arena-count', countQuery.data))
-  const historyIndex = usePriceArenaHistoryIndex(enabled)
-  const ids = useMemo(
-    () => historyIndex.data
-      ? visibleIdsThroughCount(historyIndex.data, count)
-      : historyIndex.isError
-        ? Array.from({ length: count }, (_, index) => BigInt(index)).reverse()
-        : [],
-    [count, historyIndex.data, historyIndex.isError],
-  )
-  const { fastIds, historyIds } = useMemo(
-    () => splitProgressiveGameIds(ids, 8, true),
-    [ids],
-  )
-  const readsFor = (queryIds: readonly bigint[]) => queryIds.flatMap((id) => [
-    ({ address, chainId: assetRaceChain.id, abi: priceArenaAbi, functionName: 'getArena', args: [id] }) as const,
-    ({ address, chainId: assetRaceChain.id, abi: priceArenaAbi, functionName: 'phase', args: [id] }) as const,
-  ])
-  const fastQueries = useReadContracts({
-    // Arena data and its derived phase must update together. Keeping both reads
-    // in one multicall removes an extra round trip and avoids mixed old/new rows.
-    contracts: readsFor(fastIds),
-    batchSize: GAME_SNAPSHOT_MULTICALL_BATCH_SIZE,
-    query: {
-      enabled: enabled && fastIds.length > 0,
-      refetchInterval: ACTIVE_GAME_POLL_INTERVAL_MS,
-      ...ACTIVE_GAME_REFRESH_OPTIONS,
-    },
-  })
-  const indexScanComplete = historyIndex.data != null || historyIndex.isError || !enabled
-  const countScanComplete = (countQuery.data != null || countQuery.isError) && indexScanComplete
-  const fastScanComplete = countScanComplete && (
-    fastIds.length === 0 || fastQueries.data != null || fastQueries.isError
-  )
-  const historyQueries = useReadContracts({
-    contracts: readsFor(historyIds),
-    batchSize: GAME_SNAPSHOT_MULTICALL_BATCH_SIZE,
-    query: {
-      enabled: enabled && fastScanComplete && historyIds.length > 0,
-      refetchInterval: HISTORICAL_GAME_POLL_INTERVAL_MS,
-      ...ACTIVE_GAME_REFRESH_OPTIONS,
-    },
-  })
-  const historyScanComplete = fastScanComplete && (
-    historyIds.length === 0 || historyQueries.data != null || historyQueries.isError
-  )
-  const observedArenas = useMemo(() => {
-    const byId = new Map<string, PriceArenaViewModel>()
-    const collect = (queryIds: readonly bigint[], data: typeof fastQueries.data) => {
-      queryIds.forEach((id, index) => {
-        const arenaResult = data?.[index * 2]
-        const phaseResult = data?.[index * 2 + 1]
-        if (arenaResult?.status !== 'success' || phaseResult?.status !== 'success') return
-        const arena = arenaResult.result as unknown as PriceArenaData
-        const phase = Number(phaseResult.result)
-        const asset = priceArenaAsset(arena.assetId)
-        if (!isCoherentPriceArenaSnapshot(arena, phase, asset?.category)) return
-        byId.set(id.toString(), { ...arena, id, phase, asset })
-      })
-    }
-    collect(fastIds, fastQueries.data)
-    collect(historyIds, historyQueries.data)
-    return ids.map((id) => byId.get(id.toString()) ?? null)
-  }, [fastIds, fastQueries.data, historyIds, historyQueries.data, ids])
-  const stableArenas = useStableGameSnapshots(ids, observedArenas, {
-    // v2 intentionally drops Arena rows captured before structural validation.
-    cacheKey: 'price-arenas-v2',
-    idsReady: countQuery.data != null && indexScanComplete,
-  })
-  const arenas = stableArenas.filter((arena) => (
-    isCoherentPriceArenaSnapshot(arena, arena.phase, arena.asset?.category)
-  ))
+
+  const arenas = useMemo<PriceArenaViewModel[]>(() => {
+    if (!indexed) return direct.data ?? []
+    return indexed.arenas.flatMap((row) => {
+      try {
+        return [arenaFromAccount(new PublicKey(row.address), games.coder.accounts.decode('arena', Buffer.from(row.data, 'base64')))]
+      } catch {
+        return []
+      }
+    })
+  }, [direct.data, games, indexed]).sort(byNewest)
 
   return {
     arenas,
-    isConfigured: enabled,
-    isLoading: enabled && !historyScanComplete,
-    error: countQuery.error ?? historyIndex.error ?? fastQueries.error ?? historyQueries.error,
-    refetch: async () => Promise.all([historyIndex.refetch(), countQuery.refetch(), fastQueries.refetch(), historyQueries.refetch()]),
+    isLoading: indexed ? false : useDirect ? direct.isLoading : history.isLoading,
+    error: useDirect ? direct.error : null,
+    refetch: async () => { await Promise.all([history.refetch(), useDirect ? direct.refetch() : null]) },
   }
 }

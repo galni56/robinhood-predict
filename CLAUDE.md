@@ -36,10 +36,11 @@ history. Nothing from this branch is on mainnet. No external security audit.
 |---|---|
 | Programs (`solana/`) | `prophet_games` (Asset Race + Price Arena in one program, shared config/assets/stake mints/treasury/creator earnings) and `nickname_registry`, + crates `pool_attestation`, `stake_funds`. 38 LiteSVM tests pass. Built with `opt-level = "z"`: 644 KB + 155 KB ≈ 5.6 SOL deploy rent. Dev IDs: prophet_games `G1xjFqQ976m5xsybUCjLxjJxRCcx3PCwpxBgj7VM6ME7`, nickname_registry `9hbJLs2EGPdvVLcxQs2N2QqZUhh8r2J86PK8rYBRxJdt`. Not deployed to devnet or mainnet. |
 | Asset catalog | Owner approved 26 assets (`config/solana-catalog-approved.json`): 3 crypto, 10 memes, 13 stocks. |
-| Frontend | Prediction Market and mock demo removed. Phantom/Solflare wallets, Anchor clients, nicknames on Solana. Race and arena pages still read through the old EVM layer (`src/chain/`, wagmi/viem) until they move to Solana. Portfolio, leaderboard and archive are placeholders. |
+| Frontend | Fully on Solana; wagmi/viem removed. Race and arena pages read `prophet_games` (lists from the indexer snapshot, fallback to direct program reads), live prices and SOL/USD from the price service, transactions via `src/chain/gameTx.ts`. Portfolio, leaderboard and archive read the indexer. Localnet-only burner wallet + airdrop button (temporary, remove before launch). Not yet clicked through on the local stand. |
 | Local stand | `scripts/solana/localnet.sh` + `scripts/solana/admin.mjs setup|seed` work on a local validator in WSL. |
 | Price service + keeper | `scripts/solana/price-service/` (accountSubscribe history, signed attestations) and `scripts/solana/keeper.mjs`. Full race and arena lifecycle passes on localnet with live mainnet prices (`scripts/solana/e2e-localnet.mjs --arena`). Needs a paid mainnet RPC; the public one returns 429. |
-| Not started | Frontend race/arena pages on Solana, indexer, devnet deploy, VPS services for Solana. |
+| Indexer | `scripts/solana/indexer.mjs` (`GET /history`, port 8791): games with raw account data, activity, wallet stats, leaderboards. |
+| Not started | Devnet deploy, VPS services for Solana, redesign. |
 
 ### Product color system
 

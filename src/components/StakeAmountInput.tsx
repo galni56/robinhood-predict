@@ -1,4 +1,4 @@
-import type { StakeInputUnit } from '@/chain/ethUsd'
+import type { StakeInputUnit } from '@/chain/stakeQuote'
 
 export function StakeAmountInput({
   id,
@@ -36,7 +36,7 @@ export function StakeAmountInput({
           {label} in {inputUnit}
         </label>
         <div className="grid grid-cols-2 rounded-lg bg-white/5 p-0.5" aria-label="Stake input currency">
-          {(['USD', 'ETH'] as const).map((unit) => (
+          {(['USD', 'SOL'] as const).map((unit) => (
             <button
               key={unit}
               type="button"
@@ -59,7 +59,7 @@ export function StakeAmountInput({
         disabled={disabled}
         value={value}
         onChange={(event) => onChange?.(event.target.value)}
-        placeholder={inputUnit === 'USD' ? '10.00' : '0.004'}
+        placeholder={inputUnit === 'USD' ? '10.00' : '0.05'}
         className={`w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 font-mono outline-none transition-colors placeholder:text-white/25 disabled:cursor-not-allowed ${focusClass}`}
       />
       <p className="mt-1.5 text-[11px] font-medium text-white/30">

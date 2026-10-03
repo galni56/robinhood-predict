@@ -1,26 +1,27 @@
 import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { formatEther } from 'viem'
 import { useAssetRaceClock } from '@/chain/useAssetRaceClock'
 import { isPlayedCancellation, isVisibleInAll } from '@/chain/gameVisibility'
 import { CRYPTO_ASSETS_ENABLED } from '@/chain/features'
 import { usePriceArenas } from '@/chain/usePriceArenas'
 import {
   PRICE_ARENA_CATEGORY,
-  PRICE_ARENA_CONFIG_ERROR,
+  PRICE_ARENA_MAX_PARTICIPANTS,
   PRICE_ARENA_PHASE,
   arenaDurationLabel,
+  arenaPhase,
   arenaPhaseLabel,
   type PriceArenaMode,
   type PriceArenaViewModel,
 } from '@/chain/priceArena'
 import { AddressLabel } from '@/components/AddressLabel'
+import { ClusterBanner } from '@/components/ClusterBanner'
 import { FilterChips, GAME_MODE_CHIP_OPTIONS } from '@/components/FilterChips'
 import { GameActivitySidebar } from '@/components/GameActivitySidebar'
 import { GameListLoadingGrid } from '@/components/GameListLoadingGrid'
 import { PriceSourceLink } from '@/components/PriceSourceLink'
 import { TokenLogo } from '@/components/TokenLogo'
-import { formatCompactEth, formatCountdown } from '@/lib/format'
+import { formatCompactSol, formatCountdown, formatSol } from '@/lib/format'
 
 const FILTERS = ['ALL', 'LOBBY', 'LIVE', 'FINISHED', 'CANCELLED'] as const
 const FILTER_OPTIONS = FILTERS.map((filter) => ({ key: filter, label: filter.charAt(0) + filter.slice(1).toLowerCase() }))
@@ -68,16 +69,16 @@ function ArenaCard({ arena, nowMs }: { arena: PriceArenaViewModel; nowMs: number
         <span className="rounded-full bg-white/5 px-2.5 py-1 text-xs font-bold text-white/60">{displayPhase(arena, nowMs)}</span>
       </div>
       <div className="mt-5 grid grid-cols-3 gap-3 rounded-2xl bg-black/10 p-3 text-sm">
-        <div className="min-w-0"><div className="text-xs text-white/30">Asset</div><div className="mt-1 flex min-w-0 items-center gap-2 font-bold"><TokenLogo ticker={arena.asset?.symbol} className="h-7 w-7 shrink-0 rounded-lg" /><span className="truncate">{arena.asset?.symbol ?? '-'}</span></div></div>
-        <div className="min-w-0"><div className="text-xs text-white/30">Players</div><div className="mt-1 truncate font-mono font-bold tabular-nums">{arena.participantCount} / 20</div></div>
-        <div className="min-w-0"><div className="text-xs text-white/30">Prize pool</div><div title={`${formatEther(arena.totalPool)} ETH`} className="mt-1 truncate font-mono text-[0.78rem] font-bold tabular-nums">{formatCompactEth(arena.totalPool, 3)}</div></div>
+        <div className="min-w-0"><div className="text-xs text-white/30">Asset</div><div className="mt-1 flex min-w-0 items-center gap-2 font-bold"><TokenLogo ticker={arena.symbol} className="h-7 w-7 shrink-0 rounded-lg" /><span className="truncate">{arena.symbol}</span></div></div>
+        <div className="min-w-0"><div className="text-xs text-white/30">Players</div><div className="mt-1 truncate font-mono font-bold tabular-nums">{arena.participantCount} / {PRICE_ARENA_MAX_PARTICIPANTS}</div></div>
+        <div className="min-w-0"><div className="text-xs text-white/30">Prize pool</div><div title={`${formatSol(arena.totalPool)} SOL`} className="mt-1 truncate font-mono text-[0.78rem] font-bold tabular-nums">{formatCompactSol(arena.totalPool, 3)}</div></div>
       </div>
       <div className="mt-4 flex items-center justify-between text-xs">
         <span className="text-white/40">{arenaDurationLabel(arena.duration)} round · {countdown(arena, nowMs)}</span>
         <div className="flex flex-wrap items-center justify-end gap-2">
           <PriceSourceLink
             href={arena.asset?.priceUrl}
-            symbol={arena.asset?.symbol}
+            symbol={arena.symbol}
             tone="arena"
             className="bg-[#7A9FF0]/10 px-2.5 py-1"
           />
@@ -89,7 +90,7 @@ function ArenaCard({ arena, nowMs }: { arena: PriceArenaViewModel; nowMs: number
 }
 
 export function OnchainArenasListPage() {
-  const { arenas, isConfigured, isLoading, error } = usePriceArenas()
+  const { arenas: decoded, isLoading, error } = usePriceArenas()
   const [params, setParams] = useSearchParams()
   const requestedMode = params.get('mode')
   const mode: PriceArenaMode = requestedMode === 'memes' || (CRYPTO_ASSETS_ENABLED && requestedMode === 'crypto')
@@ -103,6 +104,8 @@ export function OnchainArenasListPage() {
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>('ALL')
   const terminalFilter = filter === 'FINISHED' || filter === 'CANCELLED'
   const nowMs = useAssetRaceClock()
+  // Lobby vs live depends on the clock, not only on account data.
+  const arenas = decoded.map((arena) => ({ ...arena, phase: arenaPhase(arena.status, arena.startsAt, nowMs / 1000) }))
   const visible = arenas.filter((arena) => arena.category === category && (
     filter === 'ALL' ? isVisibleInAll(arena.phase, PRICE_ARENA_PHASE.CANCELLED, arena.totalPool)
       : filter === 'LOBBY' ? arena.phase === PRICE_ARENA_PHASE.LOBBY
@@ -113,6 +116,7 @@ export function OnchainArenasListPage() {
 
   return (
     <div className="mx-auto max-w-[1500px] px-4 py-8">
+      <ClusterBanner />
       <div className="flex flex-wrap items-end justify-between gap-6">
         <div className="max-w-2xl">
           <p className="text-sm font-bold text-[#B7CEFF]">Price Arena · closest price wins</p>
@@ -121,8 +125,6 @@ export function OnchainArenasListPage() {
         </div>
         <Link to={`/onchain/arenas/create${mode === 'stocks' ? '' : `?mode=${mode}`}`} className="rounded-full bg-[#7A9FF0] px-5 py-3 text-sm font-bold text-[#152447] transition-colors hover:bg-[#8EB1F8]">+ Create {mode === 'memes' ? 'meme' : mode === 'crypto' ? 'crypto' : 'stock'} arena</Link>
       </div>
-
-      {!isConfigured && <div className="mt-6 rounded-2xl border border-amber-400/25 bg-amber-400/10 p-4 text-sm text-amber-100">Price Arena is not configured in this build. {PRICE_ARENA_CONFIG_ERROR}</div>}
 
       <div className="mt-8 flex flex-wrap items-center justify-between gap-3">
         <FilterChips size="sm" options={GAME_MODE_CHIP_OPTIONS} value={mode} onChange={(item) => setParams(item === 'stocks' ? {} : { mode: item })} />

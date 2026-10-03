@@ -3,6 +3,7 @@ import { NavLink } from 'react-router-dom'
 import { useWallet } from '@solana/wallet-adapter-react'
 import { AddressAvatar } from '@/components/AddressAvatar'
 import { AddressLabel } from '@/components/AddressLabel'
+import { LocalnetAirdropButton } from '@/components/LocalnetAirdropButton'
 import { SetNicknameModal } from '@/components/SetNicknameModal'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
 import { explorerUrl } from '@/solana/config'
@@ -66,6 +67,7 @@ export function ConnectWalletButton() {
               >
                 View on explorer ↗
               </a>
+              <LocalnetAirdropButton />
               <div className="my-1 border-t border-white/10" />
               <button
                 onClick={() => {

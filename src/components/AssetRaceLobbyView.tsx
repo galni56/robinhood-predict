@@ -1,6 +1,4 @@
 import { useState } from 'react'
-import type { Hex } from 'viem'
-import { assetRaceChain, isLocalAssetRace } from '@/chain/config'
 import { priceSourceUrlForAssetId } from '@/chain/assetRaceRegistry'
 import { useApprovedRaceAssets } from '@/chain/useApprovedRaceAssets'
 import { AddressLabel } from '@/components/AddressLabel'
@@ -15,9 +13,6 @@ export function AssetRaceLobbyView({
   race,
   nowMs,
   isConnected,
-  onRightChain,
-  isSwitching,
-  onSwitchChain,
   hasAddedAsset,
   onAddAsset,
   onOpenBetting,
@@ -27,11 +22,8 @@ export function AssetRaceLobbyView({
   race: AssetRaceViewModel
   nowMs: number
   isConnected: boolean
-  onRightChain: boolean
-  isSwitching: boolean
-  onSwitchChain: () => void
   hasAddedAsset: boolean
-  onAddAsset: (assetId: Hex) => void
+  onAddAsset: (assetId: string) => void
   onOpenBetting: () => void
   txLabel: string | null
   error: string | null
@@ -59,7 +51,7 @@ export function AssetRaceLobbyView({
               You may add one approved asset, or simply wait. Betting starts after the lobby closes, and the asset list
               cannot change after that.
             </p>
-            <p className="mt-3 text-xs font-medium text-white/40">Created by <AddressLabel address={race.creator} link={!isLocalAssetRace} className="font-bold text-white/70" /></p>
+            <p className="mt-3 text-xs font-medium text-white/40">Created by <AddressLabel address={race.creator} className="font-bold text-white/70" /></p>
           </div>
           <div className="text-right">
             <div className="font-mono text-2xl font-bold">{nowMs > 0 ? formatCountdown(Number(race.lobbyEndTime) * 1_000 - nowMs) : '…'}</div>
@@ -107,18 +99,13 @@ export function AssetRaceLobbyView({
                 setShowPicker((value) => !value)
                 setPendingAsset(null)
               }}
-              disabled={raceFull || hasAddedAsset || !isConnected || !onRightChain || !!txLabel}
+              disabled={raceFull || hasAddedAsset || !isConnected || !!txLabel}
               className="rounded-full bg-[#F2A65A] px-4 py-2 text-xs font-bold text-[#3b2416] disabled:opacity-40"
             >
               {raceFull ? 'Race full' : hasAddedAsset ? 'Asset added' : `Add ${meme ? 'meme' : crypto ? 'crypto' : 'stock'}`}
             </button>
           </div>
           {!isConnected && <div className="mt-4"><WalletOptionsList tone="race" /></div>}
-          {isConnected && !onRightChain && (
-            <button onClick={onSwitchChain} disabled={isSwitching} className="mt-4 w-full rounded-full bg-[#F2A65A] py-2.5 text-sm font-bold text-[#3b2416] disabled:opacity-50">
-              {isSwitching ? 'Switching…' : `Switch to ${assetRaceChain.name}`}
-            </button>
-          )}
           {showPicker && isConnected && !raceFull && !hasAddedAsset && (
             <div className="mt-4 border-t border-white/10 pt-4">
               {isLoading ? <p className="py-6 text-center text-sm text-white/35">Loading approved assets…</p> : (
@@ -137,7 +124,7 @@ export function AssetRaceLobbyView({
                       <div className="text-xs font-bold text-white/45">Selected contender</div>
                       <div className="mt-1 font-display text-lg font-bold">{pendingAsset.symbol} <span className="font-sans text-sm font-normal text-white/40">{pendingAsset.name}</span></div>
                       <p className="mt-2 max-w-xl text-xs leading-relaxed text-white/50">
-                        Confirm adding {pendingAsset.symbol} to this race. Your wallet will ask you to sign the transaction and pay its ETH network fee.
+                        Confirm adding {pendingAsset.symbol} to this race. Your wallet will ask you to sign the transaction and pay a small SOL network fee.
                       </p>
                     </div>
                     <div className="flex w-full gap-2 sm:w-auto">
@@ -173,11 +160,7 @@ export function AssetRaceLobbyView({
             {race.assets.length >= 2 ? 'The grid is ready. Anyone can open the betting window.' : 'Fewer than two assets joined. Opening will cancel this race with no funds involved.'}
           </p>
           <div className="mt-4">
-            {!isConnected ? <WalletOptionsList tone="race" /> : !onRightChain ? (
-              <button onClick={onSwitchChain} disabled={isSwitching} className="w-full rounded-full bg-[#F2A65A] py-2.5 text-sm font-bold text-[#3b2416] disabled:opacity-50">
-                {isSwitching ? 'Switching…' : `Switch to ${assetRaceChain.name}`}
-              </button>
-            ) : (
+            {!isConnected ? <WalletOptionsList tone="race" /> : (
               <button onClick={onOpenBetting} disabled={!!txLabel} className="w-full rounded-xl bg-gradient-to-r from-[#F2A65A] to-[#ED8F3A] py-3 text-sm font-bold text-[#3b2416] disabled:opacity-40">
                 {txLabel ?? (race.assets.length >= 2 ? 'Open betting' : 'Cancel empty lobby')}
               </button>

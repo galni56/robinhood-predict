@@ -25,8 +25,8 @@ losing pool split between the game's creator and Prophet.
 | `scripts/solana-catalog-*.mjs`, `scripts/solana-assets-config.mjs` | Asset catalog scan, proposal and registry generation. |
 | `docs/` | Migration plan, changelog, asset catalog for review. |
 
-`src/chain/` and `config/asset-race-assets.json` are the old EVM read layer still used by the race and
-arena pages; they are removed once those pages read Solana.
+`src/chain/` is the game data layer: Solana account view models, read hooks, transaction builders
+(`gameTx.ts`), live prices and the indexer snapshot.
 
 ## Running locally
 
@@ -73,7 +73,9 @@ On localnet the oracle key is the admin key; devnet and mainnet need a separate 
 |---|---|---|
 | `VITE_SOLANA_CLUSTER` | `devnet` | `localnet`, `devnet` or `mainnet-beta` |
 | `VITE_SOLANA_RPC_URL` | cluster default | RPC endpoint; a relative path (VPS proxy) is resolved against the page origin |
-| `VITE_ASSET_RACE_PROGRAM_ID`, `VITE_PRICE_ARENA_PROGRAM_ID`, `VITE_NICKNAME_PROGRAM_ID` | development IDs | Program addresses for the cluster |
+| `VITE_GAMES_PROGRAM_ID`, `VITE_NICKNAME_PROGRAM_ID` | development IDs | Program addresses for the cluster (required for a mainnet build) |
+| `VITE_PRICE_SERVICE_URL` | `/price-service` | Price service base URL (dev server proxies to `127.0.0.1:8790`) |
+| `VITE_INDEXER_URL` | `/indexer` | History indexer base URL (dev server proxies to `127.0.0.1:8791`) |
 | `VITE_BASE_PATH` | `/robinhood-predict/` | `/` when served from a domain root |
 
 Never commit keypairs or API keys. Program keypairs live in the WSL target directory, outside the repo.

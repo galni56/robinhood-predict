@@ -1,77 +1,68 @@
-import { getAddress, isAddress, stringToHex, type Address, type Hex } from 'viem'
-import { assetRaceCatalog, priceSourceUrlForCatalogAsset, type AssetRaceCategoryName } from '@/chain/assetRaceRegistry'
-import { assetRaceNetworkKey } from '@/chain/config'
-import { DENIED_USDG_PRICE_ARENA_ADDRESS } from '@/chain/contracts'
+import type { PublicKey } from '@solana/web3.js'
+import type { IdlAccounts } from '@anchor-lang/core'
+import type { ProphetGames } from '@/solana/idl/prophet_games'
+import { assetRaceCatalog, assetIdHexForSymbol, type AssetRaceCategoryName } from '@/chain/assetRaceRegistry'
+import { symbolFromAssetId } from '@/solana/pda'
 
-const rawAddress = import.meta.env.VITE_PRICE_ARENA_ADDRESS?.trim()
-const normalizedAddress = rawAddress && isAddress(rawAddress) ? getAddress(rawAddress) : undefined
-const usesDeniedUsdG = normalizedAddress?.toLowerCase() === DENIED_USDG_PRICE_ARENA_ADDRESS.toLowerCase()
-export const PRICE_ARENA_ADDRESS: Address | undefined = normalizedAddress && !usesDeniedUsdG
-  ? normalizedAddress
-  : undefined
-export const LEGACY_PRICE_ARENA_ADDRESS = getAddress('0x383840a8Ca00dcB4b6cAc17e746c793426fE2f05')
-export const NATIVE_ETH_PRICE_ARENA_V2_ADDRESS = getAddress('0x8c1c5544E00C2f8ea2C564B179CdEB38504805d5')
-export const LEGACY_PRICE_ARENA_DEPLOYMENTS = [
-  { key: 'v1', label: 'Price Arena V1', address: LEGACY_PRICE_ARENA_ADDRESS },
-  { key: 'native-v2', label: 'Price Arena V2', address: NATIVE_ETH_PRICE_ARENA_V2_ADDRESS },
-].filter((deployment) => deployment.address.toLowerCase() !== PRICE_ARENA_ADDRESS?.toLowerCase())
-
-export function legacyPriceArenaAddress(value: string | null) {
-  if (!value || !isAddress(value)) return LEGACY_PRICE_ARENA_ADDRESS
-  const normalized = getAddress(value)
-  return LEGACY_PRICE_ARENA_DEPLOYMENTS.find(
-    (deployment) => deployment.address.toLowerCase() === normalized.toLowerCase(),
-  )?.address ?? LEGACY_PRICE_ARENA_ADDRESS
-}
-export const PRICE_ARENA_CONFIG_ERROR = usesDeniedUsdG
-  ? 'VITE_PRICE_ARENA_ADDRESS points to a denied USDG contract.'
-  : rawAddress && !PRICE_ARENA_ADDRESS
-    ? 'VITE_PRICE_ARENA_ADDRESS is invalid.'
-    : null
+// Price Arena view model on top of the `prophet_games` program's Arena account.
+// The program stores status only (open / resolved / cancelled); lobby versus
+// live is derived from the arena's start time.
 
 export const PRICE_ARENA_CATEGORY = { STOCK: 0, MEME: 1, CRYPTO: 2 } as const
 export const PRICE_ARENA_STATUS = { OPEN: 0, RESOLVED: 1, CANCELLED: 2 } as const
 export const PRICE_ARENA_PHASE = { LOBBY: 0, RUNNING: 1, RESOLVED: 2, CANCELLED: 3 } as const
+export const PRICE_ARENA_CANCEL_REASON = {
+  NONE: 0,
+  INSUFFICIENT_PARTICIPANTS: 1,
+  STALE_DEADLINE_PRICE: 2,
+  RESOLUTION_WINDOW_EXPIRED: 3,
+} as const
+// Mirrors ARENA_DURATIONS, ARENA_LOBBY_DURATION and MAX_PARTICIPANTS in
+// solana/programs/prophet_games/src/constants.rs.
 export const PRICE_ARENA_DURATIONS = [60n, 300n, 900n, 3600n] as const
 export const PRICE_ARENA_LOBBY_SECONDS = 600n
-export const PRICE_ARENA_MAX_PARTICIPANTS = 20
-export const PRICE_ARENA_MIN_STAKE = 1
-export const PRICE_ARENA_MAX_STAKE = 50
-export const PRICE_ARENA_TOKEN_DECIMALS = 18
+export const PRICE_ARENA_MAX_PARTICIPANTS = 10
 export type PriceArenaMode = 'stocks' | 'memes' | 'crypto'
 
+type ArenaAccount = IdlAccounts<ProphetGames>['arena']
+
 export interface PriceArenaAsset {
-  assetId: Hex
+  assetId: string
   symbol: string
   name: string
   category: number
   categoryName: AssetRaceCategoryName
-  quoteSymbol: 'USDG' | 'ETH'
+  quoteSymbol: 'USD'
+  pool: string
   priceUrl?: string
+  logoUrl?: string
 }
 
-export const PRICE_ARENA_ASSETS: PriceArenaAsset[] = assetRaceCatalog.flatMap((asset) => {
-  const network = asset.networks[assetRaceNetworkKey]
-  if (!network.enabled || network.oracle?.type !== 'SIGNED_POOL_BLOCK_PAIR') return []
-  return [{
-    assetId: stringToHex(asset.assetId, { size: 32 }),
-    symbol: asset.symbol,
-    name: asset.displayName,
-    category: asset.category === 'MEME'
-      ? PRICE_ARENA_CATEGORY.MEME
-      : asset.category === 'CRYPTO'
-        ? PRICE_ARENA_CATEGORY.CRYPTO
-        : PRICE_ARENA_CATEGORY.STOCK,
-    categoryName: asset.category,
-    quoteSymbol: asset.category === 'MEME' ? 'ETH' : 'USDG',
-    priceUrl: priceSourceUrlForCatalogAsset(asset),
-  }]
-})
+const categoryCodeForName = (name: AssetRaceCategoryName) => (
+  name === 'MEME' ? PRICE_ARENA_CATEGORY.MEME : name === 'CRYPTO' ? PRICE_ARENA_CATEGORY.CRYPTO : PRICE_ARENA_CATEGORY.STOCK
+)
 
-const ASSET_BY_ID = new Map(PRICE_ARENA_ASSETS.map((asset) => [asset.assetId.toLowerCase(), asset]))
+const CATALOG_ASSETS = assetRaceCatalog.map((asset) => ({
+  assetId: asset.assetId,
+  symbol: asset.symbol,
+  name: asset.displayName,
+  category: categoryCodeForName(asset.category),
+  categoryName: asset.category,
+  quoteSymbol: 'USD' as const,
+  pool: asset.pool,
+  priceUrl: asset.priceUrl,
+  logoUrl: asset.logoUrl,
+  enabled: asset.enabled,
+}))
 
-export function priceArenaAsset(assetId?: Hex | string) {
-  return assetId ? ASSET_BY_ID.get(assetId.toLowerCase()) : undefined
+/** Assets new arenas may use on this cluster. */
+export const PRICE_ARENA_ASSETS: PriceArenaAsset[] = CATALOG_ASSETS.filter((asset) => asset.enabled)
+
+// Every reviewed asset, so past arenas keep their names and links.
+const ASSET_BY_POOL = new Map<string, PriceArenaAsset>(CATALOG_ASSETS.map((asset) => [asset.pool, asset]))
+
+export function priceArenaAssetForPool(pool?: string) {
+  return pool ? ASSET_BY_POOL.get(pool) : undefined
 }
 
 export function categoryForArenaMode(mode: PriceArenaMode) {
@@ -99,14 +90,33 @@ export function arenaPhaseLabel(phase: number) {
   return 'Cancelled'
 }
 
-export interface PriceArenaData {
-  assetId: Hex
-  oracleId: Hex
-  oracle: Address
-  creator: Address
+export interface PriceArenaEntry {
+  player: string
+  prediction: bigint
+  stake: bigint
+  predictionUpdatedAt: bigint
+  predictionSeq: number
+  payout: bigint
+  /** 1-based final rank; 0 until resolved. */
+  rank: number
+  accuracyMultiplierBp: number
+  exists: boolean
+  settled: boolean
+}
+
+export interface PriceArenaViewModel {
+  id: bigint
+  address: string
+  assetId: string
+  symbol: string
+  priceSource: string
+  creator: string
+  stakeMint: string
   priceDecimals: number
   category: number
   status: number
+  cancelReason: number
+  phase: number
   createdAt: bigint
   startsAt: bigint
   deadline: bigint
@@ -115,91 +125,84 @@ export interface PriceArenaData {
   participantCount: number
   winnerCount: number
   feeBp: number
+  minStake: bigint
+  maxStake: bigint
   totalPool: bigint
   finalPrice: bigint
   finalUpdatedAt: bigint
-  observationId: Hex
   protocolFee: bigint
+  creatorFee: bigint
   remainingLiability: bigint
   title: string
-}
-
-export interface PriceArenaEntry {
-  prediction: bigint
-  stake: bigint
-  predictionUpdatedAt: bigint
-  payout: bigint
-  rank: number
-  accuracyMultiplierBp: number
-  exists: boolean
-  settled: boolean
-}
-
-export interface PriceArenaViewModel extends PriceArenaData {
-  id: bigint
-  phase: number
+  entries: PriceArenaEntry[]
   asset?: PriceArenaAsset
 }
 
-export const priceArenaAbi = [
-  { type: 'function', name: 'arenaCount', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
-  { type: 'function', name: 'minStakeWei', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
-  { type: 'function', name: 'maxStakeWei', stateMutability: 'view', inputs: [], outputs: [{ type: 'uint256' }] },
-  {
-    type: 'function', name: 'getArena', stateMutability: 'view', inputs: [{ name: 'arenaId', type: 'uint256' }],
-    outputs: [{
-      type: 'tuple',
-      components: [
-        { name: 'assetId', type: 'bytes32' }, { name: 'oracleId', type: 'bytes32' },
-        { name: 'oracle', type: 'address' }, { name: 'creator', type: 'address' },
-        { name: 'priceDecimals', type: 'uint8' }, { name: 'category', type: 'uint8' },
-        { name: 'status', type: 'uint8' }, { name: 'createdAt', type: 'uint64' },
-        { name: 'startsAt', type: 'uint64' }, { name: 'deadline', type: 'uint64' },
-        { name: 'resolvedAt', type: 'uint64' }, { name: 'duration', type: 'uint32' },
-        { name: 'participantCount', type: 'uint16' }, { name: 'winnerCount', type: 'uint16' },
-        { name: 'feeBp', type: 'uint16' }, { name: 'totalPool', type: 'uint256' },
-        { name: 'finalPrice', type: 'uint256' }, { name: 'finalUpdatedAt', type: 'uint256' },
-        { name: 'observationId', type: 'bytes32' }, { name: 'protocolFee', type: 'uint256' },
-        { name: 'remainingLiability', type: 'uint256' }, { name: 'title', type: 'string' },
-      ],
-    }],
-  },
-  { type: 'function', name: 'phase', stateMutability: 'view', inputs: [{ name: 'arenaId', type: 'uint256' }], outputs: [{ type: 'uint8' }] },
-  { type: 'function', name: 'getParticipants', stateMutability: 'view', inputs: [{ name: 'arenaId', type: 'uint256' }], outputs: [{ type: 'address[]' }] },
-  {
-    type: 'function', name: 'getEntry', stateMutability: 'view',
-    inputs: [{ name: 'arenaId', type: 'uint256' }, { name: 'player', type: 'address' }],
-    outputs: [{
-      type: 'tuple', components: [
-        { name: 'prediction', type: 'uint256' }, { name: 'stake', type: 'uint256' },
-        { name: 'predictionUpdatedAt', type: 'uint256' }, { name: 'payout', type: 'uint256' },
-        { name: 'rank', type: 'uint32' }, { name: 'accuracyMultiplierBp', type: 'uint32' },
-        { name: 'exists', type: 'bool' }, { name: 'settled', type: 'bool' },
-      ],
-    }],
-  },
-  {
-    type: 'function', name: 'approvedAssets', stateMutability: 'view', inputs: [{ name: 'assetId', type: 'bytes32' }],
-    outputs: [
-      { name: 'oracle', type: 'address' }, { name: 'oracleId', type: 'bytes32' },
-      { name: 'decimals', type: 'uint8' }, { name: 'category', type: 'uint8' }, { name: 'enabled', type: 'bool' },
-    ],
-  },
-  {
-    type: 'function', name: 'createArena', stateMutability: 'nonpayable',
-    inputs: [{ name: 'assetId', type: 'bytes32' }, { name: 'category', type: 'uint8' }, { name: 'duration', type: 'uint256' }, { name: 'title', type: 'string' }],
-    outputs: [{ name: 'arenaId', type: 'uint256' }],
-  },
-  {
-    type: 'function', name: 'enter', stateMutability: 'payable',
-    inputs: [{ name: 'arenaId', type: 'uint256' }, { name: 'prediction', type: 'uint256' }, { name: 'amount', type: 'uint256' }], outputs: [],
-  },
-  {
-    type: 'function', name: 'updateEntry', stateMutability: 'payable',
-    inputs: [{ name: 'arenaId', type: 'uint256' }, { name: 'newPrediction', type: 'uint256' }, { name: 'additionalAmount', type: 'uint256' }], outputs: [],
-  },
-  { type: 'function', name: 'claim', stateMutability: 'nonpayable', inputs: [{ name: 'arenaId', type: 'uint256' }], outputs: [] },
-  { type: 'function', name: 'refund', stateMutability: 'nonpayable', inputs: [{ name: 'arenaId', type: 'uint256' }], outputs: [] },
-  { type: 'function', name: 'creatorEarnings', stateMutability: 'view', inputs: [{ name: 'creator', type: 'address' }], outputs: [{ type: 'uint256' }] },
-  { type: 'function', name: 'withdrawCreatorFees', stateMutability: 'nonpayable', inputs: [], outputs: [{ name: 'amount', type: 'uint256' }] },
-] as const
+const variant = (value: object) => Object.keys(value)[0]
+const big = (value: { toString(): string }) => BigInt(value.toString())
+const STATUS_CODES: Record<string, number> = { open: 0, resolved: 1, cancelled: 2 }
+const CANCEL_CODES: Record<string, number> = {
+  none: 0,
+  insufficientParticipants: 1,
+  staleDeadlinePrice: 2,
+  resolutionWindowExpired: 3,
+}
+const CATEGORY_CODES: Record<string, number> = { stock: 0, meme: 1, crypto: 2 }
+
+export function arenaPhase(status: number, startsAt: bigint, nowSec: number) {
+  if (status === PRICE_ARENA_STATUS.RESOLVED) return PRICE_ARENA_PHASE.RESOLVED
+  if (status === PRICE_ARENA_STATUS.CANCELLED) return PRICE_ARENA_PHASE.CANCELLED
+  return BigInt(Math.floor(nowSec)) < startsAt ? PRICE_ARENA_PHASE.LOBBY : PRICE_ARENA_PHASE.RUNNING
+}
+
+export function arenaFromAccount(address: PublicKey, a: ArenaAccount, nowSec = Date.now() / 1000): PriceArenaViewModel {
+  const status = STATUS_CODES[variant(a.status)] ?? PRICE_ARENA_STATUS.OPEN
+  const startsAt = big(a.startsAt)
+  const priceSource = a.priceSource.toBase58()
+  const asset = priceArenaAssetForPool(priceSource)
+  const symbol = asset?.symbol ?? symbolFromAssetId(a.assetId)
+  return {
+    id: big(a.id),
+    address: address.toBase58(),
+    assetId: asset?.assetId ?? assetIdHexForSymbol(symbol),
+    symbol,
+    priceSource,
+    creator: a.creator.toBase58(),
+    stakeMint: a.stakeMint.toBase58(),
+    priceDecimals: a.priceDecimals,
+    category: CATEGORY_CODES[variant(a.category)] ?? 0,
+    status,
+    cancelReason: CANCEL_CODES[variant(a.cancelReason)] ?? 0,
+    phase: arenaPhase(status, startsAt, nowSec),
+    createdAt: big(a.createdAt),
+    startsAt,
+    deadline: big(a.deadline),
+    resolvedAt: big(a.resolvedAt),
+    duration: Number(a.duration.toString()),
+    participantCount: a.entries.length,
+    winnerCount: a.winnerCount,
+    feeBp: a.feeBp,
+    minStake: big(a.minStake),
+    maxStake: big(a.maxStake),
+    totalPool: big(a.totalPool),
+    finalPrice: big(a.finalPrice),
+    finalUpdatedAt: big(a.finalPriceTime),
+    protocolFee: big(a.protocolFee),
+    creatorFee: big(a.creatorFee),
+    remainingLiability: big(a.remainingLiability),
+    title: a.title,
+    entries: a.entries.map((entry) => ({
+      player: entry.player.toBase58(),
+      prediction: big(entry.prediction),
+      stake: big(entry.stake),
+      predictionUpdatedAt: big(entry.predictionUpdatedAt),
+      predictionSeq: entry.predictionSeq,
+      payout: big(entry.payout),
+      rank: entry.rank,
+      accuracyMultiplierBp: entry.accuracyMultiplierBp,
+      exists: true,
+      settled: entry.settled,
+    })),
+    asset,
+  }
+}

@@ -1,34 +1,35 @@
 import { useState } from 'react'
-import { Link, useParams, useSearchParams } from 'react-router-dom'
-import { formatEther, zeroAddress, type Hex } from 'viem'
-import { waitForTransactionReceipt } from 'wagmi/actions'
-import { useAccount, useBalance, useReadContract, useSwitchChain, useWriteContract } from 'wagmi'
-import { assetRaceChain, isLocalAssetRace, wagmiConfig } from '@/chain/config'
+import { Link, useParams } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
+import { useWallet } from '@solana/wallet-adapter-react'
 import {
-  ASSET_RACE_ADDRESS,
-  ASSET_RACE_CONFIG_ERROR,
   ASSET_RACE_STATUS,
   ASSET_RACE_ORIGIN,
   ASSET_RACE_TOKEN_LABEL,
-  ETH_DECIMALS,
-  assetRaceAbi,
+  STAKE_DECIMALS,
   assetRaceCategoryLabel,
   assetRaceStatusLabel,
-  legacyAssetRaceAddress,
   raceModeForCategory,
 } from '@/chain/assetRaces'
 import {
   formatUsdCents,
-  freezeNativeStakeQuote,
-  nativeStakeGuardrailMessage,
-  nativeStakeGuardrailViolation,
-  nativeStakeQuoteErrorMessage,
-  type FrozenNativeStakeQuote,
+  freezeStakeQuote,
+  stakeGuardrailMessage,
+  stakeGuardrailViolation,
+  stakeQuoteErrorMessage,
+  type FrozenStakeQuote,
   type StakeInputUnit,
-} from '@/chain/ethUsd'
+} from '@/chain/stakeQuote'
+import {
+  addLobbyAssetInstructions,
+  betInstructions,
+  openBettingInstructions,
+  settleRaceInstructions,
+  type RaceSettlementAction,
+} from '@/chain/gameTx'
 import { useAssetRace } from '@/chain/useAssetRace'
 import { useAssetRaceClock } from '@/chain/useAssetRaceClock'
-import { useAssetRaceLiveDisplay } from '@/chain/useAssetRaceLiveDisplay'
+import { useLivePrices } from '@/chain/livePrices'
 import { priceSourceUrlForAssetId } from '@/chain/assetRaceRegistry'
 import { AssetRaceBettingView } from '@/components/AssetRaceBettingView'
 import { AssetRaceLiveView } from '@/components/AssetRaceLiveView'
@@ -39,7 +40,11 @@ import { InfoBanner } from '@/components/InfoBanner'
 import { PriceSourceLink } from '@/components/PriceSourceLink'
 import { ShareInviteButton } from '@/components/ShareInviteButton'
 import { TokenLogo } from '@/components/TokenLogo'
-import { shortTxError } from '@/lib/format'
+import { NATIVE_SOL, SOLANA_CLUSTER } from '@/solana/config'
+import { useSolBalance } from '@/solana/balance'
+import { usePrograms } from '@/solana/programs'
+import { useSendInstructions } from '@/solana/tx'
+import { formatSol, shortTxError } from '@/lib/format'
 
 type TxState = { label: string } | null
 
@@ -52,89 +57,78 @@ function parseRaceId(value: string | undefined) {
   }
 }
 
-export function OnchainRacePage({ legacy = false }: { legacy?: boolean }) {
+function hexToBytes(hex: string) {
+  const clean = hex.startsWith('0x') ? hex.slice(2) : hex
+  return Uint8Array.from(clean.match(/.{2}/g) ?? [], (byte) => parseInt(byte, 16))
+}
+
+export function OnchainRacePage() {
   const { raceId: routeRaceId } = useParams()
-  const [searchParams] = useSearchParams()
   const raceId = parseRaceId(routeRaceId)
-  const { address, isConnected, chainId } = useAccount()
-  const { switchChain, isPending: isSwitching } = useSwitchChain()
-  const { writeContractAsync } = useWriteContract()
-  const raceContractAddress = legacy
-    ? legacyAssetRaceAddress(searchParams.get('contract'))
-    : ASSET_RACE_ADDRESS
-  const { race, position, isPreview, isLoading, error: readError, refetch } = useAssetRace(raceId, address, raceContractAddress)
+  const { publicKey, connected } = useWallet()
+  const { games } = usePrograms()
+  const send = useSendInstructions()
+  const queryClient = useQueryClient()
+  const { race, position, settlement, isLoading, error: readError, refetch } = useAssetRace(raceId, publicKey)
   const [selectedAssetIndex, setSelectedAssetIndex] = useState(0)
-  const betFormOwner = `${raceId?.toString() ?? ''}:${address ?? ''}`
+  const betFormOwner = `${raceId?.toString() ?? ''}:${publicKey?.toBase58() ?? ''}`
   const [amountState, setAmountState] = useState({ owner: betFormOwner, value: '' })
   const amount = amountState.owner === betFormOwner ? amountState.value : ''
   const setAmount = (value: string) => setAmountState({ owner: betFormOwner, value })
   const [stakeInputUnit, setStakeInputUnit] = useState<StakeInputUnit>('USD')
   const [tx, setTx] = useState<TxState>(null)
-  const [frozenBetQuote, setFrozenBetQuote] = useState<FrozenNativeStakeQuote | null>(null)
+  const [frozenBetQuote, setFrozenBetQuote] = useState<FrozenStakeQuote | null>(null)
   const [error, setError] = useState<string | null>(null)
   const raceNowMs = useAssetRaceClock()
-  const live = useAssetRaceLiveDisplay({ enabled: true })
+  const live = useLivePrices()
+  const balance = useSolBalance()
+  const solStaked = race?.stakeMint === NATIVE_SOL.toBase58()
 
-  const readRaceAddress = raceContractAddress ?? zeroAddress
-  const tokenDecimals = ETH_DECIMALS
-  const balance = useBalance({
-    address,
-    chainId: assetRaceChain.id,
-    query: { enabled: !!address && !!raceContractAddress },
-  })
-  const lobbyAddition = useReadContract({
-    address: readRaceAddress,
-    chainId: assetRaceChain.id,
-    abi: assetRaceAbi,
-    functionName: 'lobbyAssetAddedByWallet',
-    args: raceId != null && address ? [raceId, address] : undefined,
-    query: { enabled: !!raceContractAddress && raceId != null && !!address },
-  })
-
-  const onRightChain = chainId === assetRaceChain.id
-  let quotedBet: FrozenNativeStakeQuote | undefined
+  let quotedBet: FrozenStakeQuote | undefined
   try {
-    quotedBet = live.ethUsd ? freezeNativeStakeQuote(amount, stakeInputUnit, live.ethUsd) : undefined
+    quotedBet = live.solUsd ? freezeStakeQuote(amount, stakeInputUnit, live.solUsd) : undefined
   } catch {
     quotedBet = undefined
   }
   const displayedBetQuote = frozenBetQuote ?? quotedBet
-  const displayedBetWei = displayedBetQuote?.wei ?? 0n
+  const displayedBetLamports = displayedBetQuote?.lamports ?? 0n
 
   async function refetchAll() {
-    await Promise.all([refetch(), balance.refetch(), lobbyAddition.refetch()])
+    await Promise.all([
+      refetch(),
+      balance.refetch(),
+      queryClient.invalidateQueries({ queryKey: ['history'] }),
+    ])
   }
 
   async function handleBet() {
     setError(null)
     try {
-      if (legacy || !raceContractAddress || raceId == null || !race) return
-      if (!live.ethUsd) throw new Error('EthUsdQuoteStale')
-      const frozen = freezeNativeStakeQuote(amount, stakeInputUnit, live.ethUsd)
-      const amountRaw = frozen.wei
-      const guardrailViolation = nativeStakeGuardrailViolation(amountRaw, {
-        minInitialWei: race.minStake,
-        maxCumulativeWei: race.maxStakePerWallet,
-        existingStakeWei: position?.stake ?? 0n,
+      if (raceId == null || !race || !publicKey) return
+      if (!live.solUsd) throw new Error('SolUsdQuoteStale')
+      const frozen = freezeStakeQuote(amount, stakeInputUnit, live.solUsd)
+      const violation = stakeGuardrailViolation(frozen.lamports, {
+        minInitial: race.minStake,
+        maxCumulative: race.maxStakePerWallet,
+        existingStake: position?.stake ?? 0n,
         initialStake: !position?.exists,
       })
-      if (guardrailViolation) {
-        setError(nativeStakeGuardrailMessage(guardrailViolation))
+      if (violation) {
+        setError(stakeGuardrailMessage(violation))
         return
       }
       setFrozenBetQuote(frozen)
       const assetIndex = position?.exists ? position.assetIndex : selectedAssetIndex
-
       setTx({ label: 'Confirm race bet in wallet…' })
-      const betHash = await writeContractAsync({
-        address: raceContractAddress,
-        abi: assetRaceAbi,
-        functionName: 'bet',
-        args: [raceId, assetIndex, amountRaw],
-        value: amountRaw,
+      const instructions = await betInstructions(games, {
+        race: race.address,
+        stakeMint: race.stakeMint,
+        bettor: publicKey,
+        assetIndex,
+        amount: frozen.lamports,
       })
       setTx({ label: 'Waiting for bet confirmation…' })
-      await waitForTransactionReceipt(wagmiConfig, { hash: betHash })
+      await send(instructions)
       setTx(null)
       setFrozenBetQuote(null)
       setAmount('')
@@ -142,23 +136,19 @@ export function OnchainRacePage({ legacy = false }: { legacy?: boolean }) {
     } catch (cause) {
       setTx(null)
       setFrozenBetQuote(null)
-      setError(nativeStakeQuoteErrorMessage(cause) ?? shortTxError(cause, 'race-bet'))
+      setError(stakeQuoteErrorMessage(cause) ?? shortTxError(cause, 'race-bet'))
     }
   }
 
-  async function handleSettlement(functionName: 'claim' | 'refund') {
+  async function handleSettlement(action: RaceSettlementAction) {
     setError(null)
     try {
-      if (!raceContractAddress || raceId == null) return
-      setTx({ label: `Confirm ${functionName} in wallet…` })
-      const hash = await writeContractAsync({
-        address: raceContractAddress,
-        abi: assetRaceAbi,
-        functionName,
-        args: [raceId],
-      })
-      setTx({ label: `Waiting for ${functionName} confirmation…` })
-      await waitForTransactionReceipt(wagmiConfig, { hash })
+      if (!race || !publicKey) return
+      const label = action === 'claim' ? 'claim' : action === 'refund' ? 'refund' : 'close'
+      setTx({ label: `Confirm ${label} in wallet…` })
+      const instructions = await settleRaceInstructions(games, { race: race.address, stakeMint: race.stakeMint, owner: publicKey, action })
+      setTx({ label: `Waiting for ${label} confirmation…` })
+      await send(instructions)
       setTx(null)
       await refetchAll()
     } catch (cause) {
@@ -167,28 +157,16 @@ export function OnchainRacePage({ legacy = false }: { legacy?: boolean }) {
     }
   }
 
-  async function handleLobbyAction(functionName: 'addLobbyAsset' | 'openBetting', assetId?: Hex) {
+  async function handleLobbyAction(kind: 'addLobbyAsset' | 'openBetting', assetId?: string) {
     setError(null)
     try {
-      if (legacy || !raceContractAddress || raceId == null) return
-      setTx({ label: functionName === 'addLobbyAsset' ? 'Confirm asset addition…' : 'Confirm betting transition…' })
-      const hash = functionName === 'addLobbyAsset'
-        ? await writeContractAsync({
-            address: raceContractAddress,
-            chainId: assetRaceChain.id,
-            abi: assetRaceAbi,
-            functionName,
-            args: [raceId, assetId!],
-          })
-        : await writeContractAsync({
-            address: raceContractAddress,
-            chainId: assetRaceChain.id,
-            abi: assetRaceAbi,
-            functionName,
-            args: [raceId],
-          })
+      if (!race || !publicKey) return
+      setTx({ label: kind === 'addLobbyAsset' ? 'Confirm asset addition…' : 'Confirm betting transition…' })
+      const instructions = kind === 'addLobbyAsset'
+        ? await addLobbyAssetInstructions(games, { race: race.address, adder: publicKey, assetId: hexToBytes(assetId!) })
+        : await openBettingInstructions(games, { race: race.address })
       setTx({ label: 'Waiting for confirmation…' })
-      await waitForTransactionReceipt(wagmiConfig, { hash, chainId: assetRaceChain.id })
+      await send(instructions)
       setTx(null)
       await refetchAll()
     } catch (cause) {
@@ -203,25 +181,13 @@ export function OnchainRacePage({ legacy = false }: { legacy?: boolean }) {
 
   return (
     <div className="mx-auto max-w-[1200px] px-4 py-8">
-      {legacy && (
-        <InfoBanner tone="info" className="mb-5">
-          Legacy Asset Race - new bets are disabled. Existing claims and refunds remain available here.
-        </InfoBanner>
-      )}
-      {isPreview ? (
-        <InfoBanner tone="warning" className="mb-5">
-          Preview race - not onchain, no wallet transaction will be sent.
-          {ASSET_RACE_CONFIG_ERROR && <span className="mt-1 block text-rose-300">{ASSET_RACE_CONFIG_ERROR}</span>}
-        </InfoBanner>
-      ) : (
-        <InfoBanner tone="warning" className="mb-5">
-          {isLocalAssetRace
-            ? 'Local test network - contract state and transactions come from this Mac’s Anvil chain using local ETH.'
-            : 'Live Asset Race on Robinhood Chain. Enter the stake in USD or ETH; your wallet sends native ETH directly.'}
-        </InfoBanner>
-      )}
+      <InfoBanner tone="warning" className="mb-5">
+        {SOLANA_CLUSTER === 'mainnet-beta'
+          ? 'Live Asset Race on Solana. Enter the stake in USD or SOL; your wallet sends SOL directly to the race account.'
+          : `Solana ${SOLANA_CLUSTER} test race - test SOL only, no real funds. Prices come from live mainnet pools.`}
+      </InfoBanner>
 
-      <Link to={legacy ? '/onchain/legacy?mode=races' : `/onchain/races${race ? `?mode=${raceModeForCategory(race.category)}` : ''}`} className="text-sm font-bold text-white/40 transition-colors hover:text-white/70">← {legacy ? 'Legacy games' : 'All races'}</Link>
+      <Link to={`/onchain/races${race ? `?mode=${raceModeForCategory(race.category)}` : ''}`} className="text-sm font-bold text-white/40 transition-colors hover:text-white/70">← All races</Link>
 
       {isLoading ? (
         <p className="py-16 text-center text-sm text-white/40">Loading race…</p>
@@ -247,7 +213,7 @@ export function OnchainRacePage({ legacy = false }: { legacy?: boolean }) {
               {race.origin === ASSET_RACE_ORIGIN.PLATFORM ? (
                 <p className="mt-1 text-xs font-medium text-white/40">Created by Prophet</p>
               ) : (
-                <p className="mt-1 text-xs font-medium text-white/40">Created by <AddressLabel address={race.creator} link={!isLocalAssetRace} className="font-bold text-white/65" /></p>
+                <p className="mt-1 text-xs font-medium text-white/40">Created by <AddressLabel address={race.creator} className="font-bold text-white/65" /></p>
               )}
               <div className="mt-2 flex flex-wrap gap-1.5" aria-label="Participating asset price charts">
                 {race.assets.map((asset) => (
@@ -264,24 +230,21 @@ export function OnchainRacePage({ legacy = false }: { legacy?: boolean }) {
               </div>
             </div>
             <div className="flex flex-wrap items-center justify-end gap-2">
-              {!legacy && <ShareInviteButton kind="race" id={race.id} />}
+              <ShareInviteButton kind="race" id={race.id} />
               <span className="rounded-full bg-[#F2A65A]/15 px-3 py-1 text-xs font-bold text-[#F2A65A]">{assetRaceStatusLabel(race.status)}</span>
             </div>
           </div>
 
-          {legacy && (race.status === ASSET_RACE_STATUS.LOBBY || race.status === ASSET_RACE_STATUS.BETTING) ? (
+          {!solStaked ? (
             <div className="rounded-3xl border border-white/10 bg-[#241b2f] p-6 text-sm text-white/55">
-              This legacy race is settlement-only. No new assets or bets can be added.
+              This race is staked in an SPL token. This page supports SOL-staked races only for now.
             </div>
           ) : race.status === ASSET_RACE_STATUS.LOBBY ? (
             <AssetRaceLobbyView
               race={race}
               nowMs={raceNowMs}
-              isConnected={isConnected}
-              onRightChain={onRightChain}
-              isSwitching={isSwitching}
-              onSwitchChain={() => switchChain({ chainId: assetRaceChain.id })}
-              hasAddedAsset={lobbyAddition.data ?? false}
+              isConnected={connected}
+              hasAddedAsset={!!publicKey && race.lobbyAdders.includes(publicKey.toBase58())}
               onAddAsset={(assetId) => handleLobbyAction('addLobbyAsset', assetId)}
               onOpenBetting={() => handleLobbyAction('openBetting')}
               txLabel={tx?.label ?? null}
@@ -303,37 +266,33 @@ export function OnchainRacePage({ legacy = false }: { legacy?: boolean }) {
                 setFrozenBetQuote(null)
                 setError(null)
               }}
-              balance={balance.data?.value}
-              isConnected={isConnected}
-              onRightChain={onRightChain}
-              isSwitching={isSwitching}
-              onSwitchChain={() => switchChain({ chainId: assetRaceChain.id })}
+              balance={balance.data}
+              isConnected={connected}
               onBet={handleBet}
               txLabel={tx?.label ?? null}
               error={error}
               nowMs={raceNowMs}
-              tokenDecimals={tokenDecimals}
+              tokenDecimals={STAKE_DECIMALS}
               tokenLabel={ASSET_RACE_TOKEN_LABEL}
-              amountRaw={displayedBetWei}
-              exactEth={displayedBetWei > 0n ? formatEther(displayedBetWei) : null}
+              amountRaw={displayedBetLamports}
+              exactSol={displayedBetLamports > 0n ? formatSol(displayedBetLamports) : null}
               equivalentUsd={displayedBetQuote ? formatUsdCents(displayedBetQuote.usdCents) : null}
-              quoteReady={!!live.ethUsd && !live.ethUsd.stale}
+              quoteReady={!!live.solUsd}
             />
           ) : race.status === ASSET_RACE_STATUS.RUNNING ? (
-            <AssetRaceLiveView race={race} position={position} nowMs={raceNowMs} tokenDecimals={tokenDecimals} tokenLabel={ASSET_RACE_TOKEN_LABEL} />
+            <AssetRaceLiveView race={race} position={position} nowMs={raceNowMs} tokenDecimals={STAKE_DECIMALS} tokenLabel={ASSET_RACE_TOKEN_LABEL} />
           ) : (
             <AssetRaceResultView
               race={race}
               position={position}
-              isConnected={isConnected}
-              onRightChain={onRightChain}
-              isSwitching={isSwitching}
-              onSwitchChain={() => switchChain({ chainId: assetRaceChain.id })}
+              settlement={settlement}
+              isConnected={connected}
               onClaim={() => handleSettlement('claim')}
               onRefund={() => handleSettlement('refund')}
+              onCloseLosing={() => handleSettlement('closeLosing')}
               txLabel={tx?.label ?? null}
               error={error}
-              tokenDecimals={tokenDecimals}
+              tokenDecimals={STAKE_DECIMALS}
               tokenLabel={ASSET_RACE_TOKEN_LABEL}
             />
           )}

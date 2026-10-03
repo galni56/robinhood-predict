@@ -1,12 +1,9 @@
-import { formatUnits } from 'viem'
-import { displayedRaceReturnWad } from '@/chain/assetRaceLiveDisplay'
-import { assetRaceCatalogById, assetRaceMemeQuote, priceSourceUrlForAssetId } from '@/chain/assetRaceRegistry'
-import { formatCompactUsd, memeMarketCapUsd, useMemeTokenSupplies } from '@/chain/memeMarketCap'
-import { useAssetRaceLiveDisplay } from '@/chain/useAssetRaceLiveDisplay'
+import { priceSourceUrlForAssetId } from '@/chain/assetRaceRegistry'
+import { formatUnits } from '@/lib/format'
 import { PriceSourceLink } from '@/components/PriceSourceLink'
 import { TokenLogo } from '@/components/TokenLogo'
 import {
-  ASSET_RACE_CATEGORY,
+  calculateReturnWad,
   formatReturnWad,
   type AssetRacePosition,
   type AssetRaceViewModel,
@@ -24,7 +21,6 @@ interface LeaderboardEntry {
   updatedAt?: bigint
   source?: string
   stale: boolean
-  quoteSymbol?: string
 }
 
 function raceLeaderboardEntries(race: AssetRaceViewModel, final = false): LeaderboardEntry[] {
@@ -34,22 +30,16 @@ function raceLeaderboardEntries(race: AssetRaceViewModel, final = false): Leader
       assetIndex: asset.assetIndex,
       assetId: asset.assetId,
       symbol: asset.symbol,
-      returnValue: displayedRaceReturnWad({
-        final,
-        officialReturn: asset.returnValue,
-        settlementStartPrice: asset.startPrice,
-        livePrice: asset.livePrice ?? asset.startPrice,
-      }),
+      // Final rows show the program's return; live rows a display estimate
+      // from the same start price.
+      returnValue: final ? asset.returnValue : calculateReturnWad(asset.startPrice, asset.livePrice ?? asset.startPrice),
       pool: asset.pool,
       startPrice: asset.startPrice,
       endPrice: final ? asset.endPrice : (asset.livePrice ?? asset.startPrice),
       decimals: final ? asset.expectedDecimals : (asset.liveDecimals ?? asset.expectedDecimals),
       updatedAt: final ? asset.endOracleUpdatedAt : asset.liveUpdatedAt,
-      source: final ? 'FINAL' : asset.liveProvider,
+      source: final ? 'final' : asset.liveProvider ? 'live' : undefined,
       stale: !final && !!asset.liveStale,
-      quoteSymbol: race.category === ASSET_RACE_CATEGORY.MEME
-        && assetRaceCatalogById.get(asset.assetId.toLowerCase())?.networks['robinhood-mainnet'].oracle?.identifier?.toLowerCase() === asset.oracleId.toLowerCase()
-        ? assetRaceMemeQuote.symbol : undefined,
     }))
     .sort((a, b) => (a.returnValue > b.returnValue ? -1 : a.returnValue < b.returnValue ? 1 : a.assetIndex - b.assetIndex))
 }
@@ -66,11 +56,6 @@ export function AssetRaceLeaderboard({
   nowSeconds?: number
 }) {
   const entries = raceLeaderboardEntries(race, final)
-  const meme = race.category === ASSET_RACE_CATEGORY.MEME
-  // Memes trade on market cap, so each row also shows MC = price (ETH quote)
-  // x onchain supply x ETH/USD. Display-only; hidden until inputs resolve.
-  const memeSupplies = useMemeTokenSupplies(meme)
-  const { ethUsd } = useAssetRaceLiveDisplay({ enabled: meme })
   const leaderReturn = entries[0]?.returnValue ?? 0n
   const maxMagnitude = entries.reduce((max, entry) => {
     const magnitude = entry.returnValue < 0n ? -entry.returnValue : entry.returnValue
@@ -124,22 +109,9 @@ export function AssetRaceLeaderboard({
                 {rank > 0 && <div className="text-[10px] text-white/35">gap {formatReturnWad(leaderReturn - entry.returnValue)}</div>}
               </div>
             </div>
-            {(() => {
-              const cap = entry.quoteSymbol === 'ETH'
-                ? memeMarketCapUsd({
-                    priceRaw: entry.endPrice,
-                    priceDecimals: entry.decimals,
-                    supply: memeSupplies.get(entry.symbol),
-                    ethUsd,
-                  })
-                : undefined
-              return cap != null ? (
-                <div className="mt-2 ml-9 text-xs font-bold text-[#F2A65A]">Market cap {formatCompactUsd(cap)}</div>
-              ) : null
-            })()}
             <div className="mt-2 ml-9 flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-white/35">
-              {entry.startPrice > 0n && <span>P0 {entry.quoteSymbol ? `${formatUnits(entry.startPrice, entry.decimals)} ${entry.quoteSymbol}` : `$${formatUnits(entry.startPrice, entry.decimals)}`}</span>}
-              {entry.endPrice > 0n && <span>{final ? 'P1' : 'display'} {entry.quoteSymbol ? `${formatUnits(entry.endPrice, entry.decimals)} ${entry.quoteSymbol}` : `$${formatUnits(entry.endPrice, entry.decimals)}`}</span>}
+              {entry.startPrice > 0n && <span>P0 ${formatUnits(entry.startPrice, entry.decimals)}</span>}
+              {entry.endPrice > 0n && <span>{final ? 'P1' : 'display'} ${formatUnits(entry.endPrice, entry.decimals)}</span>}
               {entry.source && <span>{entry.source}</span>}
               {entry.stale && <span>live display unavailable</span>}
               {freshness != null && <span>updated {freshness}s ago</span>}

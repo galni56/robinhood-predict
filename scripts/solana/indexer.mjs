@@ -12,8 +12,11 @@
 // Progress (decoded events + newest signature) persists to INDEXER_STATE so a
 // restart only reads new transactions.
 //
-// Env: SOLANA_RPC_URL (game cluster, default localnet), INDEXER_PORT (8791),
-// INDEXER_INTERVAL_MS (10000), INDEXER_STATE (default ~/.prophet/indexer-<cluster>.json),
+// Each race/arena row also carries its raw account data (base64) so the
+// frontend decodes it with the same IDL code it uses for direct reads.
+//
+// Env: SOLANA_RPC_URL (game cluster, default localnet), GAMES_PROGRAM_ID
+// (default: the IDL address), INDEXER_PORT (8791), INDEXER_INTERVAL_MS (5000), INDEXER_STATE (default ~/.prophet/indexer-<cluster>.json),
 // ACTIVITY_LIMIT (500).
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
@@ -27,7 +30,7 @@ const { AnchorProvider, BorshCoder, EventParser, Program } = anchor
 const ROOT = new URL('../../', import.meta.url)
 const RPC = process.env.SOLANA_RPC_URL ?? 'http://127.0.0.1:8899'
 const PORT = Number(process.env.INDEXER_PORT ?? 8791)
-const INTERVAL = Number(process.env.INDEXER_INTERVAL_MS ?? 10_000)
+const INTERVAL = Number(process.env.INDEXER_INTERVAL_MS ?? 5_000)
 const ACTIVITY_LIMIT = Number(process.env.ACTIVITY_LIMIT ?? 500)
 const cluster = /127\.0\.0\.1|localhost/.test(RPC) ? 'localnet' : /devnet/.test(RPC) ? 'devnet' : 'mainnet'
 const STATE = process.env.INDEXER_STATE ?? join(homedir(), '.prophet', `indexer-${cluster}.json`)
@@ -36,6 +39,7 @@ const idl = JSON.parse(readFileSync(new URL('src/solana/idl/prophet_games.json',
 const catalog = JSON.parse(readFileSync(new URL('config/solana-assets.json', ROOT), 'utf8'))
 const connection = new Connection(RPC, 'confirmed')
 const readOnly = { publicKey: PublicKey.default, signTransaction: async () => { throw new Error('read-only') }, signAllTransactions: async () => { throw new Error('read-only') } }
+if (process.env.GAMES_PROGRAM_ID) idl.address = new PublicKey(process.env.GAMES_PROGRAM_ID).toBase58()
 const program = new Program(idl, new AnchorProvider(connection, readOnly, { commitment: 'confirmed' }))
 const parser = new EventParser(program.programId, new BorshCoder(idl))
 const NATIVE_SOL = PublicKey.default.toBase58()
@@ -112,10 +116,11 @@ async function ingest() {
 const big = (v) => BigInt(v ?? 0)
 const str = (v) => v.toString()
 
-function raceView(address, r) {
+function raceView(address, r, data) {
   return {
     id: Number(r.id),
     address,
+    data,
     title: r.title,
     category: plain(r.category),
     origin: plain(r.origin),
@@ -138,10 +143,11 @@ function raceView(address, r) {
   }
 }
 
-function arenaView(address, a) {
+function arenaView(address, a, data) {
   return {
     id: Number(a.id),
     address,
+    data,
     title: a.title,
     symbol: symbolBySource.get(a.priceSource.toBase58()) ?? a.priceSource.toBase58(),
     category: plain(a.category),
@@ -167,9 +173,19 @@ function arenaView(address, a) {
   }
 }
 
+async function accountsOf(name) {
+  const filter = program.coder.accounts.memcmp(name)
+  const found = await connection.getProgramAccounts(program.programId, { filters: [{ memcmp: { offset: filter.offset, bytes: filter.bytes } }] })
+  return found.map(({ pubkey, account }) => ({
+    address: pubkey.toBase58(),
+    account: program.coder.accounts.decode(name, account.data),
+    data: account.data.toString('base64'),
+  }))
+}
+
 async function build() {
-  const races = (await program.account.race.all()).map((r) => raceView(r.publicKey.toBase58(), r.account))
-  const arenas = (await program.account.arena.all()).map((a) => arenaView(a.publicKey.toBase58(), a.account))
+  const races = (await accountsOf('race')).map((r) => raceView(r.address, r.account, r.data))
+  const arenas = (await accountsOf('arena')).map((a) => arenaView(a.address, a.account, a.data))
   const raceByAddress = new Map(races.map((r) => [r.address, r]))
   const arenaByAddress = new Map(arenas.map((a) => [a.address, a]))
 
@@ -177,6 +193,13 @@ async function build() {
   const wallet = (address) => {
     if (!wallets.has(address)) wallets.set(address, { staked: 0n, claimed: 0n, refunded: 0n, games: new Set(), wins: 0, lastActive: 0 })
     return wallets.get(address)
+  }
+  // Per game kind, for the race and arena list sidebars.
+  const kindStats = { race: new Map(), arena: new Map() }
+  const kindWallet = (kind, address) => {
+    const map = kindStats[kind]
+    if (!map.has(address)) map.set(address, { staked: 0n, claimed: 0n, refunded: 0n, symbols: new Set() })
+    return map.get(address)
   }
   const arenaStake = new Map() // `${arena}:${player}` -> last total stake
   const activity = []
@@ -194,6 +217,10 @@ async function build() {
           w.staked += big(d.amount)
           w.games.add(`race:${d.race}`)
           w.lastActive = Math.max(w.lastActive, e.time ?? 0)
+          const k = kindWallet('race', d.bettor)
+          k.staked += big(d.amount)
+          const symbol = race?.assets[d.assetIndex]?.symbol
+          if (symbol) k.symbols.add(symbol)
         }
         break
       }
@@ -208,6 +235,9 @@ async function build() {
           w.staked += delta
           w.games.add(`arena:${d.arena}`)
           w.lastActive = Math.max(w.lastActive, e.time ?? 0)
+          const k = kindWallet('arena', d.player)
+          k.staked += delta
+          if (arena?.symbol) k.symbols.add(arena.symbol)
         }
         break
       }
@@ -220,6 +250,7 @@ async function build() {
           const w = wallet(who)
           w.claimed += big(d.payout)
           w.wins++
+          kindWallet(e.name === 'RaceClaimed' ? 'race' : 'arena', who).claimed += big(d.payout)
         }
         break
       }
@@ -228,7 +259,10 @@ async function build() {
         const game = e.name === 'RaceRefunded' ? raceByAddress.get(d.race) : arenaByAddress.get(d.arena)
         const who = d.owner ?? d.player
         activity.push({ ...base, type: 'refund', game: e.name === 'RaceRefunded' ? 'race' : 'arena', gameId: game?.id ?? null, gameAddress: d.race ?? d.arena, wallet: who, amount: d.amount })
-        if (isSol(game)) wallet(who).refunded += big(d.amount)
+        if (isSol(game)) {
+          wallet(who).refunded += big(d.amount)
+          kindWallet(e.name === 'RaceRefunded' ? 'race' : 'arena', who).refunded += big(d.amount)
+        }
         break
       }
       case 'RaceResolved':
@@ -256,7 +290,12 @@ async function build() {
     wins: w.wins,
     lastActive: w.lastActive || null,
   }))
-  const leaderboard = [...walletList].sort((a, b) => (big(b.net) > big(a.net) ? 1 : big(b.net) < big(a.net) ? -1 : 0)).slice(0, 100)
+  const byNet = (a, b) => (big(b.net) > big(a.net) ? 1 : big(b.net) < big(a.net) ? -1 : 0)
+  const leaderboard = [...walletList].sort(byNet).slice(0, 100)
+  const kindBoard = (kind) => [...kindStats[kind]]
+    .map(([address, k]) => ({ wallet: address, staked: str(k.staked), claimed: str(k.claimed), refunded: str(k.refunded), net: str(k.claimed + k.refunded - k.staked), symbols: [...k.symbols].slice(0, 4) }))
+    .sort(byNet)
+    .slice(0, 20)
 
   snapshot = {
     cluster,
@@ -269,6 +308,7 @@ async function build() {
     activity: activity.slice(-ACTIVITY_LIMIT).reverse(),
     wallets: Object.fromEntries(walletList.map((w) => [w.wallet, w])),
     leaderboard,
+    leaderboards: { race: kindBoard('race'), arena: kindBoard('arena') },
   }
 }
 
