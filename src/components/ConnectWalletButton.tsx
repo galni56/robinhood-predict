@@ -1,11 +1,15 @@
-import { useState } from 'react'
+import { Suspense, lazy, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { useWallet } from '@solana/wallet-adapter-react'
 import { AddressAvatar } from '@/components/AddressAvatar'
 import { AddressLabel } from '@/components/AddressLabel'
 import { LocalnetAirdropButton } from '@/components/LocalnetAirdropButton'
-import { SetNicknameModal } from '@/components/SetNicknameModal'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
+
+// Lazy: the nickname modal pulls the Anchor program clients (both IDLs);
+// loading that belongs to the moment someone opens the modal, not to the
+// always-mounted navbar.
+const SetNicknameModal = lazy(() => import('@/components/SetNicknameModal').then((m) => ({ default: m.SetNicknameModal })))
 import { explorerUrl } from '@/solana/config'
 
 /** Wallet connect entry point (Phantom or Solflare). When connected, shows
@@ -81,7 +85,11 @@ export function ConnectWalletButton() {
             </div>
           </>
         )}
-        {nicknameModalOpen && <SetNicknameModal onClose={() => setNicknameModalOpen(false)} />}
+        {nicknameModalOpen && (
+          <Suspense fallback={null}>
+            <SetNicknameModal onClose={() => setNicknameModalOpen(false)} />
+          </Suspense>
+        )}
       </div>
     )
   }

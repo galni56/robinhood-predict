@@ -1,7 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { PublicKey, type Connection } from '@solana/web3.js'
 import { useConnection } from '@solana/wallet-adapter-react'
-import { makePrograms } from '@/solana/programs'
 import { nicknamePda } from '@/solana/pda'
 
 // Nicknames live in one PDA per wallet (nickname_registry). Every
@@ -21,18 +20,39 @@ function parseOwner(owner: string) {
   }
 }
 
+// The accounts coder depends only on the IDL, so build it once - and import
+// Anchor plus the IDL lazily. AddressLabel sits in the always-mounted navbar,
+// and a static import here used to pull @anchor-lang/core and both IDLs into
+// the entry chunk (and rebuild both Program objects on every flush).
+let coderPromise: Promise<{ decode: (name: string, data: Buffer) => unknown }> | undefined
+function nicknameCoder() {
+  coderPromise ??= Promise.all([import('@anchor-lang/core'), import('@/solana/idl/nickname_registry.json')]).then(
+    ([anchor, idl]) => new anchor.BorshAccountsCoder(idl.default as never),
+  )
+  return coderPromise
+}
+
 async function flush(connection: Connection) {
   const batch = pendingByConnection.get(connection) ?? []
   pendingByConnection.delete(connection)
-  const coder = makePrograms(connection).nicknameRegistry.coder.accounts
+  const coder = await nicknameCoder()
   for (let start = 0; start < batch.length; start += 100) {
     const chunk = batch.slice(start, start + 100)
+    // Invalid owners resolve to null up front instead of costing an RPC read
+    // against the placeholder PDA.
+    const valid = chunk
+      .map((item) => ({ item, owner: parseOwner(item.owner) }))
+      .filter((entry): entry is { item: Pending; owner: PublicKey } => {
+        if (entry.owner) return true
+        entry.item.resolve(null)
+        return false
+      })
+    if (valid.length === 0) continue
     try {
-      const keys = chunk.map((item) => nicknamePda(parseOwner(item.owner) ?? PublicKey.default))
-      const infos = await connection.getMultipleAccountsInfo(keys, 'confirmed')
-      chunk.forEach((item, index) => {
+      const infos = await connection.getMultipleAccountsInfo(valid.map((entry) => nicknamePda(entry.owner)), 'confirmed')
+      valid.forEach(({ item }, index) => {
         const info = infos[index]
-        if (!info || !parseOwner(item.owner)) return item.resolve(null)
+        if (!info) return item.resolve(null)
         try {
           const decoded = coder.decode('nickname', info.data) as { nickname: string }
           item.resolve(decoded.nickname || null)
@@ -41,7 +61,7 @@ async function flush(connection: Connection) {
         }
       })
     } catch (error) {
-      chunk.forEach((item) => item.reject(error))
+      valid.forEach(({ item }) => item.reject(error))
     }
   }
 }
