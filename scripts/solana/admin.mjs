@@ -1,0 +1,216 @@
+#!/usr/bin/env node
+// Admin setup for the Prophet Solana programs on localnet or devnet.
+//
+//   node scripts/solana/admin.mjs setup   # initialize, accept SOL, approve catalog assets, community rules
+//   node scripts/solana/admin.mjs seed    # localnet only: sample races/arenas with bets from throwaway wallets
+//
+// Env: SOLANA_RPC_URL (default http://127.0.0.1:8899), SOLANA_KEYPAIR (admin
+// keypair file, default ~/.config/solana/id.json), ORACLE_PUBKEY (default: the
+// admin, acceptable on localnet only). The keypair is read from disk and never
+// printed. Refuses to run against mainnet.
+
+import { readFileSync } from 'node:fs'
+import { homedir } from 'node:os'
+import { join } from 'node:path'
+import anchor from '@anchor-lang/core'
+import { Connection, Keypair, LAMPORTS_PER_SOL, PublicKey, SystemProgram } from '@solana/web3.js'
+
+const { AnchorProvider, Program, Wallet, BN } = anchor
+const ROOT = new URL('../../', import.meta.url)
+const RPC = process.env.SOLANA_RPC_URL ?? 'http://127.0.0.1:8899'
+if (/mainnet/i.test(RPC)) throw new Error('admin.mjs refuses to run against mainnet')
+const isLocal = /127\.0\.0\.1|localhost/.test(RPC)
+
+const readJson = (path) => JSON.parse(readFileSync(new URL(path, ROOT), 'utf8'))
+const keypairPath = process.env.SOLANA_KEYPAIR ?? join(homedir(), '.config/solana/id.json')
+const admin = Keypair.fromSecretKey(Uint8Array.from(JSON.parse(readFileSync(keypairPath, 'utf8'))))
+const oracle = new PublicKey(process.env.ORACLE_PUBKEY ?? admin.publicKey.toBase58())
+const connection = new Connection(RPC, 'confirmed')
+const provider = new AnchorProvider(connection, new Wallet(admin), { commitment: 'confirmed' })
+const race = new Program(readJson('src/solana/idl/asset_race.json'), provider)
+const arena = new Program(readJson('src/solana/idl/price_arena.json'), provider)
+const catalog = readJson('config/solana-assets.json')
+
+const NATIVE_SOL = PublicKey.default
+const enc = (s) => Buffer.from(s)
+const assetId = (symbol) => {
+  const id = Buffer.alloc(32)
+  enc(symbol).copy(id)
+  return [...id]
+}
+const category = (c) => ({ STOCK: { stock: {} }, MEME: { meme: {} }, CRYPTO: { crypto: {} } })[c]
+const pda = (program, seeds) => PublicKey.findProgramAddressSync(seeds, program.programId)[0]
+const u64 = (n) => new BN(n).toArrayLike(Buffer, 'le', 8)
+const programData = (program) =>
+  PublicKey.findProgramAddressSync([program.programId.toBuffer()], new PublicKey('BPFLoaderUpgradeab1e11111111111111111111111'))[0]
+
+async function exists(address) {
+  return (await connection.getAccountInfo(address)) !== null
+}
+
+async function setupProgram(program, label, { initArgs }) {
+  const config = pda(program, [enc('config')])
+  if (!(await exists(config))) {
+    await program.methods
+      .initialize(...initArgs)
+      .accountsPartial({ admin: admin.publicKey, config, program: program.programId, programData: programData(program) })
+      .rpc()
+    console.log(`${label}: initialized (oracle ${oracle.toBase58()})`)
+  } else {
+    console.log(`${label}: already initialized`)
+  }
+
+  // SOL stakes; the UI keeps the $1-$50 product range with a live SOL/USD quote.
+  await program.methods
+    .setStakeMint(NATIVE_SOL, true, new BN(LAMPORTS_PER_SOL / 200), new BN(LAMPORTS_PER_SOL))
+    .accountsPartial({ admin: admin.publicKey, tokenMint: null, treasuryVault: null, tokenProgram: null, associatedTokenProgram: null })
+    .rpc()
+  console.log(`${label}: SOL accepted as stake currency`)
+
+  const toApprove = catalog.assets.filter((a) => isLocal || a.approved)
+  for (const asset of toApprove) {
+    await program.methods
+      .setApprovedAsset(assetId(asset.symbol), category(asset.category), new PublicKey(asset.pool), asset.priceDecimals, true)
+      .accountsPartial({ admin: admin.publicKey })
+      .rpc()
+  }
+  console.log(`${label}: ${toApprove.length} assets approved${isLocal ? ' (localnet: all proposed)' : ''}`)
+}
+
+async function setup() {
+  await setupProgram(race, 'asset_race', { initArgs: [oracle] })
+  await race.methods
+    .setCommunityPolicy({
+      lobbyDuration: new BN(600),
+      bettingDuration: new BN(600),
+      startGrace: new BN(300),
+      resolutionGrace: new BN(600),
+      feeBp: 200,
+      minActiveContenders: 2,
+    })
+    .accountsPartial({ admin: admin.publicKey })
+    .rpc()
+  for (const duration of [300, 900, 3600]) {
+    await race.methods.setDurationPreset(new BN(duration), true).accountsPartial({ admin: admin.publicKey }).rpc()
+  }
+  console.log('asset_race: community policy and durations (5m, 15m, 1h) set')
+  await setupProgram(arena, 'price_arena', { initArgs: [oracle] })
+}
+
+async function fundedWallet(sol) {
+  const wallet = Keypair.generate() // throwaway, localnet only, never stored
+  const sig = await connection.requestAirdrop(wallet.publicKey, sol * LAMPORTS_PER_SOL)
+  await connection.confirmTransaction(sig, 'confirmed')
+  return wallet
+}
+
+const bySymbol = (symbol) => catalog.assets.find((a) => a.symbol === symbol)
+
+async function seed() {
+  if (!isLocal) throw new Error('seed only runs on localnet')
+  const now = Math.floor(Date.now() / 1000)
+  const raceConfig = await race.account.config.fetch(pda(race, [enc('config')]))
+
+  const platformRaces = [
+    { title: 'Magnificent tech sprint', category: 'STOCK', symbols: ['NVDAx', 'TSLAx', 'METAx', 'MSFTx'], betting: 1800, duration: 3600 },
+    { title: 'Meme mayhem', category: 'MEME', symbols: ['WIF', 'POPCAT', 'PENGU', 'FARTCOIN'], betting: 900, duration: 900 },
+    { title: 'Majors showdown', category: 'CRYPTO', symbols: ['SOL', 'cbBTC', 'ETH'], betting: 1200, duration: 3600 },
+  ]
+  let raceId = Number(raceConfig.raceCount)
+  for (const spec of platformRaces) {
+    const raceKey = pda(race, [enc('race'), u64(raceId)])
+    await race.methods
+      .createPlatformRace(spec.title, {
+        category: category(spec.category),
+        stakeMint: NATIVE_SOL,
+        bettingStartTime: new BN(now),
+        bettingEndTime: new BN(now + spec.betting),
+        raceDuration: new BN(spec.duration),
+        startGrace: new BN(300),
+        resolutionGrace: new BN(600),
+        feeBp: 200,
+        minActiveContenders: 2,
+        minStake: new BN(LAMPORTS_PER_SOL / 200),
+        maxStakePerWallet: new BN(LAMPORTS_PER_SOL),
+      })
+      .accountsPartial({
+        admin: admin.publicKey,
+        race: raceKey,
+        tokenMint: null,
+        raceVault: null,
+        creatorVault: null,
+        tokenProgram: null,
+        associatedTokenProgram: null,
+      })
+      .remainingAccounts(spec.symbols.map((s) => ({ pubkey: pda(race, [enc('asset'), Buffer.from(assetId(s))]), isSigner: false, isWritable: false })))
+      .rpc()
+    // A few bettors on different assets.
+    for (let i = 0; i < spec.symbols.length; i++) {
+      const bettor = await fundedWallet(2)
+      await race.methods
+        .bet(i, new BN(Math.round(LAMPORTS_PER_SOL * (0.02 + 0.03 * i))))
+        .accountsPartial({
+          bettor: bettor.publicKey,
+          race: raceKey,
+          tokenMint: null,
+          bettorToken: null,
+          raceVault: null,
+          tokenProgram: null,
+        })
+        .signers([bettor])
+        .rpc()
+    }
+    console.log(`race #${raceId} "${spec.title}" with ${spec.symbols.length} bets`)
+    raceId++
+  }
+
+  const arenaConfig = await arena.account.config.fetch(pda(arena, [enc('config')]))
+  let arenaId = Number(arenaConfig.arenaCount)
+  for (const [symbol, duration, guesses] of [
+    ['SOL', 900, [148.5, 151.2, 149.9]],
+    ['NVDAx', 3600, [182.1, 179.4]],
+    ['WIF', 300, [0.71, 0.69, 0.74, 0.7]],
+  ]) {
+    const asset = bySymbol(symbol)
+    const arenaKey = pda(arena, [enc('arena'), u64(arenaId)])
+    await arena.methods
+      .createArena(`Where will ${symbol} close?`, new BN(duration), NATIVE_SOL)
+      .accountsPartial({
+        creator: admin.publicKey,
+        approvedAsset: pda(arena, [enc('asset'), Buffer.from(assetId(symbol))]),
+        arena: arenaKey,
+        tokenMint: null,
+        arenaVault: null,
+        creatorVault: null,
+        tokenProgram: null,
+        associatedTokenProgram: null,
+      })
+      .rpc()
+    for (const guess of guesses) {
+      const player = await fundedWallet(2)
+      const prediction = new BN(Math.round(guess * 10 ** Math.min(asset.priceDecimals, 8))).mul(new BN(10).pow(new BN(Math.max(asset.priceDecimals - 8, 0))))
+      await arena.methods
+        .enter(prediction, new BN(LAMPORTS_PER_SOL / 20))
+        .accountsPartial({
+          player: player.publicKey,
+          arena: arenaKey,
+          tokenMint: null,
+          playerToken: null,
+          arenaVault: null,
+          tokenProgram: null,
+        })
+        .signers([player])
+        .rpc()
+    }
+    console.log(`arena #${arenaId} ${symbol} (${duration / 60}m) with ${guesses.length} entries`)
+    arenaId++
+  }
+}
+
+const command = process.argv[2]
+if (command === 'setup') await setup()
+else if (command === 'seed') await seed()
+else {
+  console.error('usage: admin.mjs setup|seed')
+  process.exit(1)
+}
