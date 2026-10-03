@@ -797,12 +797,12 @@ export type ProphetGames = {
       ],
       "accounts": [
         {
-          "name": "admin",
+          "name": "authority",
+          "docs": [
+            "The admin, or the configured race operator."
+          ],
           "writable": true,
-          "signer": true,
-          "relations": [
-            "config"
-          ]
+          "signer": true
         },
         {
           "name": "config",
@@ -873,6 +873,9 @@ export type ProphetGames = {
         },
         {
           "name": "creatorEarnings",
+          "docs": [
+            "Platform races always credit the admin, whoever signs."
+          ],
           "writable": true,
           "pda": {
             "seeds": [
@@ -894,7 +897,8 @@ export type ProphetGames = {
               },
               {
                 "kind": "account",
-                "path": "admin"
+                "path": "config.admin",
+                "account": "config"
               }
             ]
           }
@@ -1765,6 +1769,53 @@ export type ProphetGames = {
       ]
     },
     {
+      "name": "setRaceOperator",
+      "discriminator": [
+        61,
+        115,
+        249,
+        73,
+        88,
+        178,
+        108,
+        147
+      ],
+      "accounts": [
+        {
+          "name": "admin",
+          "signer": true,
+          "relations": [
+            "config"
+          ]
+        },
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "args": [
+        {
+          "name": "raceOperator",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
       "name": "setStakeMint",
       "discriminator": [
         98,
@@ -2501,6 +2552,19 @@ export type ProphetGames = {
         210,
         225,
         9
+      ]
+    },
+    {
+      "name": "raceOperatorSet",
+      "discriminator": [
+        224,
+        199,
+        44,
+        33,
+        202,
+        70,
+        199,
+        125
       ]
     },
     {
@@ -3386,6 +3450,15 @@ export type ProphetGames = {
             "type": "pubkey"
           },
           {
+            "name": "raceOperator",
+            "docs": [
+              "Optional hot key (the race scheduler) that may create platform races",
+              "and nothing else; their creator fees still accrue to the admin.",
+              "`Pubkey::default()` when unset."
+            ],
+            "type": "pubkey"
+          },
+          {
             "name": "paused",
             "docs": [
               "Pauses only creation and new bets/entries. Lifecycle, claims and refunds stay open."
@@ -4034,6 +4107,18 @@ export type ProphetGames = {
           {
             "name": "assetCount",
             "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "raceOperatorSet",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "raceOperator",
+            "type": "pubkey"
           }
         ]
       }

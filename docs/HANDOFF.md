@@ -26,12 +26,14 @@ differs from the EVM product: [`SOLANA_CHANGELOG.md`](./SOLANA_CHANGELOG.md).
 
 | Piece | State | Verified by |
 |---|---|---|
-| Programs: `prophet_games` (Asset Race + Price Arena), `nickname_registry`, crates `pool_attestation`, `stake_funds` | Done. SOL and SPL/Token-2022 stakes. No external audit. | 38 LiteSVM tests |
+| Programs: `prophet_games` (Asset Race + Price Arena), `nickname_registry`, crates `pool_attestation`, `stake_funds` | Done. SOL and SPL/Token-2022 stakes (mints with risky Token-2022 extensions are rejected). Race operator role for scheduled platform races. Internal review done; no external audit. | 40 LiteSVM tests |
 | Asset catalog | 26 assets approved by the owner (3 crypto, 10 memes, 13 xStocks), `config/solana-assets.json` | Scan + owner review |
 | Price service (`scripts/solana/price-service/`) | Done: reads reviewed mainnet pools by account subscription, signs Ed25519 boundary attestations, serves display prices | Localnet end-to-end with live mainnet prices |
-| Keeper (`scripts/solana/keeper.mjs`) | Done for timer transitions. Does **not** create scheduled platform races yet | Same end-to-end run |
+| Keeper (`scripts/solana/keeper.mjs`) | Done for timer transitions | Same end-to-end run, UI click-through |
+| Race scheduler (`scripts/solana/race-scheduler.mjs`) | Done, **off by owner decision** (`"enabled": false` in `config/platform-races.json`): each race costs ~0.009 SOL of unrefunded rent | Localnet run (created 3 races) |
 | Indexer (`scripts/solana/indexer.mjs`) | Done: one `/history` snapshot (games with raw account data, activity, wallet stats, leaderboards) | Localnet run |
-| Frontend | Fully on Solana (wagmi/viem removed): races, arenas, create pages, portfolio, leaderboard, archive | `tsc` + `npm run build` only. **Not clicked through on the local stand yet** |
+| Frontend | Fully on Solana (wagmi/viem removed): races, arenas, create pages, portfolio, leaderboard, archive; SOL and SPL stake currencies; meme market cap | Clicked through on the local stand with burner wallets (race, arena, community race, SPL arena entries), phone width checked. SPL claim through the UI not yet watched end to end |
+| GitHub Pages | Solana preview from `solana-migration` (devnet, no price service/indexer: view only) | Workflow `.github/workflows/deploy.yml` |
 | Devnet, VPS services, mainnet | Not started | — |
 | Redesign, $PROPHET token (pump.fun), buyback/burn | Later | — |
 
@@ -92,9 +94,9 @@ in your environment, never in the repo.
 
 ## Next steps, in order
 
-1. **Click through on the local stand** with the burner wallet: create a community race, bet, let the
-   keeper start and resolve it, claim; same for an arena; check portfolio, leaderboard, archive. Fix
-   what breaks; screenshot visual changes.
+1. **Owner decisions:** (a) add an admin "revoke oracle key" so open games stop trusting a compromised
+   key (they then void/cancel and refund) — today every game keeps the key it was created with;
+   (b) whether to add closing of finished games so their ~0.009 SOL rent returns to the creator.
 2. **Devnet.** `admin.mjs` and `keeper.mjs` take the program ID from the IDL; add a `GAMES_PROGRAM_ID`
    override like the indexer has if devnet uses other IDs. Deploy, use a separate devnet oracle key
    (`ORACLE_PUBKEY` for `admin.mjs setup`), run the services, owner checks with Phantom.
@@ -104,9 +106,8 @@ in your environment, never in the repo.
    `VITE_NICKNAME_PROGRAM_ID` (a mainnet build fails without them).
 4. **Remove the localnet test wallet** before launch: `src/solana/SolanaProvider.tsx`,
    `src/components/LocalnetAirdropButton.tsx`, package `@solana/wallet-adapter-unsafe-burner`.
-5. **Missing features:** keeper creating scheduled platform races; SPL-staked games in the UI (programs
-   support them, pages show SOL games only); meme market cap (the EVM version read token supply; the
-   price service could read mint supply); history beyond the indexer's last 500 activity rows.
+5. **Missing features:** history beyond the indexer's last 500 activity rows; watch an SPL-staked game's
+   claim through the UI end to end; `config/stake-tokens.json` entry for $PROPHET once it exists.
 6. **Mainnet (owner):** fresh owner key, separate oracle key, audit decision, ~4.1 SOL program rent,
    EVM wind-down, then merge to `main`.
 7. Later: redesign; $PROPHET on pump.fun as a stake mint; buyback/burn via pump.fun / PumpSwap.
@@ -121,5 +122,8 @@ in your environment, never in the repo.
 - WSL: DNS is pinned in `/etc/resolv.conf`; run WSL work from script files when calling from Git Bash
   (`MSYS_NO_PATHCONV=1 wsl.exe -d Ubuntu -- bash <file>`); `wsl --shutdown` frees its RAM.
 - Git Bash: `git commit -m` breaks on apostrophes; use `git commit -F <file>`.
+- Local stand helpers: `admin.mjs quick-race` (2 min betting + 1 min race), `test-token`, `fund-token`.
+- Heavy WSL builds while the dev server runs can drop Vite's HMR socket and reload the page; the burner
+  wallet then gets a new key. Do not rebuild programs during a burner click-through.
 - `AGENTS.md` dates from the earlier EVM setup (agent names, branch, invariants in EVM terms); the
   owner should review it before agents rely on it.

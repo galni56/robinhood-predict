@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query'
 import { usePrograms } from '@/solana/programs'
 import { raceFromAccount, type AssetRaceViewModel } from '@/chain/assetRaces'
 import { useHistory } from '@/chain/history'
+import { INDEXER_URL } from '@/solana/services'
 
 const byNewest = (a: { id: bigint }, b: { id: bigint }) => (a.id > b.id ? -1 : a.id < b.id ? 1 : 0)
 
@@ -16,7 +17,7 @@ export function useAssetRaces() {
   const history = useHistory()
   const programId = games.programId.toBase58()
   const indexed = history.data?.programId === programId ? history.data : undefined
-  const useDirect = history.isError || (history.data != null && !indexed)
+  const useDirect = INDEXER_URL == null || history.isError || (history.data != null && !indexed)
   const direct = useQuery({
     queryKey: ['races', programId],
     queryFn: async () => (await games.account.race.all()).map((r) => raceFromAccount(r.publicKey, r.account)),

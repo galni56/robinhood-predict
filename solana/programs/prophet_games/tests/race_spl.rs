@@ -199,3 +199,33 @@ fn community_token_race_uses_stake_mint_limits() {
 }
 
 use anchor_lang::InstructionData;
+
+/// Turns a fresh Token-2022 mint into one carrying a single extension TLV of
+/// `kind` with `len` bytes, the layout Token-2022 uses for extended mints.
+fn mint_with_extension(h: &mut Harness, kind: u16, len: u16) -> Pubkey {
+    let token = h.create_token(TOKEN_2022_PROGRAM);
+    let mut account = h.svm.get_account(&token.mint).unwrap();
+    let mut data = account.data.clone();
+    data.resize(165, 0);
+    data.push(1); // AccountType::Mint
+    data.extend_from_slice(&kind.to_le_bytes());
+    data.extend_from_slice(&len.to_le_bytes());
+    data.extend(std::iter::repeat_n(7u8, len as usize));
+    account.lamports = h.svm.minimum_balance_for_rent_exemption(data.len());
+    account.data = data;
+    h.svm.set_account(token.mint, account).unwrap();
+    token.mint
+}
+
+#[test]
+fn stake_mints_with_risky_extensions_are_rejected() {
+    let mut h = Harness::new();
+    // TransferFeeConfig, PermanentDelegate, TransferHook.
+    for (kind, len) in [(1u16, 108u16), (12, 32), (14, 64)] {
+        let mint = mint_with_extension(&mut h, kind, len);
+        assert_err(h.set_stake_mint(mint, true, UNIT, 1_000 * UNIT), "UnsupportedMintExtension");
+    }
+    // MetadataPointer changes neither balances nor transfers.
+    let metadata = mint_with_extension(&mut h, 18, 64);
+    h.set_stake_mint(metadata, true, UNIT, 1_000 * UNIT).unwrap();
+}

@@ -376,12 +376,19 @@ impl Harness {
     /// Creates a platform race over the first `asset_count` assets; returns its id.
     pub fn create_platform_race(&mut self, input: PlatformRaceInput, asset_count: usize) -> Result<u64, String> {
         let admin = self.admin.insecure_clone();
+        self.create_platform_race_as(input, asset_count, &admin)
+    }
+
+    /// Same, signed by `authority` (the admin or the race operator).
+    pub fn create_platform_race_as(&mut self, input: PlatformRaceInput, asset_count: usize, authority: &Keypair) -> Result<u64, String> {
+        let admin = self.admin.insecure_clone();
         let race_id = self.config().race_count;
         let race = race_pda(race_id);
         let token = self.token_of(&input.stake_mint);
+        // Platform races credit the admin's earnings whoever signs.
         let earnings = creator_pda_for(&input.stake_mint, &admin.pubkey());
         let mut metas = acc::CreatePlatformRace {
-            admin: admin.pubkey(),
+            authority: authority.pubkey(),
             config: config_pda(),
             stake_mint_config: stake_mint_pda(&input.stake_mint),
             race,
@@ -402,7 +409,7 @@ impl Harness {
             &ix::CreatePlatformRace { title: "Test race".to_string(), input }.data(),
             metas,
         );
-        self.send(&[instruction], &admin, &[])?;
+        self.send(&[instruction], authority, &[])?;
         Ok(race_id)
     }
 

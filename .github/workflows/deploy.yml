@@ -1,8 +1,16 @@
 name: Deploy to GitHub Pages
 
+# Owner decision (2026-10-03): GitHub Pages shows the Solana preview from
+# branch solana-migration instead of the EVM mirror. The live EVM product keeps
+# running from main on the VPS (prophetmarkets.fun); note that a push to main
+# still runs main's own copy of this workflow and would put the EVM build back.
+#
+# Pages is static hosting: there is no price service or indexer behind it, so
+# the build turns both off. Lists then read the program directly; live prices,
+# USD stake quotes and game settlement (keeper) are not available here.
 on:
   push:
-    branches: [main]
+    branches: [solana-migration]
   workflow_dispatch:
 
 permissions:
@@ -18,23 +26,14 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      # Production V2 bindings. Vite rejects any address mismatch while
-      # VITE_NATIVE_ETH_RELEASE is true.
-      VITE_NATIVE_ETH_RELEASE: "true"
-      VITE_MARKET_ADDRESS: "0xF62CF5Db594c4b706555584ccEC9Fb9a61541D4a"
-      VITE_DEPLOY_BLOCK: "76951947"
-      VITE_ASSET_RACE_NETWORK: "robinhood-mainnet"
-      VITE_ASSET_RACE_ADDRESS: "0xebA246E4B548b93079Bf4D85faA50fa8b7Ff9c6e"
-      VITE_ASSET_RACE_SIGNED_POOL_ORACLE_ADDRESS: "0x5b0f7e62E0A5fF5C5C02Ad219Afcd086F2618Db7"
-      VITE_PRICE_ARENA_ADDRESS: "0x541be0c7c1011a63465Ff53408e9F76DA870b29f"
-      VITE_ALL_ASSET_TYPES_ENABLED: "true"
-      # GitHub Pages has no same-origin SSE backend.
-      VITE_ASSET_RACE_LIVE_ENABLED: "false"
+      VITE_SOLANA_CLUSTER: devnet
+      VITE_PRICE_SERVICE_URL: "off"
+      VITE_INDEXER_URL: "off"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
       - run: npm ci
       - run: npm run build

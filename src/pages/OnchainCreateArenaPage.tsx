@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
+import { PublicKey } from '@solana/web3.js'
 import { useWallet } from '@solana/wallet-adapter-react'
 import { CRYPTO_ASSETS_ENABLED } from '@/chain/features'
 import {
@@ -13,6 +14,7 @@ import {
 import { createArenaInstructions } from '@/chain/gameTx'
 import { useApprovedRaceAssets } from '@/chain/useApprovedRaceAssets'
 import { ClusterBanner } from '@/components/ClusterBanner'
+import { StakeCurrencySelect } from '@/components/StakeCurrencySelect'
 import { CompactAssetSelector } from '@/components/CompactAssetSelector'
 import { FilterChips, GAME_MODE_CHIP_OPTIONS } from '@/components/FilterChips'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
@@ -38,6 +40,7 @@ export function OnchainCreateArenaPage() {
   const [title, setTitle] = useState('')
   const [assetId, setAssetId] = useState('')
   const [duration, setDuration] = useState<bigint>(300n)
+  const [stakeMint, setStakeMint] = useState(NATIVE_SOL.toBase58())
   const [txLabel, setTxLabel] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const { publicKey, connected } = useWallet()
@@ -63,7 +66,7 @@ export function OnchainCreateArenaPage() {
         title: title.trim(),
         assetId: assetIdFromSymbol(selected.symbol),
         duration,
-        stakeMint: NATIVE_SOL,
+        stakeMint: new PublicKey(stakeMint),
       })
       setTxLabel('Waiting for confirmation…')
       await send(instructions)
@@ -93,7 +96,7 @@ export function OnchainCreateArenaPage() {
               tone="arena"
               eyebrow={`${arenaDurationLabel(duration)} arena · full lifecycle`}
               title="From forecast to final ranking"
-              intro="Creating an arena does not enter a forecast. It costs a small SOL network fee plus the rent deposit for the arena account. The 10-minute lobby begins when the creation transaction confirms; the selected game duration follows it."
+              intro="Creating an arena does not enter a forecast. It costs about 0.009 SOL of rent for the arena account, which is not refunded, plus a small network fee. The 10-minute lobby begins when the creation transaction confirms; the selected game duration follows it."
               stages={[
                 {
                   title: 'Players enter forecasts',
@@ -146,6 +149,7 @@ export function OnchainCreateArenaPage() {
                 />
               ) : <p className="py-5 text-sm text-white/40">{approved.isLoading ? 'Loading approved assets…' : 'No approved assets in this category yet.'}</p>}
           </div>
+          <StakeCurrencySelect value={stakeMint} onChange={setStakeMint} tone="arena" />
           <div><div className="mb-2 text-sm font-bold text-white/60">Game duration</div><div className="grid grid-cols-2 gap-2 sm:grid-cols-4">{PRICE_ARENA_DURATIONS.map((seconds) => <button key={seconds.toString()} onClick={() => setDuration(seconds)} className={`rounded-xl border px-3 py-3 text-sm font-bold ${duration === seconds ? 'border-[#7A9FF0] bg-[#7A9FF0]/15 text-[#B7CEFF]' : 'border-white/5 bg-white/[0.03] text-white/50'}`}>{arenaDurationLabel(seconds)}</button>)}</div></div>
           {error && <p className="text-sm text-rose-400">{error}</p>}
           {!connected ? <WalletOptionsList tone="arena" /> : <button onClick={create} disabled={!publicKey || !valid || !!txLabel} className="w-full rounded-xl bg-gradient-to-r from-[#8EB1F8] to-[#7A9FF0] py-3 font-bold text-[#152447] disabled:opacity-40">{txLabel ?? 'Create Price Arena'}</button>}

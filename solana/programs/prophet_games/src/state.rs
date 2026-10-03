@@ -31,6 +31,10 @@ pub struct Config {
     pub pending_admin: Pubkey,
     /// Ed25519 key whose pool attestations new games will trust.
     pub oracle_signer: Pubkey,
+    /// Optional hot key (the race scheduler) that may create platform races
+    /// and nothing else; their creator fees still accrue to the admin.
+    /// `Pubkey::default()` when unset.
+    pub race_operator: Pubkey,
     /// Pauses only creation and new bets/entries. Lifecycle, claims and refunds stay open.
     pub paused: bool,
     pub race_count: u64,

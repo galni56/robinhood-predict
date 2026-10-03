@@ -5,8 +5,6 @@ import { useWallet } from '@solana/wallet-adapter-react'
 import {
   ASSET_RACE_STATUS,
   ASSET_RACE_ORIGIN,
-  ASSET_RACE_TOKEN_LABEL,
-  STAKE_DECIMALS,
   assetRaceCategoryLabel,
   assetRaceStatusLabel,
   raceModeForCategory,
@@ -14,6 +12,7 @@ import {
 import {
   formatUsdCents,
   freezeStakeQuote,
+  parseTokenAmount,
   stakeGuardrailMessage,
   stakeGuardrailViolation,
   stakeQuoteErrorMessage,
@@ -40,11 +39,11 @@ import { InfoBanner } from '@/components/InfoBanner'
 import { PriceSourceLink } from '@/components/PriceSourceLink'
 import { ShareInviteButton } from '@/components/ShareInviteButton'
 import { TokenLogo } from '@/components/TokenLogo'
-import { NATIVE_SOL, SOLANA_CLUSTER } from '@/solana/config'
-import { useSolBalance } from '@/solana/balance'
+import { SOLANA_CLUSTER } from '@/solana/config'
+import { useStakeBalance, useStakeToken } from '@/solana/stakeTokens'
 import { usePrograms } from '@/solana/programs'
 import { useSendInstructions } from '@/solana/tx'
-import { formatSol, shortTxError } from '@/lib/format'
+import { formatUnits, shortTxError } from '@/lib/format'
 
 type TxState = { label: string } | null
 
@@ -81,8 +80,10 @@ export function OnchainRacePage() {
   const [error, setError] = useState<string | null>(null)
   const raceNowMs = useAssetRaceClock()
   const live = useLivePrices()
-  const balance = useSolBalance()
-  const solStaked = race?.stakeMint === NATIVE_SOL.toBase58()
+  // SOL stakes are entered in USD or SOL at the live rate; SPL stakes in their own units.
+  const token = useStakeToken(race?.stakeMint)
+  const usdQuoted = token?.native ?? true
+  const balance = useStakeBalance(token)
 
   let quotedBet: FrozenStakeQuote | undefined
   try {
@@ -91,7 +92,13 @@ export function OnchainRacePage() {
     quotedBet = undefined
   }
   const displayedBetQuote = frozenBetQuote ?? quotedBet
-  const displayedBetLamports = displayedBetQuote?.lamports ?? 0n
+  let tokenBetAmount = 0n
+  try {
+    tokenBetAmount = !usdQuoted && token && amount.trim() ? parseTokenAmount(amount, token.decimals) : 0n
+  } catch {
+    tokenBetAmount = 0n
+  }
+  const displayedBetAmount = usdQuoted ? displayedBetQuote?.lamports ?? 0n : tokenBetAmount
 
   async function refetchAll() {
     await Promise.all([
@@ -104,10 +111,14 @@ export function OnchainRacePage() {
   async function handleBet() {
     setError(null)
     try {
-      if (raceId == null || !race || !publicKey) return
-      if (!live.solUsd) throw new Error('SolUsdQuoteStale')
-      const frozen = freezeStakeQuote(amount, stakeInputUnit, live.solUsd)
-      const violation = stakeGuardrailViolation(frozen.lamports, {
+      if (raceId == null || !race || !publicKey || !token) return
+      let frozen: FrozenStakeQuote | null = null
+      if (usdQuoted) {
+        if (!live.solUsd) throw new Error('SolUsdQuoteStale')
+        frozen = freezeStakeQuote(amount, stakeInputUnit, live.solUsd)
+      }
+      const betAmount = frozen ? frozen.lamports : parseTokenAmount(amount, token.decimals)
+      const violation = stakeGuardrailViolation(betAmount, {
         minInitial: race.minStake,
         maxCumulative: race.maxStakePerWallet,
         existingStake: position?.stake ?? 0n,
@@ -125,7 +136,7 @@ export function OnchainRacePage() {
         stakeMint: race.stakeMint,
         bettor: publicKey,
         assetIndex,
-        amount: frozen.lamports,
+        amount: betAmount,
       })
       setTx({ label: 'Waiting for bet confirmation…' })
       await send(instructions)
@@ -235,10 +246,8 @@ export function OnchainRacePage() {
             </div>
           </div>
 
-          {!solStaked ? (
-            <div className="rounded-3xl border border-white/10 bg-[#241b2f] p-6 text-sm text-white/55">
-              This race is staked in an SPL token. This page supports SOL-staked races only for now.
-            </div>
+          {!token ? (
+            <p className="py-10 text-center text-sm text-white/40">Loading stake currency…</p>
           ) : race.status === ASSET_RACE_STATUS.LOBBY ? (
             <AssetRaceLobbyView
               race={race}
@@ -272,15 +281,16 @@ export function OnchainRacePage() {
               txLabel={tx?.label ?? null}
               error={error}
               nowMs={raceNowMs}
-              tokenDecimals={STAKE_DECIMALS}
-              tokenLabel={ASSET_RACE_TOKEN_LABEL}
-              amountRaw={displayedBetLamports}
-              exactSol={displayedBetLamports > 0n ? formatSol(displayedBetLamports) : null}
-              equivalentUsd={displayedBetQuote ? formatUsdCents(displayedBetQuote.usdCents) : null}
-              quoteReady={!!live.solUsd}
+              tokenDecimals={token.decimals}
+              tokenLabel={token.symbol}
+              amountRaw={displayedBetAmount}
+              exactAmount={displayedBetAmount > 0n ? formatUnits(displayedBetAmount, token.decimals) : null}
+              equivalentUsd={usdQuoted && displayedBetQuote ? formatUsdCents(displayedBetQuote.usdCents) : null}
+              quoteReady={!usdQuoted || !!live.solUsd}
+              usdQuoted={usdQuoted}
             />
           ) : race.status === ASSET_RACE_STATUS.RUNNING ? (
-            <AssetRaceLiveView race={race} position={position} nowMs={raceNowMs} tokenDecimals={STAKE_DECIMALS} tokenLabel={ASSET_RACE_TOKEN_LABEL} />
+            <AssetRaceLiveView race={race} position={position} nowMs={raceNowMs} tokenDecimals={token.decimals} tokenLabel={token.symbol} />
           ) : (
             <AssetRaceResultView
               race={race}
@@ -292,8 +302,8 @@ export function OnchainRacePage() {
               onCloseLosing={() => handleSettlement('closeLosing')}
               txLabel={tx?.label ?? null}
               error={error}
-              tokenDecimals={STAKE_DECIMALS}
-              tokenLabel={ASSET_RACE_TOKEN_LABEL}
+              tokenDecimals={token.decimals}
+              tokenLabel={token.symbol}
             />
           )}
         </div>

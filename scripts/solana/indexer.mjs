@@ -16,7 +16,7 @@
 // frontend decodes it with the same IDL code it uses for direct reads.
 //
 // Env: SOLANA_RPC_URL (game cluster, default localnet), GAMES_PROGRAM_ID
-// (default: the IDL address), INDEXER_PORT (8791), INDEXER_INTERVAL_MS (5000), INDEXER_STATE (default ~/.prophet/indexer-<cluster>.json),
+// (default: the IDL address), INDEXER_PORT (8791), INDEXER_HOST (127.0.0.1), INDEXER_INTERVAL_MS (5000), INDEXER_STATE (default ~/.prophet/indexer-<cluster>.json),
 // ACTIVITY_LIMIT (500).
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
@@ -30,6 +30,8 @@ const { AnchorProvider, BorshCoder, EventParser, Program } = anchor
 const ROOT = new URL('../../', import.meta.url)
 const RPC = process.env.SOLANA_RPC_URL ?? 'http://127.0.0.1:8899'
 const PORT = Number(process.env.INDEXER_PORT ?? 8791)
+// Loopback by default: nginx is the only public entry (and WSL forwards IPv4 loopback to Windows).
+const HOST = process.env.INDEXER_HOST ?? '127.0.0.1'
 const INTERVAL = Number(process.env.INDEXER_INTERVAL_MS ?? 5_000)
 const ACTIVITY_LIMIT = Number(process.env.ACTIVITY_LIMIT ?? 500)
 const cluster = /127\.0\.0\.1|localhost/.test(RPC) ? 'localnet' : /devnet/.test(RPC) ? 'devnet' : 'mainnet'
@@ -62,7 +64,9 @@ function save() {
   writeFileSync(STATE, JSON.stringify(state))
 }
 
-// Event fields come back as BN / PublicKey / enum objects; store plain JSON.
+// Event fields come back as BN / PublicKey / enum objects with the IDL's
+// snake_case names; store plain JSON with camelCase keys.
+const camel = (key) => key.replace(/_([a-z0-9])/g, (_, c) => c.toUpperCase())
 function plain(value) {
   if (value == null) return value
   if (value instanceof PublicKey) return value.toBase58()
@@ -72,7 +76,7 @@ function plain(value) {
     const keys = Object.keys(value)
     // Anchor enums decode as { variantName: {} }
     if (keys.length === 1 && value[keys[0]] && typeof value[keys[0]] === 'object' && Object.keys(value[keys[0]]).length === 0) return keys[0]
-    return Object.fromEntries(keys.map((k) => [k, plain(value[k])]))
+    return Object.fromEntries(keys.map((k) => [camel(k), plain(value[k])]))
   }
   return value
 }
@@ -211,7 +215,7 @@ async function build() {
     switch (e.name) {
       case 'BetPlaced': {
         const race = raceByAddress.get(d.race)
-        activity.push({ ...base, type: 'bet', game: 'race', gameId: race?.id ?? null, gameAddress: d.race, wallet: d.bettor, amount: d.amount, assetIndex: d.assetIndex, symbol: race?.assets[d.assetIndex]?.symbol ?? null })
+        activity.push({ ...base, type: 'bet', game: 'race', gameId: race?.id ?? null, gameAddress: d.race, wallet: d.bettor, amount: d.amount, assetIndex: d.assetIndex, symbol: race?.assets[d.assetIndex]?.symbol ?? null, stakeMint: race?.stakeMint ?? null })
         if (isSol(race)) {
           const w = wallet(d.bettor)
           w.staked += big(d.amount)
@@ -229,7 +233,7 @@ async function build() {
         const key = `${d.arena}:${d.player}`
         const delta = big(d.totalStake) - (arenaStake.get(key) ?? 0n)
         arenaStake.set(key, big(d.totalStake))
-        if (delta > 0n) activity.push({ ...base, type: 'entry', game: 'arena', gameId: arena?.id ?? null, gameAddress: d.arena, wallet: d.player, amount: str(delta), symbol: arena?.symbol ?? null })
+        if (delta > 0n) activity.push({ ...base, type: 'entry', game: 'arena', gameId: arena?.id ?? null, gameAddress: d.arena, wallet: d.player, amount: str(delta), symbol: arena?.symbol ?? null, stakeMint: arena?.stakeMint ?? null })
         if (isSol(arena)) {
           const w = wallet(d.player)
           w.staked += delta
@@ -245,7 +249,7 @@ async function build() {
       case 'ArenaClaimed': {
         const game = e.name === 'RaceClaimed' ? raceByAddress.get(d.race) : arenaByAddress.get(d.arena)
         const who = d.owner ?? d.player
-        activity.push({ ...base, type: 'claim', game: e.name === 'RaceClaimed' ? 'race' : 'arena', gameId: game?.id ?? null, gameAddress: d.race ?? d.arena, wallet: who, amount: d.payout })
+        activity.push({ ...base, type: 'claim', game: e.name === 'RaceClaimed' ? 'race' : 'arena', gameId: game?.id ?? null, gameAddress: d.race ?? d.arena, wallet: who, amount: d.payout, stakeMint: game?.stakeMint ?? null })
         if (isSol(game)) {
           const w = wallet(who)
           w.claimed += big(d.payout)
@@ -258,7 +262,7 @@ async function build() {
       case 'ArenaRefunded': {
         const game = e.name === 'RaceRefunded' ? raceByAddress.get(d.race) : arenaByAddress.get(d.arena)
         const who = d.owner ?? d.player
-        activity.push({ ...base, type: 'refund', game: e.name === 'RaceRefunded' ? 'race' : 'arena', gameId: game?.id ?? null, gameAddress: d.race ?? d.arena, wallet: who, amount: d.amount })
+        activity.push({ ...base, type: 'refund', game: e.name === 'RaceRefunded' ? 'race' : 'arena', gameId: game?.id ?? null, gameAddress: d.race ?? d.arena, wallet: who, amount: d.amount, stakeMint: game?.stakeMint ?? null })
         if (isSol(game)) {
           wallet(who).refunded += big(d.amount)
           kindWallet(e.name === 'RaceRefunded' ? 'race' : 'arena', who).refunded += big(d.amount)
@@ -338,7 +342,7 @@ createServer((req, res) => {
   if (url.pathname === '/history') return snapshot ? send(200, snapshot) : send(503, { error: 'warming up' })
   if (url.pathname === '/health') return send(snapshot ? 200 : 503, { cluster, events: state.events.length, updatedAt: snapshot?.updatedAt ?? null })
   send(404, { error: 'not found' })
-}).listen(PORT, () => console.log(`indexer on :${PORT} · ${cluster} · program ${program.programId.toBase58()} · state ${STATE}`))
+}).listen(PORT, HOST, () => console.log(`indexer on :${PORT} · ${cluster} · program ${program.programId.toBase58()} · state ${STATE}`))
 
 await cycle()
 setInterval(cycle, INTERVAL)

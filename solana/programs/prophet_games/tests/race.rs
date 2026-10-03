@@ -510,3 +510,32 @@ fn admin_handover_is_two_step() {
     h.send_as(&[pause], &successor).unwrap();
     assert!(h.config().paused);
 }
+
+#[test]
+fn race_operator_creates_platform_races_only() {
+    let mut h = Harness::new();
+    let admin = h.admin.insecure_clone();
+    let operator = h.user(10);
+    let stranger = h.user(10);
+
+    let input = h.default_platform_input();
+    assert_err(h.create_platform_race_as(input, 2, &operator).map(|_| ()), "Unauthorized");
+
+    let set = h.admin_config_ix(ix::SetRaceOperator { race_operator: operator.pubkey() }.data(), &admin.pubkey());
+    h.send(&[set], &admin, &[]).unwrap();
+    let input = h.default_platform_input();
+    let race_id = h.create_platform_race_as(input, 2, &operator).unwrap();
+    // Fees of operator-created races credit the admin.
+    assert_eq!(h.race(race_id).creator, admin.pubkey());
+
+    let input = h.default_platform_input();
+    assert_err(h.create_platform_race_as(input, 2, &stranger).map(|_| ()), "Unauthorized");
+    // The operator holds no admin power.
+    let pause = h.admin_config_ix(ix::SetPaused { paused: true }.data(), &operator.pubkey());
+    assert_err(h.send(&[pause], &operator, &[]), "Unauthorized");
+
+    let revoke = h.admin_config_ix(ix::SetRaceOperator { race_operator: Pubkey::default() }.data(), &admin.pubkey());
+    h.send(&[revoke], &admin, &[]).unwrap();
+    let input = h.default_platform_input();
+    assert_err(h.create_platform_race_as(input, 2, &operator).map(|_| ()), "Unauthorized");
+}

@@ -11,6 +11,15 @@ export interface LivePrice {
   decimals: number
   /** Decimal string as the service formats it. */
   price: string
+  /** Mint supply (memes only), for a display market cap. */
+  supply?: { raw: bigint; decimals: number }
+}
+
+/** Price × mint supply in USD, display only; undefined without a supply. */
+export function marketCapUsd(price: Pick<LivePrice, 'raw' | 'decimals' | 'supply'> | undefined): number | undefined {
+  if (!price?.supply) return undefined
+  const value = (Number(price.raw) / 10 ** price.decimals) * (Number(price.supply.raw) / 10 ** price.supply.decimals)
+  return Number.isFinite(value) && value > 0 ? value : undefined
 }
 
 /** SOL/USD rate used to quote stakes entered in USD. */
@@ -34,7 +43,7 @@ export const LIVE_PRICE_STALE_MS = 15_000
 
 interface PricesResponse {
   slot?: number
-  prices?: Record<string, { price?: string; raw?: string; decimals?: number }>
+  prices?: Record<string, { price?: string; raw?: string; decimals?: number; supply?: { raw?: string; decimals?: number } }>
 }
 
 async function fetchPrices() {
@@ -47,7 +56,10 @@ async function fetchPrices() {
     if (!Number.isSafeInteger(entry.decimals) || entry.decimals! < 0 || entry.decimals! > 18) continue
     const raw = BigInt(entry.raw)
     if (raw <= 0n) continue
-    assets[symbol] = { symbol, raw, decimals: entry.decimals!, price: entry.price ?? '' }
+    const supply = entry.supply && typeof entry.supply.raw === 'string' && /^\d+$/.test(entry.supply.raw) && Number.isSafeInteger(entry.supply.decimals)
+      ? { raw: BigInt(entry.supply.raw), decimals: entry.supply.decimals! }
+      : undefined
+    assets[symbol] = { symbol, raw, decimals: entry.decimals!, price: entry.price ?? '', supply }
   }
   return { slot: body.slot, assets }
 }
@@ -56,7 +68,7 @@ export function useLivePrices({ enabled = true }: { enabled?: boolean } = {}): L
   const query = useQuery({
     queryKey: ['live-prices'],
     queryFn: fetchPrices,
-    enabled,
+    enabled: enabled && PRICE_SERVICE_URL != null,
     refetchInterval: POLL_MS,
     refetchIntervalInBackground: false,
     retry: 1,

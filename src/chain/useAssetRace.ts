@@ -3,13 +3,14 @@ import type { PublicKey } from '@solana/web3.js'
 import { useQuery } from '@tanstack/react-query'
 import { usePrograms } from '@/solana/programs'
 import { racePda, racePositionPda } from '@/solana/pda'
-import { useLivePrices } from '@/chain/livePrices'
+import { marketCapUsd, useLivePrices } from '@/chain/livePrices'
 import { useHistory } from '@/chain/history'
 import {
   ASSET_RACE_STATUS,
   positionFromAccount,
   raceFromAccount,
   type AssetRaceAsset,
+  type AssetRacePosition,
   type AssetRaceViewModel,
 } from '@/chain/assetRaces'
 
@@ -68,6 +69,7 @@ export function useAssetRace(raceId: bigint | null, wallet?: PublicKey | null) {
           liveDecimals: usable ? price.decimals : asset.expectedDecimals,
           liveProvider: usable ? 'PRICE_SERVICE' : undefined,
           liveStale: showLive && !usable,
+          liveMarketCapUsd: usable ? marketCapUsd(price) : undefined,
         }
       }),
     }
@@ -82,9 +84,21 @@ export function useAssetRace(raceId: bigint | null, wallet?: PublicKey | null) {
     return event ? { type: event.type as RaceSettlement['type'], amount: BigInt(event.amount ?? '0'), signature: event.signature } : undefined
   }, [base, history.data, wallet])
 
+  // After a claim, refund or losing close the position account is gone; the
+  // wallet's bets in the activity feed still say what it backed.
+  const pastPosition = useMemo<AssetRacePosition | undefined>(() => {
+    const terminal = base?.status === ASSET_RACE_STATUS.RESOLVED || base?.status === ASSET_RACE_STATUS.CANCELLED || base?.status === ASSET_RACE_STATUS.VOID
+    if (!base || !wallet || !terminal || !positionQuery.isSuccess || positionQuery.data) return undefined
+    const me = wallet.toBase58()
+    const bets = (history.data?.activity ?? []).filter((item) => item.type === 'bet' && item.gameAddress === base.address && item.wallet === me)
+    if (bets.length === 0) return undefined
+    const stake = bets.reduce((sum, item) => sum + BigInt(item.amount ?? '0'), 0n)
+    return { stake, assetIndex: bets[0].assetIndex ?? 0, exists: true, settled: true }
+  }, [base, history.data, positionQuery.data, positionQuery.isSuccess, wallet])
+
   return {
     race,
-    position: positionQuery.data ?? undefined,
+    position: positionQuery.data ?? pastPosition,
     settlement,
     liveDisconnected: showLive && live.disconnected,
     isLoading: raceQuery.isLoading,

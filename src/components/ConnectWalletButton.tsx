@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { useWallet } from '@solana/wallet-adapter-react'
 import { AddressAvatar } from '@/components/AddressAvatar'
@@ -17,10 +17,30 @@ export function ConnectWalletButton() {
   const [copied, setCopied] = useState(false)
   const [nicknameModalOpen, setNicknameModalOpen] = useState(false)
   const address = publicKey?.toBase58()
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  // A document listener rather than a full-screen overlay: the navbar's
+  // backdrop-blur makes it the containing block for fixed children, so an
+  // overlay would only cover the navbar.
+  useEffect(() => {
+    if (!open) return
+    const onPointerDown = (event: MouseEvent) => {
+      if (!menuRef.current?.contains(event.target as Node)) setOpen(false)
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('mousedown', onPointerDown)
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [open])
 
   if (connected && address) {
     return (
-      <div className="relative">
+      <div ref={menuRef} className="relative">
         <button
           onClick={() => setOpen((v) => !v)}
           className="flex items-center gap-2 pl-1.5 pr-3 py-1.5 rounded-full border border-white/10 hover:border-white/30 transition-colors"
@@ -30,7 +50,6 @@ export function ConnectWalletButton() {
         </button>
         {open && (
           <>
-            <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
             <div className="absolute right-0 top-10 z-20 w-52 rounded-2xl border border-white/10 bg-[#241b2f] shadow-2xl py-1 text-sm">
               <NavLink
                 to="/onchain/portfolio"
@@ -87,7 +106,7 @@ export function ConnectWalletButton() {
   }
 
   return (
-    <div className="relative">
+    <div ref={menuRef} className="relative">
       <button
         onClick={() => setOpen((v) => !v)}
         className="text-xs px-4 py-2 rounded-full bg-gradient-to-r from-[#8B7CF7] to-[#6A5AE0] hover:brightness-110 text-white font-bold transition-all shadow-[0_4px_16px_-4px_rgba(106,90,224,0.6)]"
@@ -96,7 +115,6 @@ export function ConnectWalletButton() {
       </button>
       {open && (
         <>
-          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
           <div className="absolute right-0 top-10 z-20 w-72 rounded-2xl border border-white/10 bg-[#241b2f] shadow-2xl p-2">
             <WalletOptionsList onConnect={() => setOpen(false)} />
           </div>

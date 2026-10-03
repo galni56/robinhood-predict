@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import type { TransactionInstruction } from '@solana/web3.js'
 import { useWallet } from '@solana/wallet-adapter-react'
-import { assetRaceStatusLabel, formatStakeRaw } from '@/chain/assetRaces'
+import { assetRaceStatusLabel } from '@/chain/assetRaces'
 import { arenaPhaseLabel, arenaPhase } from '@/chain/priceArena'
 import { settleArenaInstructions, settleRaceInstructions, withdrawCreatorFeesInstructions } from '@/chain/gameTx'
 import { useHistory, type HistoryActivity } from '@/chain/history'
@@ -16,6 +16,7 @@ import { NATIVE_SOL, explorerUrl } from '@/solana/config'
 import { usePrograms } from '@/solana/programs'
 import { useSendInstructions } from '@/solana/tx'
 import { formatCompactSol, formatSol, shortTxError, timeAgo } from '@/lib/format'
+import { SOL_STAKE_TOKEN, formatStakeAmount, useStakeTokenLookup } from '@/solana/stakeTokens'
 import { shortHash } from '@/lib/hash'
 
 const ACTION_LABEL: Record<Exclude<WalletGameAction, 'none'>, string> = {
@@ -68,6 +69,7 @@ export function OnchainPortfolioPage() {
   const send = useSendInstructions()
   const queryClient = useQueryClient()
   const history = useHistory()
+  const tokenOf = useStakeTokenLookup()
   const nowMs = useAssetRaceClock()
   const { racePositions, arenaEntries, creatorEarnings, isLoading, error, refetch } = useWalletGames(publicKey)
   const [pending, setPending] = useState<string | null>(null)
@@ -81,7 +83,7 @@ export function OnchainPortfolioPage() {
     setPending(key)
     try {
       await send(await build())
-      await Promise.all([refetch(), queryClient.invalidateQueries({ queryKey: ['history'] }), queryClient.invalidateQueries({ queryKey: ['sol-balance'] })])
+      await Promise.all([refetch(), queryClient.invalidateQueries({ queryKey: ['history'] }), queryClient.invalidateQueries({ queryKey: ['stake-balance'] })])
     } catch (cause) {
       setActionError(shortTxError(cause, 'portfolio'))
     } finally {
@@ -98,7 +100,7 @@ export function OnchainPortfolioPage() {
         disabled={!!pending}
         className={`rounded-full px-4 py-2 text-xs font-bold disabled:opacity-40 ${item.action === 'closeLosing' ? 'border border-white/15 text-white/60 hover:border-white/30' : 'bg-[#ED8F3A] text-[#3b2416] hover:bg-[#F2A65A]'}`}
       >
-        {pending === key ? 'Confirming…' : `${ACTION_LABEL[item.action]}${item.amount > 0n ? ` ${formatCompactSol(item.amount)}` : ''}`}
+        {pending === key ? 'Confirming…' : `${ACTION_LABEL[item.action]}${item.amount > 0n ? ` ${formatStakeAmount(item.amount, tokenOf(item.race.stakeMint))}` : ''}`}
       </button>
     )
   }
@@ -112,20 +114,18 @@ export function OnchainPortfolioPage() {
         disabled={!!pending}
         className="rounded-full bg-[#7A9FF0] px-4 py-2 text-xs font-bold text-[#152447] hover:bg-[#8EB1F8] disabled:opacity-40"
       >
-        {pending === key ? 'Confirming…' : `${ACTION_LABEL[item.action]} ${formatCompactSol(item.amount)}`}
+        {pending === key ? 'Confirming…' : `${ACTION_LABEL[item.action]} ${formatStakeAmount(item.amount, tokenOf(item.arena.stakeMint))}`}
       </button>
     )
   }
 
-  const solRaces = racePositions.filter((item) => item.race.stakeMint === NATIVE_SOL.toBase58())
-  const solArenas = arenaEntries.filter((item) => item.arena.stakeMint === NATIVE_SOL.toBase58())
   const toCollect = [
-    ...solRaces.filter((item) => item.action !== 'none').map((item) => ({ kind: 'race' as const, item })),
-    ...solArenas.filter((item) => item.action !== 'none').map((item) => ({ kind: 'arena' as const, item })),
+    ...racePositions.filter((item) => item.action !== 'none').map((item) => ({ kind: 'race' as const, item })),
+    ...arenaEntries.filter((item) => item.action !== 'none').map((item) => ({ kind: 'arena' as const, item })),
   ]
   const inPlay = [
-    ...solRaces.filter((item) => item.inPlay).map((item) => ({ kind: 'race' as const, item })),
-    ...solArenas.filter((item) => item.inPlay).map((item) => ({ kind: 'arena' as const, item })),
+    ...racePositions.filter((item) => item.inPlay).map((item) => ({ kind: 'race' as const, item })),
+    ...arenaEntries.filter((item) => item.inPlay).map((item) => ({ kind: 'arena' as const, item })),
   ]
   const net = stats ? BigInt(stats.net) : 0n
 
@@ -138,7 +138,7 @@ export function OnchainPortfolioPage() {
         accent="#F2A65A"
         symbols={asset ? [asset.symbol] : []}
         title={item.race.title || item.race.assets.map((a) => a.symbol).join(' vs ')}
-        meta={`Race #${item.race.id} · ${assetRaceStatusLabel(item.race.status)} · backed ${asset?.symbol ?? '?'} with ${formatStakeRaw(item.position.stake)} SOL`}
+        meta={`Race #${item.race.id} · ${assetRaceStatusLabel(item.race.status)} · backed ${asset?.symbol ?? '?'} with ${formatStakeAmount(item.position.stake, tokenOf(item.race.stakeMint))}`}
         right={right}
       />
     )
@@ -153,7 +153,7 @@ export function OnchainPortfolioPage() {
         accent="#B7CEFF"
         symbols={[item.arena.symbol]}
         title={item.arena.title}
-        meta={`Arena #${item.arena.id} · ${arenaPhaseLabel(phase)} · ${formatStakeRaw(item.entry.stake)} SOL staked${item.entry.rank > 0 ? ` · rank ${item.entry.rank}` : ''}`}
+        meta={`Arena #${item.arena.id} · ${arenaPhaseLabel(phase)} · ${formatStakeAmount(item.entry.stake, tokenOf(item.arena.stakeMint))} staked${item.entry.rank > 0 ? ` · rank ${item.entry.rank}` : ''}`}
         right={right}
       />
     )
@@ -236,7 +236,7 @@ export function OnchainPortfolioPage() {
                   <Link to={`/onchain/${item.game === 'race' ? 'races' : 'arenas'}/${item.gameId ?? ''}`} className="hidden truncate text-white/50 hover:text-white sm:block">
                     {item.game === 'race' ? 'Race' : 'Arena'} #{item.gameId ?? '?'}{item.symbol ? ` · ${item.symbol}` : ''}
                   </Link>
-                  <span className="text-right font-mono tabular-nums">{item.amount ? formatCompactSol(BigInt(item.amount)) : ''}</span>
+                  <span className="text-right font-mono tabular-nums">{item.amount ? formatStakeAmount(BigInt(item.amount), item.stakeMint ? tokenOf(item.stakeMint) : SOL_STAKE_TOKEN) : ''}</span>
                   <a href={explorerUrl('tx', item.signature)} target="_blank" rel="noreferrer" className="hidden text-right font-mono text-xs text-white/35 hover:text-white sm:block">
                     {item.time ? timeAgo(item.time * 1000) : shortHash(item.signature)}
                   </a>

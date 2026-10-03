@@ -9,6 +9,7 @@ export function StakeAmountInput({
   onInputUnitChange,
   disabled = false,
   tone = 'market',
+  token,
 }: {
   id: string
   label: string
@@ -18,7 +19,10 @@ export function StakeAmountInput({
   onInputUnitChange?: (unit: StakeInputUnit) => void
   disabled?: boolean
   tone?: 'market' | 'race' | 'arena'
+  /** An SPL stake currency: entered in its own units, no USD conversion. */
+  token?: { symbol: string; native: boolean }
 }) {
+  const spl = token != null && !token.native
   const activeClass = tone === 'race'
     ? 'bg-[#F2A65A] text-[#3b2416]'
     : tone === 'arena'
@@ -33,9 +37,9 @@ export function StakeAmountInput({
     <div>
       <div className="mb-1.5 flex items-center justify-between gap-3">
         <label htmlFor={id} className="text-sm font-bold text-white/60">
-          {label} in {inputUnit}
+          {label} in {spl ? token.symbol : inputUnit}
         </label>
-        <div className="grid grid-cols-2 rounded-lg bg-white/5 p-0.5" aria-label="Stake input currency">
+        {!spl && <div className="grid grid-cols-2 rounded-lg bg-white/5 p-0.5" aria-label="Stake input currency">
           {(['USD', 'SOL'] as const).map((unit) => (
             <button
               key={unit}
@@ -50,7 +54,7 @@ export function StakeAmountInput({
               {unit}
             </button>
           ))}
-        </div>
+        </div>}
       </div>
       <input
         id={id}
@@ -59,12 +63,14 @@ export function StakeAmountInput({
         disabled={disabled}
         value={value}
         onChange={(event) => onChange?.(event.target.value)}
-        placeholder={inputUnit === 'USD' ? '10.00' : '0.05'}
+        placeholder={spl ? '0' : inputUnit === 'USD' ? '10.00' : '0.05'}
         className={`w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 font-mono outline-none transition-colors placeholder:text-white/25 disabled:cursor-not-allowed ${focusClass}`}
       />
-      <p className="mt-1.5 text-[11px] font-medium text-white/30">
-        {inputUnit === 'USD' ? '$1–$50' : 'Live equivalent of $1–$50'}
-      </p>
+      {!spl && (
+        <p className="mt-1.5 text-[11px] font-medium text-white/30">
+          {inputUnit === 'USD' ? '$1–$50' : 'Live equivalent of $1–$50'}
+        </p>
+      )}
     </div>
   )
 }

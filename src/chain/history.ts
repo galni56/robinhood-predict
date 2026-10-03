@@ -48,6 +48,8 @@ export interface HistoryActivity {
   amount?: string
   assetIndex?: number
   symbol?: string | null
+  /** The game's stake currency (absent in older snapshots: SOL). */
+  stakeMint?: string | null
 }
 
 export interface HistoryWallet {
@@ -95,7 +97,7 @@ export function useHistory({ enabled = true }: { enabled?: boolean } = {}) {
   return useQuery({
     queryKey: ['history'],
     queryFn: fetchHistory,
-    enabled,
+    enabled: enabled && INDEXER_URL != null,
     refetchInterval: 5_000,
     refetchIntervalInBackground: false,
     retry: 1,

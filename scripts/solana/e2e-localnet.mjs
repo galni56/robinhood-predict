@@ -92,7 +92,7 @@ async function raceLifecycle() {
       minStake: new BN(LAMPORTS_PER_SOL / 200),
       maxStakePerWallet: new BN(LAMPORTS_PER_SOL),
     })
-    .accountsPartial({ admin: admin.publicKey, race: raceKey, tokenMint: null, raceVault: null, creatorVault: null, tokenProgram: null, associatedTokenProgram: null })
+    .accountsPartial({ authority: admin.publicKey, race: raceKey, creatorEarnings: pda(race, [enc('creator'), NATIVE_SOL.toBuffer(), config.admin.toBuffer()]), tokenMint: null, raceVault: null, creatorVault: null, tokenProgram: null, associatedTokenProgram: null })
     .remainingAccounts(symbols.map((s) => ({ pubkey: pda(race, [enc('asset'), assetId(s)]), isSigner: false, isWritable: false })))
     .rpc()
   console.log(`race #${raceId} created: ${symbols.join(' / ')}, betting 30s, race 45s`)

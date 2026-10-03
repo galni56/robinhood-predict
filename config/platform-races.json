@@ -1,0 +1,33 @@
+{
+  "enabled": false,
+  "note": "Featured (platform) race schedule for scripts/solana/race-scheduler.mjs. Off by owner decision (2026-10-03): every race costs rent, so the scheduler creates nothing until this is set to true. Each entry keeps one race with this title open for betting; the next is created when the current one stops taking bets. Every race account costs ~0.0092 SOL of rent that is not refunded, so the frequency here is a cost decision.",
+  "races": [
+    {
+      "title": "Crypto majors",
+      "category": "CRYPTO",
+      "symbols": ["BTC", "SOL", "ETH"],
+      "bettingSeconds": 1800,
+      "raceSeconds": 3600
+    },
+    {
+      "title": "Meme sprint",
+      "category": "MEME",
+      "symbols": ["WIF", "POPCAT", "PENGU", "FARTCOIN"],
+      "bettingSeconds": 900,
+      "raceSeconds": 900
+    },
+    {
+      "title": "Tech stocks",
+      "category": "STOCK",
+      "symbols": ["NVDAx", "TSLAx", "AAPLx", "METAx"],
+      "bettingSeconds": 1800,
+      "raceSeconds": 3600
+    }
+  ],
+  "defaults": {
+    "startGraceSeconds": 300,
+    "resolutionGraceSeconds": 600,
+    "feeBp": 200,
+    "minActiveContenders": 2
+  }
+}

@@ -17,6 +17,8 @@ What has actually been built, and how it differs from the EVM version: [`SOLANA_
 | Price quote | All pool prices are quoted in USD (pools paired with USDC; SOL-paired pools converted through SOL/USDC at the same slot). Changed from SOL on 2026-10-03. |
 | Price Arena size | Max 10 participants per arena; resolution in a single transaction. |
 | Mock demo | Removed (`/demo`, `src/store/`, `src/market/`, non-Onchain pages). |
+| Prophet token liquidity | Launch on pump.fun; after the bonding curve it moves to PumpSwap. No Raydium pool and no liquidity of our own; buyback/burn goes through pump.fun / PumpSwap. Raydium, Orca and Meteora pools are only read for game asset prices. (owner, 2026-10-03) |
+| Scheduled platform races | Off for now (owner, 2026-10-03): every race account costs ~0.009 SOL of unrefunded rent. `race-scheduler.mjs` exits unless `config/platform-races.json` has `"enabled": true`. |
 
 ## What changes and why
 

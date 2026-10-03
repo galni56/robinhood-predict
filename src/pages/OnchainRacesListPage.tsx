@@ -2,12 +2,10 @@ import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   ASSET_RACE_CATEGORY,
-  STAKE_DECIMALS,
   ASSET_RACE_ORIGIN,
   ASSET_RACE_STATUS,
   assetRaceStatusLabel,
   formatPoolShare,
-  formatStakeRaw,
   type AssetRaceViewModel,
   type AssetRaceMode,
 } from '@/chain/assetRaces'
@@ -25,6 +23,7 @@ import { GameListLoadingGrid } from '@/components/GameListLoadingGrid'
 import { PriceSourceLink } from '@/components/PriceSourceLink'
 import { TokenLogo } from '@/components/TokenLogo'
 import { formatCountdown } from '@/lib/format'
+import { formatStakeAmount, useStakeToken } from '@/solana/stakeTokens'
 
 const FILTERS = ['ALL', 'LOBBY', 'BETTING', 'RUNNING', 'FINISHED', 'CANCELLED'] as const
 type RaceFilter = (typeof FILTERS)[number]
@@ -66,7 +65,8 @@ function statusChipClass(status: number) {
   return 'bg-white/10 text-white/50'
 }
 
-function RaceCard({ race, nowMs, tokenDecimals }: { race: AssetRaceViewModel; nowMs: number; tokenDecimals: number }) {
+function RaceCard({ race, nowMs }: { race: AssetRaceViewModel; nowMs: number }) {
+  const token = useStakeToken(race.stakeMint)
   const navigate = useNavigate()
   const topBacked = [...race.assets].sort((a, b) => (a.pool > b.pool ? -1 : a.pool < b.pool ? 1 : 0))[0]
   const platform = race.origin === ASSET_RACE_ORIGIN.PLATFORM
@@ -163,7 +163,7 @@ function RaceCard({ race, nowMs, tokenDecimals }: { race: AssetRaceViewModel; no
           {race.status === ASSET_RACE_STATUS.LOBBY
             ? 'Betting has not started'
             : topBacked && race.totalPool > 0n
-              ? `${formatStakeRaw(race.totalPool, tokenDecimals)} pool · ${topBacked.symbol} leads the backing`
+              ? `${formatStakeAmount(race.totalPool, token)} pool · ${topBacked.symbol} leads the backing`
               : 'Waiting for the first bet'}
         </span>
         <span className="inline-flex shrink-0 items-center gap-1.5 text-sm font-bold text-[#F2A65A]">
@@ -177,7 +177,6 @@ function RaceCard({ race, nowMs, tokenDecimals }: { race: AssetRaceViewModel; no
 
 export function OnchainRacesListPage() {
   const { races, isLoading, error } = useAssetRaces()
-  const tokenDecimals = STAKE_DECIMALS
   const [searchParams, setSearchParams] = useSearchParams()
   const requestedMode = searchParams.get('mode')
   const mode: AssetRaceMode = requestedMode === 'memes' || (CRYPTO_ASSETS_ENABLED && requestedMode === 'crypto')
@@ -263,7 +262,7 @@ export function OnchainRacesListPage() {
               </h2>
               <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
                 {featured.map((race) => (
-                  <RaceCard key={race.id.toString()} race={race} nowMs={raceNowMs} tokenDecimals={tokenDecimals} />
+                  <RaceCard key={race.id.toString()} race={race} nowMs={raceNowMs} />
                 ))}
               </div>
             </section>
@@ -275,7 +274,7 @@ export function OnchainRacesListPage() {
               </h2>
               <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
                 {community.map((race) => (
-                  <RaceCard key={race.id.toString()} race={race} nowMs={raceNowMs} tokenDecimals={tokenDecimals} />
+                  <RaceCard key={race.id.toString()} race={race} nowMs={raceNowMs} />
                 ))}
               </div>
             </section>

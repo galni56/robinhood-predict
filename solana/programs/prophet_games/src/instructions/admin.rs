@@ -34,6 +34,7 @@ pub fn handle_initialize(ctx: Context<Initialize>, oracle_signer: Pubkey) -> Res
     config.admin = ctx.accounts.admin.key();
     config.pending_admin = Pubkey::default();
     config.oracle_signer = oracle_signer;
+    config.race_operator = Pubkey::default();
     config.paused = false;
     config.race_count = 0;
     config.arena_count = 0;
@@ -61,6 +62,13 @@ pub fn handle_set_paused(ctx: Context<AdminConfig>, paused: bool) -> Result<()> 
 pub fn handle_set_oracle_signer(ctx: Context<AdminConfig>, oracle_signer: Pubkey) -> Result<()> {
     require!(oracle_signer != Pubkey::default(), GameError::InvalidConfiguration);
     ctx.accounts.config.oracle_signer = oracle_signer;
+    Ok(())
+}
+
+/// Sets the key allowed to create platform races; `Pubkey::default()` revokes it.
+pub fn handle_set_race_operator(ctx: Context<AdminConfig>, race_operator: Pubkey) -> Result<()> {
+    ctx.accounts.config.race_operator = race_operator;
+    emit!(RaceOperatorSet { race_operator });
     Ok(())
 }
 
@@ -165,6 +173,7 @@ pub fn handle_set_stake_mint(
         GameError::InvalidConfiguration
     );
     if let Some(spl) = stake_funds::spl(&stake_mint, &ctx.accounts.token_mint, &ctx.accounts.token_program)? {
+        spl.require_plain_mint()?;
         spl.create_vault(
             &ctx.accounts.admin.to_account_info(),
             &required(&ctx.accounts.treasury_vault)?.to_account_info(),
@@ -324,6 +333,11 @@ pub fn handle_withdraw_creator_fees(ctx: Context<WithdrawCreatorFees>, stake_min
 #[event]
 pub struct ActivityPausedSet {
     pub paused: bool,
+}
+
+#[event]
+pub struct RaceOperatorSet {
+    pub race_operator: Pubkey,
 }
 
 #[event]

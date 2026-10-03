@@ -38,7 +38,12 @@ export function formatSol(lamports: bigint): string {
 
 /** Compact SOL for dense UI while preserving useful precision for small stakes. */
 export function formatCompactSol(lamports: bigint, fractionalSignificantDigits = 4): string {
-  const exact = formatSol(lamports)
+  return formatCompactUnits(lamports, SOL_DECIMALS, 'SOL', fractionalSignificantDigits)
+}
+
+/** Compact amount of any token, keeping `fractionalSignificantDigits` after the first significant digit. */
+export function formatCompactUnits(raw: bigint, decimals: number, symbol: string, fractionalSignificantDigits = 4): string {
+  const exact = formatUnits(raw, decimals)
   const negative = exact.startsWith('-')
   const unsigned = negative ? exact.slice(1) : exact
   const [whole, fraction = ''] = unsigned.split('.')
@@ -49,7 +54,14 @@ export function formatCompactSol(lamports: bigint, fractionalSignificantDigits =
       ? 0
       : firstSignificant + fractionalSignificantDigits
   const compactFraction = fraction.slice(0, fractionLength).replace(/0+$/, '')
-  return `${negative ? '-' : ''}${whole}${compactFraction ? `.${compactFraction}` : ''} SOL`
+  return `${negative ? '-' : ''}${whole}${compactFraction ? `.${compactFraction}` : ''} ${symbol}`
+}
+
+/** "$1.23B" style USD for market caps and other large display values. */
+export function formatCompactUsd(value: number): string {
+  const abs = Math.abs(value)
+  const [scaled, suffix]: [number, string] = abs >= 1e12 ? [value / 1e12, 'T'] : abs >= 1e9 ? [value / 1e9, 'B'] : abs >= 1e6 ? [value / 1e6, 'M'] : abs >= 1e3 ? [value / 1e3, 'K'] : [value, '']
+  return `$${scaled.toLocaleString('en-US', { maximumFractionDigits: Math.abs(scaled) >= 100 ? 0 : 2 })}${suffix}`
 }
 
 /** USD price with enough digits for sub-cent meme tokens. */
