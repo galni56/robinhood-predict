@@ -1,124 +1,41 @@
 # Roadmap
 
-This used to track a phased plan toward a testnet MVP. That plan is done
-and superseded — the product has been live on **Robinhood Chain mainnet**
-with real money since 2026-09-07. See root [`CLAUDE.md`](./CLAUDE.md) for
-the current status snapshot and [`contracts/CLAUDE.md`](./contracts/CLAUDE.md)
-for contract detail. This file is now a short history of how it got here,
-plus what's actually still open.
+Prophet is moving from Robinhood Chain (EVM) to Solana. The EVM product (Prediction Markets, Asset Races,
+Price Arena with native-ETH stakes) remains live from `main` until it is wound down; its history is in git.
+This file tracks the Solana build. Detailed decisions: [`docs/SOLANA_MIGRATION.md`](./docs/SOLANA_MIGRATION.md).
+Change log: [`docs/SOLANA_CHANGELOG.md`](./docs/SOLANA_CHANGELOG.md).
 
-## Shipped, in order
+## Done
 
-1. **Contract/frontend parity** — `createMarket` made permissionless,
-   gated by an owner-maintained price-feed allowlist instead of a flat
-   dollar cap on target price (the original cap was removed entirely
-   2026-09-10 — it didn't scale per ticker).
-2. **Parimutuel liquidity mechanics** — ineligible-market cancellation
-   (full refund, no fee, unless both sides and two distinct participant
-   addresses are present),
-   owner house seed liquidity (capped), protocol fee taken only from the
-   losing pool's contribution to a winner's payout.
-3. **Time-weighted early-bet mechanic** — betting closes at 2/3 of a
-   market's life; a winning bet's share of the losing pool decays from 2x
-   (bet placed the instant betting opens) to 0.5x (right before betting
-   closes). See "AMM-style continuous pricing" below for the fuller fix
-   this only partially solves.
-4. **Testnet deploy, then mainnet deploy** (2026-09-07) — real Chainlink
-   price feeds and real USDG confirmed working; the project moved fully to
-   mainnet and hasn't touched testnet since.
-5. **Original USDG frontend wired to the real chain** — wallet connect,
-   browse, create market, approve + bet, claim, refund and resolve were verified
-   with real wallets and transactions. This is historical behavior; the local
-   native-ETH successor removes approval.
-6. **Anti-griefing guardrails made genuinely live** (2026-09-10 redeploy) —
-   min market duration, a duration-scaled target-price deviation band
-   (replacing the flat cap from #1), max stake per wallet per side.
-7. **Real hosting** — domain (prophetmarkets.fun) + VPS, alongside the
-   existing GitHub Pages mirror. Robinhood Chain's own read-only price/
-   catalog API proxied server-side (CORS + rate-limit reasons, see
-   `contracts/CLAUDE.md` "Ops lessons" in root `CLAUDE.md`).
-8. **Nicknames** (2026-09-11) — a standalone on-chain registry so
-   addresses can show a human-readable name anywhere they're displayed,
-   without a backend.
-9. **Rebrand to "Prophet"** (2026-09-11) — user-facing name changed from
-   PredictX to match the actual domain; repo/package names unchanged.
-10. **Deadline-bound USDG PredictionMarket deployed** (2026-09-23) — the
-    contract at `0x1a62098AcEd3F7F8C41fff1bc1395A541678b0F1` uses the same signed
-    StockToken/USDG pool block-pair proof as Asset Race. Its live keeper has
-    submitted real resolutions. The subsequent native-ETH revision remains local;
-    see `docs/PREDICTION_MARKET_DEADLINE_SETTLEMENT.md`.
-11. **Native-ETH wager migration implemented locally** (2026-09-25) —
-    Prediction Markets, Asset Races and Price Arena now accept exact payable
-    native ETH and return ETH for payouts/refunds/fees. The UI accepts USD or
-    ETH input for the live $1–$50 range using one cached ETH/USD quote and sends one transaction
-    without approval. StockToken/USDG and MemeToken/ETH settlement prices are
-    unchanged. The owner waived recovery for earlier USDG mainnet tests, so the
-    release exposes no legacy UI or automation. Deployment and production
-    switching are not part of this milestone.
+1. **Programs** — `asset_race`, `price_arena` (max 10 players, single-transaction resolve),
+   `nickname_registry`; Ed25519-signed DEX-pool price attestations; SOL and SPL/Token-2022 stakes;
+   38 LiteSVM tests.
+2. **Asset catalog** — 35 assets proposed from live Jupiter and DexScreener data, awaiting owner approval.
+3. **Frontend F1–F2** — Prediction Market and the mock demo removed; Phantom and Solflare wallets;
+   Anchor clients; nicknames on Solana.
+4. **Local stand** — local validator with all programs, admin setup and seeded sample games.
+5. **EVM cleanup (repo)** — Solidity contracts, EVM scripts and EVM docs removed.
 
-## Existing USDG generation and native successor (updated 2026-09-25)
+## Next
 
-The deterministic USDG Asset Race contracts are deployed and configured on Robinhood
-Chain mainnet, and the operator reports its keeper/LIVE services active. The deployed
-`SignedPoolRaceOracle` is `0x5b0f7e62E0A5fF5C5C02Ad219Afcd086F2618Db7`
-and `AssetRace` is `0x63E582bb395527CED97F2F94662eA93A7EDf65Ff`.
-All 10 approved Stocks and 13 approved Memes are registered; deployment state,
-tests and operational evidence are recorded in
-[`docs/ASSET_RACE_PREDEPLOY_CHECKLIST.md`](./docs/ASSET_RACE_PREDEPLOY_CHECKLIST.md).
+1. **Frontend on Solana** (no redesign yet) — races and arenas read and write the programs; USD/SOL stake
+   input; portfolio, leaderboard and archive.
+2. **Price service** — read Raydium, Orca, Meteora and PumpSwap pools, price in USD, sign boundary attestations.
+3. **Bots** — start, resolve and cancel games on schedule; create platform races.
+4. **Indexer** — game history for portfolio, leaderboard and archive.
+5. **Remove the remaining EVM read layer** — `src/chain/`, wagmi, viem, `config/asset-race-assets.json`.
+6. **Devnet** — deploy and rehearse the full lifecycle.
+7. **VPS** — Solana RPC proxy, services for price service, bots and indexer.
 
-These USDG addresses are unsupported historical test deployments and remain only
-in a denylist. Creator-revenue V2 successors are deployed/configured at
-PredictionMarket `0xF62CF5Db594c4b706555584ccEC9Fb9a61541D4a`, AssetRace
-`0x98f9af1756148c8995729E9ccEA770fd15124bC9` and PriceArena
-`0x8c1c5544E00C2f8ea2C564B179CdEB38504805d5`. Each product splits its existing
-2% losing-pool fee equally between the immutable game creator and Prophet. V1
-contracts remain settlement-only for historical claims and refunds. See
-[`docs/NATIVE_ETH_MAINNET_DEPLOYMENT.md`](./docs/NATIVE_ETH_MAINNET_DEPLOYMENT.md).
+## Before mainnet (owner)
 
-## Open / explicitly deferred
+- Approve the asset catalog.
+- Fresh admin key (the development key was exposed) and a separate mainnet oracle key.
+- ~9 SOL for program rent; decision on an external audit.
+- Wind down the EVM product, then merge to `main` (VPS keepers run from `main`).
 
-- **Native ETH production rollout.** Code and local validation replace USDG
-  wagering rather than adding WETH or a second liquidity currency. Onchain
-  caps are broad fixed ETH safety fuses (`0.0001–0.1 ETH`); live dollar-range
-  enforcement stays in the frontend. New
-  deployments/configuration and all three tiny-value lifecycle rehearsals are
-  complete; keeper/service changes and the frontend address switch still require
-  explicit production approval. Follow the
-  canonical [`native ETH operator packet`](./docs/NATIVE_ETH_DEPLOYMENT_OPERATOR_PACKET.md)
-  in strict PredictionMarket → AssetRace → PriceArena order.
-- **WalletConnect**, for mobile Safari / non-extension wallets. Needs a
-  free Project ID from cloud.walletconnect.com that only the project
-  owner can obtain — blocked on that, not on anything technical.
-- **AMM-style continuous pricing** (constant-product or LMSR instead of
-  two static pools) — the industry-standard fix for what the time-weighted
-  mechanic in #3 only partially solves: price would naturally rise as one
-  side gets bought, so betting after a trend is obvious costs more
-  automatically, no hand-tuned decay curve needed. This is a ground-up
-  replacement of the market mechanic, not an incremental change:
-  - New share-token model (ERC1155 or per-market ERC20 pair) instead of a
-    `stakes` mapping — shares mint on buy, burn on redeem
-  - Constant-product curve or LMSR (LMSR needs a fixed-point `ln`/`exp`
-    library — not native to Solidity)
-  - An LP-liquidity subsystem (LP tokens, LP fees separate from protocol
-    fee, withdrawal) replacing today's owner-only house seed liquidity
-  - Slippage protection on buys/sells
-  - Every mechanic tied to `stakes`/`poolYes`/`poolNo` needs rethinking:
-    one-sided cancellation, one-bet-per-side, the early-bet weight — none
-    map directly onto a share-token AMM
-  - Full new Foundry test suite; full frontend rewrite (swap-with-slippage
-    UX instead of "read the pool, place a bet")
-  - Meaningfully higher security bar — AMM/bonding-curve math is where
-    most real-world DeFi exploits happen (rounding errors, share-mint
-    bugs, flash-loan price manipulation on thin single-market liquidity)
+## Later
 
-  Realistic scope: days, not hours — its own project phase with its own
-  security review, not something to fit alongside other work.
-- **External security audit.** Not done. Said explicitly in the product's
-  own UI disclaimer, not hidden. Worth prioritizing before liquidity/usage
-  grows much further, given the owner-centralization risk noted in
-  `contracts/CLAUDE.md`.
-- **Chainlink price history for charts.** `latestRoundData()` has no
-  backfill endpoint, so the market-card sparkline only shows real data
-  polled since the viewer's page was opened, not a market's full
-  lifetime. A real fix would mean walking `getRoundData()` backwards
-  (expensive, rate-limited) or standing up a lightweight indexer.
+- New frontend design.
+- Prophet SPL token as a stake currency; buyback and burn.
+- Commit/reveal for Price Arena predictions (today they are public onchain, hidden only in the UI).

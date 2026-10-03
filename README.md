@@ -1,82 +1,62 @@
-# PredictX ("Prophet") — mock prediction market for tokenized stocks
+# Prophet on Solana
 
-> **This file documents the mock/demo side only.** The real product —
-> live on Robinhood Chain mainnet with real money, branded **Prophet** —
-> is at **https://prophetmarkets.fun**. Start with
-> [`CLAUDE.md`](./CLAUDE.md) for the full picture; this README covers just
-> the simulated demo described below, reachable in the live app via "Try
-> the demo" / `/demo`.
+Onchain prediction games on Solana:
 
-**Live demo:** https://galni56.github.io/robinhood-predict/
+- **Asset Race** — back the asset with the highest percentage return between two price snapshots.
+- **Price Arena** — up to ten players predict an asset's final price; the closest half wins.
 
-A fully client-side **demo/prototype**: a game-style prediction market ("will
-this tokenized stock reach $100 before the deadline — YES/NO?") wired to a
-simulated blockchain ("RHChain testnet") so every price move, bet and payout
-is visible as an on-chain transaction in a built-in block explorer.
+Stakes are in SOL (and, later, approved SPL tokens). Asset prices are in USD, read from reviewed DEX pools
+and signed by the price service. Parimutuel payouts: players compete against players, with a 2% fee on the
+losing pool split between the game's creator and Prophet.
 
-**Everything on this page describes the mock mode.** No real backend, no
-real blockchain, no real brokerage, no real funds, and no affiliation with
-Robinhood Markets, Inc. — for that side of the app. Prices are a random
-walk generated in the browser; accounts, balances, blocks and transactions
-all live in `localStorage` on your own machine. The *real* mode (default
-homepage, `/onchain/*`) is a completely different, real thing — see
-`CLAUDE.md`.
+> **Status:** migration from the earlier Robinhood Chain (EVM) product is in progress on branch
+> `solana-migration`. Nothing here is deployed to mainnet. There is no external security audit.
+> Plan: [`docs/SOLANA_MIGRATION.md`](./docs/SOLANA_MIGRATION.md). What changed and why:
+> [`docs/SOLANA_CHANGELOG.md`](./docs/SOLANA_CHANGELOG.md).
 
-## Stack
+## Layout
 
-- React 19 + TypeScript, Vite
-- Tailwind CSS v4 (`@tailwindcss/vite`)
-- `react-router-dom` for the page flow (login → register → markets → market
-  detail → explorer → tx/block/address detail → portfolio)
-- `zustand` (+ `persist`) for state — three stores:
-  - `authStore` — mock accounts (email/password kept in `localStorage` only,
-    never sent anywhere)
-  - `chainStore` — the simulated chain: blocks, mempool, transactions,
-    address balances
-  - `marketStore` — token prices, prediction markets (pools/odds/deadlines),
-    user positions
-- `recharts` for price charts
+| Path | What |
+|---|---|
+| `solana/` | Anchor workspace: programs `asset_race`, `price_arena`, `nickname_registry`; shared crates `pool_attestation`, `stake_funds`. See [`solana/README.md`](./solana/README.md). |
+| `src/` | React 19 + TypeScript + Vite frontend. `src/solana/` holds cluster config, IDL clients, PDAs, wallet and transaction helpers. |
+| `config/solana-assets.json` | Asset registry (mints, pools, price precision) shared by frontend, admin scripts and price service. Owner approval required per asset. |
+| `scripts/solana/` | Local validator and admin setup/seed scripts. |
+| `scripts/solana-catalog-*.mjs`, `scripts/solana-assets-config.mjs` | Asset catalog scan, proposal and registry generation. |
+| `docs/` | Migration plan, changelog, asset catalog for review. |
 
-## Architecture
-
-```
-src/
-  chain concepts live in store/chainStore.ts + lib/hash.ts (deterministic
-  pseudo-hash — NOT cryptography, purely cosmetic for the demo)
-  market/            token list, price random-walk engine
-  store/             zustand stores (auth, chain, market)
-  components/        ChainEngine (the ticking "node" that drives price ticks,
-                      block production and market resolution), shared UI
-  pages/             one file per route
-```
-
-`ChainEngine` is a headless component mounted once at the app root. It runs
-three `setInterval` loops entirely in the browser tab: price ticks, block
-production (bundles pending txs from the mempool), and prediction-market
-resolution once a deadline passes. Nothing here talks to a network.
-
-The prediction window is compressed to `PREDICTION_WINDOW_MS` (see
-`store/marketStore.ts`, default 5 minutes) instead of a real week, so the
-game is actually playable in one sitting — clearly surfaced in the UI as a
-demo timeline. Each market also has a "finish now" dev button for instant
-demoing.
+`src/chain/` and `config/asset-race-assets.json` are the old EVM read layer still used by the race and
+arena pages; they are removed once those pages read Solana.
 
 ## Running locally
 
+Frontend:
+
 ```bash
 npm install
-npm run dev
+npm run dev          # http://localhost:5173/robinhood-predict/
+npm run build
 ```
 
-No environment variables, no credentials, no external services required —
-this is intentional.
+Programs and a local validator run inside WSL (Ubuntu). From the repo inside WSL:
 
-## Deployment note
+```bash
+export CARGO_TARGET_DIR=$HOME/prophet-target
+(cd solana && anchor build && cargo test --workspace)
+bash scripts/solana/localnet.sh --background
+node scripts/solana/admin.mjs setup
+node scripts/solana/admin.mjs seed
+```
 
-This project has no deploy script checked in on purpose. If/when this needs
-to go anywhere (e.g. a static preview host), do **not** hardcode credentials
-into a script (plaintext passwords piped through `expect` into a CLI login
-prompt will get flagged by endpoint security, correctly). Prefer a
-provider's token-based non-interactive login (env var or `~/.netrc`,
-generated once interactively) so no secret ever sits in a file on disk in
-this repo or in shell history.
+Point the frontend at the local validator with `VITE_SOLANA_CLUSTER=localnet`.
+
+## Environment
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `VITE_SOLANA_CLUSTER` | `devnet` | `localnet`, `devnet` or `mainnet-beta` |
+| `VITE_SOLANA_RPC_URL` | cluster default | RPC endpoint; a relative path (VPS proxy) is resolved against the page origin |
+| `VITE_ASSET_RACE_PROGRAM_ID`, `VITE_PRICE_ARENA_PROGRAM_ID`, `VITE_NICKNAME_PROGRAM_ID` | development IDs | Program addresses for the cluster |
+| `VITE_BASE_PATH` | `/robinhood-predict/` | `/` when served from a domain root |
+
+Never commit keypairs or API keys. Program keypairs live in the WSL target directory, outside the repo.

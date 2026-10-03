@@ -1,13 +1,14 @@
 # Project Map
 
-Prophet is a prediction-market frontend with real-chain and browser-only demo
-modes. Existing PredictionMarket functionality is live on Robinhood Chain
-mainnet (4663), uses real funds and has no external audit. Asset Race work is
-separate; configured production sources do not imply a deployed race environment.
+Prophet is being rebuilt on Solana (branch `solana-migration`): two parimutuel
+games, Asset Race and Price Arena, with SOL (and approved SPL) stakes and
+USD prices signed from reviewed DEX pools. The earlier Robinhood Chain (EVM)
+product stays live from `main` until it is wound down; nothing on this branch is
+on mainnet. No external audit. Every mainnet action is real money.
 
-React/TypeScript/Vite frontend, wagmi/viem chain access, Foundry contracts.
-There is no general application-backend framework: server-side race functionality
-is implemented as small Node scripts/services. Mock demo state stays in-browser.
+Rust/Anchor programs in `solana/`, React/TypeScript/Vite frontend in `src/`,
+small Node scripts for tooling. Toolchain (Rust, Solana CLI, Anchor) lives in
+WSL (Ubuntu, user `dev`); build artifacts in `$HOME/prophet-target`.
 
 Current code/Git are authoritative. Counts, pending work and validation belong
 in HANDOFF, not this map. Read AGENTS for permissions and startup rules.
@@ -16,106 +17,62 @@ in HANDOFF, not this map. Read AGENTS for permissions and startup rules.
 
 | Area | Principal paths/files |
 | --- | --- |
+| Programs | `solana/programs/asset_race`, `price_arena`, `nickname_registry` |
+| Shared program crates | `solana/crates/pool_attestation` (signed prices), `stake_funds` (SOL/SPL movement, vault checks) |
+| Program tests | `solana/programs/*/tests/` (LiteSVM), unit tests in `src/math.rs` |
 | Frontend bootstrap/routes | `src/main.tsx`, `src/App.tsx` |
-| Real-chain pages | `src/pages/Onchain*.tsx`; races: `OnchainRacesListPage.tsx`, `OnchainRacePage.tsx`, `OnchainCreateRacePage.tsx` |
-| Race UI | `src/components/AssetRaceLeaderboard.tsx`, `AssetRaceLiveView.tsx` |
-| Chain configuration | `src/chain/config.ts`, `src/chain/contracts.ts` |
-| Race reads/writes | `src/chain/assetRaces.ts`, `useAssetRace.ts`, `useApprovedRaceAssets.ts` |
-| Central asset/source registry | `config/asset-race-assets.json`, `src/chain/assetRaceRegistry.ts` |
-| Race lifecycle/economics | `contracts/src/AssetRace.sol` |
-| Existing market/nicknames | `contracts/src/PredictionMarket.sol`, `NicknameRegistry.sol` |
-| Oracle contract interface | `contracts/src/interfaces/IAssetRaceOracle.sol` |
-| Current signed-pool verifier | `contracts/src/oracles/SignedPoolRaceOracle.sol` |
-| Other oracle adapter | `contracts/src/oracles/ChainlinkV3RaceOracle.sol` |
-| Local mock oracle | `contracts/src/mocks/MockRaceOracle.sol` |
-| Shared direct-pool pricing | `scripts/asset-race-pool-price-engine.mjs` |
-| Historical endpoint selection/collection | `scripts/asset-race-pool-endpoints.mjs` |
-| Archive pacing/retry budget | `scripts/asset-race-rpc-budget.mjs` |
-| Lifecycle automation | `scripts/asset-race-keeper.mjs` |
-| LIVE collection/service | `scripts/asset-race-live-prices.mjs`, `asset-race-live-server.mjs` |
-| LIVE frontend/display math | `src/chain/useAssetRaceLiveDisplay.ts`, `assetRaceLiveDisplay.ts` |
-| Registry/runtime market review | `scripts/check-asset-race-registry.mjs`, `check-asset-race-stock-pools.mjs`, `check-asset-race-meme-pools.mjs` |
-| Read-only executable quotes | `scripts/asset-race-pool-quotes.mjs` |
-| Browser-only simulation | `src/store/`, `src/market/`, `src/components/ChainEngine.tsx` |
-| Contract tests | `contracts/test/`, `contracts/test/helpers/` |
-| Script/display tests | `scripts/*.test.mjs` |
-| Local setup | `contracts/local-demo.sh`, `contracts/script/LocalAssetRace.s.sol` |
-| Race local transaction E2E | `scripts/asset-race-stock-e2e.mjs` (Stock and Meme modes) |
-| Race deployment/configuration | `contracts/script/DeployAssetRace.s.sol`, `ConfigureAssetRace.s.sol`, `RotateAssetRaceOracle.s.sol` |
-| Build configuration | `vite.config.ts`, `package.json`, `contracts/foundry.toml` |
+| Solana client layer | `src/solana/` (config, IDL clients, PDAs, wallet provider, tx helpers, nicknames) |
+| Program IDL for the frontend | `src/solana/idl/` (copied from `$HOME/prophet-target/{idl,types}` after `anchor build`) |
+| Game pages | `src/pages/Onchain*.tsx`; game UI in `src/components/AssetRace*.tsx` |
+| Old EVM read layer (to be removed) | `src/chain/`, `config/asset-race-assets.json`, wagmi/viem |
+| Asset registry | `config/solana-assets.json` (generated; owner approves per asset) |
+| Catalog tooling | `scripts/solana-catalog-scan.mjs`, `solana-catalog-propose.mjs`, `solana-assets-config.mjs` |
+| Local stand / admin | `scripts/solana/localnet.sh`, `scripts/solana/admin.mjs` |
+| Build configuration | `vite.config.ts`, `package.json`, `solana/Anchor.toml`, `solana/Cargo.toml` |
 
 ## Pricing and settlement pointers
 
-Approved race pricing uses frozen DEX sources and signed historical endpoint
-block pairs. The signed-pool adapter authenticates configured signer attestations;
-it is not a general onchain proof of arbitrary historical pool state.
-Stocks quote USDG; Memes use canonical WETH or approved V4 native ETH, normalized
-to ETH_QUOTE. Exact token/PoolKey/quote representation remains source-bound.
-LIVE is provisional display, not a settlement price authority. Consult the pool
-engine, endpoint collector, signed-pool adapter and related tests for changes.
-Economics and irreversible snapshots live in AssetRace; automation lives in keeper.
+Each asset has one frozen pool (`price_source`) and a USD price precision. The
+price service (not built yet) signs one Ed25519 attestation per boundary time
+covering all needed pools at the last block before T plus its direct child.
+Programs read the message from the Ed25519 precompile instruction immediately
+before `start_race` / `resolve_race` / `resolve`, bound to their own program ID.
+Economics and irreversible snapshots live in the programs.
 
-## Existing commands
+## Commands
 
-From repository root (dependencies already installed; installation requires permission):
+Frontend (repo root, Windows or WSL):
 
 ```sh
 npm run dev
 npm run build                 # tsc -b followed by Vite build
 npm run lint
-npm run preview
-npm run check:asset-race-registry
-npm run test:asset-race-collector
-npm run test:asset-race-keeper
-npm run test:asset-race-live
 ```
 
-No dedicated npm typecheck or aggregate test script exists. Build includes
-typechecking; run the relevant test commands, not an invented `npm test`.
-
-From `contracts/` (Foundry binaries may require `~/.foundry/bin` on PATH):
+Programs (inside WSL, from `solana/`, `CARGO_TARGET_DIR=$HOME/prophet-target`):
 
 ```sh
-forge build
-forge test
-forge test --match-contract 'AssetRace.*'
-forge test --match-contract SignedPoolRaceOracleTest
-forge test --match-contract AssetRaceInvariantTest
+anchor build
+cargo test --workspace        # needs a prior anchor build (tests load the .so)
+anchor keys sync              # after a new program keypair
 ```
 
-Configuration-dependent runtime commands (check scope/authorization first):
-
-```sh
-npm run keeper:asset-race
-npm run live:asset-race
-npm run e2e:asset-race-stock
-npm run e2e:asset-race-meme
-npm run check:asset-race-stock-pools
-npm run check:asset-race-meme-pools
-```
-
-Review checker commands are read-only; E2E/tooling may transact on local Anvil.
-Do not infer external-chain authorization from a command's existence. Read the
-runbook/local script before execution; never inspect secret/.env contents.
+Local stand (inside WSL): `bash scripts/solana/localnet.sh --background`, then
+`node scripts/solana/admin.mjs setup` and `seed`. admin.mjs refuses mainnet.
 
 ## Documentation instead of rediscovery
 
-- `CLAUDE.md`: authoritative product overview and operating cautions.
-- `README.md`: mock/demo architecture only; not a description of real mode.
-- `ROADMAP.md`: product history and explicitly deferred work.
-- `contracts/CLAUDE.md`: contract workflow and legacy deployment detail;
-  its dated status/test counts predate Asset Race work.
-- `docs/ASSET_RACE_PRODUCTION_RUNBOOK.md`: signed-pool deployment/keeper setup,
-  timing, launch checklist and trust/spot-manipulation cautions.
-- `docs/ASSET_RACE_LIVE_DISPLAY.md`: direct-pool LIVE, display anchors/fallback.
-- `docs/ASSET_RACE_STOCK_POOL_REVIEW.md`: Stock identities, pools and evidence.
-- `docs/ASSET_RACE_MEME_POOL_REVIEW.md`: original approved Meme pool evidence.
-- `docs/ASSET_RACE_MEME_CATALOG_EXPANSION.md`: previous expansion review.
-- `docs/ASSET_RACE_TARGETED_MEME_REVIEW.md`: partial native-ETH expansion evidence.
+- `CLAUDE.md`: authoritative overview and operating cautions.
+- `README.md`: layout, local run, environment variables.
+- `ROADMAP.md`: done / next / owner steps.
+- `docs/SOLANA_MIGRATION.md`: decisions and phases.
+- `docs/SOLANA_CHANGELOG.md`: what changed vs the EVM product and why (Russian).
+- `docs/SOLANA_ASSET_CATALOG.md`: proposed assets awaiting approval.
+- `solana/README.md`: program build/test and attestation format.
 
 ## Sensitive areas
 
-Payout/liability/fee accounting; endpoint lineage/common blocks; signer trust;
-canonical token/pool bindings; decimals/orientation; production enablement;
-claim/refund semantics; deployments and existing live PredictionMarket behavior.
-Honor AGENTS authorization rules; preserve the actual dirty working tree.
+Payout/liability/fee accounting; vault address checks; attestation parsing and
+boundary rules; signer snapshotting; stake-mint handling; upgrade/admin
+authority; asset/pool bindings and price decimals. Honor AGENTS authorization
+rules; preserve the actual dirty working tree.
