@@ -32,7 +32,7 @@ passed in. Each EVM contract becomes one Anchor program.
 | `SignedPoolRaceOracle.sol` | shared `signed_oracle` module | Keeper signs pool observations with an **ed25519** key; programs verify via the Ed25519 native program + instructions sysvar. Replaces EIP-712/ECDSA. "Block pair" boundary proof becomes a slot pair (`slot`, `slot + 1` timestamps). |
 | `ChainlinkV3RaceOracle.sol` | dropped | Not needed with DEX-pool pricing. |
 | `NicknameRegistry.sol` | `nickname` (or a field in a user-profile PDA) | Trivial. |
-| `Prophet*BuybackBurnExecutor.sol` | `buyback_burn` | Swap via Jupiter CPI or a keeper-built swap, then SPL `burn`. Built when the token exists. |
+| `Prophet*BuybackBurnExecutor.sol` | `buyback_burn` | The Prophet token launches on **pump.fun** (bonding curve, no liquidity of our own). Buyback goes through the pump.fun curve before graduation and **PumpSwap** after, then SPL `burn`. Built when the token exists. |
 | `PredictionMarket.sol` | — | Removed. |
 
 **Stake mint.** Every race/arena stores `stake_mint: Option<Pubkey>`.

@@ -125,7 +125,7 @@ async function seed() {
   const platformRaces = [
     { title: 'Magnificent tech sprint', category: 'STOCK', symbols: ['NVDAx', 'TSLAx', 'METAx', 'MSFTx'], betting: 1800, duration: 3600 },
     { title: 'Meme mayhem', category: 'MEME', symbols: ['WIF', 'POPCAT', 'PENGU', 'FARTCOIN'], betting: 900, duration: 900 },
-    { title: 'Majors showdown', category: 'CRYPTO', symbols: ['SOL', 'cbBTC', 'ETH'], betting: 1200, duration: 3600 },
+    { title: 'Majors showdown', category: 'CRYPTO', symbols: ['SOL', 'BTC', 'ETH'], betting: 1200, duration: 3600 },
   ]
   let raceId = Number(raceConfig.raceCount)
   for (const spec of platformRaces) {
