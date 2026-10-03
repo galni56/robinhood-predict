@@ -10,7 +10,7 @@ Change log: [`docs/SOLANA_CHANGELOG.md`](./docs/SOLANA_CHANGELOG.md).
 1. **Programs** — `asset_race`, `price_arena` (max 10 players, single-transaction resolve),
    `nickname_registry`; Ed25519-signed DEX-pool price attestations; SOL and SPL/Token-2022 stakes;
    38 LiteSVM tests.
-2. **Asset catalog** — 35 assets proposed from live Jupiter and DexScreener data, awaiting owner approval.
+2. **Asset catalog** — scanned from live Jupiter and DexScreener data; owner approved 26 assets (see 6).
 3. **Frontend F1–F2** — Prediction Market and the mock demo removed; Phantom and Solflare wallets;
    Anchor clients; nicknames on Solana.
 4. **Local stand** — local validator with all programs, admin setup and seeded sample games.
@@ -24,10 +24,10 @@ Change log: [`docs/SOLANA_CHANGELOG.md`](./docs/SOLANA_CHANGELOG.md).
 1. **Frontend on Solana** (no redesign yet) — races and arenas read and write the programs; USD/SOL stake
    input; portfolio, leaderboard and archive.
 2. **Bots, remaining** — scheduled platform race creation; SPL-stake games.
-4. **Indexer** — game history for portfolio, leaderboard and archive.
-5. **Remove the remaining EVM read layer** — `src/chain/`, wagmi, viem, `config/asset-race-assets.json`.
-6. **Devnet** — deploy and rehearse the full lifecycle.
-7. **VPS** — Solana RPC proxy, services for price service, bots and indexer.
+3. **Indexer** — game history for portfolio, leaderboard and archive.
+4. **Remove the remaining EVM read layer** — `src/chain/`, wagmi, viem, `config/asset-race-assets.json`.
+5. **Devnet** — deploy and rehearse the full lifecycle.
+6. **VPS** — Solana RPC proxy, services for price service, bots and indexer.
 
 ## Before mainnet (owner)
 
