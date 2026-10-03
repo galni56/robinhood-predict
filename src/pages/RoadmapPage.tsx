@@ -26,7 +26,7 @@ const roadmapPhases: readonly RoadmapPhase[] = [
     tone: 'purple',
     symbol: '+',
     items: [
-      'More supported Stock Tokens',
+      'More supported tokenized stocks',
       'More high-liquidity meme assets',
       'Direct exact-pool price charts',
       'Targets, history and settlement markers',
@@ -50,7 +50,7 @@ const roadmapPhases: readonly RoadmapPhase[] = [
       'Dynamic market pricing',
       'Public risk limits and liquidity dashboard',
     ],
-    callout: 'The rules of today’s Prediction Markets, Asset Races and Price Arena stay unchanged.',
+    callout: 'The rules of today’s Asset Races and Price Arena stay unchanged.',
   },
   {
     number: '03',
@@ -171,8 +171,8 @@ const phaseStyles: Record<PhaseTone, {
 }
 
 const liveFoundation = [
-  ['03', 'Onchain game modes'],
-  ['ETH', 'Native wagers & payouts'],
+  ['02', 'Onchain game modes'],
+  ['SOL', 'Solana stakes & payouts'],
   ['OPEN', 'Permissionless creation'],
   ['RULES', 'Deterministic settlement'],
 ] as const
@@ -216,7 +216,6 @@ export function RoadmapPage() {
             <strong className="font-display text-3xl text-white">$PROPHET</strong>
             <span className="text-[10px] font-bold text-[#B3A7FA]">powered by activity</span>
           </div>
-          <div className="roadmap-orbit-node roadmap-orbit-node--market"><span>YES / NO</span><b>Markets</b></div>
           <div className="roadmap-orbit-node roadmap-orbit-node--race"><span>FASTEST</span><b>Races</b></div>
           <div className="roadmap-orbit-node roadmap-orbit-node--arena"><span>CLOSEST</span><b>Arena</b></div>
           <div className="roadmap-orbit-particle roadmap-orbit-particle--one" />
@@ -299,7 +298,7 @@ export function RoadmapPage() {
           <p className="text-xs font-black uppercase tracking-[0.2em] text-[#F2A65A]">The proposed fee flywheel</p>
           <h2 className="mt-4 max-w-xl font-display text-4xl font-black leading-tight sm:text-5xl">Usage compounds into a stronger product.</h2>
           <p className="mt-5 max-w-xl text-sm leading-relaxed text-white/50 sm:text-base">
-            Prophet fees remain in ETH and move through transparent, purpose-built vaults. Allocation rules and token
+            Prophet fees remain in SOL and move through transparent, purpose-built vaults. Allocation rules and token
             mechanics activate only after technical, governance and legal review.
           </p>
 

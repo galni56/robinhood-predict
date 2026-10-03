@@ -214,3 +214,16 @@ Buyback/burn для нашего токена — позже, когда у то
   ждут открытия приёма. Программы при этом каждый раз правильно отклоняли некорректные данные.
 - Как поднять стенд заново (в WSL): `bash scripts/solana/localnet.sh --background`, затем
   `node scripts/solana/admin.mjs setup` и `node scripts/solana/admin.mjs seed`.
+
+## 2026-10-03 — Удалено EVM-наследие из репозитория (пункт 2)
+
+- Удалены: папка `contracts/` целиком (Solidity-контракты, Foundry-тесты, скрипты деплоя), 61 EVM-скрипт
+  (боты, поллеры, релизные проверки и их тесты), 18 EVM-документов (`NATIVE_ETH_*`, `PREDICTION_MARKET_*`,
+  `ASSET_RACE_*` и др.). В `package.json` остались только сборка и Solana-команды.
+- Переписаны под Solana: `README.md`, `ROADMAP.md`, `WHITEPAPER.md`, `CLAUDE.md`, карта проекта
+  `.ai/PROJECT_MAP.md`, и страницы сайта Whitepaper, Terms, Roadmap — без Prediction Markets, Robinhood Chain и ETH.
+- В `CLAUDE.md` добавлены правила: dev-ключ засвечен (только devnet), нельзя мержить в `main` до
+  сворачивания EVM-версии.
+- Пока остаются (уберутся после перевода страниц гонок и арен на Solana): `src/chain/`, wagmi/viem,
+  `config/asset-race-assets.json`.
+- Живая EVM-версия на `main` не тронута — её контракты, боты и документы остаются там и в истории git.
