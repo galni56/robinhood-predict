@@ -68,7 +68,7 @@ export function WalletOptionsList({ onConnect, tone = 'market' }: {
         const href = installed ? undefined : isMobile ? mobileDeepLink(adapter.name) ?? adapter.url : adapter.url
         const content = (
           <>
-            <span className="w-9 h-9 rounded-none bg-white/10 grid place-items-center shrink-0">
+            <span className="w-9 h-9 rounded-none bg-[#1B1340]/5 grid place-items-center shrink-0">
               <img src={adapter.icon} alt="" className="h-5 w-5" />
             </span>
             {adapter.name}
@@ -80,7 +80,7 @@ export function WalletOptionsList({ onConnect, tone = 'market' }: {
             </span>
           </>
         )
-        const className = `group w-full flex items-center gap-3 rounded-none border border-white/10 bg-white/5 px-4 py-3 text-left text-sm font-bold transition-all disabled:opacity-50 ${actionClass}`
+        const className = `rx-plate group w-full flex items-center gap-3 bg-white px-4 py-3 text-left text-sm font-bold text-[#1B1340] transition-all disabled:opacity-50 hover:bg-[#FFD23F] ${actionClass}`
         return href ? (
           <a key={adapter.name} href={href} target="_blank" rel="noreferrer" className={className}>
             {content}
