@@ -57,12 +57,12 @@ export function ShareInviteButton({ kind, id, className = '' }: {
     button: 'border-[#ffd23f]/45 bg-gradient-to-r from-[#4A3026] to-[#31231F] shadow-[0_10px_24px_-16px_rgba(242,166,90,0.8)] hover:border-[#ffd23f]/70 hover:bg-[#4A3026] hover:shadow-[0_12px_28px_-16px_rgba(242,166,90,0.9)]',
     overlay: 'from-[#ffd23f]/10',
     icon: 'border-[#ffd23f]/30 bg-[#ffd23f]/15',
-    hint: 'text-[#ffd23f]/80',
+    hint: 'text-[#B8860B]/80',
   } : kind === 'arena' ? {
     button: 'border-[#6bcbf4]/45 bg-gradient-to-r from-[#293650] to-[#222B40] shadow-[0_10px_24px_-16px_rgba(122,159,240,0.8)] hover:border-[#6bcbf4]/70 hover:bg-[#293650] hover:shadow-[0_12px_28px_-16px_rgba(122,159,240,0.9)]',
     overlay: 'from-[#6bcbf4]/10',
     icon: 'border-[#6bcbf4]/30 bg-[#6bcbf4]/15',
-    hint: 'text-[#6bcbf4]/80',
+    hint: 'text-[#1F7FD1]/80',
   } : {
     button: 'border-[#ff4f8b]/45 bg-gradient-to-r from-[#3B2D53] to-[#2E2442] shadow-[0_10px_24px_-16px_rgba(139,124,247,0.8)] hover:border-[#ff4f8b]/70 hover:bg-[#3B2D53] hover:shadow-[0_12px_28px_-16px_rgba(139,124,247,0.9)]',
     overlay: 'from-[#ff4f8b]/10',

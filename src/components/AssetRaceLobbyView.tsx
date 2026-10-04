@@ -42,36 +42,36 @@ export function AssetRaceLobbyView({
 
   return (
     <div className="space-y-5">
-      <div className="rounded-none border border-white/5 bg-[#221c40] p-6">
+      <div className="rounded-none border border-[#1B1340]/12 bg-[#FFF6DF] p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-sm font-bold text-[#ffd23f]">Community race · lobby</p>
+            <p className="text-sm font-bold text-[#B8860B]">Community race · lobby</p>
             <h2 className="mt-1 font-display text-2xl font-bold">The grid is being assembled</h2>
-            <p className="mt-2 max-w-xl text-sm leading-relaxed text-white/50">
+            <p className="mt-2 max-w-xl text-sm leading-relaxed text-[#1B1340]/60">
               You may add one approved asset, or simply wait. Betting starts after the lobby closes, and the asset list
               cannot change after that.
             </p>
-            <p className="mt-3 text-xs font-medium text-white/40">Created by <AddressLabel address={race.creator} className="font-bold text-white/70" /></p>
+            <p className="mt-3 text-xs font-medium text-[#1B1340]/55">Created by <AddressLabel address={race.creator} className="font-bold text-[#1B1340]/75" /></p>
           </div>
           <div className="text-right">
             <div className="font-mono text-2xl font-bold">{nowMs > 0 ? formatCountdown(Number(race.lobbyEndTime) * 1_000 - nowMs) : '…'}</div>
-            <div className="mt-0.5 text-xs font-bold text-white/35">lobby closes</div>
+            <div className="mt-0.5 text-xs font-bold text-[#1B1340]/55">lobby closes</div>
           </div>
         </div>
       </div>
 
-      <div className="rounded-none border border-white/5 bg-[#221c40] p-5">
+      <div className="rounded-none border border-[#1B1340]/12 bg-[#FFF6DF] p-5">
         <div className="flex items-center justify-between gap-3">
           <h3 className="font-display text-lg font-bold">Starting grid</h3>
-          <span className="shrink-0 rounded-full bg-[#ffd23f]/15 px-2.5 py-1 text-xs font-bold text-[#ffd23f]">
+          <span className="shrink-0 rounded-full bg-[#ffd23f]/15 px-2.5 py-1 text-xs font-bold text-[#B8860B]">
             {race.assets.length} / 6 assets
           </span>
         </div>
         <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
           {race.assets.map((asset) => (
-            <div key={asset.assetIndex} className="rounded-none border border-white/5 bg-white/5 px-3.5 py-3">
+            <div key={asset.assetIndex} className="rounded-none border border-[#1B1340]/12 bg-[#1B1340]/5 px-3.5 py-3">
               <div className="flex items-center gap-2"><TokenLogo ticker={asset.symbol} className="h-9 w-9 rounded-none" /><div className="font-display text-lg font-bold">{asset.symbol}</div></div>
-              <div className="text-xs font-bold text-[#ffd23f]">Approved {meme ? 'meme' : crypto ? 'crypto asset' : 'stock'}</div>
+              <div className="text-xs font-bold text-[#B8860B]">Approved {meme ? 'meme' : crypto ? 'crypto asset' : 'stock'}</div>
               <PriceSourceLink
                 href={priceSourceUrlForAssetId(asset.assetId)}
                 symbol={asset.symbol}
@@ -87,11 +87,11 @@ export function AssetRaceLobbyView({
       </div>
 
       {lobbyOpen && (
-        <div className="rounded-none border border-white/5 bg-[#221c40] p-5">
+        <div className="rounded-none border border-[#1B1340]/12 bg-[#FFF6DF] p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h3 className="font-display text-lg font-bold">Add a contender</h3>
-              <p className="mt-1 text-xs font-medium text-white/40">One community-added asset per wallet for this race.</p>
+              <p className="mt-1 text-xs font-medium text-[#1B1340]/55">One community-added asset per wallet for this race.</p>
             </div>
             <button
               type="button"
@@ -107,8 +107,8 @@ export function AssetRaceLobbyView({
           </div>
           {!isConnected && <div className="mt-4"><WalletOptionsList tone="race" /></div>}
           {showPicker && isConnected && !raceFull && !hasAddedAsset && (
-            <div className="mt-4 border-t border-white/10 pt-4">
-              {isLoading ? <p className="py-6 text-center text-sm text-white/35">Loading approved assets…</p> : (
+            <div className="mt-4 border-t border-[#1B1340]/15 pt-4">
+              {isLoading ? <p className="py-6 text-center text-sm text-[#1B1340]/55">Loading approved assets…</p> : (
                 <AssetRaceAssetPicker
                   assets={selectable}
                   selectedIds={race.assets.map((asset) => asset.assetId)}
@@ -121,9 +121,9 @@ export function AssetRaceLobbyView({
                 <div className="mt-4 rounded-none border border-[#ffd23f]/30 bg-[#ffd23f]/[0.07] p-4">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                      <div className="text-xs font-bold text-white/45">Selected contender</div>
-                      <div className="mt-1 font-display text-lg font-bold">{pendingAsset.symbol} <span className="font-sans text-sm font-normal text-white/40">{pendingAsset.name}</span></div>
-                      <p className="mt-2 max-w-xl text-xs leading-relaxed text-white/50">
+                      <div className="text-xs font-bold text-[#1B1340]/55">Selected contender</div>
+                      <div className="mt-1 font-display text-lg font-bold">{pendingAsset.symbol} <span className="font-sans text-sm font-normal text-[#1B1340]/55">{pendingAsset.name}</span></div>
+                      <p className="mt-2 max-w-xl text-xs leading-relaxed text-[#1B1340]/60">
                         Confirm adding {pendingAsset.symbol} to this race. Your wallet will ask you to sign the transaction and pay a small SOL network fee.
                       </p>
                     </div>
@@ -154,9 +154,9 @@ export function AssetRaceLobbyView({
       )}
 
       {!lobbyOpen && (
-        <div className="rounded-none border border-[#ffd23f]/25 bg-[#221c40] p-5">
+        <div className="rounded-none border border-[#ffd23f]/25 bg-[#FFF6DF] p-5">
           <h3 className="font-display text-lg font-bold">Lobby closed</h3>
-          <p className="mt-1 text-sm text-white/45">
+          <p className="mt-1 text-sm text-[#1B1340]/55">
             {race.assets.length >= 2 ? 'The grid is ready. Anyone can open the betting window.' : 'Fewer than two assets joined. Opening will cancel this race with no funds involved.'}
           </p>
           <div className="mt-4">
@@ -169,8 +169,8 @@ export function AssetRaceLobbyView({
         </div>
       )}
 
-      {txLabel && lobbyOpen && <p className="text-sm text-[#ffd23f]">{txLabel}</p>}
-      {error && <p className="text-sm text-rose-400">{error}</p>}
+      {txLabel && lobbyOpen && <p className="text-sm text-[#B8860B]">{txLabel}</p>}
+      {error && <p className="text-sm text-[#C2245A]">{error}</p>}
     </div>
   )
 }

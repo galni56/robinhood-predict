@@ -14,15 +14,15 @@ export interface CompactAssetOption {
 const TONE_CLASSES: Record<ProductTone, { selected: string; idle: string }> = {
   market: {
     selected: 'bg-[#ff4f8b] text-white',
-    idle: 'bg-white/5 text-white/60 hover:bg-[#ff4f8b]/10 hover:text-white',
+    idle: 'bg-[#1B1340]/5 text-[#1B1340]/70 hover:bg-[#ff4f8b]/10 hover:text-[#1B1340]',
   },
   race: {
     selected: 'bg-[#ffd23f] text-[#191330]',
-    idle: 'bg-white/5 text-white/60 hover:bg-[#ffd23f]/10 hover:text-white',
+    idle: 'bg-[#1B1340]/5 text-[#1B1340]/70 hover:bg-[#ffd23f]/10 hover:text-[#1B1340]',
   },
   arena: {
     selected: 'bg-[#6bcbf4] text-[#191330]',
-    idle: 'bg-white/5 text-white/60 hover:bg-[#6bcbf4]/10 hover:text-white',
+    idle: 'bg-[#1B1340]/5 text-[#1B1340]/70 hover:bg-[#6bcbf4]/10 hover:text-[#1B1340]',
   },
 }
 
@@ -68,7 +68,7 @@ export function CompactAssetSelector({
               href={asset.priceUrl}
               symbol={asset.symbol}
               tone={tone}
-              className="w-full rounded-none border-t border-white/10 px-1 py-1 text-[10px]"
+              className="w-full rounded-none border-t border-[#1B1340]/15 px-1 py-1 text-[10px]"
             />
           </div>
         )

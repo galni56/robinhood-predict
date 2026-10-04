@@ -10,7 +10,7 @@ export function PageSkeleton() {
       <div className="skeleton-block mt-3 h-4 w-96 max-w-full rounded-full" />
       <div className="mt-8 grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
         {Array.from({ length: 6 }, (_, index) => (
-          <div key={index} className="rounded-none border border-white/5 bg-[#221c40] p-5">
+          <div key={index} className="rounded-none border border-[#1B1340]/12 bg-[#FFF6DF] p-5">
             <div className="flex items-center gap-3">
               <div className="skeleton-block h-10 w-10 rounded-none" />
               <div className="flex-1 space-y-2">

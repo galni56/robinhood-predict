@@ -45,45 +45,45 @@ export function OnchainLeaderboardPage() {
       <ClusterBanner />
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <p className="flex items-center gap-2 text-sm font-bold text-[#ff4f8b]"><TrophyIcon className="h-4 w-4" /> Leaderboard</p>
+          <p className="flex items-center gap-2 text-sm font-bold text-[#C2245A]"><TrophyIcon className="h-4 w-4" /> Leaderboard</p>
           <h1 className="mt-1 font-display text-3xl font-bold tracking-tight sm:text-4xl">Who reads the market best.</h1>
-          <p className="mt-2 text-sm text-white/45">Ranked by net result in SOL: everything received back minus everything staked.</p>
+          <p className="mt-2 text-sm text-[#1B1340]/55">Ranked by net result in SOL: everything received back minus everything staked.</p>
         </div>
         <FilterChips options={BOARD_OPTIONS} value={board} onChange={(next) => setParams(next === 'all' ? {} : { board: next })} />
       </div>
 
-      <div className="mt-6 overflow-hidden rounded-none border border-white/5 bg-[#221c40]">
-        <div className="hidden grid-cols-[3rem_minmax(0,1fr)_8rem_8rem_8rem] gap-3 border-b border-white/5 px-4 py-2.5 text-[11px] font-bold uppercase tracking-wider text-white/30 sm:grid">
+      <div className="mt-6 overflow-hidden rounded-none border border-[#1B1340]/12 bg-[#FFF6DF]">
+        <div className="hidden grid-cols-[3rem_minmax(0,1fr)_8rem_8rem_8rem] gap-3 border-b border-[#1B1340]/12 px-4 py-2.5 text-[11px] font-bold uppercase tracking-wider text-[#1B1340]/50 sm:grid">
           <span>#</span><span>Player</span><span className="text-right">Staked</span><span className="text-right">Received</span><span className="text-right">Net</span>
         </div>
-        {history.isLoading ? <p className="px-4 py-10 text-center text-sm text-white/35">Loading leaderboard…</p>
-          : history.isError && !history.data ? <p className="px-4 py-10 text-center text-sm text-white/35">The leaderboard is unavailable right now.</p>
-            : rows.length === 0 ? <p className="px-4 py-10 text-center text-sm text-white/35">No settled SOL games yet.</p>
+        {history.isLoading ? <p className="px-4 py-10 text-center text-sm text-[#1B1340]/55">Loading leaderboard…</p>
+          : history.isError && !history.data ? <p className="px-4 py-10 text-center text-sm text-[#1B1340]/55">The leaderboard is unavailable right now.</p>
+            : rows.length === 0 ? <p className="px-4 py-10 text-center text-sm text-[#1B1340]/55">No settled SOL games yet.</p>
               : rows.map((row, index) => {
                 const net = BigInt(row.net)
                 const received = BigInt(row.claimed) + BigInt(row.refunded)
                 return (
-                  <div key={row.wallet} className={`grid grid-cols-[2rem_minmax(0,1fr)_auto] items-center gap-3 border-t border-white/5 px-4 py-3 first:border-t-0 sm:grid-cols-[3rem_minmax(0,1fr)_8rem_8rem_8rem] ${row.wallet === me ? 'bg-[#ff4f8b]/10' : ''}`}>
-                    <span className={`font-mono text-sm ${index < 3 ? 'font-bold text-[#fbf3e2]' : 'text-white/35'}`}>{index + 1}</span>
+                  <div key={row.wallet} className={`grid grid-cols-[2rem_minmax(0,1fr)_auto] items-center gap-3 border-t border-[#1B1340]/12 px-4 py-3 first:border-t-0 sm:grid-cols-[3rem_minmax(0,1fr)_8rem_8rem_8rem] ${row.wallet === me ? 'bg-[#ff4f8b]/10' : ''}`}>
+                    <span className={`font-mono text-sm ${index < 3 ? 'font-bold text-[#1B1340]' : 'text-[#1B1340]/55'}`}>{index + 1}</span>
                     <div className="flex min-w-0 items-center gap-2.5">
                       <AddressAvatar address={row.wallet} size={26} />
                       <div className="min-w-0">
-                        <AddressLabel address={row.wallet} className="block truncate font-bold text-white/85 hover:text-white" />
-                        <div className="flex items-center gap-1.5 text-[11px] text-white/35">
+                        <AddressLabel address={row.wallet} className="block truncate font-bold text-white/85 hover:text-[#1B1340]" />
+                        <div className="flex items-center gap-1.5 text-[11px] text-[#1B1340]/55">
                           {row.games != null && <span>{row.games} game{row.games === 1 ? '' : 's'} · {row.wins ?? 0} win{row.wins === 1 ? '' : 's'}</span>}
                           {row.symbols?.map((symbol) => <TokenLogo key={symbol} ticker={symbol} className="h-4 w-4 rounded" />)}
-                          {row.wallet === me && <span className="font-bold text-[#ff4f8b]">you</span>}
+                          {row.wallet === me && <span className="font-bold text-[#C2245A]">you</span>}
                         </div>
                       </div>
                     </div>
-                    <span title={`${formatSol(BigInt(row.staked))} SOL`} className="hidden text-right font-mono text-sm tabular-nums text-white/60 sm:block">{formatCompactSol(BigInt(row.staked))}</span>
-                    <span title={`${formatSol(received)} SOL`} className="hidden text-right font-mono text-sm tabular-nums text-white/60 sm:block">{formatCompactSol(received)}</span>
-                    <span title={`${formatSol(net)} SOL`} className={`text-right font-mono text-sm font-bold tabular-nums ${net > 0n ? 'text-emerald-300' : net < 0n ? 'text-rose-400' : 'text-white/50'}`}>{net > 0n ? '+' : ''}{formatCompactSol(net)}</span>
+                    <span title={`${formatSol(BigInt(row.staked))} SOL`} className="hidden text-right font-mono text-sm tabular-nums text-[#1B1340]/70 sm:block">{formatCompactSol(BigInt(row.staked))}</span>
+                    <span title={`${formatSol(received)} SOL`} className="hidden text-right font-mono text-sm tabular-nums text-[#1B1340]/70 sm:block">{formatCompactSol(received)}</span>
+                    <span title={`${formatSol(net)} SOL`} className={`text-right font-mono text-sm font-bold tabular-nums ${net > 0n ? 'text-emerald-300' : net < 0n ? 'text-[#C2245A]' : 'text-[#1B1340]/60'}`}>{net > 0n ? '+' : ''}{formatCompactSol(net)}</span>
                   </div>
                 )
               })}
       </div>
-      <p className="mt-3 text-[11px] text-white/30">SOL-staked games only. Updated {history.data ? new Date(history.data.updatedAt * 1000).toLocaleTimeString() : '…'}.</p>
+      <p className="mt-3 text-[11px] text-[#1B1340]/50">SOL-staked games only. Updated {history.data ? new Date(history.data.updatedAt * 1000).toLocaleTimeString() : '…'}.</p>
     </div>
   )
 }

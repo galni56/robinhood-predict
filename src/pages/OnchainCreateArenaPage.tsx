@@ -83,10 +83,10 @@ export function OnchainCreateArenaPage() {
   return (
     <div className="mx-auto max-w-[1280px] px-4 py-5 lg:min-h-[calc(100dvh-104px)]">
       <ClusterBanner className="mb-4" />
-      <Link to={`/onchain/arenas${mode === 'stocks' ? '' : `?mode=${mode}`}`} className="text-sm text-white/40 hover:text-white">← All arenas</Link>
+      <Link to={`/onchain/arenas${mode === 'stocks' ? '' : `?mode=${mode}`}`} className="text-sm text-[#1B1340]/55 hover:text-[#1B1340]">← All arenas</Link>
       <div className="mt-4 grid min-w-0 items-stretch gap-6 lg:min-h-[calc(100dvh-180px)] lg:grid-cols-[440px_1fr] xl:gap-8">
         <div className="flex min-w-0 flex-col">
-          <p className="text-sm font-bold text-[#6bcbf4]">Create Price Arena</p>
+          <p className="text-sm font-bold text-[#1F7FD1]">Create Price Arena</p>
           <h1 className="mt-1 font-display text-3xl font-bold sm:text-4xl">Set the stage.</h1>
           <div className="mt-3 flex gap-1.5">
             <FilterChips size="sm" options={GAME_MODE_CHIP_OPTIONS} value={mode} onChange={selectMode} />
@@ -131,11 +131,11 @@ export function OnchainCreateArenaPage() {
           </div>
         </div>
 
-        <div className="flex h-full min-w-0 flex-col gap-4 rounded-none border border-white/5 bg-[#221c40] p-5 sm:p-6">
-          <label className="block"><span className="mb-2 block text-sm font-bold text-white/60">Arena title</span><input value={title} onChange={(event) => setTitle(event.target.value)} maxLength={64} placeholder={mode === 'memes' ? 'Meme price showdown' : mode === 'crypto' ? 'SOL closing shot' : 'NVDAx closing shot'} className="w-full rounded-none border border-white/10 bg-white/5 px-4 py-3 outline-none focus:border-[#6bcbf4]/50" /><span className="mt-1 block text-right text-xs text-white/30">{titleBytes} / 64 bytes</span></label>
+        <div className="flex h-full min-w-0 flex-col gap-4 rounded-none border border-[#1B1340]/12 bg-[#FFF6DF] p-5 sm:p-6">
+          <label className="block"><span className="mb-2 block text-sm font-bold text-[#1B1340]/70">Arena title</span><input value={title} onChange={(event) => setTitle(event.target.value)} maxLength={64} placeholder={mode === 'memes' ? 'Meme price showdown' : mode === 'crypto' ? 'SOL closing shot' : 'NVDAx closing shot'} className="w-full rounded-none border border-[#1B1340]/15 bg-[#1B1340]/5 px-4 py-3 outline-none focus:border-[#6bcbf4]/50" /><span className="mt-1 block text-right text-xs text-[#1B1340]/50">{titleBytes} / 64 bytes</span></label>
           <div>
-            <div className="mb-2 text-sm font-bold text-white/60">Asset</div>
-            {approved.error ? <p className="py-5 text-sm text-rose-300">Could not read the approved assets.</p>
+            <div className="mb-2 text-sm font-bold text-[#1B1340]/70">Asset</div>
+            {approved.error ? <p className="py-5 text-sm text-[#C2245A]">Could not read the approved assets.</p>
               : assets.length > 0 ? (
                 <CompactAssetSelector
                   assets={assets.map((asset) => ({
@@ -149,11 +149,11 @@ export function OnchainCreateArenaPage() {
                   onSelect={setAssetId}
                   tone="arena"
                 />
-              ) : <p className="py-5 text-sm text-white/40">{approved.isLoading ? 'Loading approved assets…' : 'No approved assets in this category yet.'}</p>}
+              ) : <p className="py-5 text-sm text-[#1B1340]/55">{approved.isLoading ? 'Loading approved assets…' : 'No approved assets in this category yet.'}</p>}
           </div>
           <StakeCurrencySelect value={stakeMint} onChange={setStakeMint} tone="arena" />
-          <div><div className="mb-2 text-sm font-bold text-white/60">Game duration</div><div className="grid grid-cols-2 gap-2 sm:grid-cols-4">{PRICE_ARENA_DURATIONS.map((seconds) => <button key={seconds.toString()} onClick={() => setDuration(seconds)} className={`rounded-none border px-3 py-3 text-sm font-bold ${duration === seconds ? 'border-[#6bcbf4] bg-[#6bcbf4]/15 text-[#6bcbf4]' : 'border-white/5 bg-white/[0.03] text-white/50'}`}>{arenaDurationLabel(seconds)}</button>)}</div></div>
-          {error && <p className="text-sm text-rose-400">{error}</p>}
+          <div><div className="mb-2 text-sm font-bold text-[#1B1340]/70">Game duration</div><div className="grid grid-cols-2 gap-2 sm:grid-cols-4">{PRICE_ARENA_DURATIONS.map((seconds) => <button key={seconds.toString()} onClick={() => setDuration(seconds)} className={`rounded-none border px-3 py-3 text-sm font-bold ${duration === seconds ? 'border-[#6bcbf4] bg-[#6bcbf4]/15 text-[#1F7FD1]' : 'border-[#1B1340]/12 bg-white/[0.03] text-[#1B1340]/60'}`}>{arenaDurationLabel(seconds)}</button>)}</div></div>
+          {error && <p className="text-sm text-[#C2245A]">{error}</p>}
           {!connected ? <WalletOptionsList tone="arena" /> : <button onClick={create} disabled={!publicKey || !valid || !!txLabel} className="w-full rounded-none bg-gradient-to-r from-[#8ddaf8] to-[#6bcbf4] py-3 font-bold text-[#191330] disabled:opacity-40">{txLabel ?? 'Create Price Arena'}</button>}
           <GameModeMotion mode="arena" assets={selected ? [{ symbol: selected.symbol, logoUrl: selected.logoUrl }] : []} className="mt-auto" />
         </div>

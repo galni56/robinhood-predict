@@ -4,7 +4,7 @@ const TONES = {
   // purple: neutral product information
   info: 'border-[#ff4f8b]/25 bg-[#ff4f8b]/10 text-[#ff4f8b]',
   // orange: preview/local/caution notes
-  warning: 'border-[#ffd23f]/25 bg-[#ffd23f]/10 text-[#ffd23f]',
+  warning: 'border-[#ffd23f]/25 bg-[#ffd23f]/10 text-[#B8860B]',
 } as const
 
 /** The one page-level notice strip (preview mode, local network, legacy

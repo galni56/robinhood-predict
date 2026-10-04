@@ -27,16 +27,16 @@ const toneClasses = {
     disclosure: 'border-[#ff4f8b]/30 bg-[#ff4f8b]/10 text-[#d8d0ff] hover:bg-[#ff4f8b]/20',
   },
   race: {
-    accent: 'text-[#ffd23f]',
-    badge: 'border-[#ffd23f]/30 bg-[#ffd23f]/15 text-[#ffd23f]',
+    accent: 'text-[#B8860B]',
+    badge: 'border-[#ffd23f]/30 bg-[#ffd23f]/15 text-[#B8860B]',
     number: 'bg-[#ffd23f] text-[#191330]',
     line: 'bg-[#ffd23f]/25',
-    note: 'border-[#ffd23f]/20 bg-[#ffd23f]/10 text-[#ffd23f]',
-    disclosure: 'border-[#ffd23f]/30 bg-[#ffd23f]/10 text-[#ffd23f] hover:bg-[#ffd23f]/20',
+    note: 'border-[#ffd23f]/20 bg-[#ffd23f]/10 text-[#B8860B]',
+    disclosure: 'border-[#ffd23f]/30 bg-[#ffd23f]/10 text-[#B8860B] hover:bg-[#ffd23f]/20',
   },
   arena: {
-    accent: 'text-[#6bcbf4]',
-    badge: 'border-[#6bcbf4]/30 bg-[#6bcbf4]/15 text-[#6bcbf4]',
+    accent: 'text-[#1F7FD1]',
+    badge: 'border-[#6bcbf4]/30 bg-[#6bcbf4]/15 text-[#1F7FD1]',
     number: 'bg-[#6bcbf4] text-[#191330]',
     line: 'bg-[#6bcbf4]/25',
     note: 'border-[#6bcbf4]/20 bg-[#6bcbf4]/10 text-[#d7e4ff]',
@@ -50,7 +50,7 @@ export function GameLifecycleGuide({ className, tone, eyebrow, title, intro, sta
   const contentId = useId()
 
   return (
-    <section className={clsx('flex flex-col rounded-none border border-white/[0.07] bg-[#221c40]', expanded ? 'p-5 sm:p-6' : 'p-4 sm:p-5', className)}>
+    <section className={clsx('flex flex-col rounded-none border border-white/[0.07] bg-[#FFF6DF]', expanded ? 'p-5 sm:p-6' : 'p-4 sm:p-5', className)}>
       <div className={clsx('mb-3 inline-flex rounded-full border px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em]', colors.badge)}>
         {eyebrow}
       </div>
@@ -59,7 +59,7 @@ export function GameLifecycleGuide({ className, tone, eyebrow, title, intro, sta
       <div id={contentId} className={expanded ? undefined : 'flex min-h-0 flex-1 flex-col'}>
         {expanded ? (
           <>
-            <p className="mt-2 text-sm leading-relaxed text-white/50">{intro}</p>
+            <p className="mt-2 text-sm leading-relaxed text-[#1B1340]/60">{intro}</p>
             <ol className="mt-5 space-y-1">
               {stages.map((stage, index) => (
                 <li key={`${stage.title}-${stage.timing}`} className="grid grid-cols-[32px_1fr] gap-3">
@@ -74,7 +74,7 @@ export function GameLifecycleGuide({ className, tone, eyebrow, title, intro, sta
                       <h3 className="text-sm font-bold text-white/90">{stage.title}</h3>
                       <span className={clsx('text-[11px] font-bold', colors.accent)}>{stage.timing}</span>
                     </div>
-                    <p className="mt-1 text-xs leading-relaxed text-white/45">{stage.body}</p>
+                    <p className="mt-1 text-xs leading-relaxed text-[#1B1340]/55">{stage.body}</p>
                   </div>
                 </li>
               ))}
@@ -83,14 +83,14 @@ export function GameLifecycleGuide({ className, tone, eyebrow, title, intro, sta
             <p className={clsx('mt-4 rounded-none border px-4 py-3 text-xs font-medium leading-relaxed', colors.note)}>{note}</p>
           </>
         ) : (
-          <ol className="mt-4 grid flex-1 auto-rows-fr overflow-hidden rounded-none border border-white/[0.07] bg-black/10">
+          <ol className="mt-4 grid flex-1 auto-rows-fr overflow-hidden rounded-none border border-white/[0.07] bg-[#1B1340]/5">
             {stages.map((stage, index) => (
               <li
                 key={`${stage.title}-${stage.timing}`}
                 className={clsx('grid min-h-9 grid-cols-[24px_minmax(0,1fr)_auto] items-center gap-2 px-3 py-1.5', index > 0 && 'border-t border-white/[0.06]')}
               >
                 <span className={clsx('grid h-5 w-5 place-items-center rounded-full text-[10px] font-black', colors.number)}>{index + 1}</span>
-                <span className="min-w-0 text-xs font-bold leading-tight text-white/80">{stage.title}</span>
+                <span className="min-w-0 text-xs font-bold leading-tight text-[#1B1340]/80">{stage.title}</span>
                 <span className={clsx('text-right text-[10px] font-bold leading-tight', colors.accent)}>{stage.timing}</span>
               </li>
             ))}

@@ -25,13 +25,13 @@ export function WhitepaperPage() {
     <div className="mx-auto grid max-w-6xl grid-cols-1 gap-10 px-4 py-10 lg:grid-cols-[200px_1fr]">
       <aside className="hidden lg:block">
         <div className="sticky top-20 space-y-1 text-sm">
-          <p className="mb-2 text-xs font-bold uppercase tracking-wider text-white/40">Contents</p>
+          <p className="mb-2 text-xs font-bold uppercase tracking-wider text-[#1B1340]/55">Contents</p>
           {SECTIONS.map((section) => (
             <a
               key={section.id}
               href={`#${section.id}`}
               onClick={(event) => scrollToSection(event, section.id)}
-              className="block py-1 text-white/50 transition-colors hover:text-white"
+              className="block py-1 text-[#1B1340]/60 transition-colors hover:text-[#1B1340]"
             >
               {section.label}
             </a>
@@ -41,14 +41,14 @@ export function WhitepaperPage() {
 
       <article className="min-w-0 space-y-12">
         <div>
-          <p className="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-[#ff4f8b]/80">Whitepaper</p>
+          <p className="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-[#C2245A]/80">Whitepaper</p>
           <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">
             Prophet: onchain prediction games on Solana
           </h1>
-          <p className="mt-3 text-sm text-white/40">
+          <p className="mt-3 text-sm text-[#1B1340]/55">
             Draft · Solana. Prophet has not received an external security audit. This document is not legal,
             financial or investment advice. See the{' '}
-            <Link to="/terms" className="text-[#ff4f8b] hover:underline">
+            <Link to="/terms" className="text-[#C2245A] hover:underline">
               Terms of Service
             </Link>
             .
@@ -63,10 +63,10 @@ export function WhitepaperPage() {
             half of the field.
           </p>
           <div className="grid gap-3 sm:grid-cols-2">
-            <ModeCard title="Races" accent="text-[#ffd23f]" link="/onchain/races">
+            <ModeCard title="Races" accent="text-[#B8860B]" link="/onchain/races">
               Back one of 2–6 assets. The highest percentage return wins the race.
             </ModeCard>
-            <ModeCard title="Arena" accent="text-[#6bcbf4]" link="/onchain/arenas">
+            <ModeCard title="Arena" accent="text-[#1F7FD1]" link="/onchain/arenas">
               Enter a price prediction. The closest half share the losing half&apos;s stakes.
             </ModeCard>
           </div>
@@ -225,7 +225,7 @@ function Section({ id, title, children }: { id: string; title: string; children:
   return (
     <section id={id} className="scroll-mt-20">
       <h2 className="mb-3 text-xl font-bold">{title}</h2>
-      <div className="space-y-3 text-sm leading-relaxed text-white/60">{children}</div>
+      <div className="space-y-3 text-sm leading-relaxed text-[#1B1340]/70">{children}</div>
     </section>
   )
 }
@@ -244,10 +244,10 @@ function ModeCard({
   return (
     <Link
       to={link}
-      className="rounded-none border border-white/10 bg-[#221c40] p-4 transition-colors hover:border-[#ff4f8b]/40"
+      className="rounded-none border border-[#1B1340]/15 bg-[#FFF6DF] p-4 transition-colors hover:border-[#ff4f8b]/40"
     >
       <span className={`font-display text-lg font-bold ${accent}`}>{title}</span>
-      <span className="mt-1 block text-xs leading-relaxed text-white/45">{children}</span>
+      <span className="mt-1 block text-xs leading-relaxed text-[#1B1340]/55">{children}</span>
     </Link>
   )
 }

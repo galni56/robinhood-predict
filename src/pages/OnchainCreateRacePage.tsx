@@ -97,11 +97,11 @@ export function OnchainCreateRacePage() {
   return (
     <div className={`mx-auto max-w-[1280px] px-4 py-5 lg:min-h-[calc(100dvh-104px)] ${mode === 'memes' ? 'asset-race-meme' : ''}`}>
       <ClusterBanner className="mb-4" />
-      <Link to={`/onchain/races${mode === 'stocks' ? '' : `?mode=${mode}`}`} className="text-sm text-white/40 transition-colors hover:text-white/70">← All races</Link>
+      <Link to={`/onchain/races${mode === 'stocks' ? '' : `?mode=${mode}`}`} className="text-sm text-[#1B1340]/55 transition-colors hover:text-[#1B1340]/75">← All races</Link>
 
       <div className="mt-4 grid min-w-0 items-stretch gap-6 lg:min-h-[calc(100dvh-180px)] lg:grid-cols-[440px_1fr] xl:gap-8">
         <div className="flex min-w-0 flex-col">
-          <p className="mb-1 text-sm font-bold text-[#ffd23f]">
+          <p className="mb-1 text-sm font-bold text-[#B8860B]">
             Create a community {mode === 'memes' ? 'meme' : mode === 'crypto' ? 'crypto' : 'stock'} race
           </p>
           <h1 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">
@@ -160,43 +160,43 @@ export function OnchainCreateRacePage() {
             Community races are not enabled on this deployment yet.
           </div>
         ) : registryError ? (
-          <div className="h-full rounded-none border border-rose-500/25 bg-rose-500/10 p-5 text-sm text-rose-300">Could not read the approved Race registry.</div>
+          <div className="h-full rounded-none border border-rose-500/25 bg-rose-500/10 p-5 text-sm text-[#C2245A]">Could not read the approved Race registry.</div>
         ) : (
-          <div className="flex h-full min-w-0 flex-col gap-4 rounded-none border border-white/5 bg-[#221c40] p-5 sm:p-6">
+          <div className="flex h-full min-w-0 flex-col gap-4 rounded-none border border-[#1B1340]/12 bg-[#FFF6DF] p-5 sm:p-6">
           <div>
-            <label className="mb-2 block text-sm font-bold text-white/60">Race title</label>
+            <label className="mb-2 block text-sm font-bold text-[#1B1340]/70">Race title</label>
             <input
               value={title}
               maxLength={64}
               onChange={(event) => setTitle(event.target.value)}
               placeholder={mode === 'crypto' ? 'BTC vs ETH' : mode === 'memes' ? 'Meme showdown' : 'AI stock battle'}
-              className="w-full rounded-none border border-white/10 bg-white/5 px-3.5 py-2.5 font-medium outline-none transition-colors focus:border-[#ffd23f]/50"
+              className="w-full rounded-none border border-[#1B1340]/15 bg-[#1B1340]/5 px-3.5 py-2.5 font-medium outline-none transition-colors focus:border-[#ffd23f]/50"
             />
-            <div className={`mt-1 text-right text-[11px] font-medium ${titleBytes > 64 ? 'text-rose-400' : 'text-white/30'}`}>{titleBytes} / 64 bytes</div>
+            <div className={`mt-1 text-right text-[11px] font-medium ${titleBytes > 64 ? 'text-[#C2245A]' : 'text-[#1B1340]/50'}`}>{titleBytes} / 64 bytes</div>
           </div>
 
           <div>
             <StakeCurrencySelect value={stakeMint} onChange={setStakeMint} tone="race" />
-            <label className="mb-2 mt-4 block text-sm font-bold text-white/60">Race duration</label>
+            <label className="mb-2 mt-4 block text-sm font-bold text-[#1B1340]/70">Race duration</label>
             <select
               value={selectedDuration.toString()}
               onChange={(event) => setDuration(BigInt(event.target.value))}
-              className="w-full rounded-none border border-white/10 bg-[#191330] px-3.5 py-2.5 font-medium outline-none focus:border-[#ffd23f]/50"
+              className="w-full rounded-none border border-[#1B1340]/15 bg-[#191330] px-3.5 py-2.5 font-medium outline-none focus:border-[#ffd23f]/50"
             >
               {durations.map((seconds) => <option key={seconds.toString()} value={seconds.toString()}>{durationLabel(seconds)}</option>)}
             </select>
-            <p className="mt-1.5 text-xs font-medium text-white/35">Only protocol-approved presets are available.</p>
+            <p className="mt-1.5 text-xs font-medium text-[#1B1340]/55">Only protocol-approved presets are available.</p>
           </div>
 
           <div>
             <div className="mb-2 flex items-end justify-between gap-3">
               <div>
-                <div className="text-sm font-bold text-white/60">Initial assets · optional</div>
-                <p className="mt-1 text-xs font-medium text-white/35">Approved registry assets only. Minimum two are needed when the lobby closes.</p>
+                <div className="text-sm font-bold text-[#1B1340]/70">Initial assets · optional</div>
+                <p className="mt-1 text-xs font-medium text-[#1B1340]/55">Approved registry assets only. Minimum two are needed when the lobby closes.</p>
               </div>
-              <span className="shrink-0 rounded-full bg-[#ffd23f]/15 px-2.5 py-1 text-xs font-bold text-[#ffd23f]">{selected.length} / 6</span>
+              <span className="shrink-0 rounded-full bg-[#FFD23F]/30 px-2.5 py-1 text-xs font-bold text-[#B8860B]">{selected.length} / 6</span>
             </div>
-            {isLoading ? <p className="py-8 text-center text-sm text-white/35">Loading approved assets…</p> : (
+            {isLoading ? <p className="py-8 text-center text-sm text-[#1B1340]/55">Loading approved assets…</p> : (
               <CompactAssetSelector
                 assets={visibleAssets.map((asset) => ({
                   id: asset.assetId,
@@ -217,7 +217,7 @@ export function OnchainCreateRacePage() {
             )}
           </div>
 
-          {error && <p className="text-sm text-rose-400">{error}</p>}
+          {error && <p className="text-sm text-[#C2245A]">{error}</p>}
 
           {!connected ? <WalletOptionsList tone="race" /> : (
             <button
