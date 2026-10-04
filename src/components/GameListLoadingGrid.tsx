@@ -28,17 +28,17 @@ export function GameListLoadingGrid({ accent = 'purple', cards = 6 }: GameListLo
       {Array.from({ length: cards }, (_, index) => (
         <div
           key={index}
-          className="min-h-64 animate-pulse border-[3px] border-[#191330] bg-[#221c40] p-5 shadow-[5px_5px_0_#191330]"
+          className="min-h-64 animate-pulse border-[4px] border-[#1B1340] bg-[#FFF6DF] p-5 shadow-[6px_10px_0_#1B1340]"
         >
           <div className="flex items-center justify-between gap-4">
             <div className={`h-7 w-24 rounded-full ${accentClass[accent]}`} />
-            <div className="h-7 w-20 rounded-full bg-white/5" />
+            <div className="h-7 w-20 rounded-full bg-[#1B1340]/5" />
           </div>
           <div className="mt-5 h-6 w-3/5 rounded-none bg-white/10" />
-          <div className="mt-3 h-4 w-2/5 rounded bg-white/5" />
-          <div className="mt-7 h-14 rounded-none bg-black/10" />
+          <div className="mt-3 h-4 w-2/5 rounded bg-[#1B1340]/5" />
+          <div className="mt-7 h-14 rounded-none bg-[#1B1340]/5" />
           <div className="mt-7 flex items-center justify-between gap-4">
-            <div className="h-4 w-28 rounded bg-white/5" />
+            <div className="h-4 w-28 rounded bg-[#1B1340]/5" />
             <div className={`h-7 w-24 rounded-full ${accentClass[accent]}`} />
           </div>
         </div>
