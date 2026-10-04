@@ -19,7 +19,7 @@ Change log: [`docs/SOLANA_CHANGELOG.md`](./docs/SOLANA_CHANGELOG.md). Status and
 6. **Asset catalog approved** — 26 assets (3 crypto, 10 memes, 13 stocks).
 7. **Price service + keeper** — subscription-based exact pool state, signed attestations; full race and
    arena lifecycle passes end-to-end on localnet with live mainnet prices.
-8. **Programs merged and size-optimized** — one `prophet_games` program; deploy rent ≈ 4.1 SOL.
+8. **Programs merged and size-optimized** — one `prophet_games` program; deploy rent ≈ 4.2 SOL.
 9. **Indexer** — one `/history` snapshot for lists, activity, portfolio, leaderboard and archive.
 10. **Frontend on Solana** (no redesign yet) — races and arenas read and write the program; USD/SOL stake
     input; portfolio, leaderboard and archive; wagmi/viem and the EVM read layer removed.
@@ -35,7 +35,7 @@ Change log: [`docs/SOLANA_CHANGELOG.md`](./docs/SOLANA_CHANGELOG.md). Status and
 ## Before mainnet (owner)
 
 - Fresh admin key (the development key was exposed) and a separate mainnet oracle key.
-- ~4.1 SOL for program rent (refundable deposit); decision on an external audit.
+- ~4.2 SOL for program rent (refundable deposit; ~7.7 SOL on the key during the deploy); decision on an external audit.
 - Wind down the EVM product, then merge to `main` (VPS keepers run from `main`).
 
 ## Later

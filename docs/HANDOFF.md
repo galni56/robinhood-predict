@@ -108,7 +108,7 @@ in your environment, never in the repo.
    `src/components/LocalnetAirdropButton.tsx`, package `@solana/wallet-adapter-unsafe-burner`.
 5. **Missing features:** history beyond the indexer's last 500 activity rows; watch an SPL-staked game's
    claim through the UI end to end; `config/stake-tokens.json` entry for $PROPHET once it exists.
-6. **Mainnet (owner):** fresh owner key, separate oracle key, audit decision, ~4.1 SOL program rent,
+6. **Mainnet (owner):** fresh owner key, separate oracle key, audit decision, ~4.2 SOL program rent (plus ~3.4 SOL held only during the deploy, so ~7.7 SOL on the key),
    EVM wind-down, then merge to `main`.
 7. Later: redesign; $PROPHET on pump.fun as a stake mint; buyback/burn via pump.fun / PumpSwap.
 
