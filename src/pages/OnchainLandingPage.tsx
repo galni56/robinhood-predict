@@ -137,7 +137,7 @@ export function OnchainLandingPage() {
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 14, padding: 28 }}>
                 <h3 style={{ margin: 0, fontFamily: PIXEL, fontSize: 24, fontWeight: 400, lineHeight: 1.3 }}>RACES</h3>
                 <p style={{ margin: 0, fontSize: 20, lineHeight: 1.4, fontWeight: 500, textWrap: 'pretty' }}>
-                  Several coins start at once. The one whose price grows the most during the run takes the win.
+                  Bring your coin, match the stake and hit READY. The coin that grows the most takes the pot - spectators back racers and cheer.
                 </p>
                 <Link to="/onchain/races" className="rx-btn rx-btn-yellow" style={{ minHeight: 56, padding: '0 28px', fontFamily: PIXEL, fontSize: 16 }}>
                   TO THE START

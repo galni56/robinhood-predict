@@ -15,12 +15,12 @@ const TermsPage = lazy(() => import('@/pages/TermsPage').then((m) => ({ default:
 const OnchainPortfolioPage = lazy(() => import('@/pages/OnchainPortfolioPage').then((m) => ({ default: m.OnchainPortfolioPage })))
 const OnchainLeaderboardPage = lazy(() => import('@/pages/OnchainLeaderboardPage').then((m) => ({ default: m.OnchainLeaderboardPage })))
 const OnchainArchivePage = lazy(() => import('@/pages/OnchainArchivePage').then((m) => ({ default: m.OnchainArchivePage })))
-const OnchainRacesListPage = lazy(() => import('@/pages/OnchainRacesListPage').then((m) => ({ default: m.OnchainRacesListPage })))
-const OnchainCreateRacePage = lazy(() => import('@/pages/OnchainCreateRacePage').then((m) => ({ default: m.OnchainCreateRacePage })))
 const OnchainRacePage = lazy(() => import('@/pages/OnchainRacePage').then((m) => ({ default: m.OnchainRacePage })))
 const OnchainArenasListPage = lazy(() => import('@/pages/OnchainArenasListPage').then((m) => ({ default: m.OnchainArenasListPage })))
 const OnchainPumpSwapPage = lazy(() => import('@/pages/OnchainPumpSwapPage').then((m) => ({ default: m.OnchainPumpSwapPage })))
 const OnchainLaunchPage = lazy(() => import('@/pages/OnchainLaunchPage').then((m) => ({ default: m.OnchainLaunchPage })))
+const OnchainDuelsListPage = lazy(() => import('@/pages/OnchainDuelsListPage').then((m) => ({ default: m.OnchainDuelsListPage })))
+const OnchainDuelPage = lazy(() => import('@/pages/OnchainDuelPage').then((m) => ({ default: m.OnchainDuelPage })))
 const OnchainCreateArenaPage = lazy(() => import('@/pages/OnchainCreateArenaPage').then((m) => ({ default: m.OnchainCreateArenaPage })))
 const OnchainArenaPage = lazy(() => import('@/pages/OnchainArenaPage').then((m) => ({ default: m.OnchainArenaPage })))
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage').then((m) => ({ default: m.NotFoundPage })))
@@ -44,8 +44,9 @@ export default function App() {
               <Route path="portfolio" element={<OnchainPortfolioPage />} />
               <Route path="leaderboard" element={<OnchainLeaderboardPage />} />
               <Route path="archive" element={<OnchainArchivePage />} />
-              <Route path="races" element={<OnchainRacesListPage />} />
-              <Route path="races/create" element={<OnchainCreateRacePage />} />
+              <Route path="races" element={<OnchainDuelsListPage />} />
+              <Route path="duel/:duelId" element={<OnchainDuelPage />} />
+              <Route path="races/create" element={<OnchainDuelsListPage />} />
               <Route path="races/:raceId" element={<OnchainRacePage />} />
               <Route path="arenas" element={<OnchainArenasListPage />} />
               <Route path="pumpswap" element={<OnchainPumpSwapPage />} />

@@ -1157,3 +1157,10 @@ h3,
   .rx-navbar-links { order: 3; width: 100%; font-size: 17px !important; gap: 0 18px !important; }
   .rx-navbar-links a, .rx-navbar-links button { min-height: 36px !important; }
 }
+
+/* Cheer fireworks: ten pixels fly out from the coin. */
+@keyframes rx-fx-burst {
+  from { transform: rotate(var(--rx-a)) translateX(0); opacity: 1; }
+  to { transform: rotate(var(--rx-a)) translateX(46px); opacity: 0; }
+}
+.rx-fx-burst { animation: rx-fx-burst 0.7s steps(7) forwards; }
