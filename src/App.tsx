@@ -1,6 +1,5 @@
 import { Suspense, lazy } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
-import { AnimatedBackground } from '@/components/AnimatedBackground'
 import { DisclaimerBanner } from '@/components/DisclaimerBanner'
 import { Footer } from '@/components/Footer'
 import { OnchainLayout } from '@/components/OnchainLayout'
@@ -27,7 +26,6 @@ const NotFoundPage = lazy(() => import('@/pages/NotFoundPage').then((m) => ({ de
 export default function App() {
   return (
     <div className="min-h-screen flex flex-col">
-      <AnimatedBackground />
       <DisclaimerBanner />
       <RealNavbar />
 

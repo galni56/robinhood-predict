@@ -1,193 +1,102 @@
 import { useState } from 'react'
-import { NavLink } from 'react-router-dom'
-import clsx from 'clsx'
-import { SOLANA_CLUSTER } from '@/solana/config'
+import { NavLink, useLocation } from 'react-router-dom'
+import type { CSSProperties } from 'react'
 import { ConnectWalletButton } from '@/components/ConnectWalletButton'
-import { PROPHET_X_URL } from '@/lib/social'
+import { PxSprite } from '@/retro/Sprite'
+import { logoCoin } from '@/retro/spriteData'
+import { CREAM, INK, PINK } from '@/retro/scene'
+import { SOLANA_CLUSTER } from '@/solana/config'
 
-const links = [
+// The mock's nav, 1:1: cream bar with a 4px ink rule, the pixel logo coin,
+// three Pixelify links (active = pink underline bar) and the wallet button.
+// Secondary pages live under "More" so the bar stays the mock trio.
+
+const LINKS = [
   { to: '/onchain/races', label: 'Races' },
   { to: '/onchain/arenas', label: 'Arena' },
+  { to: '/#how', label: 'How to play' },
+]
+
+const MORE = [
   { to: '/onchain/portfolio', label: 'Portfolio' },
   { to: '/onchain/leaderboard', label: 'Leaderboard' },
   { to: '/onchain/archive', label: 'Archive' },
-  { to: '/roadmap', label: 'Roadmap' },
 ]
 
-const explorerHref = `https://explorer.solana.com/${SOLANA_CLUSTER === 'mainnet-beta' ? '' : `?cluster=${SOLANA_CLUSTER === 'localnet' ? 'custom' : SOLANA_CLUSTER}`}`
+const PIXEL = "'Press Start 2P', 'Courier New', monospace"
 
-/** Site navbar. ConnectWalletButton also appears in the collapsed mobile row,
- * not just the hamburger menu - connecting a wallet shouldn't be buried an
- * extra tap deep. */
 export function RealNavbar() {
-  const [mobileOpen, setMobileOpen] = useState(false)
+  const [moreOpen, setMoreOpen] = useState(false)
+  const location = useLocation()
+
+  const linkStyle = (active: boolean): CSSProperties => ({
+    display: 'inline-flex',
+    alignItems: 'center',
+    minHeight: 44,
+    padding: '0 4px',
+    color: INK,
+    textDecoration: 'none',
+    ...(active ? { boxShadow: `0 4px 0 0 ${PINK}` } : {}),
+  })
 
   return (
-    <header className="sticky top-0 z-20 border-b border-white/10 bg-[#17111f]/95 xl:bg-[#17111f]/85 xl:backdrop-blur">
-      <div className="max-w-[1500px] mx-auto px-4 h-16 flex items-center gap-3 xl:gap-4">
-        <NavLink to="/" className="flex items-center gap-2 shrink-0">
-          <img src={`${import.meta.env.BASE_URL}brand/mascot-small.png`} alt="" className="w-9 h-9 shrink-0" />
-          <span className="font-display font-bold text-xl leading-none text-[#f7f1e3]">
-            Prophet<span className="hidden sm:inline"> Markets</span><span className="text-[#8B7CF7]">.</span>
-          </span>
-          {SOLANA_CLUSTER !== 'mainnet-beta' && <span className="hidden text-xs font-normal text-white/30 sm:inline">{SOLANA_CLUSTER}</span>}
-        </NavLink>
+    <header
+      style={{
+        position: 'relative',
+        zIndex: 20,
+        display: 'flex',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: '12px 32px',
+        padding: '20px clamp(16px, 4vw, 64px)',
+        background: CREAM,
+        color: INK,
+        borderBottom: `4px solid ${INK}`,
+        fontFamily: "'Pixelify Sans', 'Courier New', monospace",
+      }}
+    >
+      <NavLink to="/" style={{ display: 'inline-flex', alignItems: 'center', gap: 12, minHeight: 44, fontFamily: PIXEL, fontSize: 14, color: INK, textDecoration: 'none' }}>
+        <PxSprite data={logoCoin} width={32} height={34} />
+        <span>PROPHET</span>
+        {SOLANA_CLUSTER !== 'mainnet-beta' && <span style={{ fontSize: 8, color: PINK, fontFamily: PIXEL }}>{SOLANA_CLUSTER.toUpperCase()}</span>}
+      </NavLink>
 
-        <nav className="hidden xl:flex items-center gap-0.5 text-[13px] shrink-0">
-          {links.map((l) => (
-            <NavLink
-              key={l.to}
-              to={l.to}
-              className={({ isActive }) =>
-                clsx(
-                  'px-2.5 py-1.5 rounded-full transition-colors font-bold whitespace-nowrap',
-                  isActive ? 'bg-[#8B7CF7]/15 text-[#B3A7FA]' : 'text-white/60 hover:text-white hover:bg-white/5',
-                )
-              }
-            >
-              {l.label}
-            </NavLink>
-          ))}
-          <NavLink
-            to="/onchain/races/create"
-            className={({ isActive }) =>
-              clsx(
-                'px-2.5 py-1.5 rounded-full transition-colors font-medium text-[#F2A65A] whitespace-nowrap',
-                isActive ? 'bg-[#F2A65A]/15' : 'hover:bg-[#F2A65A]/10',
-              )
-            }
-          >
-            + Race
+      <nav style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '4px 32px', fontSize: 22, fontWeight: 600 }}>
+        {LINKS.map((link) => (
+          <NavLink key={link.to} to={link.to} style={linkStyle(link.to.startsWith('/onchain') && location.pathname.startsWith(link.to))}>
+            {link.label}
           </NavLink>
-          <NavLink
-            to="/onchain/arenas/create"
-            className={({ isActive }) =>
-              clsx(
-                'px-2.5 py-1.5 rounded-full transition-colors font-medium text-[#B7CEFF] whitespace-nowrap',
-                isActive ? 'bg-[#7A9FF0]/15' : 'hover:bg-[#7A9FF0]/10',
-              )
-            }
-          >
-            + Arena
-          </NavLink>
-          <a
-            href={explorerHref}
-            target="_blank"
-            rel="noreferrer"
-            className="px-2.5 py-1.5 rounded-full transition-colors font-bold text-white/40 hover:text-white hover:bg-white/5 whitespace-nowrap"
-          >
-            Solana explorer ↗
-          </a>
-          <NavLink
-            to="/whitepaper"
-            className={({ isActive }) =>
-              clsx(
-                'px-2.5 py-1.5 rounded-full transition-colors font-bold whitespace-nowrap',
-                isActive ? 'bg-[#8B7CF7]/15 text-[#B3A7FA]' : 'text-white/40 hover:text-white hover:bg-white/5',
-              )
-            }
-          >
-            Whitepaper
-          </NavLink>
-          <a
-            href={PROPHET_X_URL}
-            target="_blank"
-            rel="noreferrer"
-            aria-label="Prophet on X"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#8B7CF7]/40 bg-[#8B7CF7]/15 text-white shadow-[0_6px_18px_-8px_rgba(139,124,247,0.9)] transition-all hover:-translate-y-0.5 hover:border-[#B3A7FA] hover:bg-[#8B7CF7]/30"
-          >
-            <svg viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4">
-              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-            </svg>
-          </a>
-        </nav>
-
-        <div className="ml-auto hidden xl:flex items-center gap-2">
-          <ConnectWalletButton />
-        </div>
-
-        {/* Mobile / narrow-desktop: everything collapses behind one toggle,
-            except the wallet button itself - that stays one tap away. */}
-        <div className="ml-auto flex xl:hidden items-center gap-2">
-          <ConnectWalletButton />
+        ))}
+        <div style={{ position: 'relative' }}>
           <button
-            onClick={() => setMobileOpen((v) => !v)}
-            aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
-            aria-expanded={mobileOpen}
-            className="w-9 h-9 shrink-0 rounded-lg border border-white/10 flex flex-col items-center justify-center gap-[3px] hover:border-white/30 transition-colors"
+            type="button"
+            onClick={() => setMoreOpen((v) => !v)}
+            style={{ display: 'inline-flex', alignItems: 'center', minHeight: 44, padding: '0 4px', background: 'none', border: 0, cursor: 'pointer', font: 'inherit', color: INK }}
           >
-            <span className={clsx('block w-4 h-[4px] bg-white/80 transition-transform', mobileOpen && 'translate-y-[5px] rotate-45')} />
-            <span className={clsx('block w-4 h-[4px] bg-white/80 transition-opacity', mobileOpen && 'opacity-0')} />
-            <span className={clsx('block w-4 h-[4px] bg-white/80 transition-transform', mobileOpen && '-translate-y-[5px] -rotate-45')} />
+            More ▾
           </button>
-        </div>
-      </div>
-
-      {mobileOpen && (
-        <div className="xl:hidden border-t border-white/10 bg-[#17111f] px-4 py-3 space-y-1">
-          {links.map((l) => (
-            <NavLink
-              key={l.to}
-              to={l.to}
-              onClick={() => setMobileOpen(false)}
-              className={({ isActive }) =>
-                clsx(
-                  'block px-3 py-2 rounded-lg text-sm font-bold transition-colors',
-                  isActive ? 'bg-[#8B7CF7]/15 text-[#B3A7FA]' : 'text-white/70 hover:bg-white/5 hover:text-white',
-                )
-              }
+          {moreOpen && (
+            <div
+              className="rx-plate"
+              style={{ position: 'absolute', right: 0, top: 'calc(100% + 8px)', zIndex: 30, display: 'flex', flexDirection: 'column', background: CREAM, padding: '8px 0', minWidth: 190 }}
             >
-              {l.label}
-            </NavLink>
-          ))}
-          <NavLink
-            to="/onchain/races/create"
-            onClick={() => setMobileOpen(false)}
-            className="block px-3 py-2 rounded-lg text-sm font-medium text-[#F2A65A] hover:bg-[#F2A65A]/10"
-          >
-            + Create Race
-          </NavLink>
-          <NavLink
-            to="/onchain/arenas/create"
-            onClick={() => setMobileOpen(false)}
-            className="block px-3 py-2 rounded-lg text-sm font-medium text-[#B7CEFF] hover:bg-[#7A9FF0]/10"
-          >
-            + Create Arena
-          </NavLink>
-          <a
-            href={explorerHref}
-            target="_blank"
-            rel="noreferrer"
-            className="block px-3 py-2 rounded-lg text-sm font-bold text-white/40 hover:bg-white/5"
-          >
-            Solana explorer ↗
-          </a>
-          <NavLink
-            to="/whitepaper"
-            onClick={() => setMobileOpen(false)}
-            className={({ isActive }) =>
-              clsx(
-                'block px-3 py-2 rounded-lg text-sm font-bold transition-colors',
-                isActive ? 'bg-[#8B7CF7]/15 text-[#B3A7FA]' : 'text-white/40 hover:bg-white/5 hover:text-white',
-              )
-            }
-          >
-            Whitepaper
-          </NavLink>
-          <a
-            href={PROPHET_X_URL}
-            target="_blank"
-            rel="noreferrer"
-            onClick={() => setMobileOpen(false)}
-            className="flex items-center gap-2 rounded-lg border border-[#8B7CF7]/30 bg-[#8B7CF7]/10 px-3 py-2 text-sm font-bold text-white/80 hover:border-[#B3A7FA] hover:bg-[#8B7CF7]/20 hover:text-white"
-          >
-            <svg viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5">
-              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-            </svg>
-            X
-          </a>
+              {MORE.map((link) => (
+                <NavLink
+                  key={link.to}
+                  to={link.to}
+                  onClick={() => setMoreOpen(false)}
+                  style={{ display: 'block', padding: '8px 18px', fontSize: 20, fontWeight: 600, color: INK, textDecoration: 'none' }}
+                >
+                  {link.label}
+                </NavLink>
+              ))}
+            </div>
+          )}
         </div>
-      )}
+      </nav>
+
+      <ConnectWalletButton />
     </header>
   )
 }

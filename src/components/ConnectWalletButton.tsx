@@ -47,18 +47,18 @@ export function ConnectWalletButton() {
       <div ref={menuRef} className="relative">
         <button
           onClick={() => setOpen((v) => !v)}
-          className="flex items-center gap-2 pl-1.5 pr-3 py-1.5 rounded-full border border-white/10 hover:border-white/30 transition-colors"
+          className="rx-plate flex items-center gap-2 bg-[#FFF6DF] py-1 pl-1.5 pr-3"
         >
           <AddressAvatar address={address} size={22} />
-          <AddressLabel address={address} link={false} className="font-mono text-xs text-white/80" />
+          <AddressLabel address={address} link={false} className="font-mono text-xs font-bold text-[#191330]" />
         </button>
         {open && (
           <>
-            <div className="absolute right-0 top-10 z-20 w-52 rounded-2xl border border-white/10 bg-[#241b2f] shadow-2xl py-1 text-sm">
+            <div className="absolute right-0 top-11 z-20 w-56 border-[3px] border-[#191330] bg-[#fbf3e2] py-1 text-sm shadow-[5px_5px_0_#191330]">
               <NavLink
                 to="/onchain/portfolio"
                 onClick={() => setOpen(false)}
-                className="block px-3 py-2 text-white/70 hover:bg-white/5 hover:text-white"
+                className="block px-3 py-2 font-bold text-[#191330]/75 hover:bg-[#ffd23f] hover:text-[#191330]"
               >
                 Your portfolio
               </NavLink>
@@ -67,7 +67,7 @@ export function ConnectWalletButton() {
                   setOpen(false)
                   setNicknameModalOpen(true)
                 }}
-                className="w-full text-left px-3 py-2 text-white/70 hover:bg-white/5 hover:text-white"
+                className="w-full px-3 py-2 text-left font-bold text-[#191330]/75 hover:bg-[#ffd23f] hover:text-[#191330]"
               >
                 Set nickname
               </button>
@@ -77,7 +77,7 @@ export function ConnectWalletButton() {
                   setCopied(true)
                   setTimeout(() => setCopied(false), 1500)
                 }}
-                className="w-full text-left px-3 py-2 text-white/70 hover:bg-white/5 hover:text-white"
+                className="w-full px-3 py-2 text-left font-bold text-[#191330]/75 hover:bg-[#ffd23f] hover:text-[#191330]"
               >
                 {copied ? 'Copied!' : 'Copy address'}
               </button>
@@ -86,18 +86,18 @@ export function ConnectWalletButton() {
                 target="_blank"
                 rel="noreferrer"
                 onClick={() => setOpen(false)}
-                className="block px-3 py-2 text-white/70 hover:bg-white/5 hover:text-white"
+                className="block px-3 py-2 font-bold text-[#191330]/75 hover:bg-[#ffd23f] hover:text-[#191330]"
               >
                 View on explorer ↗
               </a>
               <LocalnetAirdropButton />
-              <div className="my-1 border-t border-white/10" />
+              <div className="my-1 border-t-2 border-[#191330]/15" />
               <button
                 onClick={() => {
                   setOpen(false)
                   void disconnect()
                 }}
-                className="w-full text-left px-3 py-2 text-rose-400 hover:bg-white/5"
+                className="w-full px-3 py-2 text-left font-bold text-[#e5484d] hover:bg-[#e5484d]/10"
               >
                 Disconnect
               </button>
@@ -117,13 +117,14 @@ export function ConnectWalletButton() {
     <div ref={menuRef} className="relative">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="text-xs px-4 py-2 rounded-full bg-gradient-to-r from-[#8B7CF7] to-[#6A5AE0] hover:brightness-110 text-white font-bold transition-all shadow-[0_4px_16px_-4px_rgba(106,90,224,0.6)]"
+        className="rx-btn rx-btn-pink"
+        style={{ minHeight: 48, padding: '0 20px', fontFamily: "'Pixelify Sans', 'Courier New', monospace", fontSize: 18, fontWeight: 700 }}
       >
-        Connect<span className="hidden sm:inline"> wallet ↗</span>
+        Connect<span className="hidden sm:inline"> wallet</span>
       </button>
       {open && (
         <>
-          <div className="absolute right-0 top-10 z-20 w-72 rounded-2xl border border-white/10 bg-[#241b2f] shadow-2xl p-2">
+          <div className="absolute right-0 top-12 z-20 w-72 border-[3px] border-[#191330] bg-[#fbf3e2] p-2 shadow-[5px_5px_0_#191330]">
             <WalletOptionsList onConnect={() => setOpen(false)} />
           </div>
         </>

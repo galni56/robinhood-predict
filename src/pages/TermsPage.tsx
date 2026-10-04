@@ -12,9 +12,9 @@ export function TermsPage() {
   return (
     <div className="max-w-3xl mx-auto px-4 py-10 space-y-10">
       <div>
-        <p className="text-xs font-bold tracking-[0.2em] text-[#8B7CF7]/80 uppercase mb-2">Legal</p>
+        <p className="text-xs font-bold tracking-[0.2em] text-[#C2245A]/80 uppercase mb-2">Legal</p>
         <h1 className="text-3xl font-extrabold tracking-tight">Terms of Service</h1>
-        <p className="text-white/40 text-sm mt-3">
+        <p className="text-[#1B1340]/55 text-sm mt-3">
           Last updated {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}.
           Prophet runs Asset Races and Price Arena on Solana with real wallet transactions. Stakes, payouts and
           refunds use SOL or another stake currency the game was created with. See §9 for launch and legal-review
@@ -22,7 +22,7 @@ export function TermsPage() {
         </p>
       </div>
 
-      <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+      <div className="rounded-none border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
         This is a template, not reviewed by a lawyer. It is not a substitute for real legal review - see the{' '}
         <a href="#launch-status" onClick={(e) => scrollToSection(e, 'launch-status')} className="underline">
           §9 note
@@ -115,7 +115,7 @@ function Section({ title, id, children }: { title: string; id?: string; children
   return (
     <section id={id} className="scroll-mt-20">
       <h2 className="text-lg font-bold mb-2">{title}</h2>
-      <div className="text-white/60 text-sm leading-relaxed space-y-2">{children}</div>
+      <div className="text-[#1B1340]/70 text-sm leading-relaxed space-y-2">{children}</div>
     </section>
   )
 }

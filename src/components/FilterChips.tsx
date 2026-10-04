@@ -1,18 +1,18 @@
-/** The one pill-button row used for list filters and Stocks/Memes segments.
- * Accents follow the product color system (CLAUDE.md): purple = Prediction
- * Markets, orange = Asset Races, blue = Price Arena, cream = neutral
- * category. Presentation only - selection state lives with the caller. */
+/** The one chip-button row used for list filters and category segments.
+ * Retro accents: sun yellow = Asset Races, sky blue = Price Arena, pink =
+ * crypto/wild, paper = neutral. Presentation only - selection state lives
+ * with the caller. */
 
 import { CRYPTO_ASSETS_ENABLED } from '@/chain/features'
 
 export type ChipAccent = 'market' | 'race' | 'raceSoft' | 'arena' | 'cream'
 
 const ACTIVE: Record<ChipAccent, string> = {
-  market: 'bg-[#8B7CF7] text-[#f7f1e3]',
-  race: 'bg-[#ED8F3A] text-[#3b2416]',
-  raceSoft: 'bg-[#F2A65A] text-[#3b2416]',
-  arena: 'bg-[#7A9FF0] text-[#152447]',
-  cream: 'bg-[#f7f1e3] text-[#241a33]',
+  market: 'bg-[#ff4f8b] text-[#fbf3e2]',
+  race: 'bg-[#ffd23f] text-[#191330]',
+  raceSoft: 'bg-[#ffd23f] text-[#191330]',
+  arena: 'bg-[#6bcbf4] text-[#191330]',
+  cream: 'bg-[#fbf3e2] text-[#191330]',
 }
 
 /** The Stocks/Memes category segment shared by race and arena pages. */
@@ -47,16 +47,18 @@ export function FilterChips<T extends string>({
   size?: 'xs' | 'sm'
   className?: string
 }) {
-  const sizeClass = size === 'sm' ? 'px-4 py-1.5 text-sm' : 'px-3.5 py-1.5 text-xs'
+  const sizeClass = size === 'sm' ? 'px-3.5 py-2 text-[10px]' : 'px-3 py-1.5 text-[9px]'
   return (
-    <div className={`flex gap-1.5 ${className}`}>
+    <div className={`flex gap-2 ${className}`}>
       {options.map((option) => (
         <button
           key={option.key}
           type="button"
           onClick={() => onChange(option.key)}
-          className={`whitespace-nowrap rounded-full font-bold transition-colors ${sizeClass} ${
-            value === option.key ? ACTIVE[option.accent ?? accent] : 'text-white/50 hover:bg-white/5 hover:text-white'
+          className={`px-font whitespace-nowrap border-2 transition-all ${sizeClass} ${
+            value === option.key
+              ? `border-[#191330] shadow-[2px_2px_0_#191330] ${ACTIVE[option.accent ?? accent]}`
+              : 'border-transparent text-[#191330]/50 hover:border-[#191330]/30 hover:text-[#191330]'
           }`}
         >
           {option.label}

@@ -1,11 +1,13 @@
 import type { StakeInputUnit } from '@/chain/stakeQuote'
-import { ClockIcon } from '@/components/icons'
 import { StakeAmountInput } from '@/components/StakeAmountInput'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
 import { PriceSourceLink } from '@/components/PriceSourceLink'
-import { TokenLogo } from '@/components/TokenLogo'
 import { priceSourceUrlForAssetId } from '@/chain/assetRaceRegistry'
 import { formatCompactUsd, formatCountdown, formatUnits, formatUsdPrice } from '@/lib/format'
+import { PxSprite } from '@/retro/Sprite'
+import { coinSkin } from '@/retro/coins'
+import { CREAM, INK } from '@/retro/scene'
+import { PIXEL } from '@/retro/race'
 import {
   ASSET_RACE_CATEGORY,
   estimateRacePayout,
@@ -64,7 +66,7 @@ export function AssetRaceBettingView({
 }) {
   const meme = race.category === ASSET_RACE_CATEGORY.MEME
   const crypto = race.category === ASSET_RACE_CATEGORY.CRYPTO
-  const accentText = 'text-[#F2A65A]'
+  const accentText = 'text-[#ffd23f]'
   const selected = race.assets[selectedAssetIndex]
   const existingStake = position?.exists ? position.stake : 0n
   const estimate = selected
@@ -80,19 +82,17 @@ export function AssetRaceBettingView({
   return (
     <div className="grid items-start gap-6 lg:grid-cols-[1fr_400px]">
       <div className="space-y-5">
-        <div className="rounded-3xl border border-white/5 bg-[#241b2f] p-6">
+        <div className="rx-raised" style={{ background: CREAM, color: INK, padding: 20 }}>
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <p className={`text-sm font-bold ${accentText}`}>Pick your front-runner</p>
-              <h2 className="mt-1 font-display text-2xl font-bold">{meme ? 'Meme sprint' : crypto ? 'Crypto sprint' : 'Stock sprint'}</h2>
-              <p className="mt-1 max-w-xl text-sm text-white/45">Choose the asset with the highest return over the race window.</p>
+              <h2 style={{ margin: 0, fontFamily: PIXEL, fontSize: 14, fontWeight: 400, lineHeight: 1.4 }}>WHO ARE YOU BACKING?</h2>
+              <p className="mt-2" style={{ fontSize: 18, fontWeight: 500, opacity: 0.7 }}>{meme ? 'Pick the meme with the strongest sprint.' : crypto ? 'Pick the strongest mover.' : 'Pick the stock with the strongest sprint.'}</p>
             </div>
             <div className="text-right">
-              <div className="inline-flex items-center gap-2 font-mono text-2xl font-bold">
-                <ClockIcon className="h-5 w-5 text-white/35" />
+              <span style={{ fontFamily: PIXEL, fontSize: 18, lineHeight: 1, color: '#FFD23F', background: INK, padding: '10px 12px', display: 'inline-block' }}>
                 {nowMs > 0 ? formatCountdown(Number(race.bettingEndTime) * 1_000 - nowMs) : '…'}
-              </div>
-              <div className="mt-0.5 text-xs font-bold text-white/35">betting closes</div>
+              </span>
+              <div className="mt-2" style={{ fontSize: 16, fontWeight: 600, opacity: 0.7 }}>betting closes</div>
             </div>
           </div>
         </div>
@@ -104,11 +104,8 @@ export function AssetRaceBettingView({
             return (
               <div
                 key={asset.assetIndex}
-                className={`overflow-hidden rounded-2xl border transition-all ${
-                  selectedNow
-                    ? 'border-[#F2A65A]/60 bg-[#F2A65A]/10'
-                    : 'border-white/5 bg-[#241b2f] hover:border-[#F2A65A]/30'
-                }`}
+                className="rx-raised overflow-hidden"
+                style={{ background: selectedNow ? '#FFD23F' : '#FFFFFF', color: INK }}
               >
                 <button
                   type="button"
@@ -117,22 +114,22 @@ export function AssetRaceBettingView({
                   className="w-full p-4 text-left disabled:cursor-not-allowed disabled:opacity-35"
                 >
                   <div className="flex items-center justify-between">
-                    <span className="flex items-center gap-2 font-display text-lg font-bold"><TokenLogo ticker={asset.symbol} className="h-9 w-9 rounded-xl" />{asset.symbol}</span>
-                    {selectedNow && <span className={`text-xs font-bold ${accentText}`}>Selected</span>}
+                    <span className="flex items-center gap-3" style={{ fontFamily: PIXEL, fontSize: 14 }}><PxSprite data={coinSkin(asset.symbol, asset.assetIndex).sprite} width={40} height={43} />{asset.symbol}</span>
+                    {selectedNow && <span style={{ fontFamily: "'Pixelify Sans', monospace", fontSize: 16, fontWeight: 700, color: '#FFD23F', background: INK, padding: '4px 8px' }}>picked</span>}
                   </div>
                   <div className="mt-3 flex items-end justify-between gap-3">
                     <div>
-                      <div className="text-xs font-bold text-white/30">Backing pool</div>
+                      <div style={{ fontSize: 15, fontWeight: 600, opacity: 0.6 }}>Backing pool</div>
                       <div className="font-mono text-sm">
                         {formatStakeRaw(asset.pool, tokenDecimals)} {tokenLabel}
                       </div>
                     </div>
                     {asset.livePrice != null && (
                       <div>
-                        <div className="text-xs font-bold text-white/30">{asset.liveMarketCapUsd != null ? 'Market cap' : 'Price'}</div>
+                        <div style={{ fontSize: 15, fontWeight: 600, opacity: 0.6 }}>{asset.liveMarketCapUsd != null ? 'Market cap' : 'Price'}</div>
                         <div
                           title={asset.liveMarketCapUsd != null ? `Price ${formatUsdPrice(Number(formatUnits(asset.livePrice, asset.liveDecimals ?? asset.expectedDecimals)))}` : undefined}
-                          className="font-mono text-sm text-[#F2A65A]"
+                          className="font-mono text-sm" style={{ color: '#B8860B' }}
                         >
                           {asset.liveMarketCapUsd != null
                             ? formatCompactUsd(asset.liveMarketCapUsd)
@@ -140,14 +137,14 @@ export function AssetRaceBettingView({
                         </div>
                       </div>
                     )}
-                    <div className="font-mono text-sm text-white/55">{formatPoolShare(asset.pool, race.totalPool)}</div>
+                    <div className="font-mono text-sm" style={{ opacity: 0.6 }}>{formatPoolShare(asset.pool, race.totalPool)}</div>
                   </div>
                 </button>
                 <PriceSourceLink
                   href={priceSourceUrlForAssetId(asset.assetId)}
                   symbol={asset.symbol}
                   tone="race"
-                  className="w-full rounded-none border-t border-white/10 px-4 py-2.5"
+                  className="w-full rounded-none border-t-4 border-[#1B1340]/10 px-4 py-2.5"
                 />
               </div>
             )
@@ -156,18 +153,18 @@ export function AssetRaceBettingView({
       </div>
 
       <div className="space-y-4 lg:sticky lg:top-24">
-        <div className="space-y-4 rounded-3xl border border-white/5 bg-[#241b2f] p-5">
+        <div className="rx-raised space-y-4 p-5" style={{ background: CREAM, color: INK }}>
           <div className="flex items-center justify-between gap-3">
-            <h3 className="font-display text-lg font-bold">Your bet</h3>
+            <h3 style={{ margin: 0, fontFamily: PIXEL, fontSize: 14, fontWeight: 400, lineHeight: 1.4 }}>YOUR BET</h3>
             {selected && (
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#F2A65A]/15 py-1 pl-1 pr-2.5 text-xs font-bold text-[#F2A65A]">
-                <TokenLogo ticker={selected.symbol} className="h-5 w-5 rounded-md" />{selected.symbol}
+              <span className="inline-flex items-center gap-2" style={{ fontFamily: PIXEL, fontSize: 11 }}>
+                <PxSprite data={coinSkin(selected.symbol, selected.assetIndex).sprite} width={24} height={26} />{selected.symbol}
               </span>
             )}
           </div>
 
           {position?.exists && (
-            <p className="text-sm text-white/55">
+            <p style={{ margin: 0, fontSize: 17, fontWeight: 500, opacity: 0.8 }}>
               Your pick is locked to <b className={accentText}>{race.assets[position.assetIndex]?.symbol}</b> with a current stake of{' '}
               <b className="font-mono text-white/80">
                 {formatStakeRaw(existingStake, tokenDecimals)} {tokenLabel}
@@ -188,7 +185,7 @@ export function AssetRaceBettingView({
               tone="race"
               token={usdQuoted ? undefined : { symbol: tokenLabel, native: false }}
             />
-            <p className="mt-2 text-xs font-medium text-white/45">
+            <p className="mt-2" style={{ fontSize: 15, fontWeight: 500, opacity: 0.7 }}>
               {exactAmount
                 ? usdQuoted && inputUnit === 'SOL'
                   ? `Wallet will send exactly ${exactAmount} SOL · about ${equivalentUsd} at the displayed rate.`
@@ -199,7 +196,7 @@ export function AssetRaceBettingView({
                     ? `Enter a stake worth $1–$50 in ${inputUnit}.`
                     : 'SOL/USD rate unavailable or stale.'}
             </p>
-            <div className="mt-1.5 flex flex-wrap justify-between gap-2 text-[11px] font-medium text-white/30">
+            <div className="mt-1.5 flex flex-wrap justify-between gap-2" style={{ fontSize: 14, fontWeight: 500, opacity: 0.55 }}>
               <span>
                 Min first stake {formatStakeRaw(race.minStake, tokenDecimals)} {tokenLabel}
               </span>
@@ -209,15 +206,15 @@ export function AssetRaceBettingView({
             </div>
           </div>
 
-          <div className="rounded-2xl bg-white/5 px-4 py-3">
-            <div className="text-xs font-bold text-white/35">
+          <div className="rx-plate px-4 py-3" style={{ background: '#FFFFFF' }}>
+            <div style={{ fontSize: 15, fontWeight: 600, opacity: 0.6 }}>
               {position?.exists && amountRaw > 0n ? 'Estimated total return after top-up' : 'Estimated total return'} if{' '}
               {selected?.symbol ?? 'selected asset'} wins
             </div>
-            <div className={`mt-1 font-display text-2xl font-bold ${accentText}`}>
+            <div className="mt-1" style={{ fontFamily: PIXEL, fontSize: 18 }}>
               {formatStakeRaw(estimate, tokenDecimals)} {tokenLabel}
             </div>
-            <div className="mt-1 space-y-0.5 text-[11px] font-medium text-white/35">
+            <div className="mt-1 space-y-0.5" style={{ fontSize: 14, fontWeight: 500, opacity: 0.55 }}>
               {position?.exists && amountRaw > 0n && (
                 <div>
                   Current {formatStakeRaw(existingStake, tokenDecimals)} + top-up {formatStakeRaw(amountRaw, tokenDecimals)} ={' '}
@@ -233,13 +230,13 @@ export function AssetRaceBettingView({
           </div>
 
           {balance != null && (
-            <p className="text-xs font-medium text-white/40">
+            <p style={{ margin: 0, fontSize: 15, fontWeight: 500, opacity: 0.6 }}>
               Wallet balance: {formatStakeRaw(balance, tokenDecimals)} {tokenLabel}
             </p>
           )}
-          {belowMinimum && <p className="text-xs font-bold text-[#F2A65A]">The first stake is below this race's minimum.</p>}
-          {exceedsMax && <p className="text-xs font-bold text-rose-400">This would exceed your cumulative maximum stake.</p>}
-          {error && <p className="text-sm text-rose-400">{error}</p>}
+          {belowMinimum && <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#B8860B' }}>The first stake is below this race's minimum.</p>}
+          {exceedsMax && <p style={{ margin: 0, fontSize: 15, fontWeight: 700, color: '#C2245A' }}>This would exceed your cumulative maximum stake.</p>}
+          {error && <p style={{ margin: 0, fontSize: 17, fontWeight: 700, color: '#C2245A' }}>{error}</p>}
 
           {!isConnected ? (
             <WalletOptionsList tone="race" />
@@ -247,13 +244,14 @@ export function AssetRaceBettingView({
             <button
               onClick={onBet}
               disabled={!bettingOpen || amountRaw <= 0n || belowMinimum || exceedsMax || !!txLabel}
-              className="w-full rounded-xl bg-gradient-to-r from-[#F2A65A] to-[#ED8F3A] py-3 text-sm font-bold text-[#3b2416] transition-all hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+              className="rx-btn rx-btn-yellow w-full"
+              style={{ minHeight: 64, fontFamily: PIXEL, fontSize: 14 }}
             >
-              {txLabel ?? (position?.exists ? `Top up ${selected?.symbol}` : `Bet on ${selected?.symbol}`)}
+              {txLabel ?? (position?.exists ? `TOP UP ${selected?.symbol}` : `BET ON ${selected?.symbol}`)}
             </button>
           )}
 
-          <p className="text-[11px] leading-relaxed text-white/30">
+          <p className="leading-relaxed" style={{ fontSize: 14, fontWeight: 500, opacity: 0.55 }}>
             Crowd backing is not a probability. The estimated payout is not guaranteed; pool distribution may change until betting closes.
           </p>
         </div>

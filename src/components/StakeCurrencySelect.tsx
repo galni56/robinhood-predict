@@ -10,14 +10,14 @@ export function StakeCurrencySelect({ value, onChange, tone }: {
   const enabled = [...(currencies.data?.values() ?? [])].filter((currency) => currency.enabled)
   if (enabled.length <= 1) return null
   const selected = enabled.find((currency) => currency.mint === value)
-  const focus = tone === 'race' ? 'focus:border-[#F2A65A]/50' : 'focus:border-[#7A9FF0]/50'
+  const focus = tone === 'race' ? 'focus:border-[#ffd23f]/50' : 'focus:border-[#6bcbf4]/50'
   return (
     <div>
       <label className="mb-2 block text-sm font-bold text-white/60">Stake currency</label>
       <select
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className={`w-full rounded-xl border border-white/10 bg-[#1e1728] px-3.5 py-2.5 font-medium outline-none ${focus}`}
+        className={`w-full rounded-none border border-white/10 bg-[#191330] px-3.5 py-2.5 font-medium outline-none ${focus}`}
       >
         {enabled.map((currency) => <option key={currency.mint} value={currency.mint}>{currency.symbol}</option>)}
       </select>

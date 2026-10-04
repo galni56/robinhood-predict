@@ -22,8 +22,8 @@ function MarketMotion({ asset }: { asset?: MotionAsset }) {
       <svg className="market-signal" viewBox="0 0 520 180" preserveAspectRatio="none">
         <defs>
           <linearGradient id="market-signal-gradient" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0" stopColor="#6A5AE0" stopOpacity="0" />
-            <stop offset="0.35" stopColor="#8B7CF7" />
+            <stop offset="0" stopColor="#ff4f8b" stopOpacity="0" />
+            <stop offset="0.35" stopColor="#ff4f8b" />
             <stop offset="1" stopColor="#D8D0FF" stopOpacity="0" />
           </linearGradient>
         </defs>
@@ -38,7 +38,7 @@ function MarketMotion({ asset }: { asset?: MotionAsset }) {
         </div>
         <div className="market-core">
           <div className="market-core-halo" />
-          <TokenLogo ticker={asset?.symbol ?? 'NVDA'} logoUrl={asset?.logoUrl} className="h-11 w-11 rounded-2xl" />
+          <TokenLogo ticker={asset?.symbol ?? 'NVDA'} logoUrl={asset?.logoUrl} className="h-11 w-11 rounded-none" />
           <span>{asset?.symbol ?? 'NVDA'}</span>
         </div>
       </div>
@@ -71,7 +71,7 @@ function ArenaMotion({ asset }: { asset?: MotionAsset }) {
         <div className="arena-ring arena-ring--three" />
         <div className="arena-scan" />
         <div className="arena-core">
-          <TokenLogo ticker={asset?.symbol ?? 'NVDA'} logoUrl={asset?.logoUrl} className="h-10 w-10 rounded-2xl" />
+          <TokenLogo ticker={asset?.symbol ?? 'NVDA'} logoUrl={asset?.logoUrl} className="h-10 w-10 rounded-none" />
           <span>{asset?.symbol ?? 'NVDA'}</span>
         </div>
         <div className="arena-forecast-dots">

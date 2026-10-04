@@ -5,6 +5,7 @@ import { usePrograms } from '@/solana/programs'
 import { racePda, racePositionPda } from '@/solana/pda'
 import { marketCapUsd, useLivePrices } from '@/chain/livePrices'
 import { useHistory } from '@/chain/history'
+import { DESIGN_SAMPLES_ENABLED, SAMPLE_RACES } from '@/chain/designSamples'
 import {
   ASSET_RACE_STATUS,
   positionFromAccount,
@@ -50,7 +51,10 @@ export function useAssetRace(raceId: bigint | null, wallet?: PublicKey | null) {
     refetchInterval: ACTIVE_POLL_MS,
   })
 
-  const base = raceQuery.data ?? undefined
+  // Dev-only: sample races stand in so detail screens can be designed
+  // without a validator (same gate as the list hooks).
+  const sample = DESIGN_SAMPLES_ENABLED && raceId != null ? SAMPLE_RACES.find((item) => item.id === raceId) : undefined
+  const base = raceQuery.data ?? (raceQuery.isFetched || raceQuery.isError ? sample : undefined) ?? undefined
   const showLive = base?.status === ASSET_RACE_STATUS.RUNNING || base?.status === ASSET_RACE_STATUS.BETTING
   const live = useLivePrices({ enabled: showLive })
   const history = useHistory({ enabled: !!base && !!wallet })

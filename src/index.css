@@ -1,8 +1,8 @@
 @import 'tailwindcss';
 
 @theme {
-  --font-sans: 'Nunito', system-ui, 'Segoe UI', Roboto, sans-serif;
-  --font-display: 'Baloo 2', 'Nunito', system-ui, sans-serif;
+  --font-sans: 'Pixelify Sans', 'Nunito', system-ui, sans-serif;
+  --font-display: 'Press Start 2P', 'Courier New', monospace;
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Consolas, monospace;
 
   /* Prophet brand */
@@ -20,10 +20,25 @@
   --color-lav-100: #f2effb;
   --color-lav-200: #e7e1f8;
   --color-lav-300: #d8cff2;
+
+  /* Retro arcade system (Solana redesign) */
+  --font-pixel: 'Press Start 2P', 'Courier New', monospace;
+  --color-paper-50: #fbf3e2;
+  --color-paper-100: #f3e8cf;
+  --color-sky-400: #6bcbf4;
+  --color-sky-300: #8ddaf8;
+  --color-night-900: #221c40;
+  --color-night-700: #453a7e;
+  --color-ink-950: #191330;
+  --color-sun-400: #ffd23f;
+  --color-sun-500: #f7b928;
+  --color-punch-500: #ff4f8b;
+  --color-grass-500: #58c26e;
+  --color-grass-600: #3da158;
 }
 
 :root {
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 html,
@@ -35,22 +50,16 @@ body,
 body {
   margin: 0;
   overflow-x: hidden;
-  /* Static background painted directly on body - see git history: extra
-     compositing layers intermittently left text unpainted. Brand purple
-     (#8b7cf7 / #6a5ae0) + a warm orange kiss, kept subtle under content. */
-  background:
-    radial-gradient(1200px 700px at 12% -10%, rgba(139, 124, 247, 0.16), transparent 60%),
-    radial-gradient(1000px 650px at 105% 0%, rgba(106, 90, 224, 0.18), transparent 55%),
-    radial-gradient(900px 700px at 50% 115%, rgba(242, 166, 90, 0.1), transparent 55%),
-    #17111f;
-  background-attachment: fixed;
-  color: #f4f0fa;
+  /* Retro arcade paper. Painted directly on body - see git history: extra
+     compositing layers intermittently left text unpainted. */
+  background: #fff6df;
+  color: #1b1340;
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
 }
 
 ::selection {
-  background: #8b7cf766;
+  background: #ffd23f99;
 }
 
 h1,
@@ -791,4 +800,266 @@ h3,
   .roadmap-flow-arrow,
   .roadmap-loop-symbol,
   .roadmap-fee-bar { animation: none !important; }
+}
+
+/* ------------------------------------------------------------------ retro */
+/* Retro arcade building blocks: hard offset shadows, thick ink borders,
+   pixel headline font. Scoped by class so screens migrate one at a time. */
+
+.retro {
+  background: #fff6df;
+  color: #1b1340;
+}
+
+.px-font {
+  font-family: var(--font-pixel);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  line-height: 1.5;
+}
+
+.px-border { border: 3px solid var(--color-ink-950); }
+
+.px-card {
+  border: 3px solid var(--color-ink-950);
+  background: var(--color-paper-50);
+  box-shadow: 6px 6px 0 var(--color-ink-950);
+}
+
+.px-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-family: var(--font-pixel);
+  font-size: 12px;
+  text-transform: uppercase;
+  padding: 15px 24px 13px;
+  border: 3px solid var(--color-ink-950);
+  background: var(--color-sun-400);
+  color: var(--color-ink-950);
+  box-shadow: 4px 4px 0 var(--color-ink-950);
+  cursor: pointer;
+  transition: transform 0.08s ease, box-shadow 0.08s ease, background 0.12s ease;
+}
+
+.px-btn:hover { transform: translate(-1px, -1px); box-shadow: 5px 5px 0 var(--color-ink-950); background: var(--color-sun-500); }
+.px-btn:active { transform: translate(3px, 3px); box-shadow: 1px 1px 0 var(--color-ink-950); }
+.px-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: 4px 4px 0 var(--color-ink-950); }
+
+.px-btn--pink { background: var(--color-punch-500); color: var(--color-paper-50); }
+.px-btn--pink:hover { background: #ff69a0; }
+.px-btn--paper { background: var(--color-paper-50); }
+.px-btn--paper:hover { background: #ffffff; }
+.px-btn--sm { font-size: 10px; padding: 11px 16px 9px; box-shadow: 3px 3px 0 var(--color-ink-950); }
+
+.px-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  text-transform: uppercase;
+  padding: 9px 14px 7px;
+  border: 3px solid var(--color-ink-950);
+  background: #fff6df;
+  color: #1b1340;
+}
+
+/* Checkered finish-line strip (vertical by default). */
+.px-checker {
+  background-image: repeating-conic-gradient(var(--color-ink-950) 0% 25%, var(--color-paper-50) 0% 50%);
+  background-size: 18px 18px;
+}
+
+/* Upscaled low-res art stays crisp instead of blurring. */
+.px-art { image-rendering: pixelated; }
+
+/* Stepped pixel mounds for ground strips, as a repeating SVG. */
+.px-bushes {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='760' height='88' viewBox='0 0 760 88'%3E%3Cpath fill='%2358c26e' d='M24 88V64h20V44h20V28h24v-8h40v8h24v16h20v20h20v24zM236 88V72h16V60h20v12h16v16z'/%3E%3Cpath fill='%233da158' d='M248 88V76h40v12z'/%3E%3Cpath fill='%2358c26e' d='M480 88V62h18V46h20V32h22v-8h38v8h22v14h20v16h18v26zM678 88V70h14V58h20v12h14v18z'/%3E%3C/svg%3E");
+  background-repeat: repeat-x;
+  background-position: bottom center;
+}
+
+@keyframes px-cloud-drift {
+  from { transform: translateX(0); }
+  to { transform: translateX(28px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .px-btn, .px-btn:hover, .px-btn:active { transform: none; }
+}
+
+@keyframes hero-run {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+@keyframes hero-leg {
+  0%, 100% { transform: translate(2px, 0); }
+  50% { transform: translate(-2px, 0); }
+  75% { transform: translate(0, -2px); }
+}
+
+/* ---------------------------------------------------------- track scene */
+/* Landing night road: lane markings slide left while runners cross the
+   whole strip at different lap times, so the order genuinely changes. */
+
+@keyframes track-dash {
+  from { background-position-x: 0; }
+  to { background-position-x: -224px; }
+}
+
+.track-lane-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background-image: repeating-linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.35) 0 24px,
+    transparent 24px 60px
+  );
+  animation: track-dash 0.9s linear infinite;
+}
+
+@keyframes track-run-across {
+  from { left: -14%; }
+  to { left: 110%; }
+}
+
+.track-runner {
+  position: absolute;
+  animation: track-run-across var(--lap, 13s) linear infinite;
+  animation-delay: var(--lap-delay, 0s);
+  will-change: left;
+}
+
+@keyframes finish-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.75; }
+}
+
+.track-finish { animation: finish-pulse 1.6s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .track-lane-line,
+  .track-runner,
+  .track-finish { animation: none !important; }
+}
+
+/* ------------------------------------------------------------- mock kit */
+/* Exact recipes lifted from the approved design mock: pixel-square borders
+   and bevels are box-shadow stacks (no CSS borders), all motion is steps(). */
+
+@keyframes rx-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+@keyframes rx-road {
+  to { background-position: -72px 0; }
+}
+
+@keyframes rx-blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0.35; }
+}
+
+@keyframes rx-drift {
+  from { transform: translateX(0); }
+  to { transform: translateX(48px); }
+}
+
+/* 4-side pixel border (plates, labels, swatches). */
+.rx-plate {
+  box-shadow: -4px 0 0 0 #1b1340, 4px 0 0 0 #1b1340, 0 -4px 0 0 #1b1340, 0 4px 0 0 #1b1340;
+  margin: 4px;
+}
+
+/* Raised card: pixel border + chunky base. */
+.rx-raised {
+  box-shadow:
+    -4px 0 0 0 #1b1340, 4px 0 0 0 #1b1340, 0 -4px 0 0 #1b1340, 0 4px 0 0 #1b1340,
+    -4px 8px 0 0 #1b1340, 4px 8px 0 0 #1b1340, 0 12px 0 0 #1b1340;
+  margin: 4px 4px 12px;
+}
+
+/* Bevelled buttons: border + inner highlight/shade + base. */
+.rx-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  box-sizing: border-box;
+  border: 0;
+  cursor: pointer;
+  color: #1b1340;
+  text-align: center;
+  text-decoration: none;
+  line-height: 1.2;
+  margin: 4px 4px 12px;
+  transition: filter 0.1s steps(2);
+}
+
+.rx-btn:hover { filter: brightness(1.05); color: #1b1340; }
+.rx-btn:active { transform: translateY(4px); }
+.rx-btn:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+
+.rx-btn-yellow {
+  background: #ffd23f;
+  box-shadow:
+    -4px 0 0 0 #1b1340, 4px 0 0 0 #1b1340, 0 -4px 0 0 #1b1340, 0 4px 0 0 #1b1340,
+    inset 4px 4px 0 0 #ffec99, inset -4px -4px 0 0 #e0a100,
+    -4px 8px 0 0 #1b1340, 4px 8px 0 0 #1b1340, 0 12px 0 0 #1b1340;
+}
+
+.rx-btn-pink {
+  background: #ff5c8a;
+  box-shadow:
+    -4px 0 0 0 #1b1340, 4px 0 0 0 #1b1340, 0 -4px 0 0 #1b1340, 0 4px 0 0 #1b1340,
+    inset 4px 4px 0 0 #ffa3bd, inset -4px -4px 0 0 #c2245a,
+    -4px 8px 0 0 #1b1340, 4px 8px 0 0 #1b1340, 0 12px 0 0 #1b1340;
+}
+
+.rx-btn-white {
+  background: #ffffff;
+  box-shadow:
+    -4px 0 0 0 #1b1340, 4px 0 0 0 #1b1340, 0 -4px 0 0 #1b1340, 0 4px 0 0 #1b1340,
+    inset 4px 4px 0 0 #ffffff, inset -4px -4px 0 0 #e6dcc0,
+    -4px 8px 0 0 #1b1340, 4px 8px 0 0 #1b1340, 0 12px 0 0 #1b1340;
+}
+
+.rx-input {
+  box-sizing: border-box;
+  border: 0;
+  outline-offset: 6px;
+  color: #1b1340;
+  background: #ffffff;
+  box-shadow: -4px 0 0 0 #1b1340, 4px 0 0 0 #1b1340, 0 -4px 0 0 #1b1340, 0 4px 0 0 #1b1340, inset 4px 4px 0 0 #e6dcc0;
+  margin: 4px;
+}
+
+/* Road lane dashes + finish checker, exactly as mocked. */
+.rx-road-dashes {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 4px;
+  background-image: repeating-linear-gradient(90deg, #fff6df 0 32px, transparent 32px 72px);
+  opacity: 0.5;
+  animation: rx-road 0.45s steps(9) infinite;
+}
+
+.rx-grass {
+  background: #58d36b;
+  box-shadow: inset 0 4px 0 0 #8be89a;
+}
+
+.rx-font-pixel { font-family: 'Press Start 2P', 'Courier New', monospace; font-weight: 400; }
+
+@media (prefers-reduced-motion: reduce) {
+  [style*='rx-bob'], .rx-road-dashes { animation: none !important; }
 }

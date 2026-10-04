@@ -19,7 +19,7 @@ export function TokenLogo({ ticker, logoUrl, className }: { ticker: string | nul
   }
 
   return (
-    <span className={`grid place-items-center bg-[#f7f1e3] text-[#241a33] font-display font-bold shrink-0 ${className}`}>
+    <span className={`grid place-items-center bg-[#fbf3e2] text-[#191330] font-display font-bold shrink-0 ${className}`}>
       {(ticker ?? '?')[0]}
     </span>
   )

@@ -51,15 +51,15 @@ export function WalletOptionsList({ onConnect, tone = 'market' }: {
   }, [wallets])
 
   const actionClass = tone === 'race'
-    ? 'hover:border-[#F2A65A]/50 hover:bg-[#F2A65A]/10'
+    ? 'hover:border-[#ffd23f]/50 hover:bg-[#ffd23f]/10'
     : tone === 'arena'
-      ? 'hover:border-[#7A9FF0]/50 hover:bg-[#7A9FF0]/10'
-      : 'hover:border-[#8B7CF7]/50 hover:bg-[#8B7CF7]/10'
+      ? 'hover:border-[#6bcbf4]/50 hover:bg-[#6bcbf4]/10'
+      : 'hover:border-[#ff4f8b]/50 hover:bg-[#ff4f8b]/10'
   const actionTextClass = tone === 'race'
-    ? 'text-[#F2A65A]'
+    ? 'text-[#ffd23f]'
     : tone === 'arena'
-      ? 'text-[#B7CEFF]'
-      : 'text-[#B3A7FA]'
+      ? 'text-[#6bcbf4]'
+      : 'text-[#ff4f8b]'
 
   return (
     <div className="space-y-2">
@@ -68,7 +68,7 @@ export function WalletOptionsList({ onConnect, tone = 'market' }: {
         const href = installed ? undefined : isMobile ? mobileDeepLink(adapter.name) ?? adapter.url : adapter.url
         const content = (
           <>
-            <span className="w-9 h-9 rounded-xl bg-white/10 grid place-items-center shrink-0">
+            <span className="w-9 h-9 rounded-none bg-[#1B1340]/5 grid place-items-center shrink-0">
               <img src={adapter.icon} alt="" className="h-5 w-5" />
             </span>
             {adapter.name}
@@ -80,7 +80,7 @@ export function WalletOptionsList({ onConnect, tone = 'market' }: {
             </span>
           </>
         )
-        const className = `group w-full flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-left text-sm font-bold transition-all disabled:opacity-50 ${actionClass}`
+        const className = `rx-plate group w-full flex items-center gap-3 bg-white px-4 py-3 text-left text-sm font-bold text-[#1B1340] transition-all disabled:opacity-50 hover:bg-[#FFD23F] ${actionClass}`
         return href ? (
           <a key={adapter.name} href={href} target="_blank" rel="noreferrer" className={className}>
             {content}
