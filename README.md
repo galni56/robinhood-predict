@@ -65,7 +65,10 @@ node scripts/solana/keeper.mjs                              # localnet by defaul
 node scripts/solana/e2e-localnet.mjs [--arena]              # full lifecycle check on localnet
 ```
 
-Set `SOLANA_MAINNET_RPC_URL` to a paid RPC: the public endpoint rate-limits (429) under the service's polling.
+Set `SOLANA_MAINNET_RPC_URLS` to one or more endpoints, comma-separated in order of preference (free ones work: the
+service holds subscriptions, so its traffic does not grow with visitors). It probes each endpoint, fails over
+when the feed goes silent or calls keep failing, and marks every switch or websocket drop as a gap it never
+signs prices in. The public endpoint alone drops its websocket now and then; add a second free-tier endpoint.
 On localnet the oracle key is the admin key; devnet and mainnet need a separate oracle key per cluster.
 
 ## Environment

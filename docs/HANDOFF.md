@@ -77,7 +77,7 @@ export CARGO_TARGET_DIR=$HOME/prophet-target
 bash scripts/solana/localnet.sh --background             # validator, programs deployed
 node scripts/solana/admin.mjs setup                      # oracle = admin key on localnet
 node scripts/solana/admin.mjs seed                       # optional sample races/arenas
-ORACLE_KEYPAIR=~/.config/solana/id.json SOLANA_MAINNET_RPC_URL=<paid RPC> \
+ORACLE_KEYPAIR=~/.config/solana/id.json SOLANA_MAINNET_RPC_URLS=<rpc1>,<rpc2> \
   node scripts/solana/price-service/service.mjs          # :8790
 node scripts/solana/keeper.mjs
 node scripts/solana/indexer.mjs                          # :8791
