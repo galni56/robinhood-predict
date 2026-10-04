@@ -338,7 +338,7 @@ function PixelCloud({ className, drift }: { className?: string; drift?: string }
 }
 
 const HERO_RUNNERS = [
-  { symbol: 'BONK', left: '62%', duration: '0.52s' },
+  { symbol: 'TRUMP', left: '62%', duration: '0.52s' },
   { symbol: 'WIF', left: '38%', duration: '0.64s' },
   { symbol: 'SOL', left: '22%', duration: '0.58s' },
 ]
