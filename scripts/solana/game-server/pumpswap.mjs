@@ -5,7 +5,9 @@
 // prices, never on GeckoTerminal numbers.
 //
 // Minimal filter (owner decision, 2026-10-04): a real pump.fun coin (mint
-// ends in "pump", or the PUMP token itself), paired with SOL or USDC, pool
+// ends in "pump", the PUMP token itself, or a mint whose pump.fun bonding
+// curve exists - coins launched from our site have ordinary addresses),
+// paired with SOL or USDC, pool
 // liquidity >= $10k, pool older than 1 hour, one coin per symbol (the one
 // with the most liquidity). The top `limit` by liquidity are kept, plus any
 // coin still used by a running game (30 by default).
@@ -24,6 +26,20 @@ const tokenAddress = (id) => String(id ?? '').replace(/^solana_/, '')
 export function priceDecimalsFor(priceUsd) {
   if (!(priceUsd > 0)) return 12
   return Math.min(18, Math.max(8, Math.ceil(-Math.log10(priceUsd)) + 6))
+}
+
+const PUMP_PROGRAM = '6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P'
+
+/** Mints (among `mints`) that pump.fun created: their bonding curve account exists. */
+export async function pumpFunMints(connection, mints, PublicKey) {
+  const program = new PublicKey(PUMP_PROGRAM)
+  const curves = mints.map((m) => PublicKey.findProgramAddressSync([Buffer.from('bonding-curve'), new PublicKey(m).toBuffer()], program)[0])
+  const found = new Set()
+  for (let i = 0; i < curves.length; i += 100) {
+    const infos = await connection.getMultipleAccountsInfo(curves.slice(i, i + 100))
+    infos.forEach((info, k) => { if (info && info.owner.toBase58() === PUMP_PROGRAM) found.add(mints[i + k]) })
+  }
+  return found
 }
 
 export async function fetchPumpSwapPools({ pages = PUMPSWAP_FILTER.pages, fetchImpl = fetch } = {}) {
@@ -66,8 +82,8 @@ export async function fetchPumpSwapPools({ pages = PUMPSWAP_FILTER.pages, fetchI
  * category MEME) plus display fields. `previous` keeps price decimals stable;
  * `keepSymbols` are coins used by running games (never dropped).
  */
-export function selectPumpSwapAssets(pools, { takenSymbols, previous = [], keepSymbols = new Set(), now = Date.now(), filter = PUMPSWAP_FILTER } = {}) {
-  const realCoin = (p) => p.mint === PUMP_TOKEN || p.mint.endsWith('pump')
+export function selectPumpSwapAssets(pools, { takenSymbols, previous = [], keepSymbols = new Set(), now = Date.now(), filter = PUMPSWAP_FILTER, pumpMints = new Set() } = {}) {
+  const realCoin = (p) => p.mint === PUMP_TOKEN || p.mint.endsWith('pump') || pumpMints.has(p.mint)
   const bySymbol = new Map()
   for (const p of pools) {
     const symbol = String(p.symbol).trim()

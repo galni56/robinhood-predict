@@ -39,13 +39,13 @@ import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { Keypair } from '@solana/web3.js'
+import { Keypair, PublicKey } from '@solana/web3.js'
 import { openDatabase } from './db.mjs'
 import { createChain, isAddress } from './chain.mjs'
 import { catalogAssets, createEngine } from './engine.mjs'
 import { createPriceClient } from './prices.mjs'
 import { RuleError } from './rules.mjs'
-import { fetchPumpSwapPools, selectPumpSwapAssets } from './pumpswap.mjs'
+import { fetchPumpSwapPools, pumpFunMints, selectPumpSwapAssets } from './pumpswap.mjs'
 import { gameView, historyView, walletView } from './views.mjs'
 import { toJson } from './db.mjs'
 
@@ -239,7 +239,10 @@ async function refreshPumpSwap() {
     const previous = readExtra()
     const pools = await fetchPumpSwapPools()
     const takenSymbols = new Set(baseCatalog.assets.map((a) => a.symbol.toUpperCase()))
-    const extra = selectPumpSwapAssets(pools, { takenSymbols, previous, keepSymbols: engine.liveSymbols() })
+    // Coins launched from our site have ordinary mint addresses: confirm them by their pump.fun curve.
+    const others = [...new Set(pools.map((p) => p.mint).filter((m) => m && !m.endsWith('pump')))]
+    const pumpMints = others.length ? await pumpFunMints(chain.connection, others, PublicKey).catch(() => new Set()) : new Set()
+    const extra = selectPumpSwapAssets(pools, { takenSymbols, previous, keepSymbols: engine.liveSymbols(), pumpMints })
     mkdirSync(dirname(EXTRA_ASSETS), { recursive: true })
     writeFileSync(`${EXTRA_ASSETS}.tmp`, JSON.stringify({ updatedAt: new Date().toISOString(), source: 'pumpswap', assets: extra }, null, 1))
     renameSync(`${EXTRA_ASSETS}.tmp`, EXTRA_ASSETS)
