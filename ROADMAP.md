@@ -35,7 +35,7 @@ Change log: [`docs/SOLANA_CHANGELOG.md`](./docs/SOLANA_CHANGELOG.md). Status and
 ## Before mainnet (owner)
 
 - Fresh admin key (the development key was exposed) and a separate mainnet oracle key.
-- ~4.2 SOL for program rent (refundable deposit; ~7.7 SOL on the key during the deploy); decision on an external audit.
+- ~4.2 SOL for program rent (refundable deposit, also the whole amount needed on the key for the deploy); decision on an external audit.
 - Wind down the EVM product, then merge to `main` (VPS keepers run from `main`).
 
 ## Later
