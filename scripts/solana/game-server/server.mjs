@@ -31,6 +31,9 @@
 //   EXTRA_ASSETS          PumpSwap catalog file it writes and the price
 //                         service reads (default ./.data/pumpswap-assets.json)
 //   PUMPSWAP_REFRESH_MINUTES (15; 0 = off)
+//   PUBLIC_DATA_DIR       last-known data the site shows while the services
+//                         are off (pumpswap.json); nginx serves it as static
+//                         files (default ./.data/public)
 
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
@@ -251,6 +254,28 @@ if (PUMPSWAP_MINUTES > 0) {
   void refreshPumpSwap()
   setInterval(refreshPumpSwap, PUMPSWAP_MINUTES * 60_000)
 }
+
+// Last-known PumpSwap coins with prices, rewritten every few minutes. The
+// site falls back to it when the game server is off, so nothing goes empty.
+const PUBLIC_DATA_DIR = resolve(process.env.PUBLIC_DATA_DIR ?? fileURLToPath(new URL('.data/public', ROOT)))
+async function writeLastData() {
+  try {
+    const prices = await fetch(`${process.env.PRICE_SERVICE_URL ?? 'http://127.0.0.1:8790'}/prices`, { signal: AbortSignal.timeout(10_000) }).then((r) => r.json())
+    const assets = engine.config().assets.filter((a) => a.source === 'pumpswap').map((a) => ({
+      ...a,
+      price: prices.prices?.[a.symbol] ? { raw: prices.prices[a.symbol].raw, decimals: prices.prices[a.symbol].decimals } : null,
+    }))
+    if (assets.length === 0) return
+    mkdirSync(PUBLIC_DATA_DIR, { recursive: true })
+    const file = `${PUBLIC_DATA_DIR}/pumpswap.json`
+    writeFileSync(`${file}.tmp`, toJson({ capturedAt: new Date().toISOString(), assets }))
+    renameSync(`${file}.tmp`, file)
+  } catch (error) {
+    console.warn(`last data: ${error.message}`)
+  }
+}
+setTimeout(writeLastData, 90_000)
+setInterval(writeLastData, 5 * 60_000)
 
 await engine.init()
 await refreshSolvency()

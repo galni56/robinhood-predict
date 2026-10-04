@@ -29,6 +29,7 @@ jobs:
       VITE_SOLANA_CLUSTER: devnet
       VITE_PRICE_SERVICE_URL: "off"
       VITE_GAME_SERVER_URL: "off"
+      VITE_LAST_DATA_URL: "https://prophetmarkets.fun/api/solana/last"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

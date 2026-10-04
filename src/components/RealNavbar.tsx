@@ -5,7 +5,6 @@ import { ConnectWalletButton } from '@/components/ConnectWalletButton'
 import { PxSprite } from '@/retro/Sprite'
 import { logoCoin } from '@/retro/spriteData'
 import { CREAM, INK, PINK } from '@/retro/scene'
-import { SOLANA_CLUSTER } from '@/solana/config'
 
 // The mock's nav, 1:1: cream bar with a 4px ink rule, the pixel logo coin,
 // three Pixelify links (active = pink underline bar) and the wallet button.
@@ -60,7 +59,7 @@ export function RealNavbar() {
       <NavLink to="/" style={{ display: 'inline-flex', alignItems: 'center', gap: 12, minHeight: 44, fontFamily: PIXEL, fontSize: 14, color: INK, textDecoration: 'none' }}>
         <PxSprite data={logoCoin} width={32} height={34} />
         <span>PROPHET</span>
-        {SOLANA_CLUSTER !== 'mainnet-beta' && <span style={{ fontSize: 8, color: PINK, fontFamily: PIXEL }}>{SOLANA_CLUSTER.toUpperCase()}</span>}
+
       </NavLink>
 
       <nav style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '4px 32px', fontSize: 22, fontWeight: 600 }}>

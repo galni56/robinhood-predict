@@ -1,15 +1,16 @@
 import { Link } from 'react-router-dom'
 import { usePumpSwapAssets } from '@/chain/gameServer'
 import { useLivePrices } from '@/chain/livePrices'
-import { CoinFighter } from '@/retro/landingFx'
-import { coinBlueGrin, coinOrangeGrin, coinPinkGrin, coinPurpleGrin } from '@/retro/spriteData'
 import { formatUnits } from '@/lib/format'
+import { CoinFighter } from '@/retro/landingFx'
 import { CREAM, INK, PINK, YELLOW } from '@/retro/scene'
+import { coinBlueGrin, coinOrangeGrin, coinPinkGrin, coinPurpleGrin } from '@/retro/spriteData'
 
 const PIXEL = "'Press Start 2P', 'Courier New', monospace"
 const BODIES = [coinOrangeGrin, coinPinkGrin, coinBlueGrin, coinPurpleGrin]
 
 const usd = (value?: number) => (value == null ? '—' : value >= 1e6 ? `$${(value / 1e6).toFixed(1)}M` : value >= 1e3 ? `$${Math.round(value / 1e3)}K` : `$${Math.round(value)}`)
+const price = (raw: bigint, decimals: number) => `$${Number(Number(formatUnits(raw, decimals)).toPrecision(4))}`
 
 function ago(iso?: string) {
   if (!iso) return '—'
@@ -19,11 +20,14 @@ function ago(iso?: string) {
   return hours < 48 ? `${hours}h` : `${Math.round(hours / 24)}d`
 }
 
+const cell = { padding: '10px 12px', borderTop: `3px solid ${INK}`, whiteSpace: 'nowrap' } as const
+const head = { ...cell, borderTop: 'none', fontFamily: PIXEL, fontSize: 10, fontWeight: 400, textAlign: 'left', opacity: 0.7 } as const
+
 /**
- * Meme coins the game server picks from PumpSwap every 15 minutes, with
- * prices read from their pools. `feed` (the landing) lists the newest
- * additions first; otherwise the most liquid come first. While the server is
- * off, the bundled snapshot is shown, so the list is never empty.
+ * Meme coins the game server picks from PumpSwap every 15 minutes, as a
+ * table. `feed` (the landing) lists the newest additions first; otherwise
+ * the most liquid come first. While the services are off the last known data
+ * is shown, so the table is never empty.
  */
 export function PumpSwapCoins({ limit, feed = false }: { limit?: number; feed?: boolean }) {
   const { assets, snapshotAt, isLoading } = usePumpSwapAssets()
@@ -40,38 +44,58 @@ export function PumpSwapCoins({ limit, feed = false }: { limit?: number; feed?: 
             Coins that graduated from pump.fun join the game automatically every 15 minutes. Race them or call their price in an arena.
           </p>
         </div>
-        {limit && <Link to="/onchain/pumpswap" style={{ color: YELLOW, fontSize: 18, fontWeight: 700 }}>All {assets.length} coins →</Link>}
+        {limit && assets.length > limit && <Link to="/onchain/pumpswap" style={{ color: YELLOW, fontSize: 18, fontWeight: 700 }}>All {assets.length} coins →</Link>}
       </div>
       {isLoading && assets.length === 0 ? <p style={{ marginTop: 24, opacity: 0.7 }}>Loading coins…</p> : (
-        <div style={{ marginTop: 24, display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))' }}>
-          {shown.map((asset, index) => {
-            const livePrice = live.assets[asset.symbol]
-            const price = livePrice ? { raw: livePrice.raw, decimals: livePrice.decimals } : asset.price ? { raw: BigInt(asset.price.raw), decimals: asset.price.decimals } : null
-            const fresh = Date.parse(asset.addedAt ?? '0') === newest && Date.now() - newest < 15 * 60_000
-            return (
-              <div key={asset.symbol} className="rx-raised rx-hop-host" style={{ position: 'relative', background: CREAM, color: INK, padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {fresh && <span style={{ position: 'absolute', top: -10, right: 12, background: PINK, color: INK, fontFamily: PIXEL, fontSize: 9, padding: '6px 8px', border: `3px solid ${INK}` }}>NEW</span>}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
-                  <CoinFighter body={BODIES[index % BODIES.length]} logoUrl={asset.logoUrl} symbol={asset.symbol} size={52} />
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ fontWeight: 700, fontSize: 20, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{asset.symbol}</div>
-                    <div style={{ fontSize: 14, opacity: 0.6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{asset.name}</div>
-                  </div>
-                  <div style={{ marginLeft: 'auto', fontFamily: PIXEL, fontSize: 11 }}>{price ? `$${Number(Number(formatUnits(price.raw, price.decimals)).toPrecision(4))}` : "…"}</div>
-                </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 12px', fontSize: 14, fontWeight: 600, opacity: 0.75 }}>
-                  <span>Liquidity {usd(asset.liquidityUsd)}</span>
-                  <span>Vol 24h {usd(asset.volume24hUsd)}</span>
-                  <span>{feed ? `Added ${ago(asset.addedAt)} ago` : `Pool ${ago(asset.poolCreatedAt)} old`}</span>
-                </div>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  <Link to="/onchain/races/create?mode=memes" className="rx-btn rx-btn-yellow" style={{ padding: '8px 12px', fontSize: 14, fontWeight: 700 }}>Race it</Link>
-                  <Link to="/onchain/arenas/create?mode=memes" className="rx-btn rx-btn-pink" style={{ padding: '8px 12px', fontSize: 14, fontWeight: 700 }}>Arena</Link>
-                  {asset.priceUrl && <a href={asset.priceUrl} target="_blank" rel="noreferrer" style={{ marginLeft: 'auto', alignSelf: 'center', fontSize: 14, fontWeight: 700 }}>Chart ↗</a>}
-                </div>
-              </div>
-            )
-          })}
+        <div className="rx-raised" style={{ marginTop: 24, background: CREAM, color: INK, overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 16, fontWeight: 600 }}>
+            <thead>
+              <tr>
+                <th style={head}>#</th>
+                <th style={head}>COIN</th>
+                <th style={{ ...head, textAlign: 'right' }}>PRICE</th>
+                <th style={{ ...head, textAlign: 'right' }}>LIQUIDITY</th>
+                <th style={{ ...head, textAlign: 'right' }}>VOL 24H</th>
+                <th style={{ ...head, textAlign: 'right' }}>{feed ? 'ADDED' : 'POOL AGE'}</th>
+                <th style={head} />
+              </tr>
+            </thead>
+            <tbody>
+              {shown.map((asset, index) => {
+                const livePrice = live.assets[asset.symbol]
+                const p = livePrice ? price(livePrice.raw, livePrice.decimals) : asset.price ? price(BigInt(asset.price.raw), asset.price.decimals) : '…'
+                const fresh = Date.parse(asset.addedAt ?? '0') === newest && Date.now() - newest < 15 * 60_000
+                return (
+                  <tr key={asset.symbol} className="rx-hop-host" style={{ background: index % 2 ? 'rgba(27, 19, 64, 0.04)' : 'transparent' }}>
+                    <td style={{ ...cell, fontFamily: PIXEL, fontSize: 11, opacity: 0.6 }}>{index + 1}</td>
+                    <td style={cell}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <CoinFighter body={BODIES[index % BODIES.length]} logoUrl={asset.logoUrl} symbol={asset.symbol} size={40} />
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontWeight: 700, fontSize: 18 }}>
+                            {asset.symbol}
+                            {fresh && <span style={{ marginLeft: 8, background: PINK, fontFamily: PIXEL, fontSize: 8, padding: '4px 6px', border: `2px solid ${INK}`, verticalAlign: 'middle' }}>NEW</span>}
+                          </div>
+                          <div style={{ fontSize: 13, opacity: 0.55, maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis' }}>{asset.name}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td style={{ ...cell, textAlign: 'right', fontFamily: PIXEL, fontSize: 11 }}>{p}</td>
+                    <td style={{ ...cell, textAlign: 'right' }}>{usd(asset.liquidityUsd)}</td>
+                    <td style={{ ...cell, textAlign: 'right' }}>{usd(asset.volume24hUsd)}</td>
+                    <td style={{ ...cell, textAlign: 'right', opacity: 0.75 }}>{feed ? `${ago(asset.addedAt)} ago` : ago(asset.poolCreatedAt)}</td>
+                    <td style={{ ...cell, textAlign: 'right' }}>
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                        <Link to="/onchain/races/create?mode=memes" className="rx-btn rx-btn-yellow" style={{ padding: '6px 10px', fontSize: 13, fontWeight: 700, margin: '4px 4px 10px' }}>Race</Link>
+                        <Link to="/onchain/arenas/create?mode=memes" className="rx-btn rx-btn-pink" style={{ padding: '6px 10px', fontSize: 13, fontWeight: 700, margin: '4px 4px 10px' }}>Arena</Link>
+                        {asset.priceUrl && <a href={asset.priceUrl} target="_blank" rel="noreferrer" style={{ padding: '0 6px', fontSize: 14, fontWeight: 700 }}>Chart ↗</a>}
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
         </div>
       )}
       {snapshotAt && <p style={{ margin: '12px 0 0', fontSize: 13, opacity: 0.55 }}>Prices as of {new Date(snapshotAt).toLocaleString()}.</p>}

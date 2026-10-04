@@ -82,7 +82,7 @@ async function usable(candidate, index) {
       return false
     }
     // The calls the service lives on; some free endpoints block them.
-    const { context } = await candidate.getMultipleAccountsInfoAndContext(probeAccounts, { commitment: 'confirmed' })
+    const { context } = await candidate.getMultipleAccountsInfoAndContext(probeAccounts.slice(0, 100), { commitment: 'confirmed' })
     await candidate.getBlocks(context.slot - 5, context.slot, 'confirmed')
     return true
   } catch (error) {
@@ -138,17 +138,27 @@ function subscribeAll() {
   watchSocket(connection)
 }
 
+// getMultipleAccounts takes at most 100 accounts, so bigger plans are read
+// in chunks; every account keeps the slot of the chunk that read it.
 async function fetchAll() {
-  const { context, value } = await connection.getMultipleAccountsInfoAndContext(
-    plan.accounts.map((a) => new PublicKey(a)),
-    { commitment: 'confirmed' },
-  )
-  return { slot: context.slot, data: Object.fromEntries(plan.accounts.map((a, i) => [a, value[i]?.data])) }
+  const data = {}
+  const slotOf = {}
+  let slot = Infinity
+  for (let i = 0; i < plan.accounts.length; i += 100) {
+    const chunk = plan.accounts.slice(i, i + 100)
+    const { context, value } = await connection.getMultipleAccountsInfoAndContext(chunk.map((a) => new PublicKey(a)), { commitment: 'confirmed' })
+    chunk.forEach((a, k) => {
+      data[a] = value[k]?.data
+      slotOf[a] = context.slot
+    })
+    slot = Math.min(slot, context.slot)
+  }
+  return { slot, data, slotOf }
 }
 
 async function baseline() {
-  const { slot, data } = await fetchAll()
-  for (const account of plan.accounts) history.record(account, slot, data[account])
+  const { slot, data, slotOf } = await fetchAll()
+  for (const account of plan.accounts) history.record(account, slotOf[account], data[account])
   if (slot > maxSlotSeen) maxSlotSeen = slot
   lastNotificationAt = Date.now()
   return slot
@@ -241,9 +251,10 @@ function noteRpcError(error) {
 // change was missed — mark it unknown since the last recorded change.
 async function resync() {
   try {
-    const { slot, data } = await fetchAll()
+    const { slot: minSlot, data, slotOf } = await fetchAll()
     await new Promise((r) => setTimeout(r, 3000)) // in-flight notifications for <= slot
     for (const account of plan.accounts) {
+      const slot = slotOf[account] ?? minSlot
       let known
       try {
         known = history.stateAt(account, slot)
@@ -258,7 +269,7 @@ async function resync() {
       }
     }
     rpcFailures = 0
-    slotTimes.push([slot, Date.now()])
+    slotTimes.push([minSlot, Date.now()])
     const cutoffMs = Date.now() - BUFFER_SECONDS * 1000
     while (slotTimes.length > 1 && slotTimes[1][1] < cutoffMs) slotTimes.shift()
     if (slotTimes[0][1] < cutoffMs) history.prune(slotTimes[0][0])
@@ -391,10 +402,10 @@ const memeMints = registry.assets.filter((a) => a.category === 'MEME').map((a) =
 // The game server keeps a file of extra assets (EXTRA_ASSETS: the top
 // PumpSwap coins, same shape as config/solana-assets.json). New ones are
 // added on the fly, so the price history of running games is never lost.
-// Nothing is removed until a restart. One getMultipleAccounts call reads
-// every tracked account, which caps the plan at 100 accounts.
+// Nothing is removed until a restart. Reads are chunked by 100 accounts;
+// MAX_ACCOUNTS caps the subscriptions.
 const EXTRA_ASSETS = process.env.EXTRA_ASSETS
-const MAX_ACCOUNTS = 100
+const MAX_ACCOUNTS = 250
 let extraMtime = 0
 
 async function loadExtraAssets() {

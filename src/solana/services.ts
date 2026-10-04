@@ -16,3 +16,6 @@ function serviceUrl(value: string | undefined, fallback: string) {
 
 export const PRICE_SERVICE_URL = serviceUrl(import.meta.env.VITE_PRICE_SERVICE_URL, '/price-service')
 export const GAME_SERVER_URL = serviceUrl(import.meta.env.VITE_GAME_SERVER_URL, '/game-server')
+/** Static last-known data the VPS keeps serving while the services are off. */
+const lastDataUrl = import.meta.env.VITE_LAST_DATA_URL?.trim()
+export const LAST_DATA_URL = lastDataUrl && lastDataUrl !== 'off' ? lastDataUrl.replace(/\/+$/, '') : null

@@ -8,14 +8,14 @@
 // ends in "pump", or the PUMP token itself), paired with SOL or USDC, pool
 // liquidity >= $10k, pool older than 1 hour, one coin per symbol (the one
 // with the most liquidity). The top `limit` by liquidity are kept, plus any
-// coin still used by a running game.
+// coin still used by a running game (30 by default).
 
 const GECKO = 'https://api.geckoterminal.com/api/v2/networks/solana/dexes/pumpswap/pools'
 const WSOL = 'So11111111111111111111111111111111111111112'
 const USDC = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'
 const PUMP_TOKEN = 'pumpCmXqMfrsAkQ5r49WcJnRayYRqmXz6ae8H7H9Dfn'
 
-export const PUMPSWAP_FILTER = { minLiquidityUsd: 10_000, minAgeHours: 1, limit: 15, pages: 5 }
+export const PUMPSWAP_FILTER = { minLiquidityUsd: 10_000, minAgeHours: 1, limit: 30, pages: 10 }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 const tokenAddress = (id) => String(id ?? '').replace(/^solana_/, '')

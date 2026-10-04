@@ -1,7 +1,7 @@
 import { useCallback } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useWallet } from '@solana/wallet-adapter-react'
-import { GAME_SERVER_URL } from '@/solana/services'
+import { GAME_SERVER_URL, LAST_DATA_URL } from '@/solana/services'
 import { registerAssetIcons } from '@/lib/assetIcons'
 import pumpswapSnapshot from '@/chain/pumpswapSnapshot.json'
 
@@ -225,15 +225,29 @@ export function useGameServerConfig() {
 
 registerAssetIcons(pumpswapSnapshot.assets)
 
+interface PumpSwapSnapshot {
+  capturedAt: string
+  assets: ServerAsset[]
+}
+
 /** PumpSwap coins the game server added to the meme category, most liquid
- * first. While the server is off or unreachable the bundled snapshot
- * (src/chain/pumpswapSnapshot.json) stands in, so the list is never empty. */
+ * first. While the server is off: the last data the VPS keeps publishing
+ * (LAST_DATA_URL/pumpswap.json), else the bundled snapshot - never empty. */
 export function usePumpSwapAssets() {
   const config = useGameServerConfig()
   const live = (config.data?.assets ?? []).filter((a) => a.source === 'pumpswap')
-  const snapshot = live.length === 0 && !config.isLoading
-  const assets = (snapshot ? (pumpswapSnapshot.assets as ServerAsset[]) : live).slice().sort((a, b) => (b.liquidityUsd ?? 0) - (a.liquidityUsd ?? 0))
-  return { assets, snapshotAt: snapshot ? pumpswapSnapshot.capturedAt : null, isLoading: config.isLoading && GAME_SERVER_URL != null }
+  const needFallback = live.length === 0 && !config.isLoading
+  const last = useQuery({
+    queryKey: ['pumpswap-last'],
+    queryFn: async () => (await (await fetch(`${LAST_DATA_URL}/pumpswap.json`)).json()) as PumpSwapSnapshot,
+    enabled: needFallback && LAST_DATA_URL != null,
+    staleTime: 60_000,
+    retry: 1,
+  })
+  const fallback = last.data?.assets?.length ? last.data : (pumpswapSnapshot as PumpSwapSnapshot)
+  if (needFallback && fallback === last.data) registerAssetIcons(fallback.assets)
+  const assets = (needFallback ? fallback.assets : live).slice().sort((a, b) => (b.liquidityUsd ?? 0) - (a.liquidityUsd ?? 0))
+  return { assets, snapshotAt: needFallback ? fallback.capturedAt : null, isLoading: (config.isLoading && GAME_SERVER_URL != null) || (needFallback && last.isLoading) }
 }
 
 /** One wallet's stakes and payouts. */
