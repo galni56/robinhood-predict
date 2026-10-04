@@ -154,6 +154,11 @@ pub mod prophet_games {
         race::handle_close_losing_position(ctx)
     }
 
+    /// Keeper payout: settles a position to its owner without the owner signing.
+    pub fn settle_race_position(ctx: Context<SettlePositionFor>) -> Result<()> {
+        race::handle_settle_position_for(ctx)
+    }
+
     // ------------------------------------------------------- Price Arena
 
     pub fn create_arena(ctx: Context<CreateArena>, title: String, duration: i64, stake_mint: Pubkey) -> Result<()> {
@@ -186,5 +191,10 @@ pub mod prophet_games {
 
     pub fn refund_arena(ctx: Context<SettleEntry>) -> Result<()> {
         arena::handle_refund_arena(ctx)
+    }
+
+    /// Keeper payout: pays or refunds an entry to its player without the player signing.
+    pub fn settle_arena_entry(ctx: Context<SettleEntryFor>) -> Result<()> {
+        arena::handle_settle_entry_for(ctx)
     }
 }

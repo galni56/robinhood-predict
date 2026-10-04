@@ -410,6 +410,90 @@ pub fn handle_close_losing_position(ctx: Context<SettlePosition>) -> Result<()> 
     Ok(())
 }
 
+#[derive(Accounts)]
+pub struct SettlePositionFor<'info> {
+    /// Anyone, usually the keeper; pays only the transaction fee.
+    pub cranker: Signer<'info>,
+    #[account(mut)]
+    pub race: Account<'info, Race>,
+    #[account(
+        mut,
+        close = owner,
+        seeds = [POSITION_SEED, race.key().as_ref(), owner.key().as_ref()],
+        bump = position.bump,
+        has_one = owner @ GameError::Unauthorized,
+        has_one = race @ GameError::Unauthorized
+    )]
+    pub position: Account<'info, Position>,
+    /// CHECK: the position's owner (`has_one` above); receives the payout and
+    /// the position rent, so the cranker cannot redirect either.
+    #[account(mut)]
+    pub owner: UncheckedAccount<'info>,
+    pub token_mint: Option<InterfaceAccount<'info, Mint>>,
+    /// CHECK: checked against the race's associated token account.
+    #[account(mut)]
+    pub race_vault: Option<UncheckedAccount<'info>>,
+    /// CHECK: must be the owner's own associated token account (checked in the handler).
+    #[account(mut)]
+    pub owner_token: Option<UncheckedAccount<'info>>,
+    pub token_program: Option<Interface<'info, TokenInterface>>,
+}
+
+/// Settles a position on its owner's behalf once the race is final, so
+/// winnings and refunds arrive without the owner claiming: a winner gets stake
+/// plus share, a loser gets the position rent back, a cancelled or void race
+/// refunds the stake. Funds can only reach the owner (lamports to the owner's
+/// wallet, tokens to the owner's associated token account); the owner-signed
+/// claim and refund stay available.
+pub fn handle_settle_position_for(ctx: Context<SettlePositionFor>) -> Result<()> {
+    let owner = ctx.accounts.owner.key();
+    let stake = ctx.accounts.position.stake;
+    let asset_index = ctx.accounts.position.asset_index;
+    let race = &mut ctx.accounts.race;
+    let race_key = race.key();
+    let (amount, refund) = match race.status {
+        RaceStatus::Resolved if asset_index == race.winning_asset_index => {
+            let profit = mul_div(stake, race.distributable_losing_pool, race.winning_pool)?;
+            (stake.checked_add(profit).ok_or(error!(GameError::MathOverflow))?, false)
+        }
+        // A losing position only gets its rent back, through `close`.
+        RaceStatus::Resolved => (0, false),
+        RaceStatus::Cancelled | RaceStatus::Void => (stake, true),
+        _ => return err!(GameError::InvalidRaceStatus),
+    };
+    if amount == 0 {
+        return Ok(());
+    }
+    race.remaining_liability = race
+        .remaining_liability
+        .checked_sub(amount)
+        .ok_or(error!(GameError::InsufficientEscrow))?;
+
+    let accounts = &ctx.accounts;
+    let id = accounts.race.id.to_le_bytes();
+    let bump = [accounts.race.bump];
+    let seeds: &[&[u8]] = &[RACE_SEED, &id, &bump];
+    let spl = stake_funds::spl(&accounts.race.stake_mint, &accounts.token_mint, &accounts.token_program)?;
+    if let Some(spl) = &spl {
+        spl.require_vault(required(&accounts.owner_token)?, &owner)?;
+    }
+    pay_from_pda(
+        &spl,
+        &accounts.race.to_account_info(),
+        &[seeds],
+        as_info(&accounts.race_vault),
+        &accounts.owner.to_account_info(),
+        as_info(&accounts.owner_token),
+        amount,
+    )?;
+    if refund {
+        emit!(RaceRefunded { race: race_key, owner, amount });
+    } else {
+        emit!(RaceClaimed { race: race_key, owner, payout: amount });
+    }
+    Ok(())
+}
+
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, Debug)]
 pub enum VoidReason {
     TopTie,

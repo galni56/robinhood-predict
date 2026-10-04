@@ -1949,6 +1949,151 @@ export type ProphetGames = {
       ]
     },
     {
+      "name": "settleArenaEntry",
+      "docs": [
+        "Keeper payout: pays or refunds an entry to its player without the player signing."
+      ],
+      "discriminator": [
+        13,
+        226,
+        32,
+        137,
+        90,
+        17,
+        232,
+        227
+      ],
+      "accounts": [
+        {
+          "name": "cranker",
+          "docs": [
+            "Anyone, usually the keeper; pays only the transaction fee."
+          ],
+          "signer": true
+        },
+        {
+          "name": "arena",
+          "writable": true
+        },
+        {
+          "name": "player",
+          "docs": [
+            "payout or refund goes only to this wallet."
+          ],
+          "writable": true
+        },
+        {
+          "name": "tokenMint",
+          "optional": true
+        },
+        {
+          "name": "arenaVault",
+          "writable": true,
+          "optional": true
+        },
+        {
+          "name": "playerToken",
+          "writable": true,
+          "optional": true
+        },
+        {
+          "name": "tokenProgram",
+          "optional": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "settleRacePosition",
+      "docs": [
+        "Keeper payout: settles a position to its owner without the owner signing."
+      ],
+      "discriminator": [
+        149,
+        241,
+        52,
+        131,
+        152,
+        248,
+        102,
+        189
+      ],
+      "accounts": [
+        {
+          "name": "cranker",
+          "docs": [
+            "Anyone, usually the keeper; pays only the transaction fee."
+          ],
+          "signer": true
+        },
+        {
+          "name": "race",
+          "writable": true,
+          "relations": [
+            "position"
+          ]
+        },
+        {
+          "name": "position",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  115,
+                  105,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "race"
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              }
+            ]
+          }
+        },
+        {
+          "name": "owner",
+          "docs": [
+            "the position rent, so the cranker cannot redirect either."
+          ],
+          "writable": true,
+          "relations": [
+            "position"
+          ]
+        },
+        {
+          "name": "tokenMint",
+          "optional": true
+        },
+        {
+          "name": "raceVault",
+          "writable": true,
+          "optional": true
+        },
+        {
+          "name": "ownerToken",
+          "writable": true,
+          "optional": true
+        },
+        {
+          "name": "tokenProgram",
+          "optional": true
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "startRace",
       "discriminator": [
         167,

@@ -53,12 +53,14 @@ export function AssetRaceResultView({
   const refundable = !resolved && position?.exists && !position.settled
   // A settled position comes from history: its account is already closed.
   const settled = !!position?.settled
+  // The keeper settles every final position on its own; the button just does it sooner.
+  const autoPayoutPending = isConnected && !settled && !settlement && ((resolved && won) || lost || refundable)
 
   const action = !isConnected ? (
     <WalletOptionsList tone="race" />
   ) : settlement && (settled || !position?.exists) ? (
     <div className="w-full rounded-none bg-[#1B1340]/5 py-3 text-center text-sm font-bold text-[#1B1340]/55">
-      {settlement.type === 'claim' ? 'Claimed' : 'Refunded'} {formatStakeRaw(settlement.amount, tokenDecimals)} {tokenLabel}
+      {settlement.type === 'claim' ? 'Paid' : 'Refunded'} {formatStakeRaw(settlement.amount, tokenDecimals)} {tokenLabel} to your wallet
     </div>
   ) : settled ? (
     <div className="w-full rounded-none bg-[#1B1340]/5 py-3 text-center text-sm font-bold text-[#1B1340]/55">
@@ -130,6 +132,11 @@ export function AssetRaceResultView({
       )}
 
       {action}
+      {autoPayoutPending && (
+        <p className="text-center text-xs font-medium text-[#1B1340]/55">
+          {lost ? 'The deposit is returned to your wallet automatically' : 'Sent to your wallet automatically'} within a minute - or do it now.
+        </p>
+      )}
       {error && <p className="text-sm text-[#C2245A]">{error}</p>}
     </div>
   )

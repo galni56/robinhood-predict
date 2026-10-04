@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 // End-to-end lifecycle on localnet with live mainnet prices:
 // create race (+ optional arena) -> bets from throwaway wallets -> the keeper
-// starts/resolves with signed attestations from the price service -> winners
-// claim, losers close positions, payouts are checked against program math.
+// starts/resolves with signed attestations from the price service and then
+// pays every player automatically -> balances are checked against program math
+// to the lamport (players sign nothing after betting).
 //
 // Needs: local validator with programs + `admin.mjs setup`, the price service
 // (oracle = the localnet admin key) and the keeper running.
@@ -110,6 +111,14 @@ async function raceLifecycle() {
     bettors.push(bettor)
   }
   console.log(`bets placed: ${symbols.map((s, i) => `${s} ${sol(stakes[i])} SOL`).join(', ')}`)
+  // Bettors sign nothing from here on: any later balance change is the keeper's payout.
+  const positionOf = (bettor) => pda(race, [enc('position'), raceKey.toBuffer(), bettor.publicKey.toBuffer()])
+  const balancesAfterBets = []
+  const positionRents = []
+  for (const bettor of bettors) {
+    balancesAfterBets.push(BigInt(await connection.getBalance(bettor.publicKey)))
+    positionRents.push(BigInt(await connection.getBalance(positionOf(bettor))))
+  }
 
   const started = await waitFor('race start', () => race.account.race.fetch(raceKey), (r) => status(r.status) !== 'betting', 180)
   check(status(started.status) === 'running', `race started by keeper (status ${status(started.status)}, P0 slot ${started.startSlot})`)
@@ -119,11 +128,13 @@ async function raceLifecycle() {
   check(['resolved', 'void'].includes(status(done.status)), `race finished: ${status(done.status)} (P1 slot ${done.endSlot})`)
   done.assets.forEach((a, i) => console.log(`  ${symbols[i]}: P0 ${a.startPrice} -> P1 ${a.endPrice}, return ${(Number(a.returnValue.toString()) / 1e16).toFixed(4)}%`))
 
+  // The keeper settles every position on its own; a settled position's account is closed.
+  await waitFor('automatic payouts', async () => Promise.all(bettors.map((b) => connection.getAccountInfo(positionOf(b)))), (infos) => infos.every((info) => info == null), 120)
+  const gained = []
+  for (let i = 0; i < bettors.length; i++) gained.push(BigInt(await connection.getBalance(bettors[i].publicKey)) - balancesAfterBets[i])
+
   if (status(done.status) === 'void') {
-    for (const bettor of bettors) {
-      await race.methods.refundRace().accountsPartial({ owner: bettor.publicKey, race: raceKey, tokenMint: null, raceVault: null, ownerToken: null, tokenProgram: null }).signers([bettor]).rpc()
-    }
-    check(true, 'tie: every bettor refunded')
+    bettors.forEach((_, i) => check(gained[i] === BigInt(stakes[i]) + positionRents[i], `tie: bettor ${i} refunded ${sol(stakes[i])} SOL automatically`))
     return
   }
 
@@ -133,23 +144,15 @@ async function raceLifecycle() {
   const expectedPayout = BigInt(stakes[winner]) + (losing - fee)
   console.log(`winner: ${symbols[winner]}`)
   for (let i = 0; i < bettors.length; i++) {
-    const bettor = bettors[i]
-    const accounts = { owner: bettor.publicKey, race: raceKey, tokenMint: null, raceVault: null, ownerToken: null, tokenProgram: null }
-    const position = pda(race, [enc('position'), raceKey.toBuffer(), bettor.publicKey.toBuffer()])
-    const rent = BigInt(await connection.getBalance(position))
-    const before = BigInt(await connection.getBalance(bettor.publicKey))
     if (i === winner) {
-      await race.methods.claimRace().accountsPartial(accounts).signers([bettor]).rpc()
-      const gained = BigInt(await connection.getBalance(bettor.publicKey)) - before
-      // gained = payout + position rent (the admin provider pays the tx fee)
-      check(gained === expectedPayout + rent, `winner claimed ${sol(expectedPayout)} SOL (stake ${sol(stakes[i])} + losers' pool minus 2%)`)
+      // payout + position rent; the bettor signed nothing and paid no fee
+      check(gained[i] === expectedPayout + positionRents[i], `winner paid ${sol(expectedPayout)} SOL automatically (stake ${sol(stakes[i])} + losers' pool minus 2%)`)
     } else {
-      await race.methods.closeLosingPosition().accountsPartial(accounts).signers([bettor]).rpc()
-      check(true, `loser ${symbols[i]} closed position, rent returned`)
+      check(gained[i] === positionRents[i], `loser ${symbols[i]}: position closed automatically, rent returned`)
     }
   }
   const after = await race.account.race.fetch(raceKey)
-  check(after.remainingLiability.isZero(), 'race escrow owes nothing after claims')
+  check(after.remainingLiability.isZero(), 'race escrow owes nothing after payouts')
 }
 
 async function arenaLifecycle() {
@@ -174,19 +177,21 @@ async function arenaLifecycle() {
       .rpc()
     players.push(player)
   }
+  const entryBalances = []
+  for (const player of players) entryBalances.push(BigInt(await connection.getBalance(player.publicKey)))
   const a = await arena.account.arena.fetch(arenaKey)
   console.log(`arena #${arenaId} SOL: 3 players, lobby until +${Number(a.startsAt) - (await chainNow())}s, deadline +${Number(a.deadline) - (await chainNow())}s (live ${prices.prices.SOL.price}, ${solAsset.priceDecimals} dp)`)
 
   const done = await waitFor('arena resolution', () => arena.account.arena.fetch(arenaKey), (x) => status(x.status) !== 'open', 900)
   check(status(done.status) === 'resolved', `arena ${status(done.status)}: final ${done.finalPrice.toString()}, ${done.winnerCount} winner(s)`)
+  const paid = await waitFor('automatic arena payouts', () => arena.account.arena.fetch(arenaKey), (x) => x.entries.every((e) => e.settled || e.payout.isZero()), 120)
   for (let i = 0; i < players.length; i++) {
-    const entry = done.entries.find((e) => e.player.equals(players[i].publicKey))
-    if (entry.payout.isZero()) continue
-    await arena.methods.claimArena().accountsPartial({ player: players[i].publicKey, arena: arenaKey, tokenMint: null, arenaVault: null, playerToken: null, tokenProgram: null }).signers([players[i]]).rpc()
-    check(true, `player ${i} (rank ${entry.rank}) claimed ${sol(entry.payout)} SOL`)
+    const entry = paid.entries.find((e) => e.player.equals(players[i].publicKey))
+    const gained = BigInt(await connection.getBalance(players[i].publicKey)) - entryBalances[i]
+    if (entry.payout.isZero()) check(gained === 0n, `player ${i} (rank ${entry.rank}) lost, nothing paid`)
+    else check(gained === BigInt(entry.payout.toString()), `player ${i} (rank ${entry.rank}) paid ${sol(entry.payout)} SOL automatically`)
   }
-  const after = await arena.account.arena.fetch(arenaKey)
-  check(after.remainingLiability.isZero(), 'arena escrow owes nothing after claims')
+  check(paid.remainingLiability.isZero(), 'arena escrow owes nothing after payouts')
 }
 
 await raceLifecycle()

@@ -577,6 +577,28 @@ impl Harness {
         )
     }
 
+    /// Keeper payout of `owner`'s position, signed by `cranker`; `owner_token`
+    /// overrides the token account (to test redirection).
+    pub fn settle_for_ix(&self, race_id: u64, owner: &Pubkey, cranker: &Pubkey, owner_token: Option<Pubkey>) -> Instruction {
+        let race = race_pda(race_id);
+        let token = self.token_of(&self.race(race_id).stake_mint);
+        Instruction::new_with_bytes(
+            prophet_games::ID,
+            &ix::SettleRacePosition {}.data(),
+            acc::SettlePositionFor {
+                cranker: *cranker,
+                race,
+                position: position_pda(&race, owner),
+                owner: *owner,
+                token_mint: token.map(|t| t.mint),
+                race_vault: token.map(|t| t.ata(&race)),
+                owner_token: owner_token.or(token.map(|t| t.ata(owner))),
+                token_program: token.map(|t| t.program),
+            }
+            .to_account_metas(None),
+        )
+    }
+
     pub fn claim(&mut self, race_id: u64, owner: &Keypair) -> Result<(), String> {
         let instruction = self.settle_ix(ix::ClaimRace {}.data(), race_id, &owner.pubkey());
         self.send_as(&[instruction], owner)

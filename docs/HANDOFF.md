@@ -26,10 +26,10 @@ differs from the EVM product: [`SOLANA_CHANGELOG.md`](./SOLANA_CHANGELOG.md).
 
 | Piece | State | Verified by |
 |---|---|---|
-| Programs: `prophet_games` (Asset Race + Price Arena), `nickname_registry`, crates `pool_attestation`, `stake_funds` | Done. SOL and SPL/Token-2022 stakes (mints with risky Token-2022 extensions are rejected). Race operator role for scheduled platform races. Internal review done; no external audit. | 40 LiteSVM tests |
+| Programs: `prophet_games` (Asset Race + Price Arena), `nickname_registry`, crates `pool_attestation`, `stake_funds` | Done. SOL and SPL/Token-2022 stakes (mints with risky Token-2022 extensions are rejected). Race operator role for scheduled platform races. Keeper payouts: winnings, refunds and losing-position rent go to the player without a claim (funds can only reach the player). Internal review done; no external audit. | 44 LiteSVM tests |
 | Asset catalog | 26 assets approved by the owner (3 crypto, 10 memes, 13 xStocks), `config/solana-assets.json` | Scan + owner review |
 | Price service (`scripts/solana/price-service/`) | Done: reads reviewed mainnet pools by account subscription, signs Ed25519 boundary attestations, serves display prices | Localnet end-to-end with live mainnet prices |
-| Keeper (`scripts/solana/keeper.mjs`) | Done for timer transitions | Same end-to-end run, UI click-through |
+| Keeper (`scripts/solana/keeper.mjs`) | Timer transitions and automatic payouts, for SOL and SPL stakes (`AUTO_PAYOUT=0` turns payouts off) | Same end-to-end run, UI click-through |
 | Race scheduler (`scripts/solana/race-scheduler.mjs`) | Done, **off by owner decision** (`"enabled": false` in `config/platform-races.json`): each race costs ~0.009 SOL of unrefunded rent | Localnet run (created 3 races) |
 | Indexer (`scripts/solana/indexer.mjs`) | Done: one `/history` snapshot (games with raw account data, activity, wallet stats, leaderboards) | Localnet run |
 | Frontend | Fully on Solana (wagmi/viem removed): races, arenas, create pages, portfolio, leaderboard, archive; SOL and SPL stake currencies; meme market cap | Clicked through on the local stand with burner wallets (race, arena, community race, SPL arena entries), phone width checked. SPL claim through the UI not yet watched end to end |

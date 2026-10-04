@@ -314,3 +314,42 @@ fn stake_limits_apply_to_new_arenas_only() {
     h.set_stake_mint(NATIVE_SOL, false, SOL / 2, 2 * SOL).unwrap();
     assert_err(h.create_arena(60).map(|_| ()), "UnsupportedStakeMint");
 }
+
+#[test]
+fn keeper_settles_entries_to_their_players() {
+    let mut h = Harness::new();
+    let keeper = h.user(10);
+    let arena_id = h.create_arena(60).unwrap();
+    let alice = h.user(10);
+    let bob = h.user(10);
+    h.enter(arena_id, &alice, 1_000, SOL / 10).unwrap();
+    h.enter(arena_id, &bob, 1_200, SOL / 10).unwrap();
+    assert_err(h.settle_for(arena_id, &alice.pubkey(), &keeper, None), "ArenaNotResolved");
+
+    let deadline = h.arena(arena_id).deadline;
+    h.set_time(deadline + 3);
+    let oracle = h.oracle.insecure_clone();
+    h.resolve_with(arena_id, &h.attestation(deadline, 1_000), &oracle).unwrap();
+    let payout = h.entry_of(arena_id, &alice.pubkey()).payout;
+    assert!(payout > SOL / 10);
+
+    // Only wallets with an entry can be paid, and only their own entry.
+    assert_err(h.settle_for(arena_id, &keeper.pubkey(), &keeper, None), "NotEntered");
+    let before = h.balance(&alice.pubkey());
+    h.settle_for(arena_id, &alice.pubkey(), &keeper, None).unwrap();
+    assert_eq!(h.balance(&alice.pubkey()), before + payout);
+    assert_err(h.settle_for(arena_id, &alice.pubkey(), &keeper, None), "AlreadySettled");
+    // The player can no longer claim the same payout.
+    assert_err(h.settle(ix::ClaimArena {}.data(), arena_id, &alice), "AlreadySettled");
+    assert_err(h.settle_for(arena_id, &bob.pubkey(), &keeper, None), "NoWinningPayout");
+    assert_eq!(h.arena(arena_id).remaining_liability, 0);
+
+    // Cancelled arena: the keeper refunds the stake.
+    let arena_id = h.create_arena(60).unwrap();
+    h.enter(arena_id, &alice, 1_000, SOL / 10).unwrap();
+    h.set_time(h.arena(arena_id).starts_at);
+    h.timeout(ix::CancelArenaIfInsufficient {}.data(), arena_id).unwrap();
+    let before = h.balance(&alice.pubkey());
+    h.settle_for(arena_id, &alice.pubkey(), &keeper, None).unwrap();
+    assert_eq!(h.balance(&alice.pubkey()), before + SOL / 10);
+}

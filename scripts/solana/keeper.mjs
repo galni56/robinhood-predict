@@ -8,16 +8,23 @@
 // signed P1) / cancel_unstarted_race / void_expired_race on timeouts.
 // Price Arena: cancel_if_insufficient (lobby end) -> resolve (deadline,
 // signed final price) / cancel_expired_arena on timeout.
+// Payouts: once a game is final it sends winnings, refunds and losing-position
+// rent straight to each player's wallet (settle_race_position /
+// settle_arena_entry). The program only lets those funds reach the player;
+// the keeper pays the transaction fees. Players may still claim themselves.
+// SOL and SPL stake currencies are both handled.
 //
 // Env: SOLANA_RPC_URL (game cluster, default localnet), SOLANA_KEYPAIR (fee
 // payer, never printed), PRICE_SERVICE_URL (default http://127.0.0.1:8790),
-// KEEPER_INTERVAL_MS (default 3000), SETTLE_DELAY_S (default 3).
+// KEEPER_INTERVAL_MS (default 3000), SETTLE_DELAY_S (default 3),
+// AUTO_PAYOUT (default on; 0 disables), PAYOUT_EVERY_TICKS (default 5).
 
 import { readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import anchor from '@anchor-lang/core'
 import { Connection, Ed25519Program, Keypair, PublicKey, Transaction, TransactionInstruction } from '@solana/web3.js'
+import { createAssociatedTokenAccountIdempotentInstruction, getAssociatedTokenAddressSync } from '@solana/spl-token'
 
 const { AnchorProvider, Program, Wallet } = anchor
 const ROOT = new URL('../../', import.meta.url)
@@ -25,6 +32,10 @@ const RPC = process.env.SOLANA_RPC_URL ?? 'http://127.0.0.1:8899'
 const PRICE_SERVICE = process.env.PRICE_SERVICE_URL ?? 'http://127.0.0.1:8790'
 const INTERVAL = Number(process.env.KEEPER_INTERVAL_MS ?? 3000)
 const SETTLE_DELAY = Number(process.env.SETTLE_DELAY_S ?? 3)
+const AUTO_PAYOUT = process.env.AUTO_PAYOUT !== '0'
+const PAYOUT_EVERY_TICKS = Number(process.env.PAYOUT_EVERY_TICKS ?? 5)
+// Settlements per transaction; each one is a handful of accounts.
+const PAYOUTS_PER_TX = 4
 
 const readJson = (path) => JSON.parse(readFileSync(new URL(path, ROOT), 'utf8'))
 const keypairPath = process.env.SOLANA_KEYPAIR ?? join(homedir(), '.config/solana/id.json')
@@ -67,14 +78,28 @@ async function send(instructions) {
   return provider.sendAndConfirm(tx, [])
 }
 
-// SPL games need their token accounts; native-SOL games pass none.
-function tokenAccountsFor(stakeMint) {
-  if (!stakeMint.equals(NATIVE_SOL)) throw new Error('SPL games are not automated yet')
-  return {}
+// SPL games use associated token accounts of the game PDA (vault), the
+// treasury, the creator earnings and the players; native-SOL games pass none.
+const tokenPrograms = new Map()
+async function stakeToken(stakeMint) {
+  if (stakeMint.equals(NATIVE_SOL)) return null
+  const key = stakeMint.toBase58()
+  if (!tokenPrograms.has(key)) {
+    const info = await connection.getAccountInfo(stakeMint)
+    if (!info) throw new Error(`stake mint ${key} not found`)
+    tokenPrograms.set(key, info.owner)
+  }
+  return { mint: stakeMint, program: tokenPrograms.get(key) }
 }
+const ata = (token, owner) => getAssociatedTokenAddressSync(token.mint, owner, true, token.program)
 
-const nullTokenAccounts = { tokenMint: null, raceVault: null, treasuryVault: null, creatorVault: null, tokenProgram: null }
-const nullArenaTokenAccounts = { tokenMint: null, arenaVault: null, treasuryVault: null, creatorVault: null, tokenProgram: null }
+/** Token accounts for resolve_race / resolve_arena (`vaultName`: raceVault or arenaVault). */
+async function resolveTokenAccounts(game, gameKey, vaultName) {
+  const token = await stakeToken(game.stakeMint)
+  if (!token) return { tokenMint: null, [vaultName]: null, treasuryVault: null, creatorVault: null, tokenProgram: null }
+  const { treasury, creatorEarnings } = feeAccounts(games, game)
+  return { tokenMint: token.mint, [vaultName]: ata(token, gameKey), treasuryVault: ata(token, treasury), creatorVault: ata(token, creatorEarnings), tokenProgram: token.program }
+}
 
 async function tickRaces(now) {
   for (const { publicKey, account: r } of await race.account.race.all()) {
@@ -90,7 +115,6 @@ async function tickRaces(now) {
         await race.methods.cancelUnstartedRace().accountsPartial({ race: publicKey }).rpc()
         console.log(`${label}: cancelled (start window expired)`)
       } else if (s === 'betting' && now >= Number(r.bettingEndTime) + SETTLE_DELAY) {
-        tokenAccountsFor(r.stakeMint)
         const active = r.assets.filter((a) => a.pool.gtn(0))
         const startIx = await race.methods.startRace().accountsPartial({ race: publicKey, instructions: SYSVAR_INSTRUCTIONS }).instruction()
         if (active.length < r.minActiveContenders) {
@@ -111,7 +135,7 @@ async function tickRaces(now) {
         if (now < att.nextBlockTime) continue
         const resolveIx = await race.methods
           .resolveRace()
-          .accountsPartial({ race: publicKey, instructions: SYSVAR_INSTRUCTIONS, ...feeAccounts(race, r), ...nullTokenAccounts })
+          .accountsPartial({ race: publicKey, instructions: SYSVAR_INSTRUCTIONS, ...feeAccounts(race, r), ...(await resolveTokenAccounts(r, publicKey, 'raceVault')) })
           .instruction()
         await send([ed25519Ix(att), resolveIx])
         const after = await race.account.race.fetch(publicKey)
@@ -136,10 +160,9 @@ async function tickArenas(now) {
         await arena.methods.cancelExpiredArena().accountsPartial({ arena: publicKey }).rpc()
         console.log(`${label}: cancelled (resolution window expired)`)
       } else if (now >= Number(a.deadline) + SETTLE_DELAY) {
-        tokenAccountsFor(a.stakeMint)
         const resolveIx = await arena.methods
           .resolveArena()
-          .accountsPartial({ arena: publicKey, instructions: SYSVAR_INSTRUCTIONS, ...feeAccounts(arena, a), ...nullArenaTokenAccounts })
+          .accountsPartial({ arena: publicKey, instructions: SYSVAR_INSTRUCTIONS, ...feeAccounts(arena, a), ...(await resolveTokenAccounts(a, publicKey, 'arenaVault')) })
           .instruction()
         if (a.entries.length < 2) {
           await send([resolveIx])
@@ -158,6 +181,88 @@ async function tickArenas(now) {
   }
 }
 
+// ---------------------------------------------------------------- payouts
+
+// Games with nothing left to pay; skipped until the keeper restarts.
+const paidOut = new Set()
+
+async function sendPayouts(label, instructions) {
+  for (let i = 0; i < instructions.length; i += PAYOUTS_PER_TX) {
+    const batch = instructions.slice(i, i + PAYOUTS_PER_TX).flat()
+    try {
+      await send(batch)
+    } catch (error) {
+      logGameError(label, error)
+    }
+  }
+}
+
+async function payoutRaces() {
+  for (const { publicKey, account: r } of await race.account.race.all()) {
+    const key = publicKey.toBase58()
+    if (paidOut.has(key) || !['resolved', 'cancelled', 'void'].includes(status(r.status))) continue
+    // Open positions only: a settled position's account is closed.
+    const positions = await race.account.position.all([{ memcmp: { offset: 8, bytes: key } }])
+    if (positions.length === 0) {
+      paidOut.add(key)
+      continue
+    }
+    const token = await stakeToken(r.stakeMint)
+    const instructions = []
+    for (const { publicKey: position, account: p } of positions) {
+      const ix = await race.methods
+        .settleRacePosition()
+        .accountsPartial({
+          cranker: payer.publicKey,
+          race: publicKey,
+          position,
+          owner: p.owner,
+          tokenMint: token?.mint ?? null,
+          raceVault: token ? ata(token, publicKey) : null,
+          ownerToken: token ? ata(token, p.owner) : null,
+          tokenProgram: token?.program ?? null,
+        })
+        .instruction()
+      // A token payout needs the owner's token account; recreate it if they closed it.
+      instructions.push(token ? [createAssociatedTokenAccountIdempotentInstruction(payer.publicKey, ata(token, p.owner), p.owner, token.mint, token.program), ix] : [ix])
+    }
+    await sendPayouts(`race #${Number(r.id)}`, instructions)
+    console.log(`race #${Number(r.id)}: settled ${positions.length} position(s) to their owners`)
+  }
+}
+
+async function payoutArenas() {
+  for (const { publicKey, account: a } of await arena.account.arena.all()) {
+    const key = publicKey.toBase58()
+    const s = status(a.status)
+    if (paidOut.has(key) || (s !== 'resolved' && s !== 'cancelled')) continue
+    const due = a.entries.filter((e) => !e.settled && (s === 'cancelled' || e.payout.gtn(0)))
+    if (due.length === 0) {
+      paidOut.add(key)
+      continue
+    }
+    const token = await stakeToken(a.stakeMint)
+    const instructions = []
+    for (const entry of due) {
+      const ix = await arena.methods
+        .settleArenaEntry()
+        .accountsPartial({
+          cranker: payer.publicKey,
+          arena: publicKey,
+          player: entry.player,
+          tokenMint: token?.mint ?? null,
+          arenaVault: token ? ata(token, publicKey) : null,
+          playerToken: token ? ata(token, entry.player) : null,
+          tokenProgram: token?.program ?? null,
+        })
+        .instruction()
+      instructions.push(token ? [createAssociatedTokenAccountIdempotentInstruction(payer.publicKey, ata(token, entry.player), entry.player, token.mint, token.program), ix] : [ix])
+    }
+    await sendPayouts(`arena #${Number(a.id)}`, instructions)
+    console.log(`arena #${Number(a.id)}: paid ${due.length} player(s) to their wallets`)
+  }
+}
+
 // One line per failure, but keep the parts that make it diagnosable: the
 // Anchor error code line and the program logs ("Simulation failed." alone
 // told us nothing in production).
@@ -169,8 +274,9 @@ function logGameError(label, error) {
   if (!codeLine && Array.isArray(logs) && logs.length > 0) console.warn(`${label}: logs: ${logs.slice(-5).join(' | ')}`)
 }
 
-console.log(`keeper · rpc ${RPC} · price service ${PRICE_SERVICE} · payer ${payer.publicKey.toBase58()}`)
+console.log(`keeper · rpc ${RPC} · price service ${PRICE_SERVICE} · payer ${payer.publicKey.toBase58()} · auto payout ${AUTO_PAYOUT ? 'on' : 'off'}`)
 let running = false
+let tick = 0
 setInterval(async () => {
   if (running) return
   running = true
@@ -179,6 +285,10 @@ setInterval(async () => {
     const now = await chainNow()
     await tickRaces(now)
     await tickArenas(now)
+    if (AUTO_PAYOUT && tick++ % PAYOUT_EVERY_TICKS === 0) {
+      await payoutRaces()
+      await payoutArenas()
+    }
   } catch (error) {
     console.warn(`tick failed: ${error.message}`)
   } finally {

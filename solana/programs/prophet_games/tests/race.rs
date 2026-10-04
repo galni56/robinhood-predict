@@ -539,3 +539,78 @@ fn race_operator_creates_platform_races_only() {
     let input = h.default_platform_input();
     assert_err(h.create_platform_race_as(input, 2, &operator).map(|_| ()), "Unauthorized");
 }
+
+#[test]
+fn keeper_settles_positions_to_their_owners() {
+    let mut h = Harness::new();
+    let input = h.default_platform_input();
+    let betting_end = input.betting_end_time;
+    let race_id = h.create_platform_race(input, 2).unwrap();
+    let race_key = race_pda(race_id);
+    let alice = h.user(10);
+    let bob = h.user(10);
+    let keeper = h.user(10);
+    h.bet(race_id, &alice, 0, SOL / 2).unwrap();
+    h.bet(race_id, &bob, 1, SOL / 4).unwrap();
+
+    // Nothing can be settled before the race is final.
+    let early = h.settle_for_ix(race_id, &alice.pubkey(), &keeper.pubkey(), None);
+    assert_err(h.send(&[early], &keeper, &[]), "InvalidRaceStatus");
+
+    let oracle = h.oracle.insecure_clone();
+    h.set_time(betting_end + 1);
+    h.start_with(race_id, &h.attestation(betting_end, &[(0, 100), (1, 100)]), &oracle).unwrap();
+    let race_end = h.race(race_id).race_end_time;
+    h.set_time(race_end + 1);
+    h.resolve_with(race_id, &h.attestation(race_end, &[(0, 120), (1, 90)]), &oracle).unwrap();
+    let race = h.race(race_id);
+    assert_eq!(race.winning_asset_index, 0);
+
+    // The keeper cannot point the payout at itself: the position's owner is fixed.
+    let mut redirected = h.settle_for_ix(race_id, &alice.pubkey(), &keeper.pubkey(), None);
+    redirected.accounts[3].pubkey = keeper.pubkey();
+    assert!(h.send(&[redirected], &keeper, &[]).is_err());
+
+    // Winner: stake + the losing pool minus the fee, plus the position rent.
+    let rent = h.balance(&position_pda(&race_key, &alice.pubkey()));
+    let before = h.balance(&alice.pubkey());
+    let keeper_before = h.balance(&keeper.pubkey());
+    let settle = h.settle_for_ix(race_id, &alice.pubkey(), &keeper.pubkey(), None);
+    h.send(&[settle], &keeper, &[]).unwrap();
+    let payout = SOL / 2 + race.distributable_losing_pool;
+    assert_eq!(h.balance(&alice.pubkey()), before + payout + rent);
+    assert_eq!(h.balance(&keeper.pubkey()), keeper_before - 5_000); // only the fee
+    let again = h.settle_for_ix(race_id, &alice.pubkey(), &keeper.pubkey(), None);
+    assert!(h.send(&[again], &keeper, &[]).is_err());
+
+    // Loser: the position closes and its rent goes back to the owner.
+    let rent = h.balance(&position_pda(&race_key, &bob.pubkey()));
+    let before = h.balance(&bob.pubkey());
+    let settle = h.settle_for_ix(race_id, &bob.pubkey(), &keeper.pubkey(), None);
+    h.send(&[settle], &keeper, &[]).unwrap();
+    assert_eq!(h.balance(&bob.pubkey()), before + rent);
+    assert_eq!(h.race(race_id).remaining_liability, 0);
+}
+
+#[test]
+fn keeper_refunds_cancelled_races() {
+    let mut h = Harness::new();
+    let input = h.default_platform_input();
+    let betting_end = input.betting_end_time;
+    let race_id = h.create_platform_race(input, 2).unwrap();
+    let alice = h.user(10);
+    let keeper = h.user(10);
+    h.bet(race_id, &alice, 0, SOL / 2).unwrap();
+    // Only one contender has bets, so the start cancels the race.
+    h.set_time(betting_end + 1);
+    let oracle = h.oracle.insecure_clone();
+    h.start_with(race_id, &h.attestation(betting_end, &[(0, 100), (1, 100)]), &oracle).unwrap();
+    assert_eq!(h.race(race_id).status, RaceStatus::Cancelled);
+
+    let rent = h.balance(&position_pda(&race_pda(race_id), &alice.pubkey()));
+    let before = h.balance(&alice.pubkey());
+    let settle = h.settle_for_ix(race_id, &alice.pubkey(), &keeper.pubkey(), None);
+    h.send(&[settle], &keeper, &[]).unwrap();
+    assert_eq!(h.balance(&alice.pubkey()), before + SOL / 2 + rent);
+    assert_eq!(h.race(race_id).remaining_liability, 0);
+}

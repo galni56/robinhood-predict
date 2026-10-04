@@ -119,3 +119,32 @@ fn arena_fees_cannot_be_diverted() {
     h.resolve_with(arena_id, &attestation, &oracle).unwrap();
     assert_eq!(h.arena(arena_id).status, ArenaStatus::Resolved);
 }
+
+#[test]
+fn keeper_token_payouts_reach_only_the_players_own_account() {
+    let mut h = Harness::new();
+    let token = h.create_token(TOKEN_PROGRAM);
+    h.set_stake_mint(token.mint, true, UNIT, 100 * UNIT).unwrap();
+    let asset_id = h.asset_id;
+    let creator = h.user(10);
+    let arena_id = h.create_arena_in(&creator, asset_id, 60, token.mint).unwrap();
+    let alice = h.user(1);
+    let bob = h.user(1);
+    let keeper = h.user(10);
+    for player in [&alice, &bob, &keeper] {
+        h.fund_token(&token, &player.pubkey(), 100 * UNIT);
+    }
+    h.enter(arena_id, &alice, 1_000, 10 * UNIT).unwrap();
+    h.enter(arena_id, &bob, 1_500, 10 * UNIT).unwrap();
+    let deadline = h.arena(arena_id).deadline;
+    h.set_time(deadline);
+    let oracle = h.oracle.insecure_clone();
+    h.resolve_with(arena_id, &h.attestation(deadline, 1_000), &oracle).unwrap();
+    let payout = h.entry_of(arena_id, &alice.pubkey()).payout;
+
+    // Pointing alice's payout at the keeper's token account is rejected.
+    assert_err(h.settle_for(arena_id, &alice.pubkey(), &keeper, Some(token.ata(&keeper.pubkey()))), "WrongVault");
+    h.settle_for(arena_id, &alice.pubkey(), &keeper, None).unwrap();
+    assert_eq!(h.token_balance(&token.ata(&alice.pubkey())), 90 * UNIT + payout);
+    assert_eq!(h.token_balance(&token.ata(&keeper.pubkey())), 100 * UNIT);
+}

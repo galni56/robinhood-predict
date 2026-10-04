@@ -504,6 +504,77 @@ pub fn handle_refund_arena(ctx: Context<SettleEntry>) -> Result<()> {
     Ok(())
 }
 
+#[derive(Accounts)]
+pub struct SettleEntryFor<'info> {
+    /// Anyone, usually the keeper; pays only the transaction fee.
+    pub cranker: Signer<'info>,
+    #[account(mut)]
+    pub arena: Account<'info, Arena>,
+    /// CHECK: must hold an entry in this arena (checked in the handler); the
+    /// payout or refund goes only to this wallet.
+    #[account(mut)]
+    pub player: UncheckedAccount<'info>,
+    pub token_mint: Option<InterfaceAccount<'info, Mint>>,
+    /// CHECK: checked against the arena's associated token account.
+    #[account(mut)]
+    pub arena_vault: Option<UncheckedAccount<'info>>,
+    /// CHECK: must be the player's own associated token account (checked in the handler).
+    #[account(mut)]
+    pub player_token: Option<UncheckedAccount<'info>>,
+    pub token_program: Option<Interface<'info, TokenInterface>>,
+}
+
+/// Pays a winning entry or refunds a cancelled one on the player's behalf, so
+/// funds arrive without the player claiming. Only the player's wallet (or the
+/// player's associated token account) can receive them; the player-signed
+/// claim and refund stay available.
+pub fn handle_settle_entry_for(ctx: Context<SettleEntryFor>) -> Result<()> {
+    let player = ctx.accounts.player.key();
+    let key = ctx.accounts.arena.key();
+    let arena = &mut ctx.accounts.arena;
+    let index = arena.entry_index(&player).ok_or(error!(GameError::NotEntered))?;
+    let status = arena.status;
+    let entry = &mut arena.entries[index];
+    require!(!entry.settled, GameError::AlreadySettled);
+    let (amount, refund) = match status {
+        ArenaStatus::Resolved => {
+            require!(entry.payout > 0, GameError::NoWinningPayout);
+            (entry.payout, false)
+        }
+        ArenaStatus::Cancelled => (entry.stake, true),
+        ArenaStatus::Open => return err!(GameError::ArenaNotResolved),
+    };
+    entry.settled = true;
+    arena.remaining_liability = arena
+        .remaining_liability
+        .checked_sub(amount)
+        .ok_or(error!(GameError::InsufficientEscrow))?;
+
+    let accounts = &ctx.accounts;
+    let id = accounts.arena.id.to_le_bytes();
+    let bump = [accounts.arena.bump];
+    let seeds: &[&[u8]] = &[ARENA_SEED, &id, &bump];
+    let spl = stake_funds::spl(&accounts.arena.stake_mint, &accounts.token_mint, &accounts.token_program)?;
+    if let Some(spl) = &spl {
+        spl.require_vault(required(&accounts.player_token)?, &player)?;
+    }
+    pay_from_pda(
+        &spl,
+        &accounts.arena.to_account_info(),
+        &[seeds],
+        as_info(&accounts.arena_vault),
+        &accounts.player.to_account_info(),
+        as_info(&accounts.player_token),
+        amount,
+    )?;
+    if refund {
+        emit!(ArenaRefunded { arena: key, player, amount });
+    } else {
+        emit!(ArenaClaimed { arena: key, player, payout: amount });
+    }
+    Ok(())
+}
+
 #[event]
 pub struct ArenaCreated {
     pub arena: Pubkey,

@@ -489,6 +489,28 @@ impl Harness {
         self.send_as(&[instruction], player)
     }
 
+    /// Keeper payout of `player`'s entry, signed by `cranker`; `player_token`
+    /// overrides the token account (to test redirection).
+    pub fn settle_for(&mut self, arena_id: u64, player: &Pubkey, cranker: &Keypair, player_token: Option<Pubkey>) -> Result<(), String> {
+        let arena = arena_pda(arena_id);
+        let token = self.arena_token(arena_id);
+        let instruction = Instruction::new_with_bytes(
+            prophet_games::ID,
+            &ix::SettleArenaEntry {}.data(),
+            acc::SettleEntryFor {
+                cranker: cranker.pubkey(),
+                arena,
+                player: *player,
+                token_mint: token.map(|t| t.mint),
+                arena_vault: token.map(|t| t.ata(&arena)),
+                player_token: player_token.or(token.map(|t| t.ata(player))),
+                token_program: token.map(|t| t.program),
+            }
+            .to_account_metas(None),
+        );
+        self.send_as(&[instruction], cranker)
+    }
+
     pub fn timeout(&mut self, data: Vec<u8>, arena_id: u64) -> Result<(), String> {
         let instruction = Instruction::new_with_bytes(
             prophet_games::ID,
