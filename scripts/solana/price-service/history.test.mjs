@@ -43,3 +43,19 @@ test('prune keeps one base entry so recent slots stay answerable', () => {
   assert.deepEqual(h.entries.get('A').map((e) => e.slot), [30, 40])
   assert.deepEqual(h.stateAt('A', 36), buf(30))
 })
+
+test('an open gap hides everything after it until a baseline closes it', () => {
+  const h = new AccountHistory()
+  h.record('A', 100, buf(1))
+  h.openGap('A', 100)
+  // The outage has no known end: later slots must not fall back to slot 100.
+  assert.throws(() => h.stateAt('A', 150), /missed/)
+  assert.throws(() => h.stateAt('A', 10_000), /missed/)
+  h.record('A', 180, buf(7)) // baseline after the reconnect
+  h.closeOpenGaps('A', 180)
+  assert.throws(() => h.stateAt('A', 150), /missed/)
+  assert.deepEqual(h.stateAt('A', 180), buf(7))
+  assert.deepEqual(h.stateAt('A', 250), buf(7))
+  h.prune(120)
+  assert.throws(() => h.stateAt('A', 150), /missed/) // a closed gap ending after the prune point stays
+})

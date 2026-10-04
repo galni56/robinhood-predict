@@ -35,6 +35,19 @@ export class AccountHistory {
     this.gaps.set(account, list)
   }
 
+  /** Marks every slot after `after` unknown until `closeOpenGaps`: for an
+   * outage whose end is not known yet (a dropped websocket, an RPC switch). */
+  openGap(account, after) {
+    const list = this.gaps.get(account) ?? []
+    list.push({ after, before: Infinity })
+    this.gaps.set(account, list)
+  }
+
+  /** Ends open gaps at `slot`, the slot of a fresh baseline read. */
+  closeOpenGaps(account, slot) {
+    for (const gap of this.gaps.get(account) ?? []) if (gap.before === Infinity) gap.before = slot
+  }
+
   /** Account data at `slot`, or throws if the state there is not known exactly. */
   stateAt(account, slot) {
     const list = this.entries.get(account) ?? []

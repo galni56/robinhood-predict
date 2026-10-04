@@ -19,7 +19,15 @@
 //       -> { message, instruction } base64; instruction is the Ed25519 precompile ix
 //   GET /health
 //
-// Env: SOLANA_MAINNET_RPC_URL (use a paid RPC), SOLANA_MAINNET_WS_URL (optional),
+// RPC failover: SOLANA_MAINNET_RPC_URLS lists endpoints in order of preference
+// (free ones are fine: the service holds subscriptions, so traffic does not
+// grow with visitors). When the subscription feed goes silent or RPC calls
+// keep failing (rate limit, outage), the service moves to the next endpoint,
+// resubscribes, takes a fresh baseline and marks the switch as a gap, so no
+// price from the unobserved window is ever signed.
+//
+// Env: SOLANA_MAINNET_RPC_URLS (comma list; or SOLANA_MAINNET_RPC_URL for one),
+// SOLANA_MAINNET_WS_URLS / SOLANA_MAINNET_WS_URL (optional, same order),
 // ORACLE_KEYPAIR (read here, never printed), PRICE_SERVICE_PORT (8790),
 // PRICE_SERVICE_HOST (127.0.0.1), BUFFER_SECONDS (1200), RESYNC_SECONDS (30),
 // SUPPLY_REFRESH_SECONDS (600), STALE_NOTIFICATION_MS (30000),
@@ -35,8 +43,14 @@ import { AccountHistory } from './history.mjs'
 import { formatScaled } from './pools.mjs'
 import { accountsFor, buildPlan, pricesFromData } from './snapshot.mjs'
 
-const RPC = process.env.SOLANA_MAINNET_RPC_URL ?? 'https://api.mainnet-beta.solana.com'
-const WS = process.env.SOLANA_MAINNET_WS_URL
+const list = (value) => (value ?? '').split(',').map((v) => v.trim()).filter(Boolean)
+const RPC_URLS = list(process.env.SOLANA_MAINNET_RPC_URLS ?? process.env.SOLANA_MAINNET_RPC_URL)
+if (RPC_URLS.length === 0) RPC_URLS.push('https://api.mainnet-beta.solana.com')
+const WS_URLS = list(process.env.SOLANA_MAINNET_WS_URLS ?? process.env.SOLANA_MAINNET_WS_URL)
+// Logs show the host only: provider URLs often carry an API key in the path or query.
+const host = (url) => new URL(url).host
+const FAILOVER_COOLDOWN_MS = 10_000
+const RPC_FAILURES_BEFORE_FAILOVER = 3
 const PORT = Number(process.env.PRICE_SERVICE_PORT ?? 8790)
 // Loopback by default: nginx is the only public entry (and WSL forwards IPv4 loopback to Windows).
 const HOST = process.env.PRICE_SERVICE_HOST ?? '127.0.0.1'
@@ -47,20 +61,45 @@ if (!process.env.ORACLE_KEYPAIR) throw new Error('ORACLE_KEYPAIR is required')
 const oracle = Keypair.fromSecretKey(Uint8Array.from(JSON.parse(readFileSync(process.env.ORACLE_KEYPAIR, 'utf8'))))
 
 const registry = JSON.parse(readFileSync(new URL('../../../config/solana-assets.json', import.meta.url), 'utf8'))
-const connection = new Connection(RPC, { commitment: 'confirmed', ...(WS ? { wsEndpoint: WS } : {}) })
+const connect = (index) => new Connection(RPC_URLS[index], { commitment: 'confirmed', ...(WS_URLS[index] ? { wsEndpoint: WS_URLS[index] } : {}) })
 
 // Attestations sign real settlement prices, so refuse to track anything but
 // Solana mainnet (a misconfigured RPC pointing at a test validator with
 // cloned pools would otherwise get arbitrary prices signed). Localnet e2e
 // also reads real mainnet pools, so this holds everywhere by default;
 // ALLOW_NON_MAINNET_PRICES=1 is an explicit, deliberate escape hatch.
+// Every endpoint is checked before it is used, including on failover.
 const MAINNET_GENESIS = '5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d'
-if (process.env.ALLOW_NON_MAINNET_PRICES !== '1') {
-  const observedGenesis = await connection.getGenesisHash()
-  if (observedGenesis !== MAINNET_GENESIS) {
-    throw new Error(`RPC genesis ${observedGenesis} is not Solana mainnet; set ALLOW_NON_MAINNET_PRICES=1 only if you mean it`)
+// Before the plan exists only one account can be probed; failover probes the
+// full account list, since some endpoints accept small batches but not ours.
+let probeAccounts = [new PublicKey(registry.assets[0].pool)]
+async function usable(candidate, index) {
+  try {
+    const genesis = await candidate.getGenesisHash()
+    if (genesis !== MAINNET_GENESIS && process.env.ALLOW_NON_MAINNET_PRICES !== '1') {
+      console.warn(`skipping ${host(RPC_URLS[index])}: genesis ${genesis} is not Solana mainnet (set ALLOW_NON_MAINNET_PRICES=1 only if you mean it)`)
+      return false
+    }
+    // The calls the service lives on; some free endpoints block them.
+    const { context } = await candidate.getMultipleAccountsInfoAndContext(probeAccounts, { commitment: 'confirmed' })
+    await candidate.getBlocks(context.slot - 5, context.slot, 'confirmed')
+    return true
+  } catch (error) {
+    console.warn(`skipping ${host(RPC_URLS[index])}: ${error.message}`)
+  }
+  return false
+}
+
+let endpoint = -1
+let connection
+for (let index = 0; index < RPC_URLS.length && endpoint < 0; index++) {
+  const candidate = connect(index)
+  if (await usable(candidate, index)) {
+    endpoint = index
+    connection = candidate
   }
 }
+if (endpoint < 0) throw new Error('no usable Solana mainnet RPC endpoint')
 
 // Optional allowlist of program ids /attestation may sign for. Unset, any
 // requested program is signed (needed for localnet's generated ids) - set it
@@ -68,6 +107,7 @@ if (process.env.ALLOW_NON_MAINNET_PRICES !== '1') {
 const ALLOWED_PROGRAM_IDS = (process.env.ALLOWED_PROGRAM_IDS ?? '').split(',').map((v) => v.trim()).filter(Boolean)
 if (ALLOWED_PROGRAM_IDS.length === 0) console.warn('ALLOWED_PROGRAM_IDS is unset; /attestation will sign for any requested program id')
 const plan = await buildPlan(connection, registry)
+probeAccounts = plan.accounts.map((a) => new PublicKey(a))
 const assetBySource = new Map(plan.assets.map((a) => [a.pool, a]))
 const history = new AccountHistory()
 let maxSlotSeen = 0
@@ -82,8 +122,9 @@ const slotTimes = [] // [slot, wall ms] samples, to prune by age
 
 // ---------------------------------------------------------------- tracking
 
-for (const account of plan.accounts) {
-  connection.onAccountChange(
+let subscriptions = []
+function subscribeAll() {
+  subscriptions = plan.accounts.map((account) => connection.onAccountChange(
     new PublicKey(account),
     (info, context) => {
       history.record(account, context.slot, info.data)
@@ -91,7 +132,8 @@ for (const account of plan.accounts) {
       lastNotificationAt = Date.now()
     },
     { commitment: 'confirmed' },
-  )
+  ))
+  watchSocket(connection)
 }
 
 async function fetchAll() {
@@ -110,23 +152,88 @@ async function baseline() {
   return slot
 }
 
-// A dropped websocket can lose notifications. Everything since the last slot
-// we saw is unknown until a fresh baseline after reconnect.
-const socket = connection._rpcWebSocket
-socket?.on?.('close', () => {
-  const lostFrom = maxSlotSeen
-  console.warn(`websocket closed at slot ~${lostFrom}; marking a gap until the next baseline`)
-  socket.once('open', async () => {
-    await new Promise((r) => setTimeout(r, 1500)) // let resubscriptions land
+// An outage opens a gap right away (nothing after the last slot seen is
+// known) and only a successful baseline on a live subscription closes it, so
+// a failed baseline can never let pre-outage state be signed as current.
+function openGapsFrom(lostFrom) {
+  for (const account of plan.accounts) history.openGap(account, lostFrom)
+}
+
+async function rebaseline(conn, label) {
+  for (;;) {
+    if (conn !== connection) return // superseded by a failover, which baselines itself
     try {
       const slot = await baseline()
-      for (const account of plan.accounts) history.markGap(account, lostFrom, slot)
-      console.log(`websocket reopened; baseline at slot ${slot}`)
+      for (const account of plan.accounts) history.closeOpenGaps(account, slot)
+      console.log(`${label}; baseline at slot ${slot}`)
+      return slot
     } catch (error) {
-      console.warn(`baseline after reconnect failed: ${error.message}`)
+      console.warn(`baseline (${label}) failed: ${error.message}; retrying`)
+      noteRpcError(error)
+      await new Promise((r) => setTimeout(r, 5_000))
     }
+  }
+}
+
+// A dropped websocket can lose notifications: everything since the last slot
+// we saw is unknown until a fresh baseline after the reconnect.
+function watchSocket(conn) {
+  const socket = conn._rpcWebSocket
+  socket?.on?.('close', () => {
+    if (conn !== connection) return // an endpoint we already left
+    const lostFrom = maxSlotSeen
+    openGapsFrom(lostFrom)
+    console.warn(`websocket closed at slot ~${lostFrom}; prices after it are unknown until the next baseline`)
+    socket.once('open', async () => {
+      await new Promise((r) => setTimeout(r, 1500)) // let resubscriptions land
+      await rebaseline(conn, 'websocket reopened')
+    })
   })
-})
+}
+
+// Moves to the next usable endpoint (or reconnects the only one). Everything
+// after the last slot seen is a gap until the new baseline.
+let switching = false
+let lastSwitchAt = 0
+let rpcFailures = 0
+async function failover(reason) {
+  if (switching || Date.now() - lastSwitchAt < FAILOVER_COOLDOWN_MS) return
+  switching = true
+  lastSwitchAt = Date.now()
+  const lostFrom = maxSlotSeen
+  const previous = connection
+  openGapsFrom(lostFrom)
+  try {
+    for (let step = 1; step <= RPC_URLS.length; step++) {
+      const index = (endpoint + step) % RPC_URLS.length
+      const candidate = connect(index)
+      if (await usable(candidate, index)) {
+        endpoint = index
+        connection = candidate
+        break
+      }
+    }
+    if (connection === previous) throw new Error('no other usable endpoint')
+    for (const id of subscriptions) previous.removeAccountChangeListener(id).catch(() => {})
+    previous._rpcWebSocket?.close?.()
+    subscribeAll()
+    await new Promise((r) => setTimeout(r, 1500)) // let subscriptions land
+    rpcFailures = 0
+    console.warn(`rpc failover (${reason}): now ${host(RPC_URLS[endpoint])}; gap from slot ${lostFrom}`)
+    rebaseline(connection, `after failover to ${host(RPC_URLS[endpoint])}`)
+  } catch (error) {
+    console.warn(`rpc failover (${reason}) failed: ${error.message}`)
+  } finally {
+    switching = false
+  }
+}
+
+// Rate limits and outages surface as failed calls; a few in a row move us on.
+function noteRpcError(error) {
+  if (!/\b(429|50[0-4])\b|Too Many|fetch failed|ECONN|ETIMEDOUT|socket hang up/i.test(String(error?.message ?? error))) return
+  rpcFailures++
+  if (rpcFailures >= RPC_FAILURES_BEFORE_FAILOVER) failover(`${rpcFailures} failed RPC calls`)
+}
 
 // Periodic resync: if reconstructed state disagrees with a fresh read, some
 // change was missed — mark it unknown since the last recorded change.
@@ -148,12 +255,14 @@ async function resync() {
         if (known) console.warn(`resync: ${account} differed at slot ${slot}; gap (${last}, ${slot})`)
       }
     }
+    rpcFailures = 0
     slotTimes.push([slot, Date.now()])
     const cutoffMs = Date.now() - BUFFER_SECONDS * 1000
     while (slotTimes.length > 1 && slotTimes[1][1] < cutoffMs) slotTimes.shift()
     if (slotTimes[0][1] < cutoffMs) history.prune(slotTimes[0][0])
   } catch (error) {
     console.warn(`resync failed: ${error.message}`)
+    noteRpcError(error)
   }
 }
 
@@ -284,6 +393,7 @@ async function refreshSupplies() {
     })
   } catch (error) {
     console.warn(`supply refresh failed: ${error.message}`)
+    noteRpcError(error)
   }
 }
 
@@ -321,7 +431,12 @@ createServer(async (req, res) => {
       if (!program || !Number.isInteger(target) || sources.length === 0) {
         return json(res, 400, { error: 'program, target and sources are required' })
       }
-      return json(res, 200, await attestation({ program, target, sources }))
+      try {
+        return json(res, 200, await attestation({ program, target, sources }))
+      } catch (error) {
+        noteRpcError(error)
+        throw error
+      }
     }
     if (url.pathname === '/health') {
       // A dead-but-not-closed websocket freezes the feed silently; surface it
@@ -333,6 +448,8 @@ createServer(async (req, res) => {
         slot: maxSlotSeen,
         oracle: oracle.publicKey.toBase58(),
         accounts: plan.accounts.length,
+        rpc: host(RPC_URLS[endpoint]),
+        rpcEndpoints: RPC_URLS.length,
         notificationAgeMs: notificationAge,
         feedStale,
       })
@@ -342,14 +459,20 @@ createServer(async (req, res) => {
     json(res, 409, { error: error.message })
   }
 }).listen(PORT, HOST, () => {
-  console.log(`price service on :${PORT} · ${plan.assets.length} assets · ${plan.accounts.length} subscriptions · oracle ${oracle.publicKey.toBase58()} · rpc ${new URL(RPC).host}`)
+  console.log(`price service on :${PORT} · ${plan.assets.length} assets · ${plan.accounts.length} subscriptions · oracle ${oracle.publicKey.toBase58()} · rpc ${host(RPC_URLS[endpoint])} (${RPC_URLS.length} configured)`)
 })
 
+subscribeAll()
 await new Promise((r) => setTimeout(r, 2000)) // subscriptions first, then the baseline
 const start = await baseline()
 slotTimes.push([start, Date.now()])
 ready = true
 console.log(`tracking from slot ${start}`)
 setInterval(resync, RESYNC_SECONDS * 1000)
+// Pools change practically every slot; a silent feed means a dead
+// subscription even when the websocket never closed.
+setInterval(() => {
+  if (Date.now() - lastNotificationAt > STALE_NOTIFICATION_MS) failover('feed silent')
+}, 5_000)
 await refreshSupplies()
 setInterval(refreshSupplies, SUPPLY_REFRESH_SECONDS * 1000)
