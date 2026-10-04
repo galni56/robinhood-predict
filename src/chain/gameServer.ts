@@ -2,6 +2,7 @@ import { useCallback } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useWallet } from '@solana/wallet-adapter-react'
 import { GAME_SERVER_URL } from '@/solana/services'
+import { registerAssetIcons } from '@/lib/assetIcons'
 
 // Client of the game server (scripts/solana/game-server). The server holds
 // the game wallet: stakes are SOL transfers to it with a `prophet:` memo
@@ -128,7 +129,23 @@ export interface ServerConfig {
   stake: { min: string; max: string }
   race: { minAssets: number; maxAssets: number; communityDurations: number[]; communityPolicy: { lobbyDuration: number; bettingDuration: number; startGrace: number; resolutionGrace: number; feeBp: number } }
   arena: { durations: number[]; lobbyDuration: number; maxParticipants: number; feeBp: number }
-  assets: { symbol: string; name: string; category: string; priceSource: string; priceDecimals: number }[]
+  assets: ServerAsset[]
+}
+
+export interface ServerAsset {
+  symbol: string
+  name: string
+  category: string
+  priceSource: string
+  priceDecimals: number
+  mint?: string
+  logoUrl?: string | null
+  priceUrl?: string | null
+  /** 'catalog' (owner-reviewed) or 'pumpswap' (added automatically). */
+  source?: string
+  liquidityUsd?: number
+  volume24hUsd?: number
+  poolCreatedAt?: string
 }
 
 export interface ServerWallet {
@@ -190,11 +207,22 @@ export function useGameState() {
 export function useGameServerConfig() {
   return useQuery({
     queryKey: ['game-config'],
-    queryFn: () => getJson<ServerConfig>('/config'),
+    queryFn: async () => {
+      const config = await getJson<ServerConfig>('/config')
+      registerAssetIcons(config.assets)
+      return config
+    },
     enabled,
     staleTime: 60_000,
     refetchInterval: 120_000,
   })
+}
+
+/** PumpSwap coins the game server added to the meme category, most liquid first. */
+export function usePumpSwapAssets() {
+  const config = useGameServerConfig()
+  const assets = (config.data?.assets ?? []).filter((a) => a.source === 'pumpswap').sort((a, b) => (b.liquidityUsd ?? 0) - (a.liquidityUsd ?? 0))
+  return { assets, isLoading: config.isLoading, error: config.error }
 }
 
 /** One wallet's stakes and payouts. */

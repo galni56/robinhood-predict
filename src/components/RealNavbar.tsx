@@ -21,6 +21,7 @@ const MORE = [
   { to: '/onchain/portfolio', label: 'Portfolio' },
   { to: '/onchain/leaderboard', label: 'Leaderboard' },
   { to: '/onchain/archive', label: 'Archive' },
+  { to: '/onchain/pumpswap', label: 'PumpSwap coins' },
 ]
 
 const PIXEL = "'Press Start 2P', 'Courier New', monospace"

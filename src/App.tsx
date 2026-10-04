@@ -19,6 +19,7 @@ const OnchainRacesListPage = lazy(() => import('@/pages/OnchainRacesListPage').t
 const OnchainCreateRacePage = lazy(() => import('@/pages/OnchainCreateRacePage').then((m) => ({ default: m.OnchainCreateRacePage })))
 const OnchainRacePage = lazy(() => import('@/pages/OnchainRacePage').then((m) => ({ default: m.OnchainRacePage })))
 const OnchainArenasListPage = lazy(() => import('@/pages/OnchainArenasListPage').then((m) => ({ default: m.OnchainArenasListPage })))
+const OnchainPumpSwapPage = lazy(() => import('@/pages/OnchainPumpSwapPage').then((m) => ({ default: m.OnchainPumpSwapPage })))
 const OnchainCreateArenaPage = lazy(() => import('@/pages/OnchainCreateArenaPage').then((m) => ({ default: m.OnchainCreateArenaPage })))
 const OnchainArenaPage = lazy(() => import('@/pages/OnchainArenaPage').then((m) => ({ default: m.OnchainArenaPage })))
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage').then((m) => ({ default: m.NotFoundPage })))
@@ -46,6 +47,7 @@ export default function App() {
               <Route path="races/create" element={<OnchainCreateRacePage />} />
               <Route path="races/:raceId" element={<OnchainRacePage />} />
               <Route path="arenas" element={<OnchainArenasListPage />} />
+              <Route path="pumpswap" element={<OnchainPumpSwapPage />} />
               <Route path="arenas/create" element={<OnchainCreateArenaPage />} />
               <Route path="arenas/:arenaId" element={<OnchainArenaPage />} />
             </Route>

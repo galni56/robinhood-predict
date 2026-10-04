@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { PumpSwapCoins } from '@/components/PumpSwapCoins'
 import { PxSprite } from '@/retro/Sprite'
 import { boxerOrange, boxerPink, coinBlue, coinOrangeGrin, coinPinkGrin, coinPurple, logoCoin } from '@/retro/spriteData'
 import { Cloud, CREAM, GrassStrip, Hills, INK, NIGHT, PINK, RoadBand, RoadLane, SKY, Stars, YELLOW } from '@/retro/scene'
@@ -155,6 +156,13 @@ export function OnchainLandingPage() {
               </div>
             </article>
           </div>
+        </div>
+      </section>
+
+      {/* ---------------------------------------------- PumpSwap coins */}
+      <section style={{ background: '#4B37B0', borderTop: `4px solid ${INK}`, padding: '56px clamp(16px, 4vw, 64px)' }}>
+        <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+          <PumpSwapCoins limit={6} />
         </div>
       </section>
 

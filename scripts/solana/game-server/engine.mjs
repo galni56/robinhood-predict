@@ -92,6 +92,11 @@ export function catalogAssets(catalog) {
       priceSource: a.pool,
       priceDecimals: a.priceDecimals,
       enabled: true,
+      mint: a.mint,
+      logoUrl: a.icon ?? null,
+      priceUrl: a.priceUrl ?? null,
+      source: a.source ?? 'catalog',
+      ...(a.source === 'pumpswap' ? { liquidityUsd: a.liquidityUsd, volume24hUsd: a.volume24hUsd, poolCreatedAt: a.poolCreatedAt } : {}),
     }))
 }
 
@@ -109,7 +114,9 @@ export function catalogAssets(catalog) {
 export function createEngine({ db, chain, prices, assets, cluster, coldWallet = null, admin = null, clock, log = console, options = {} }) {
   const opts = { ...DEFAULTS, ...options }
   const now = clock ?? (() => Math.floor(Date.now() / 1000))
-  const assetBySymbol = new Map(assets.map((a) => [a.symbol, a]))
+  // Replaced when the PumpSwap catalog refreshes (setAssets).
+  let currentAssets = assets
+  let assetBySymbol = new Map(assets.map((a) => [a.symbol, a]))
   const platformCreator = admin ?? chain.address
   const funders = new Set([coldWallet, admin].filter(Boolean))
   let lastScan = { at: 0, pending: 0 }
@@ -605,7 +612,15 @@ export function createEngine({ db, chain, prices, assets, cluster, coldWallet = 
       stake: { min: STAKE.min, max: STAKE.max },
       race: { minAssets: RACE.minAssets, maxAssets: RACE.maxAssets, communityDurations: COMMUNITY_RACE_DURATIONS, communityPolicy: COMMUNITY_POLICY },
       arena: { durations: ARENA.durations, lobbyDuration: ARENA.lobbyDuration, maxParticipants: ARENA.maxParticipants, feeBp: ARENA.feeBp },
-      assets,
+      assets: currentAssets,
     }),
+    setAssets(list) {
+      currentAssets = list
+      assetBySymbol = new Map(list.map((a) => [a.symbol, a]))
+    },
+    /** Symbols of assets used by games that are not final yet. */
+    liveSymbols() {
+      return new Set(db.liveGames().flatMap((g) => (g.kind === 'race' ? g.assets.map((a) => a.symbol) : [g.symbol])))
+    },
   }
 }

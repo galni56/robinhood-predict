@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { assetRaceCatalogByPool } from '@/chain/assetRaceRegistry'
+import { assetIdHexForSymbol, assetRaceCatalogByPool } from '@/chain/assetRaceRegistry'
 import { categoryCode, type ApprovedRaceAsset } from '@/chain/assetRaces'
 import { useGameServerConfig } from '@/chain/gameServer'
 
@@ -14,6 +14,20 @@ export function useApprovedRaceAssets() {
   const assets = useMemo(() => (config.data?.assets ?? []).flatMap((asset): ApprovedRaceAsset[] => {
     const catalog = assetRaceCatalogByPool.get(asset.priceSource)
     const category = categoryCode(asset.category)
+    // Added by the server at runtime (PumpSwap): not in the bundled catalog.
+    if (asset.source === 'pumpswap') {
+      return [{
+        assetId: assetIdHexForSymbol(asset.symbol),
+        enabled: true,
+        category,
+        priceSource: asset.priceSource,
+        expectedDecimals: asset.priceDecimals,
+        symbol: asset.symbol,
+        name: asset.name,
+        logoUrl: asset.logoUrl ?? undefined,
+        priceUrl: asset.priceUrl ?? undefined,
+      }]
+    }
     if (!catalog?.enabled || CATEGORY_NAMES[category] !== catalog.category || catalog.priceDecimals !== asset.priceDecimals) return []
     return [{
       assetId: catalog.assetId,

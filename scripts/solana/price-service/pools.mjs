@@ -10,6 +10,8 @@
 //   raydium CLMM      Raydium CLMM     sqrt_price_x64
 //   orca wp           Orca Whirlpool   sqrt_price (Q64.64)
 //   meteora DLMM      Meteora DLMM     (1 + bin_step / 10^4) ^ active_id
+//   pumpswap          PumpSwap AMM     reserves = the two pool vault balances
+//                     (base mint 43, quote mint 75, base vault 139, quote vault 171)
 
 import { PublicKey } from '@solana/web3.js'
 
@@ -33,6 +35,7 @@ export const LAYOUTS = {
   'raydium CLMM': { mint0: 73, mint1: 105, decimals0: 233, decimals1: 234, sqrtPrice: 253 },
   'orca wp': { mint0: 101, mint1: 181, sqrtPrice: 65 },
   'meteora DLMM': { mint0: 88, mint1: 120, activeId: 76, binStep: 80 },
+  pumpswap: { mint0: 43, mint1: 75, vault0: 139, vault1: 171 },
 }
 
 /** Mints and extra accounts (vaults) a pool needs read in the same request. */
@@ -40,7 +43,7 @@ export function poolDependencies(kind, data) {
   const layout = LAYOUTS[kind]
   if (!layout) throw new Error(`unsupported pool kind: ${kind}`)
   const mints = [key(data, layout.mint0), key(data, layout.mint1)]
-  const vaults = kind === 'raydium standard' ? [key(data, layout.vault0), key(data, layout.vault1)] : []
+  const vaults = kind === 'raydium standard' || kind === 'pumpswap' ? [key(data, layout.vault0), key(data, layout.vault1)] : []
   return { mints, vaults }
 }
 
@@ -76,6 +79,13 @@ function token1PerToken0(kind, data, mints, decimals, vaultData) {
     const vaults = poolDependencies(kind, data).vaults
     const reserve0 = tokenAmount(vaultData[vaults[0]]) - u64(data, layout.pnl0)
     const reserve1 = tokenAmount(vaultData[vaults[1]]) - u64(data, layout.pnl1)
+    if (reserve0 <= 0n || reserve1 <= 0n) throw new Error('empty reserves')
+    return { num: reserve1 * pow10(d0), den: reserve0 * pow10(d1) }
+  }
+  if (kind === 'pumpswap') {
+    const vaults = poolDependencies(kind, data).vaults
+    const reserve0 = tokenAmount(vaultData[vaults[0]])
+    const reserve1 = tokenAmount(vaultData[vaults[1]])
     if (reserve0 <= 0n || reserve1 <= 0n) throw new Error('empty reserves')
     return { num: reserve1 * pow10(d0), den: reserve0 * pow10(d1) }
   }

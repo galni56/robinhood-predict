@@ -35,13 +35,14 @@
 // ALLOW_NON_MAINNET_PRICES=1 (explicit escape hatch for the mainnet genesis
 // check).
 
-import { readFileSync } from 'node:fs'
+import { readFileSync, statSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { Connection, Keypair, PublicKey } from '@solana/web3.js'
 import { encodeAttestation, signedEd25519Instruction } from './attestation.mjs'
 import { AccountHistory } from './history.mjs'
 import { formatScaled } from './pools.mjs'
 import { accountsFor, buildPlan, pricesFromData } from './snapshot.mjs'
+import { poolDependencies } from './pools.mjs'
 
 const list = (value) => (value ?? '').split(',').map((v) => v.trim()).filter(Boolean)
 const RPC_URLS = list(process.env.SOLANA_MAINNET_RPC_URLS ?? process.env.SOLANA_MAINNET_RPC_URL)
@@ -123,16 +124,17 @@ const slotTimes = [] // [slot, wall ms] samples, to prune by age
 // ---------------------------------------------------------------- tracking
 
 let subscriptions = []
+const subscribe = (account) => connection.onAccountChange(
+  new PublicKey(account),
+  (info, context) => {
+    history.record(account, context.slot, info.data)
+    if (context.slot > maxSlotSeen) maxSlotSeen = context.slot
+    lastNotificationAt = Date.now()
+  },
+  { commitment: 'confirmed' },
+)
 function subscribeAll() {
-  subscriptions = plan.accounts.map((account) => connection.onAccountChange(
-    new PublicKey(account),
-    (info, context) => {
-      history.record(account, context.slot, info.data)
-      if (context.slot > maxSlotSeen) maxSlotSeen = context.slot
-      lastNotificationAt = Date.now()
-    },
-    { commitment: 'confirmed' },
-  ))
+  subscriptions = plan.accounts.map(subscribe)
   watchSocket(connection)
 }
 
@@ -383,6 +385,62 @@ async function attestation({ program, target, sources }) {
 // batched read every SUPPLY_REFRESH_SECONDS; display only, never signed.
 // Mint layout (SPL Token and Token-2022): supply u64 at 36, decimals u8 at 44.
 const memeMints = registry.assets.filter((a) => a.category === 'MEME').map((a) => ({ symbol: a.symbol, mint: new PublicKey(a.mint) }))
+
+// ------------------------------------------------ extra assets (PumpSwap)
+
+// The game server keeps a file of extra assets (EXTRA_ASSETS: the top
+// PumpSwap coins, same shape as config/solana-assets.json). New ones are
+// added on the fly, so the price history of running games is never lost.
+// Nothing is removed until a restart. One getMultipleAccounts call reads
+// every tracked account, which caps the plan at 100 accounts.
+const EXTRA_ASSETS = process.env.EXTRA_ASSETS
+const MAX_ACCOUNTS = 100
+let extraMtime = 0
+
+async function loadExtraAssets() {
+  if (!EXTRA_ASSETS) return
+  let mtime
+  try {
+    mtime = statSync(EXTRA_ASSETS).mtimeMs
+  } catch {
+    return
+  }
+  if (mtime === extraMtime) return
+  const list = JSON.parse(readFileSync(EXTRA_ASSETS, 'utf8')).assets ?? []
+  const fresh = list.filter((a) => !assetBySource.has(a.pool) && !plan.assets.some((x) => x.symbol === a.symbol))
+  const infos = fresh.length ? await connection.getMultipleAccountsInfo(fresh.map((a) => new PublicKey(a.pool)), 'confirmed') : []
+  const added = []
+  for (const [i, asset] of fresh.entries()) {
+    if (!infos[i]) continue
+    let deps
+    try {
+      deps = poolDependencies(asset.poolKind, infos[i].data)
+    } catch (error) {
+      console.warn(`extra asset ${asset.symbol}: ${error.message}`)
+      continue
+    }
+    const accounts = [asset.pool, ...deps.vaults].filter((a) => !plan.accounts.includes(a))
+    if (plan.accounts.length + accounts.length > MAX_ACCOUNTS) break
+    const missing = deps.mints.filter((m) => plan.decimals[m] == null)
+    if (missing.length) {
+      const mintInfos = await connection.getMultipleAccountsInfo(missing.map((m) => new PublicKey(m)), 'confirmed')
+      if (mintInfos.some((m) => !m)) continue
+      missing.forEach((m, k) => { plan.decimals[m] = mintInfos[k].data[44] })
+    }
+    // Current state first, then live updates.
+    const { context, value } = await connection.getMultipleAccountsInfoAndContext(accounts.map((a) => new PublicKey(a)), { commitment: 'confirmed' })
+    accounts.forEach((a, k) => history.record(a, context.slot, value[k]?.data))
+    plan.accounts.push(...accounts)
+    plan.assets.push(asset)
+    plan.kindByPool.set(asset.pool, asset.poolKind)
+    assetBySource.set(asset.pool, asset)
+    subscriptions.push(...accounts.map(subscribe))
+    memeMints.push({ symbol: asset.symbol, mint: new PublicKey(asset.mint) })
+    added.push(asset.symbol)
+  }
+  extraMtime = mtime
+  if (added.length) console.log(`extra assets added: ${added.join(', ')} · ${plan.accounts.length} subscriptions`)
+}
 const supplies = new Map()
 
 async function refreshSupplies() {
@@ -477,3 +535,5 @@ setInterval(() => {
 }, 5_000)
 await refreshSupplies()
 setInterval(refreshSupplies, SUPPLY_REFRESH_SECONDS * 1000)
+await loadExtraAssets().catch((error) => console.warn(`extra assets: ${error.message}`))
+setInterval(() => loadExtraAssets().catch((error) => console.warn(`extra assets: ${error.message}`)), 60_000)

@@ -28,8 +28,11 @@
 //   PLATFORM_RACES        schedule file (default config/platform-races.json)
 //   GAME_SERVER_PORT / GAME_SERVER_HOST, TICK_MS (3000),
 //   PRIORITY_MICROLAMPORTS (0), ALLOWED_ORIGINS (comma list, default *)
+//   EXTRA_ASSETS          PumpSwap catalog file it writes and the price
+//                         service reads (default ./.data/pumpswap-assets.json)
+//   PUMPSWAP_REFRESH_MINUTES (15; 0 = off)
 
-import { mkdirSync, readFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -39,6 +42,7 @@ import { createChain, isAddress } from './chain.mjs'
 import { catalogAssets, createEngine } from './engine.mjs'
 import { createPriceClient } from './prices.mjs'
 import { RuleError } from './rules.mjs'
+import { fetchPumpSwapPools, selectPumpSwapAssets } from './pumpswap.mjs'
 import { gameView, historyView, walletView } from './views.mjs'
 import { toJson } from './db.mjs'
 
@@ -71,7 +75,17 @@ mkdirSync(dirname(DB_PATH), { recursive: true })
 const db = openDatabase(DB_PATH)
 const chain = createChain({ rpcUrl: RPC, wallet, priorityMicroLamports: Number(process.env.PRIORITY_MICROLAMPORTS ?? 0) })
 const prices = createPriceClient(process.env.PRICE_SERVICE_URL ?? 'http://127.0.0.1:8790', chain.address)
-const assets = catalogAssets(readJson(new URL('config/solana-assets.json', ROOT)))
+const baseCatalog = readJson(new URL('config/solana-assets.json', ROOT))
+const EXTRA_ASSETS = resolve(process.env.EXTRA_ASSETS ?? fileURLToPath(new URL('.data/pumpswap-assets.json', ROOT)))
+const readExtra = () => {
+  try {
+    return readJson(EXTRA_ASSETS).assets ?? []
+  } catch {
+    return []
+  }
+}
+const allAssets = (extra) => catalogAssets({ assets: [...baseCatalog.assets, ...extra] })
+const assets = allAssets(readExtra())
 const schedulePath = process.env.PLATFORM_RACES ?? new URL('config/platform-races.json', ROOT)
 const engine = createEngine({
   db,
@@ -213,6 +227,30 @@ createServer(async (req, res) => {
 }).listen(PORT, HOST, () => {
   console.log(`game server on ${HOST}:${PORT} · ${CLUSTER} · game wallet ${chain.address} · ${assets.length} assets · db ${DB_PATH}`)
 })
+
+// The PumpSwap meme catalog: refreshed every PUMPSWAP_REFRESH_MINUTES and
+// written for the price service, which starts tracking new pools on the fly.
+const PUMPSWAP_MINUTES = Number(process.env.PUMPSWAP_REFRESH_MINUTES ?? 15)
+async function refreshPumpSwap() {
+  try {
+    const previous = readExtra()
+    const pools = await fetchPumpSwapPools()
+    const takenSymbols = new Set(baseCatalog.assets.map((a) => a.symbol.toUpperCase()))
+    const extra = selectPumpSwapAssets(pools, { takenSymbols, previous, keepSymbols: engine.liveSymbols() })
+    mkdirSync(dirname(EXTRA_ASSETS), { recursive: true })
+    writeFileSync(`${EXTRA_ASSETS}.tmp`, JSON.stringify({ updatedAt: new Date().toISOString(), source: 'pumpswap', assets: extra }, null, 1))
+    renameSync(`${EXTRA_ASSETS}.tmp`, EXTRA_ASSETS)
+    engine.setAssets(allAssets(extra))
+    invalidate()
+    console.log(`pumpswap: ${extra.length} coins (${extra.map((a) => a.symbol).join(', ')})`)
+  } catch (error) {
+    console.warn(`pumpswap refresh: ${error.message}`)
+  }
+}
+if (PUMPSWAP_MINUTES > 0) {
+  void refreshPumpSwap()
+  setInterval(refreshPumpSwap, PUMPSWAP_MINUTES * 60_000)
+}
 
 await engine.init()
 await refreshSolvency()
