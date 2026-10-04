@@ -23,8 +23,8 @@ const toneClasses = {
     badge: 'border-[#ff4f8b]/30 bg-[#ff4f8b]/15 text-[#ff4f8b]',
     number: 'bg-[#ff4f8b] text-white',
     line: 'bg-[#ff4f8b]/25',
-    note: 'border-[#ff4f8b]/20 bg-[#ff4f8b]/10 text-[#d8d0ff]',
-    disclosure: 'border-[#ff4f8b]/30 bg-[#ff4f8b]/10 text-[#d8d0ff] hover:bg-[#ff4f8b]/20',
+    note: 'border-[#ff4f8b]/20 bg-[#ff4f8b]/10 text-[#1B1340]/70',
+    disclosure: 'border-[#ff4f8b]/30 bg-[#ff4f8b]/10 text-[#1B1340]/70 hover:bg-[#ff4f8b]/20',
   },
   race: {
     accent: 'text-[#B8860B]',
@@ -39,8 +39,8 @@ const toneClasses = {
     badge: 'border-[#6bcbf4]/30 bg-[#6bcbf4]/15 text-[#1F7FD1]',
     number: 'bg-[#6bcbf4] text-[#191330]',
     line: 'bg-[#6bcbf4]/25',
-    note: 'border-[#6bcbf4]/20 bg-[#6bcbf4]/10 text-[#d7e4ff]',
-    disclosure: 'border-[#6bcbf4]/30 bg-[#6bcbf4]/10 text-[#d7e4ff] hover:bg-[#6bcbf4]/20',
+    note: 'border-[#6bcbf4]/20 bg-[#6bcbf4]/10 text-[#1B1340]/70',
+    disclosure: 'border-[#6bcbf4]/30 bg-[#6bcbf4]/10 text-[#1B1340]/70 hover:bg-[#6bcbf4]/20',
   },
 } as const
 
@@ -50,11 +50,11 @@ export function GameLifecycleGuide({ className, tone, eyebrow, title, intro, sta
   const contentId = useId()
 
   return (
-    <section className={clsx('flex flex-col rounded-none border border-white/[0.07] bg-[#FFF6DF]', expanded ? 'p-5 sm:p-6' : 'p-4 sm:p-5', className)}>
+    <section className={clsx('rx-raised flex flex-col bg-[#FFF6DF] text-[#1B1340]', expanded ? 'p-5 sm:p-6' : 'p-4 sm:p-5', className)}>
       <div className={clsx('mb-3 inline-flex rounded-full border px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em]', colors.badge)}>
         {eyebrow}
       </div>
-      <h2 className="font-display text-2xl font-bold leading-tight text-white">{title}</h2>
+      <h2 className="text-[#1B1340]" style={{ margin: 0, fontFamily: "'Press Start 2P', monospace", fontSize: 15, fontWeight: 400, lineHeight: 1.5 }}>{title}</h2>
 
       <div id={contentId} className={expanded ? undefined : 'flex min-h-0 flex-1 flex-col'}>
         {expanded ? (
@@ -71,7 +71,7 @@ export function GameLifecycleGuide({ className, tone, eyebrow, title, intro, sta
                   </div>
                   <div className={clsx('pb-4', index === stages.length - 1 && 'pb-1')}>
                     <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
-                      <h3 className="text-sm font-bold text-white/90">{stage.title}</h3>
+                      <h3 className="text-sm font-bold text-[#1B1340]">{stage.title}</h3>
                       <span className={clsx('text-[11px] font-bold', colors.accent)}>{stage.timing}</span>
                     </div>
                     <p className="mt-1 text-xs leading-relaxed text-[#1B1340]/55">{stage.body}</p>
@@ -83,11 +83,11 @@ export function GameLifecycleGuide({ className, tone, eyebrow, title, intro, sta
             <p className={clsx('mt-4 rounded-none border px-4 py-3 text-xs font-medium leading-relaxed', colors.note)}>{note}</p>
           </>
         ) : (
-          <ol className="mt-4 grid flex-1 auto-rows-fr overflow-hidden rounded-none border border-white/[0.07] bg-[#1B1340]/5">
+          <ol className="mt-4 grid flex-1 auto-rows-fr overflow-hidden rounded-none border-2 border-[#1B1340]/15 bg-white/60">
             {stages.map((stage, index) => (
               <li
                 key={`${stage.title}-${stage.timing}`}
-                className={clsx('grid min-h-9 grid-cols-[24px_minmax(0,1fr)_auto] items-center gap-2 px-3 py-1.5', index > 0 && 'border-t border-white/[0.06]')}
+                className={clsx('grid min-h-9 grid-cols-[24px_minmax(0,1fr)_auto] items-center gap-2 px-3 py-1.5', index > 0 && 'border-t-2 border-[#1B1340]/10')}
               >
                 <span className={clsx('grid h-5 w-5 place-items-center rounded-full text-[10px] font-black', colors.number)}>{index + 1}</span>
                 <span className="min-w-0 text-xs font-bold leading-tight text-[#1B1340]/80">{stage.title}</span>
