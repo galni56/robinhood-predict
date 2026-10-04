@@ -42,6 +42,7 @@ export function RealNavbar() {
 
   return (
     <header
+      className="rx-navbar"
       style={{
         position: 'relative',
         zIndex: 20,
@@ -63,7 +64,7 @@ export function RealNavbar() {
 
       </NavLink>
 
-      <nav style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '4px 32px', fontSize: 22, fontWeight: 600 }}>
+      <nav className="rx-navbar-links" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '4px 32px', fontSize: 22, fontWeight: 600 }}>
         {LINKS.map((link) => (
           <NavLink key={link.to} to={link.to} style={linkStyle(link.to.startsWith('/onchain') && location.pathname.startsWith(link.to))}>
             {link.label}

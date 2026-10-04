@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from 'react'
+import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import { PxSprite } from '@/retro/Sprite'
 import { cloud, coinPurple, crown, type PxSpriteData } from '@/retro/spriteData'
 import { CREAM, INK, PINK, ROAD, YELLOW } from '@/retro/scene'
@@ -21,7 +21,7 @@ export function Sun({ size = 88, style }: { size?: number; style?: CSSProperties
     </span>
   )
   return (
-    <div aria-hidden="true" style={{ position: 'absolute', width: size, height: size, ...style }}>
+    <div aria-hidden="true" className="rx-sun" style={{ position: 'absolute', width: size, height: size, ...style }}>
       <div className="rx-fx-spin" style={{ position: 'absolute', inset: 0 }}>{[0, 45, 90, 135].map(ray)}</div>
       <div style={{ position: 'absolute', inset: size * 0.14, background: YELLOW, border: `4px solid ${INK}`, boxShadow: 'inset -8px -8px 0 #F2B705', clipPath: 'polygon(25% 0, 75% 0, 100% 25%, 100% 75%, 75% 100%, 25% 100%, 0 75%, 0 25%)' }} />
     </div>
@@ -46,46 +46,109 @@ export interface RaceRunner {
   path: [number, number, number, number, number, number]
 }
 
-/** Four coins race to the checkered line; the winner gets a crown,
- * confetti pops and the flag waves, then the next heat starts. */
-export function AnimatedRace({ runners, lane = 76, duration = 11 }: { runners: RaceRunner[]; lane?: number; duration?: number }) {
+/** One heat: four random coins, a random winner, lead changes on the way. */
+function makeHeat(names: string[], bodies: PxSpriteData[]): RaceRunner[] {
+  const pool = [...names].sort(() => Math.random() - 0.5).slice(0, 4)
+  const winner = Math.floor(Math.random() * pool.length)
+  // 1.0 is the line: the winner crosses it, the others stop short.
+  const finals = pool.map((_, i) => (i === winner ? 1.04 : 0.78 + Math.random() * 0.16))
+  return pool.map((label, i) => {
+    // Random strides, scaled so the coin reaches ~85% of its final distance
+    // at the last checkpoint: leaders change, the winner only shows late.
+    const strides = [0, 1, 2, 3].map(() => 0.4 + Math.random())
+    const total = strides.reduce((a, b) => a + b, 0)
+    const reach = finals[i] * (0.72 + Math.random() * 0.2)
+    let acc = 0
+    const mids = strides.map((step) => (acc += step) / total * reach)
+    return { sprite: bodies[i % bodies.length], label, path: [0, mids[0], mids[1], mids[2], mids[3], finals[i]] as RaceRunner['path'] }
+  })
+}
+
+/** Four coins race to the checkered line in front of a grandstand; the
+ * winner gets a crown, confetti pops and the flag waves, then a new heat
+ * starts with other coins and another winner. */
+export function AnimatedRace({ names, bodies, duration = 11 }: { names: string[]; bodies: PxSpriteData[]; duration?: number }) {
+  const [heat, setHeat] = useState(0)
+  const runners = useMemo(() => makeHeat(names, bodies), [heat, names, bodies]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const timer = setInterval(() => setHeat((h) => h + 1), duration * 1000)
+    return () => clearInterval(timer)
+  }, [duration])
   const winner = runners.reduce((best, r, i) => (r.path[5] > runners[best].path[5] ? i : best), 0)
-  // Running covers 0..80% of the loop, the finish celebration the rest.
-  const keyframes = runners.map((r, i) => `@keyframes rx-fx-run-${i} {
-    0% { left: 2%; } ${[1, 2, 3, 4].map((k) => `${k * 16}% { left: calc(${(r.path[k] * 86).toFixed(1)}% + 2%); }`).join(' ')}
-    80%, 100% { left: calc(${(r.path[5] * 86).toFixed(1)}% + 2%); }
+  // Running covers 0..80% of the heat, the finish celebration the rest.
+  const keyframes = runners.map((r, i) => `@keyframes rx-fx-run-${heat}-${i} {
+    0% { left: 0%; } ${[1, 2, 3, 4].map((k) => `${k * 16}% { left: ${(r.path[k] * 100).toFixed(1)}%; }`).join(' ')}
+    80%, 100% { left: ${(r.path[5] * 100).toFixed(1)}%; }
   }`).join('\n')
+  const once = { animationDuration: `${duration}s`, animationIterationCount: 1, animationFillMode: 'both' } as const
   return (
     <div aria-hidden="true" style={{ position: 'relative', background: ROAD, borderTop: `4px solid ${INK}`, borderBottom: `4px solid ${INK}` }}>
       <style>{keyframes}</style>
+      <div style={{ position: 'absolute', left: '16%', right: '24%', bottom: 'calc(100% + 24px)', height: 'clamp(64px, 11vw, 118px)' }}>
+        <Grandstand key={`stand-${heat}`} duration={duration} />
+      </div>
       <div style={{ position: 'absolute', top: 0, bottom: 0, right: '7%', width: 32, background: `repeating-conic-gradient(${INK} 0% 25%, ${CREAM} 0% 50%) 0 0 / 32px 32px` }} />
-      <FinishFlag style={{ right: 'calc(7% - 4px)', top: -74 }} duration={duration} />
+      <FinishFlag key={`flag-${heat}`} style={{ right: 'calc(7% - 4px)', top: -74 }} duration={duration} once={once} />
       {runners.map((r, i) => (
-        <div key={r.label} style={{ position: 'relative', height: lane }}>
+        <div key={i} style={{ position: 'relative', height: 'clamp(52px, 10vw, 76px)' }}>
           <div className="rx-road-dashes" />
-          <div style={{ position: 'absolute', top: 4, left: '2%', display: 'flex', alignItems: 'center', gap: 6, animation: `rx-fx-run-${i} ${duration}s cubic-bezier(.45,.05,.55,.95) infinite` }}>
-            <span className="rx-plate rx-font-pixel" style={{ fontSize: 10, lineHeight: 1, color: INK, background: CREAM, padding: '7px 8px', whiteSpace: 'nowrap' }}>{r.label}</span>
+          {/* The runner moves inside a track that ends one runner-width before the line, so it never leaves the screen. */}
+          <div style={{ position: 'absolute', top: 0, bottom: 0, left: '2%', right: 'calc(7% + clamp(92px, 17vw, 150px))' }}>
+          <div key={`${heat}-${i}`} style={{ position: 'absolute', top: 4, left: 0, display: 'flex', alignItems: 'center', gap: 6, animation: `rx-fx-run-${heat}-${i} ${duration}s cubic-bezier(.45,.05,.55,.95) 1 both` }}>
+            <span className="rx-plate rx-font-pixel" style={{ fontSize: 'clamp(7px, 1.6vw, 10px)', lineHeight: 1, color: INK, background: CREAM, padding: '6px 7px', whiteSpace: 'nowrap' }}>{r.label}</span>
             <div style={{ position: 'relative', animation: 'rx-bob 0.4s steps(1) infinite', animationDelay: `${i * 0.1}s` }}>
               {i === winner && (
-                <span className="rx-fx-crown" style={{ position: 'absolute', left: 18, top: -16, animationDuration: `${duration}s` }}>
+                <span className="rx-fx-crown" style={{ position: 'absolute', left: '28%', top: -16, ...once }}>
                   <PxSprite data={crown} width={28} height={16} />
                 </span>
               )}
-              <PxSprite data={r.sprite} width={64} height={68} />
+              <PxSprite data={r.sprite} width="clamp(40px, 9vw, 64px)" height="clamp(42px, 9.6vw, 68px)" />
             </div>
+          </div>
           </div>
         </div>
       ))}
-      <Confetti duration={duration} />
+      <Confetti key={`confetti-${heat}`} duration={duration} once={once} />
     </div>
   )
 }
 
-function FinishFlag({ style, duration }: { style: CSSProperties; duration: number }) {
+const CROWD = ['#FF7AA8', '#FFD23F', '#4DB5FF', '#A77BFF', '#5FD46E', '#FF9F2E', '#FFF6DF']
+
+/** A pixel grandstand: striped roof, three tiers of fans who bounce and
+ * jump up when the winner crosses the line. */
+function Grandstand({ duration }: { duration: number }) {
+  const rows = 3
+  const perRow = 18
+  return (
+    <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+      <div style={{ position: 'absolute', left: 0, right: 0, top: 0, height: '22%', border: `3px solid ${INK}`, background: `repeating-linear-gradient(90deg, ${PINK} 0 18px, ${CREAM} 18px 36px)` }} />
+      <div style={{ position: 'absolute', left: '2%', right: '2%', top: '22%', bottom: 0, background: '#6B5FA8', borderLeft: `3px solid ${INK}`, borderRight: `3px solid ${INK}`, display: 'grid', gridTemplateRows: `repeat(${rows}, 1fr)`, padding: '4px 6px 0' }}>
+        {Array.from({ length: rows }, (_, r) => (
+          <div key={r} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', borderBottom: `3px solid ${INK}` }}>
+            {Array.from({ length: perRow }, (_, c) => {
+              const color = CROWD[(r * 7 + c * 3) % CROWD.length]
+              return (
+                <span key={c} className="rx-fx-fan" style={{ width: 'clamp(5px, 1vw, 10px)', height: 'clamp(6px, 1.2vw, 12px)', background: color, boxShadow: `0 0 0 1px ${INK}`, animationDelay: `${((r + c) % 6) * 0.07}s`, ['--rx-heat' as string]: `${duration}s` }} />
+              )
+            })}
+          </div>
+        ))}
+      </div>
+      {[8, 50, 88].map((x) => (
+        <span key={x} style={{ position: 'absolute', left: `${x}%`, top: '-26%', width: 3, height: '30%', background: INK }}>
+          <span className="rx-fx-flag" style={{ position: 'absolute', left: 3, top: 0, width: 16, height: 10, background: x === 50 ? YELLOW : PINK, border: `2px solid ${INK}`, animationDuration: '1.2s' }} />
+        </span>
+      ))}
+    </div>
+  )
+}
+
+function FinishFlag({ style, duration, once }: { style: CSSProperties; duration: number; once?: CSSProperties }) {
   return (
     <div style={{ position: 'absolute', zIndex: 2, ...style }}>
       <span style={{ position: 'absolute', left: 0, top: 0, width: 6, height: 70, background: INK }} />
-      <span className="rx-fx-flag" style={{ position: 'absolute', left: 6, top: 0, width: 44, height: 30, border: `3px solid ${INK}`, background: `repeating-conic-gradient(${INK} 0% 25%, ${CREAM} 0% 50%) 0 0 / 12px 12px`, animationDuration: `${duration}s` }} />
+      <span className="rx-fx-flag" style={{ position: 'absolute', left: 6, top: 0, width: 44, height: 30, border: `3px solid ${INK}`, background: `repeating-conic-gradient(${INK} 0% 25%, ${CREAM} 0% 50%) 0 0 / 12px 12px`, animationDuration: `${duration}s`, ...once }} />
     </div>
   )
 }
@@ -95,11 +158,11 @@ const CONFETTI = [
   [80, 24, '#A77BFF'], [92, 12, YELLOW], [84, 72, '#4DB5FF'], [96, 36, PINK], [78, 58, YELLOW],
 ] as const
 
-function Confetti({ duration }: { duration: number }) {
+function Confetti({ duration, once }: { duration: number; once?: CSSProperties }) {
   return (
     <>
       {CONFETTI.map(([x, y, color], i) => (
-        <span key={i} className="rx-fx-confetti" style={{ position: 'absolute', left: `${x}%`, top: `${y}%`, width: 10, height: 10, background: color, boxShadow: `0 0 0 2px ${INK}`, animationDuration: `${duration}s`, animationDelay: `${(i % 5) * 0.05}s`, ['--rx-dx' as string]: `${(i % 2 ? 1 : -1) * (14 + i * 4)}px` }} />
+        <span key={i} className="rx-fx-confetti" style={{ position: 'absolute', left: `${x}%`, top: `${y}%`, width: 10, height: 10, background: color, boxShadow: `0 0 0 2px ${INK}`, animationDuration: `${duration}s`, ...once, animationDelay: `${(i % 5) * 0.05}s`, ['--rx-dx' as string]: `${(i % 2 ? 1 : -1) * (14 + i * 4)}px` }} />
       ))}
     </>
   )

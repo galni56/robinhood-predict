@@ -5,7 +5,9 @@ import { AddressLabel } from '@/components/AddressLabel'
 import { PxSprite } from '@/retro/Sprite'
 import { coinBlue, coinBlueGrin, coinOrangeGrin, coinPinkGrin, coinPurple, coinPurpleGrin, logoCoin } from '@/retro/spriteData'
 import { Cloud, CREAM, GrassStrip, Hills, INK, NIGHT, PINK, RoadLane, SKY, Stars, YELLOW } from '@/retro/scene'
-import { AnimatedRace, ArenaCallsScene, DriftingCloud, PixelDivider, Podium, Sun, type RaceRunner } from '@/retro/landingFx'
+import { AnimatedRace, ArenaCallsScene, DriftingCloud, PixelDivider, Podium, Sun } from '@/retro/landingFx'
+import { assetRaceCatalog } from '@/chain/assetRaceRegistry'
+import pumpswapSnapshot from '@/chain/pumpswapSnapshot.json'
 import { formatCompactSol } from '@/lib/format'
 
 // 1:1 port of the approved mock's landing (Main.dc.html), English copy,
@@ -20,13 +22,13 @@ const STEPS = [
   ['Win lands in your wallet', 'Your call won? Your share of the bank is sent to your wallet automatically.'],
 ] as const
 
-// The hero heat: the leader changes twice before the line.
-const RUNNERS: RaceRunner[] = [
-  { sprite: coinOrangeGrin, label: 'BONK', path: [0, 0.22, 0.38, 0.62, 0.8, 0.97] },
-  { sprite: coinPinkGrin, label: 'WIF', path: [0, 0.3, 0.52, 0.66, 0.78, 0.9] },
-  { sprite: coinPurple, label: 'SOL', path: [0, 0.18, 0.44, 0.7, 0.84, 0.94] },
-  { sprite: coinBlue, label: 'POPCAT', path: [0, 0.26, 0.34, 0.5, 0.74, 0.86] },
-]
+// Hero heats: four random coins from the game's catalog and the PumpSwap
+// list, a random winner every time.
+const HERO_NAMES = [...new Set([
+  ...assetRaceCatalog.filter((a) => a.category !== 'STOCK').map((a) => a.symbol),
+  ...pumpswapSnapshot.assets.map((a) => a.symbol),
+])].filter((name) => name.length <= 9)
+const HERO_BODIES = [coinOrangeGrin, coinPinkGrin, coinPurple, coinBlue]
 
 const PODIUM_SPRITES = [coinOrangeGrin, coinPinkGrin, coinBlueGrin]
 
@@ -100,7 +102,7 @@ export function OnchainLandingPage() {
         <div aria-hidden="true" style={{ alignSelf: 'stretch', margin: '32px calc(clamp(16px, 4vw, 64px) * -1) 0', position: 'relative' }}>
           <Hills />
           <GrassStrip height={20} top />
-          <AnimatedRace runners={RUNNERS} />
+          <AnimatedRace names={HERO_NAMES} bodies={HERO_BODIES} />
           <GrassStrip height={28} />
         </div>
       </header>
