@@ -84,7 +84,8 @@ export function verifyWalletSignature(wallet, message, signatureBase64) {
 /** Catalog assets (config/solana-assets.json) the games may use. */
 export function catalogAssets(catalog) {
   return catalog.assets
-    .filter((a) => a.approved !== false)
+    // Stocks are off (owner decision, 2026-10-05): memes and crypto only.
+    .filter((a) => a.approved !== false && a.category !== 'STOCK')
     .map((a) => ({
       symbol: a.symbol,
       name: a.name,

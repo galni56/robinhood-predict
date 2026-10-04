@@ -1131,3 +1131,10 @@ h3,
 @media (prefers-reduced-motion: reduce) {
   .rx-fx-spin, .rx-fx-cross, .rx-fx-float, .rx-fx-shine, .rx-hop-host:hover .rx-hop, .rx-hop:hover { animation: none !important; }
 }
+
+/* A coin joining the starting grid slides in from the left. */
+@keyframes rx-fx-enter {
+  from { transform: translateX(-60px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+.rx-fx-enter { animation: rx-fx-enter 0.35s steps(5) both; }

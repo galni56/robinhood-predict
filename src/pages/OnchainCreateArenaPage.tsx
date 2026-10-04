@@ -26,7 +26,7 @@ export function OnchainCreateArenaPage() {
   const requestedMode = params.get('mode')
   const mode: PriceArenaMode = requestedMode === 'memes' || (CRYPTO_ASSETS_ENABLED && requestedMode === 'crypto')
     ? requestedMode
-    : 'stocks'
+    : 'memes'
   const category = categoryForArenaMode(mode)
   const approved = useApprovedRaceAssets()
   const assets = approved.assets.filter((asset) => asset.category === category)
@@ -44,7 +44,7 @@ export function OnchainCreateArenaPage() {
 
   function selectMode(next: PriceArenaMode) {
     setAssetId('')
-    setParams(next === 'stocks' ? {} : { mode: next })
+    setParams(next === 'memes' ? {} : { mode: next })
   }
 
   async function create() {
@@ -66,7 +66,7 @@ export function OnchainCreateArenaPage() {
     <div style={{ minHeight: '100%', background: '#4B37B0', color: '#FFF6DF', fontFamily: "'Pixelify Sans', 'Courier New', monospace" }}>
     <div className="mx-auto max-w-[1280px] px-4 py-5">
       <ClusterBanner className="mb-4" />
-      <Link to={`/onchain/arenas${mode === 'stocks' ? '' : `?mode=${mode}`}`} className="text-sm text-[#1B1340]/55 hover:text-[#1B1340]">← All arenas</Link>
+      <Link to={`/onchain/arenas${mode === 'memes' ? '' : `?mode=${mode}`}`} className="text-sm text-[#1B1340]/55 hover:text-[#1B1340]">← All arenas</Link>
       <div className="mt-4 grid min-w-0 items-stretch gap-6 lg:min-h-[calc(100dvh-180px)] lg:grid-cols-[440px_1fr] xl:gap-8">
         <div className="flex min-w-0 flex-col">
           <p className="text-sm font-bold text-[#1F7FD1]">Create Price Arena</p>

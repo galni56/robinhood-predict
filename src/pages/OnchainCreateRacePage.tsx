@@ -4,16 +4,18 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useWallet } from '@solana/wallet-adapter-react'
 import type { ApprovedRaceAsset, AssetRaceMode } from '@/chain/assetRaces'
 import { categoryForRaceMode } from '@/chain/assetRaces'
-import { CRYPTO_ASSETS_ENABLED } from '@/chain/features'
-import { useGameServerConfig, useSignedAction } from '@/chain/gameServer'
+import { useSignedAction } from '@/chain/gameServer'
 import { useApprovedRaceAssets } from '@/chain/useApprovedRaceAssets'
 import { ClusterBanner } from '@/components/ClusterBanner'
-import { CompactAssetSelector } from '@/components/CompactAssetSelector'
-import { GameLifecycleGuide } from '@/components/GameLifecycleGuide'
 import { FilterChips, GAME_MODE_CHIP_OPTIONS } from '@/components/FilterChips'
+import { CoinPicker, GridPreview, HowItWorksStrip } from '@/components/GamePickers'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
 import { shortTxError } from '@/lib/format'
+import { DriftingCloud } from '@/retro/landingFx'
+import { CREAM, INK, SKY, YELLOW } from '@/retro/scene'
+import { coinBlueGrin, coinOrangeGrin, coinPinkGrin, logoCoin } from '@/retro/spriteData'
 
+const PIXEL = "'Press Start 2P', 'Courier New', monospace"
 const CATEGORY_NAMES = ['stock', 'meme', 'crypto'] as const
 
 function durationLabel(seconds: bigint) {
@@ -25,24 +27,12 @@ function durationLabel(seconds: bigint) {
 export function OnchainCreateRacePage() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
-  const requestedMode = searchParams.get('mode')
-  const mode: AssetRaceMode = requestedMode === 'memes' || (CRYPTO_ASSETS_ENABLED && requestedMode === 'crypto')
-    ? requestedMode
-    : 'stocks'
+  const mode: AssetRaceMode = searchParams.get('mode') === 'crypto' ? 'crypto' : 'memes'
   const category = categoryForRaceMode(mode)
   const queryClient = useQueryClient()
   const { publicKey, connected } = useWallet()
   const act = useSignedAction()
-  const { assets, durations, isLoading, error: registryError } = useApprovedRaceAssets()
-  const config = useGameServerConfig()
-  const rawPolicy = config.data?.race.communityPolicy
-  const policy = rawPolicy && {
-    lobbyDuration: BigInt(rawPolicy.lobbyDuration),
-    bettingDuration: BigInt(rawPolicy.bettingDuration),
-    startGrace: BigInt(rawPolicy.startGrace),
-    resolutionGrace: BigInt(rawPolicy.resolutionGrace),
-  }
-  const minutes = (seconds?: bigint) => (seconds != null ? durationLabel(seconds) : '…')
+  const { assets, durations } = useApprovedRaceAssets()
   const [title, setTitle] = useState('')
   const [duration, setDuration] = useState<bigint>(0n)
   const [selected, setSelected] = useState<ApprovedRaceAsset[]>([])
@@ -57,14 +47,13 @@ export function OnchainCreateRacePage() {
 
   function selectMode(nextMode: AssetRaceMode) {
     setSelected([])
-    setSearchParams(nextMode === 'stocks' ? {} : { mode: nextMode })
+    setSearchParams(nextMode === 'memes' ? {} : { mode: nextMode })
   }
 
   function toggleAsset(asset: ApprovedRaceAsset) {
-    setSelected((current) => {
-      const exists = current.some((item) => item.assetId.toLowerCase() === asset.assetId.toLowerCase())
-      return exists ? current.filter((item) => item.assetId !== asset.assetId) : current.length < 6 ? [...current, asset] : current
-    })
+    setSelected((current) => (current.some((item) => item.assetId === asset.assetId)
+      ? current.filter((item) => item.assetId !== asset.assetId)
+      : current.length < 6 ? [...current, asset] : current))
   }
 
   async function createRace() {
@@ -72,7 +61,7 @@ export function OnchainCreateRacePage() {
     try {
       if (!publicKey || !validTitle || selectedDuration === 0n) return
       // A signed message, not a transaction: creating a race is free.
-      setTxLabel('Sign race creation in wallet…')
+      setTxLabel('Sign in wallet…')
       const created = await act<{ id: number }>({
         action: 'create-race',
         title: normalizedTitle,
@@ -88,141 +77,94 @@ export function OnchainCreateRacePage() {
     }
   }
 
-  return (
-    <div style={{ minHeight: '100%', background: '#6FD3FF', color: '#1B1340', fontFamily: "'Pixelify Sans', 'Courier New', monospace" }}>
-    <div className="mx-auto max-w-[1280px] px-4 py-5">
-      <ClusterBanner className="mb-4" />
-      <Link to={`/onchain/races${mode === 'stocks' ? '' : `?mode=${mode}`}`} className="text-sm text-[#1B1340]/55 transition-colors hover:text-[#1B1340]/75">← All races</Link>
+  const label = { display: 'block', marginBottom: 8, fontFamily: PIXEL, fontSize: 11 } as const
 
-      <div className="mt-4 grid min-w-0 items-stretch gap-6 lg:min-h-[calc(100dvh-180px)] lg:grid-cols-[440px_1fr] xl:gap-8">
-        <div className="flex min-w-0 flex-col">
-          <p className="mb-1 text-sm font-bold text-[#B8860B]">
-            Create a community {mode === 'memes' ? 'meme' : mode === 'crypto' ? 'crypto' : 'stock'} race
-          </p>
-          <h1 style={{ margin: 0, fontFamily: "'Press Start 2P', monospace", fontSize: 'clamp(18px, 2vw, 26px)', fontWeight: 400, lineHeight: 1.5, textShadow: '4px 4px 0 #FFD23F' }}>
-            {mode === 'memes' ? 'Assemble the meme pack' : mode === 'crypto' ? 'Race the blue chips' : 'Build the starting grid'}
+  return (
+    <div style={{ position: 'relative', minHeight: '100%', background: SKY, color: INK, fontFamily: "'Pixelify Sans', 'Courier New', monospace", overflow: 'hidden' }}>
+      <DriftingCloud width={120} top={40} duration={80} delay={20} />
+      <DriftingCloud width={80} top={160} duration={60} delay={45} />
+      <div className="mx-auto max-w-[1200px] px-4 py-6" style={{ position: 'relative' }}>
+        <ClusterBanner className="mb-4" />
+        <Link to={`/onchain/races${mode === 'memes' ? '' : `?mode=${mode}`}`} style={{ fontSize: 16, fontWeight: 700 }}>← All races</Link>
+
+        <div style={{ marginTop: 12, display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16 }}>
+          <h1 style={{ margin: 0, fontFamily: PIXEL, fontSize: 'clamp(18px, 2.4vw, 30px)', fontWeight: 400, lineHeight: 1.4, textShadow: `4px 4px 0 ${YELLOW}` }}>
+            BUILD THE STARTING GRID
           </h1>
-          <div className="mt-3 flex gap-1.5">
-            <FilterChips size="sm" options={GAME_MODE_CHIP_OPTIONS} value={mode} onChange={selectMode} />
+          <FilterChips size="sm" options={GAME_MODE_CHIP_OPTIONS} value={mode} onChange={selectMode} />
+        </div>
+
+        <div style={{ marginTop: 24, display: 'grid', gap: 24, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 420px), 1fr))', alignItems: 'start' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <GridPreview coins={selected} />
+            <p style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>
+              Pick up to six coins now; during the lobby every other wallet may add one more. Creating is free - your wallet just signs.
+            </p>
           </div>
 
-          <div className="mt-4 flex-1">
-            <GameLifecycleGuide
-              className="lg:h-full"
-              tone="race"
-              eyebrow={`${selectedDuration > 0n ? durationLabel(selectedDuration) : 'Choose a duration'} race · full lifecycle`}
-              title="From lobby to finish line"
-              intro="Creating a race is free: your wallet signs a message, no transaction. It places no bet. The creator defines the category and duration; the rules fix every later phase, and the creator earns half of the 2% fee."
-              stages={[
-                {
-                  title: 'Build the grid',
-                  timing: `Lobby · ${minutes(policy?.lobbyDuration)}`,
-                  body: `The creator may add up to six approved ${mode === 'memes' ? 'memes' : mode === 'crypto' ? 'crypto assets' : 'stocks'}. During the lobby, other wallets may add one approved asset each. At least two assets must be present when the lobby closes.`,
-                },
-                {
-                  title: 'Back one contender',
-                  timing: `Betting · ${minutes(policy?.bettingDuration)}`,
-                  body: 'Choose one asset and enter $1–$50 in USD or SOL; the wallet sends SOL to the Prophet game wallet. You may add to that same position while betting is open, but cannot switch assets. A bet that cannot count (too late, over the limit) is sent back.',
-                },
-                {
-                  title: 'Lock the starting prices',
-                  timing: 'At betting close',
-                  body: `Only assets with funded pools become active. At least two must be active or the race cancels. The starting price is the signed pool price at the last block before the betting cutoff; it has to be fixed within ${minutes(policy?.startGrace)}.`,
-                },
-                {
-                  title: 'Run the race',
-                  timing: selectedDuration > 0n ? durationLabel(selectedDuration) : durations.map(durationLabel).join(', ') || '…',
-                  body: 'Live rankings compare each active asset by percentage return from the shared starting snapshot. The displayed leaderboard can move, but the scheduled finish time cannot.',
-                },
-                {
-                  title: 'Fix the finish and settle',
-                  timing: `within ${minutes(policy?.resolutionGrace)}`,
-                  body: 'The finish snapshot belongs to the scheduled end. Highest return wins - even if every return is negative, the least-negative asset leads. An exact top tie voids the race.',
-                },
-                {
-                  title: 'Paid to your wallet',
-                  timing: 'After settlement',
-                  body: 'Winners receive their stake plus a stake-proportional share of the losing pools, minus a 2% fee on that profit only, straight to their wallet. Cancelled or void races send every stake back in full.',
-                },
-              ]}
-              note="If a start or finish price cannot be fixed in time, the race is cancelled and every stake goes back instead of using a late substitute price."
-            />
+          <div className="rx-raised" style={{ background: CREAM, padding: 20, display: 'flex', flexDirection: 'column', gap: 18 }}>
+            <div>
+              <label style={label} htmlFor="race-title">RACE TITLE</label>
+              <input
+                id="race-title"
+                value={title}
+                maxLength={64}
+                onChange={(event) => setTitle(event.target.value)}
+                placeholder={mode === 'crypto' ? 'BTC vs ETH' : 'Meme showdown'}
+                className="rx-input w-full px-3.5 font-medium"
+                style={{ height: 52 }}
+              />
+            </div>
+
+            <div>
+              <span style={label}>DURATION</span>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                {durations.map((seconds) => (
+                  <button
+                    key={seconds.toString()}
+                    type="button"
+                    onClick={() => setDuration(seconds)}
+                    className={`rx-btn ${selectedDuration === seconds ? 'rx-btn-yellow' : 'rx-btn-white'}`}
+                    style={{ padding: '10px 16px', fontSize: 15, fontWeight: 700 }}
+                  >
+                    {durationLabel(seconds)}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                <span style={label}>COINS</span>
+                <span style={{ fontFamily: PIXEL, fontSize: 10 }}>{selected.length} / 6</span>
+              </div>
+              <CoinPicker assets={visibleAssets} selected={selected.map((a) => a.assetId)} onToggle={toggleAsset} max={6} />
+            </div>
+
+            {error && <p style={{ margin: 0, color: '#C2245A', fontWeight: 600 }}>{error}</p>}
+            {!connected ? <WalletOptionsList tone="race" /> : (
+              <button
+                onClick={createRace}
+                disabled={!publicKey || !validTitle || selectedDuration === 0n || !!txLabel}
+                className="rx-btn rx-btn-yellow w-full"
+                style={{ minHeight: 60, fontFamily: PIXEL, fontSize: 13 }}
+              >
+                {txLabel ?? (validTitle ? 'START THE LOBBY' : 'NAME YOUR RACE')}
+              </button>
+            )}
           </div>
         </div>
 
-        {registryError ? (
-          <div className="h-full rounded-none border border-rose-500/25 bg-rose-500/10 p-5 text-sm text-[#C2245A]">Could not read the approved Race registry.</div>
-        ) : (
-          <div className="rx-raised flex h-full min-w-0 flex-col gap-4 bg-[#FFF6DF] p-5 text-[#1B1340] sm:p-6">
-          <div>
-            <label className="mb-2 block text-[#1B1340]" style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 11 }}>Race title</label>
-            <input
-              value={title}
-              maxLength={64}
-              onChange={(event) => setTitle(event.target.value)}
-              placeholder={mode === 'crypto' ? 'BTC vs ETH' : mode === 'memes' ? 'Meme showdown' : 'AI stock battle'}
-              className="rx-input w-full px-3.5 py-2.5 font-medium" style={{ height: 52 }}
-            />
-            <div className={`mt-1 text-right text-[11px] font-medium ${titleBytes > 64 ? 'text-[#C2245A]' : 'text-[#1B1340]/50'}`}>{titleBytes} / 64 bytes</div>
-          </div>
-
-          <div>
-            <label className="mb-2 block text-[#1B1340]" style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 11 }}>Race duration</label>
-            <select
-              value={selectedDuration.toString()}
-              onChange={(event) => setDuration(BigInt(event.target.value))}
-              className="rx-input w-full px-3.5 py-2.5 font-medium" style={{ height: 52 }}
-            >
-              {durations.map((seconds) => <option key={seconds.toString()} value={seconds.toString()}>{durationLabel(seconds)}</option>)}
-            </select>
-            <p className="mt-1.5 text-xs font-medium text-[#1B1340]/55">Only protocol-approved presets are available.</p>
-          </div>
-
-          <div>
-            <div className="mb-2 flex items-end justify-between gap-3">
-              <div>
-                <div className="text-sm font-bold text-[#1B1340]/70">Initial assets · optional</div>
-                <p className="mt-1 text-xs font-medium text-[#1B1340]/55">Approved registry assets only. Minimum two are needed when the lobby closes.</p>
-              </div>
-              <span className="shrink-0 rounded-full bg-[#FFD23F]/30 px-2.5 py-1 text-xs font-bold text-[#B8860B]">{selected.length} / 6</span>
-            </div>
-            {isLoading ? <p className="py-8 text-center text-sm text-[#1B1340]/55">Loading approved assets…</p> : (
-              <CompactAssetSelector
-                assets={visibleAssets.map((asset) => ({
-                  id: asset.assetId,
-                  symbol: asset.symbol,
-                  name: asset.name,
-                  logoUrl: asset.logoUrl,
-                  priceUrl: asset.priceUrl,
-                }))}
-                selectedIds={selected.map((asset) => asset.assetId)}
-                onSelect={(id) => {
-                  const asset = visibleAssets.find((item) => item.assetId.toLowerCase() === id.toLowerCase())
-                  if (asset) toggleAsset(asset)
-                }}
-                tone="race"
-                multiple
-                maxSelected={6}
-              />
-            )}
-          </div>
-
-          {error && <p className="text-sm text-[#C2245A]">{error}</p>}
-
-          {!connected ? <WalletOptionsList tone="race" /> : (
-            <button
-              onClick={createRace}
-              disabled={!publicKey || !validTitle || selectedDuration === 0n || !!txLabel}
-              className="rx-btn rx-btn-yellow w-full" style={{ minHeight: 60, fontFamily: "'Press Start 2P', monospace", fontSize: 13 }}
-            >
-              {txLabel ?? `Create ${mode === 'memes' ? 'meme' : mode === 'crypto' ? 'crypto' : 'stock'} race`}
-            </button>
-          )}
-
-          </div>
-        )}
+        <h2 style={{ margin: '48px 0 24px', fontFamily: PIXEL, fontSize: 16, fontWeight: 400 }}>HOW A RACE GOES</h2>
+        <HowItWorksStrip
+          steps={[
+            { sprite: logoCoin, title: 'Lobby', timing: '10 MIN', body: 'The grid fills up: you and other wallets add coins.' },
+            { sprite: coinOrangeGrin, title: 'Betting', timing: '10 MIN', body: 'Players back one coin with $1-$50 in SOL.' },
+            { sprite: coinPinkGrin, title: 'The race', timing: durationLabel(selectedDuration || 300n).toUpperCase(), body: 'Biggest % price gain wins. Prices are signed at start and finish.' },
+            { sprite: coinBlueGrin, title: 'Paid out', timing: 'AUTOMATIC', body: 'Winners split the losing pools, straight to their wallets.' },
+          ]}
+        />
       </div>
-    </div>
     </div>
   )
 }

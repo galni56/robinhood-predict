@@ -181,7 +181,7 @@ export function OnchainRacesListPage() {
   const requestedMode = searchParams.get('mode')
   const mode: AssetRaceMode = requestedMode === 'memes' || (CRYPTO_ASSETS_ENABLED && requestedMode === 'crypto')
     ? requestedMode
-    : 'stocks'
+    : 'memes'
   const category = mode === 'memes'
     ? ASSET_RACE_CATEGORY.MEME
     : mode === 'crypto'
@@ -228,7 +228,7 @@ export function OnchainRacesListPage() {
           </p>
         </div>
         <Link
-          to={`/onchain/races/create${mode === 'stocks' ? '' : `?mode=${mode}`}`}
+          to={`/onchain/races/create${mode === 'memes' ? '' : `?mode=${mode}`}`}
           className="px-btn px-btn--sm shrink-0"
         >
           + {mode === 'memes' ? 'meme' : mode === 'crypto' ? 'crypto' : 'stock'} race
@@ -240,7 +240,7 @@ export function OnchainRacesListPage() {
           size="sm"
           options={GAME_MODE_CHIP_OPTIONS}
           value={mode}
-          onChange={(item) => setSearchParams(item === 'stocks' ? {} : { mode: item })}
+          onChange={(item) => setSearchParams(item === 'memes' ? {} : { mode: item })}
         />
         <FilterChips options={FILTER_OPTIONS} value={filter} onChange={setFilter} accent="race" className="overflow-x-auto pb-1" />
       </div>

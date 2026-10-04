@@ -97,7 +97,7 @@ export function OnchainArenasListPage() {
   const requestedMode = params.get('mode')
   const mode: PriceArenaMode = requestedMode === 'memes' || (CRYPTO_ASSETS_ENABLED && requestedMode === 'crypto')
     ? requestedMode
-    : 'stocks'
+    : 'memes'
   const category = mode === 'memes'
     ? PRICE_ARENA_CATEGORY.MEME
     : mode === 'crypto'
@@ -126,11 +126,11 @@ export function OnchainArenasListPage() {
           <h1 className="mt-3" style={{ margin: 0, fontFamily: "'Press Start 2P', monospace", fontSize: 'clamp(18px, 2vw, 26px)', fontWeight: 400, lineHeight: 1.4, textShadow: '4px 4px 0 #1B1340' }}>Name the final price</h1>
           <p className="mt-3 text-sm font-bold leading-relaxed text-[#191330]/60">Predictions stay hidden in the lobby. When the round starts, the board goes live and the closest half shares the losing half’s pool.</p>
         </div>
-        <Link to={`/onchain/arenas/create${mode === 'stocks' ? '' : `?mode=${mode}`}`} className="px-btn px-btn--sm shrink-0 !bg-[#6bcbf4]">+ {mode === 'memes' ? 'meme' : mode === 'crypto' ? 'crypto' : 'stock'} arena</Link>
+        <Link to={`/onchain/arenas/create${mode === 'memes' ? '' : `?mode=${mode}`}`} className="px-btn px-btn--sm shrink-0 !bg-[#6bcbf4]">+ {mode === 'memes' ? 'meme' : mode === 'crypto' ? 'crypto' : 'stock'} arena</Link>
       </div>
 
       <div className="mt-8 flex flex-wrap items-center justify-between gap-3">
-        <FilterChips size="sm" options={GAME_MODE_CHIP_OPTIONS} value={mode} onChange={(item) => setParams(item === 'stocks' ? {} : { mode: item })} />
+        <FilterChips size="sm" options={GAME_MODE_CHIP_OPTIONS} value={mode} onChange={(item) => setParams(item === 'memes' ? {} : { mode: item })} />
         <FilterChips options={FILTER_OPTIONS} value={filter} onChange={setFilter} accent="arena" />
       </div>
 
