@@ -102,7 +102,7 @@ let solvency = null
 async function refreshSolvency() {
   try {
     const s = await engine.solvency()
-    solvency = { balance: s.balance.toString(), owed: s.owed.toString(), surplus: s.surplus.toString(), solvent: s.surplus >= 0n, at: Date.now() }
+    solvency = { balance: s.balance.toString(), owed: s.owed.toString(), surplus: s.surplus.toString(), solvent: s.balance >= s.owed, at: Date.now() }
     if (!solvency.solvent) console.error(`INSOLVENT: game wallet holds ${s.balance}, owes ${s.owed}`)
   } catch (error) {
     console.warn(`solvency check: ${error.message}`)
