@@ -47,7 +47,7 @@ export function ConnectWalletButton() {
       <div ref={menuRef} className="relative">
         <button
           onClick={() => setOpen((v) => !v)}
-          className="flex items-center gap-2 border-[3px] border-[#191330] bg-[#fbf3e2] py-1 pl-1.5 pr-3 shadow-[3px_3px_0_#191330] transition-transform hover:-translate-y-0.5"
+          className="rx-plate flex items-center gap-2 bg-[#FFF6DF] py-1 pl-1.5 pr-3"
         >
           <AddressAvatar address={address} size={22} />
           <AddressLabel address={address} link={false} className="font-mono text-xs font-bold text-[#191330]" />
@@ -117,7 +117,8 @@ export function ConnectWalletButton() {
     <div ref={menuRef} className="relative">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="px-btn px-btn--pink px-btn--sm"
+        className="rx-btn rx-btn-pink"
+        style={{ minHeight: 48, padding: '0 20px', fontFamily: "'Pixelify Sans', 'Courier New', monospace", fontSize: 18, fontWeight: 700 }}
       >
         Connect<span className="hidden sm:inline"> wallet</span>
       </button>

@@ -1,264 +1,203 @@
-import type { CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
-import { TokenLogo } from '@/components/TokenLogo'
-import { PROPHET_X_URL } from '@/lib/social'
+import { PxSprite } from '@/retro/Sprite'
+import { boxerOrange, boxerPink, coinBlue, coinOrangeGrin, coinPinkGrin, coinPurple, logoCoin } from '@/retro/spriteData'
+import { Cloud, CREAM, GrassStrip, Hills, INK, NIGHT, PINK, RoadBand, RoadLane, SKY, Stars, YELLOW } from '@/retro/scene'
 
-// Retro arcade landing, structured after the approved 8-bit mock: sky hero,
-// night track, the two game modes on green, a three-step how-to, the token
-// band and an 18+ strip. Live game lists belong to /onchain/races and
-// /onchain/arenas - the landing sells the game, not the order book.
+// 1:1 port of the approved mock's landing (Main.dc.html), English copy,
+// wired to the app's routes. Every size, color and animation step comes
+// from the mock.
 
-function PixelCloud({ className, drift }: { className?: string; drift?: string }) {
-  return (
-    <svg
-      viewBox="0 0 44 18"
-      aria-hidden="true"
-      className={`px-art pointer-events-none ${className ?? ''}`}
-      style={{ animation: `px-cloud-drift ${drift ?? '28s'} ease-in-out infinite alternate` }}
-    >
-      <g fill="#ffffff">
-        <rect x="10" y="0" width="18" height="6" />
-        <rect x="2" y="6" width="34" height="6" />
-        <rect x="28" y="4" width="16" height="8" />
-      </g>
-      <rect x="2" y="12" width="42" height="4" fill="#d9eefb" />
-    </svg>
-  )
-}
-
-// Mock-style pixel coin: solid color, white eyes, a smile and little legs.
-const COIN_COLORS: Record<string, string> = {
-  TRUMP: '#f7a23b',
-  WIF: '#ff7bac',
-  SOL: '#8d7bf7',
-  PENGU: '#58a7f0',
-  POPCAT: '#4db6e8',
-  NVDAX: '#58c26e',
-}
-
-function PixelCoin({ symbol, size = 40, stride = '0.55s' }: { symbol: string; size?: number; stride?: string }) {
-  const color = COIN_COLORS[symbol.toUpperCase()] ?? '#f7a23b'
-  const eye = Math.max(4, Math.round(size * 0.16))
-  return (
-    <div className="relative flex flex-col items-center">
-      <span className="px-font absolute right-[calc(100%+6px)] top-0 whitespace-nowrap border-2 border-[#191330] bg-[#fbf3e2] px-1.5 py-1 text-[7px] text-[#191330]">
-        {symbol}
-      </span>
-      <div
-        className="relative rounded-full border-[3px] border-[#191330]"
-        style={{ width: size, height: size, background: color }}
-      >
-        <span className="absolute rounded-[1px] bg-white" style={{ width: eye, height: eye + 2, left: '22%', top: '28%' }} />
-        <span className="absolute rounded-[1px] bg-white" style={{ width: eye, height: eye + 2, right: '22%', top: '28%' }} />
-        <span className="absolute bg-[#191330]" style={{ width: 2, height: 3, left: 'calc(22% + 2px)', top: '38%' }} />
-        <span className="absolute bg-[#191330]" style={{ width: 2, height: 3, right: 'calc(22% + 2px)', top: '38%' }} />
-        <span
-          className="absolute rounded-b-full border-b-2 border-[#191330]"
-          style={{ width: size * 0.3, height: size * 0.14, left: '35%', bottom: '22%' }}
-        />
-      </div>
-      <div className="flex gap-1.5">
-        <span className="h-2 w-[3px] bg-[#191330]" style={{ animation: `hero-leg ${stride} linear infinite` }} />
-        <span className="h-2 w-[3px] bg-[#191330]" style={{ animation: `hero-leg ${stride} linear infinite`, animationDelay: `calc(${stride} / -2)` }} />
-      </div>
-    </div>
-  )
-}
-
-// Each runner crosses the whole strip on its own lap time, so the order
-// keeps changing; depth grows toward the near lanes.
-const TRACK_RUNNERS = [
-  { symbol: 'TRUMP', top: '4%', lap: '13s', delay: '-4s', size: 34, stride: '0.5s' },
-  { symbol: 'WIF', top: '27%', lap: '16.5s', delay: '-10s', size: 38, stride: '0.56s' },
-  { symbol: 'SOL', top: '49%', lap: '11.5s', delay: '-2s', size: 42, stride: '0.47s' },
-  { symbol: 'PENGU', top: '70%', lap: '14.5s', delay: '-8s', size: 46, stride: '0.53s' },
-]
-
-function TrackRunner({ symbol, top, lap, delay, size, stride }: (typeof TRACK_RUNNERS)[number]) {
-  return (
-    <div className="track-runner" style={{ top, '--lap': lap, '--lap-delay': delay } as CSSProperties}>
-      <div style={{ animation: `hero-run ${stride} ease-in-out infinite` }}>
-        <PixelCoin symbol={symbol} size={size} stride={stride} />
-      </div>
-    </div>
-  )
-}
+const PIXEL = "'Press Start 2P', 'Courier New', monospace"
 
 const STEPS = [
-  ['Connect a wallet', 'A Solana wallet and a little SOL for the stake. One transaction per bet, no sign-ups.'],
-  ['Pick your coin', 'Back the favorite in a race, or call the exact finish price in the arena.'],
-  ['Collect the win', 'Your pick came through? Claim your share of the bank straight to the wallet.'],
+  ['Connect a wallet', 'You need a Solana wallet and some SOL to stake.'],
+  ['Pick your coin', 'Back the favorite in a race or a fighter in the arena.'],
+  ['Claim your win', 'Your coin won? Take your share of the bank.'],
 ] as const
 
 export function OnchainLandingPage() {
   return (
-    <div className="retro">
-      {/* -------------------------------------------------------- hero */}
-      <section className="relative overflow-hidden border-b-[3px] border-[#191330] bg-[#6bcbf4]">
-        <PixelCloud className="absolute left-[6%] top-[14%] w-28 opacity-95" drift="26s" />
-        <PixelCloud className="absolute right-[10%] top-[24%] w-20 opacity-90" drift="34s" />
-        <PixelCloud className="absolute left-[30%] top-[62%] w-16 opacity-80" drift="22s" />
+    <div style={{ fontFamily: "'Pixelify Sans', 'Courier New', monospace", color: INK, background: SKY, overflow: 'hidden' }}>
+      {/* ------------------------------------------------------- hero */}
+      <header
+        style={{
+          position: 'relative',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: 24,
+          padding: '56px clamp(16px, 4vw, 64px) 0',
+          textAlign: 'center',
+        }}
+      >
+        <Cloud width={140} duration="7s" style={{ top: 36, left: '6%' }} />
+        <Cloud width={112} duration="9s" style={{ top: 150, right: '7%' }} />
+        <Cloud width={84} duration="11s" style={{ top: 330, left: '16%' }} />
 
-        <div className="relative mx-auto max-w-[1100px] px-4 pt-16 text-center sm:pt-24">
-          <span className="px-chip bg-[#fbf3e2]">On Solana</span>
-          <h1 className="px-font mx-auto mt-9 max-w-4xl text-[22px] leading-[1.7] sm:text-4xl sm:leading-[1.6]">
-            <span className="text-[#ffd23f]" style={{ textShadow: '4px 4px 0 #191330' }}>Coin races</span>
-            <br />
-            <span className="text-[#ff4f8b]" style={{ textShadow: '4px 4px 0 #191330' }}>& arena fights</span>
-          </h1>
-          <p className="mx-auto mt-7 max-w-xl text-base font-extrabold leading-relaxed text-[#191330]/80 sm:text-lg">
-            Pick a coin, back it with SOL and watch it sprint to the finish. The strongest price move takes the bank.
-          </p>
-
-          <div className="mt-10 flex flex-wrap items-center justify-center gap-6">
-            <Link to="/onchain/races" className="px-btn">Play</Link>
-            <a href="#how-to-play" className="px-font border-b-[3px] border-[#191330] pb-1 text-[10px] text-[#191330] transition-colors hover:text-[#ff4f8b]">
-              How it works
-            </a>
-          </div>
-
-          <div className="h-16 sm:h-20" />
+        <span className="rx-plate" style={{ position: 'relative', fontFamily: PIXEL, fontSize: 12, lineHeight: 1, background: CREAM, padding: '12px 14px' }}>
+          ON SOLANA
+        </span>
+        <h1 style={{ position: 'relative', margin: 0, fontFamily: PIXEL, fontSize: 'clamp(20px, 3.4vw, 48px)', fontWeight: 400, lineHeight: 1.5 }}>
+          <span style={{ display: 'block', textShadow: `4px 4px 0 ${YELLOW}` }}>COIN RACES</span>
+          <span style={{ display: 'block', textShadow: `4px 4px 0 ${PINK}` }}>& ARENA FIGHTS</span>
+        </h1>
+        <p style={{ position: 'relative', margin: 0, maxWidth: 640, fontSize: 'clamp(18px, 1.6vw, 22px)', lineHeight: 1.4, fontWeight: 500, textWrap: 'pretty' }}>
+          Pick a coin, bet on it and watch it tear toward the finish. Whoever grows the most in price wins.
+        </p>
+        <div style={{ position: 'relative', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: '12px 24px' }}>
+          <Link to="/onchain/races" className="rx-btn rx-btn-yellow" style={{ minHeight: 64, padding: '0 40px', fontFamily: PIXEL, fontSize: 20 }}>
+            PLAY
+          </Link>
+          <a
+            href="#how"
+            style={{ display: 'inline-flex', alignItems: 'center', minHeight: 44, padding: '0 8px', fontSize: 22, fontWeight: 700, textDecoration: 'underline', textUnderlineOffset: 6 }}
+          >
+            How it works
+          </a>
         </div>
 
-        <div className="px-bushes h-14" />
-      </section>
-
-      {/* ------------------------------------------------- night track */}
-      <section className="relative overflow-hidden border-b-[3px] border-[#191330] bg-[#3f3474]">
-        <div className="pointer-events-none absolute inset-x-0 top-0 h-2 bg-[#191330]/50" />
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-2 bg-[#191330]/50" />
-        <div className="relative h-56 sm:h-64">
-          {/* Lane markings slide left: the road moves even between overtakes. */}
-          {['24%', '47%', '70%', '92%'].map((top, index) => (
-            <div key={top} className="track-lane-line" style={{ top, animationDelay: `${index * -0.2}s` }} />
-          ))}
-          <div className="track-finish px-checker absolute bottom-0 right-10 top-0 z-10 w-11 border-x-[3px] border-[#191330] sm:right-20" style={{ backgroundSize: '22px 22px' }} />
-          {TRACK_RUNNERS.map((runner) => (
-            <TrackRunner key={runner.symbol} {...runner} />
-          ))}
+        {/* Hills, grass and the four-lane road. */}
+        <div aria-hidden="true" style={{ alignSelf: 'stretch', margin: '32px calc(clamp(16px, 4vw, 64px) * -1) 0', position: 'relative' }}>
+          <Hills />
+          <GrassStrip height={20} top />
+          <RoadBand>
+            <RoadLane height={76} coinSprite={coinOrangeGrin} x={70} label="BONK" blinkDelay="0s" />
+            <RoadLane height={76} coinSprite={coinPinkGrin} x={55} label="WIF" blinkDelay="0.25s" />
+            <RoadLane height={76} coinSprite={coinPurple} x={62} label="SOL" blinkDelay="0.1s" />
+            <RoadLane height={76} coinSprite={coinBlue} x={38} label="POPCAT" blinkDelay="0.35s" />
+          </RoadBand>
+          <GrassStrip height={28} />
         </div>
-      </section>
+      </header>
 
-      {/* --------------------------------------------------- two modes */}
-      <section className="border-b-[3px] border-[#191330] bg-[#58c26e]">
-        <div className="mx-auto max-w-[1100px] px-4 py-14 sm:py-16">
-          <h2 className="px-font text-center text-lg sm:text-2xl" style={{ textShadow: '3px 3px 0 rgba(25,19,48,0.25)' }}>
-            Two modes
+      {/* -------------------------------------------------- two modes */}
+      <section style={{ background: '#58D36B', padding: '72px clamp(16px, 4vw, 64px) 88px' }}>
+        <div style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 40 }}>
+          <h2 style={{ margin: 0, fontFamily: PIXEL, fontSize: 'clamp(20px, 2.4vw, 32px)', fontWeight: 400, lineHeight: 1.4, textAlign: 'center', textShadow: '4px 4px 0 #8BE89A' }}>
+            TWO MODES
           </h2>
-
-          <div className="mt-10 grid gap-8 md:grid-cols-2">
-            {/* Races */}
-            <article className="flex flex-col border-[3px] border-[#191330] bg-[#fbf3e2] shadow-[8px_8px_0_#191330]">
-              <div className="relative h-40 overflow-hidden border-b-[3px] border-[#191330]">
-                <div className="absolute inset-x-0 top-0 h-[38%] bg-[#8ddaf8]">
-                  <PixelCloud className="absolute left-[12%] top-[18%] w-12" drift="20s" />
-                  <PixelCloud className="absolute right-[18%] top-[40%] w-9" drift="30s" />
-                </div>
-                <div className="absolute inset-x-0 bottom-0 h-[62%] bg-[#3f3474]">
-                  <div className="track-lane-line" style={{ top: '38%' }} />
-                  <div className="track-lane-line" style={{ top: '78%', animationDelay: '-0.3s' }} />
-                  <div className="px-checker absolute bottom-0 right-4 top-0 w-6 border-x-2 border-[#191330]" />
-                  <div className="track-runner" style={{ top: '4%', '--lap': '7.5s', '--lap-delay': '-2.5s' } as CSSProperties}>
-                    <PixelCoin symbol="WIF" size={26} stride="0.5s" />
-                  </div>
-                  <div className="track-runner" style={{ top: '42%', '--lap': '9.5s', '--lap-delay': '-6s' } as CSSProperties}>
-                    <PixelCoin symbol="SOL" size={26} stride="0.56s" />
-                  </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(420px, 100%), 1fr))', gap: 40 }}>
+            {/* Races card */}
+            <article className="rx-raised" style={{ display: 'flex', flexDirection: 'column', background: CREAM }}>
+              <div aria-hidden="true" style={{ position: 'relative', height: 220, background: SKY, overflow: 'hidden', borderBottom: `4px solid ${INK}` }}>
+                <Cloud width={84} duration="8s" style={{ top: 22, left: '10%' }} />
+                <Cloud width={56} duration="10s" style={{ top: 44, right: '14%' }} />
+                <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, background: '#4A3F78', borderTop: `4px solid ${INK}` }}>
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      bottom: 0,
+                      right: '10%',
+                      width: 24,
+                      background: `repeating-conic-gradient(${INK} 0% 25%, ${CREAM} 0% 50%) 0 0 / 24px 24px`,
+                    }}
+                  />
+                  <RoadLane height={64} coinSprite={coinOrangeGrin} coinWidth={48} x={60} blinkDelay="0s" coinTop={6} />
+                  <RoadLane height={64} coinSprite={coinPurple} coinWidth={48} x={36} blinkDelay="0.25s" coinTop={6} />
                 </div>
               </div>
-              <div className="flex flex-1 flex-col p-6">
-                <h3 className="px-font text-sm">Races</h3>
-                <p className="mt-3 flex-1 text-sm font-bold leading-relaxed text-[#191330]/70">
-                  Several coins start at once. The one whose price climbs hardest over the window takes the lap - and
-                  its backers split the bank.
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 14, padding: 28 }}>
+                <h3 style={{ margin: 0, fontFamily: PIXEL, fontSize: 24, fontWeight: 400, lineHeight: 1.3 }}>RACES</h3>
+                <p style={{ margin: 0, fontSize: 20, lineHeight: 1.4, fontWeight: 500, textWrap: 'pretty' }}>
+                  Several coins start at once. The one whose price grows the most during the run takes the win.
                 </p>
-                <Link to="/onchain/races" className="px-btn px-btn--sm mt-6 self-start">To the start</Link>
+                <Link to="/onchain/races" className="rx-btn rx-btn-yellow" style={{ minHeight: 56, padding: '0 28px', fontFamily: PIXEL, fontSize: 16 }}>
+                  TO THE START
+                </Link>
               </div>
             </article>
 
-            {/* Arena */}
-            <article className="flex flex-col border-[3px] border-[#191330] bg-[#fbf3e2] shadow-[8px_8px_0_#191330]">
-              <div className="relative h-40 overflow-hidden border-b-[3px] border-[#191330] bg-[#2b2452]">
-                {[['14%', '22%'], ['80%', '16%'], ['68%', '58%'], ['26%', '64%'], ['50%', '12%']].map(([left, top], index) => (
-                  <span key={index} className="absolute h-1 w-1 bg-white/60" style={{ left, top }} />
-                ))}
-                <div className="absolute inset-x-0 top-1/2 flex -translate-y-1/2 items-center justify-center gap-6">
-                  <div className="h-14 w-14 overflow-hidden rounded-full border-[3px] border-[#191330] bg-white">
-                    <TokenLogo ticker="NVDAx" className="h-full w-full" />
+            {/* Arena card */}
+            <article className="rx-raised" style={{ display: 'flex', flexDirection: 'column', background: CREAM }}>
+              <div aria-hidden="true" style={{ position: 'relative', height: 220, background: NIGHT, overflow: 'hidden', borderBottom: `4px solid ${INK}` }}>
+                <Stars
+                  stars={[
+                    ['8%', 24, 4, 1.3],
+                    ['21%', 58, 8, 1.9],
+                    ['37%', 18, 4, 1.1],
+                    ['63%', 30, 8, 1.7],
+                    ['78%', 62, 4, 1.4],
+                    ['91%', 22, 4, 2.1],
+                  ]}
+                />
+                <div style={{ position: 'absolute', left: 0, right: 0, bottom: 40, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: 28 }}>
+                  <div style={{ animation: 'rx-bob 0.6s steps(1) infinite' }}>
+                    <PxSprite data={boxerOrange} width={114} height={102} />
                   </div>
-                  <span className="px-font text-base text-[#ffd23f]" style={{ textShadow: '3px 3px 0 #191330' }}>VS</span>
-                  <div className="px-font grid h-14 w-16 place-items-center border-[3px] border-[#191330] bg-[#fbf3e2] text-[11px] text-[#191330]">
-                    $&thinsp;?
+                  <span style={{ alignSelf: 'center', fontFamily: PIXEL, fontSize: 32, color: YELLOW, textShadow: '4px 4px 0 #C2245A' }}>VS</span>
+                  <div style={{ animation: 'rx-bob 0.6s steps(1) 0.3s infinite' }}>
+                    <PxSprite data={boxerPink} width={114} height={102} flip />
                   </div>
                 </div>
                 <div
-                  className="absolute inset-x-0 bottom-0 h-6 border-t-[3px] border-[#191330] bg-[#c22957]"
-                  style={{ backgroundImage: 'repeating-linear-gradient(90deg, transparent 0 22px, rgba(25,19,48,0.45) 22px 25px)' }}
+                  style={{
+                    position: 'absolute',
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    height: 40,
+                    boxSizing: 'border-box',
+                    background: '#C2245A',
+                    backgroundImage: 'repeating-linear-gradient(90deg, rgba(27, 19, 64, 0.4) 0 4px, transparent 4px 56px)',
+                    borderTop: `4px solid ${INK}`,
+                  }}
                 />
               </div>
-              <div className="flex flex-1 flex-col p-6">
-                <h3 className="px-font text-sm">Arena</h3>
-                <p className="mt-3 flex-1 text-sm font-bold leading-relaxed text-[#191330]/70">
-                  One coin, one round, up to ten players. Call the exact finish price - the closest forecasts take the
-                  losing half's bank.
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 14, padding: 28 }}>
+                <h3 style={{ margin: 0, fontFamily: PIXEL, fontSize: 24, fontWeight: 400, lineHeight: 1.3 }}>ARENA</h3>
+                <p style={{ margin: 0, fontSize: 20, lineHeight: 1.4, fontWeight: 500, textWrap: 'pretty' }}>
+                  One coin, one round. Call the final price - the closest call takes the bank.
                 </p>
-                <Link to="/onchain/arenas" className="px-btn px-btn--pink px-btn--sm mt-6 self-start">Into the fight</Link>
+                <Link to="/onchain/arenas" className="rx-btn rx-btn-pink" style={{ minHeight: 56, padding: '0 28px', fontFamily: PIXEL, fontSize: 16 }}>
+                  INTO THE FIGHT
+                </Link>
               </div>
             </article>
           </div>
         </div>
       </section>
 
-      {/* -------------------------------------------------- how to play */}
-      <section id="how-to-play" className="border-b-[3px] border-[#191330] bg-[#fbf3e2]">
-        <div className="mx-auto max-w-[1100px] px-4 py-14 sm:py-16">
-          <h2 className="px-font text-center text-lg sm:text-2xl">How to play</h2>
-          <div className="mt-12 grid gap-10 sm:grid-cols-3">
+      {/* ------------------------------------------------ how to play */}
+      <section id="how" style={{ background: CREAM, padding: '72px clamp(16px, 4vw, 64px)' }}>
+        <div style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 40 }}>
+          <h2 style={{ margin: 0, fontFamily: PIXEL, fontSize: 'clamp(20px, 2.4vw, 32px)', fontWeight: 400, lineHeight: 1.4, textAlign: 'center', textShadow: `4px 4px 0 ${YELLOW}` }}>
+            HOW TO PLAY
+          </h2>
+          <ol style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(280px, 100%), 1fr))', gap: 40 }}>
             {STEPS.map(([title, body], index) => (
-              <div key={title}>
-                <span className="px-font grid h-11 w-11 place-items-center border-[3px] border-[#191330] bg-[#ff4f8b] text-sm text-[#fbf3e2] shadow-[3px_3px_0_#191330]">
+              <li key={title} style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 12 }}>
+                <span aria-hidden="true" className="rx-raised" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 64, height: 64, fontFamily: PIXEL, fontSize: 24, background: PINK }}>
                   {index + 1}
                 </span>
-                <h3 className="px-font mt-5 text-[11px]">{title}</h3>
-                <p className="mt-3 text-sm font-bold leading-relaxed text-[#191330]/65">{body}</p>
-              </div>
+                <h3 style={{ margin: '4px 0 0', fontSize: 26, fontWeight: 700, lineHeight: 1.2 }}>{title}</h3>
+                <p style={{ margin: 0, fontSize: 20, lineHeight: 1.4, fontWeight: 500, textWrap: 'pretty' }}>{body}</p>
+              </li>
             ))}
-          </div>
+          </ol>
         </div>
       </section>
 
-      {/* ------------------------------------------------------- token */}
-      <section className="border-b-[3px] border-[#191330] bg-[#ffd23f]">
-        <div className="mx-auto flex max-w-[1100px] flex-wrap items-center justify-between gap-8 px-4 py-12">
-          <div className="flex min-w-0 max-w-xl items-start gap-5">
-            <img src={`${import.meta.env.BASE_URL}brand/mascot-pixel.png`} alt="" className="px-art mt-1 h-14 w-14 shrink-0" />
-            <div className="min-w-0">
-              <h2 className="px-font text-sm sm:text-base">Token $PROPHET</h2>
-              <p className="mt-3 text-sm font-bold leading-relaxed text-[#191330]/70">
+      {/* ------------------------------------------------------ token */}
+      <section style={{ background: YELLOW, borderTop: `4px solid ${INK}`, padding: '56px clamp(16px, 4vw, 64px)' }}>
+        <div style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '32px 48px' }}>
+          <div style={{ flex: '1 1 420px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 24 }}>
+            <div style={{ animation: 'rx-bob 0.6s steps(1) infinite' }}>
+              <PxSprite data={logoCoin} width={96} height={102} />
+            </div>
+            <div style={{ flex: '1 1 280px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <h2 style={{ margin: 0, fontFamily: PIXEL, fontSize: 'clamp(18px, 2.2vw, 28px)', fontWeight: 400, lineHeight: 1.4 }}>TOKEN $PROPHET</h2>
+              <p style={{ margin: 0, maxWidth: 520, fontSize: 20, lineHeight: 1.4, fontWeight: 500, textWrap: 'pretty' }}>
                 Launching on pump.fun. Buyback and burn run through pump.fun and PumpSwap.
               </p>
             </div>
           </div>
-          <div className="flex w-full max-w-sm flex-col gap-3">
-            <div className="px-font border-[3px] border-[#191330] bg-[#fbf3e2] px-4 py-3.5 text-[9px] text-[#191330]/50">
-              Contract address · soon
+          <div style={{ flex: '0 1 380px', display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 16 }}>
+            <div className="rx-plate" style={{ fontFamily: PIXEL, fontSize: 12, lineHeight: 1.6, background: CREAM, padding: '16px 18px', overflowWrap: 'anywhere' }}>
+              [CONTRACT ADDRESS]
             </div>
-            <span className="px-btn px-btn--pink px-btn--sm pointer-events-none opacity-60">Buy on pump.fun · soon</span>
-          </div>
-        </div>
-      </section>
-
-      {/* --------------------------------------------------- 18+ strip */}
-      <section className="bg-[#221c40]">
-        <div className="mx-auto flex max-w-[1100px] flex-wrap items-center justify-between gap-4 px-4 py-5">
-          <div className="flex items-center gap-3">
-            <span className="px-font border-2 border-[#ff4f8b] bg-[#ff4f8b] px-1.5 py-1 text-[8px] text-[#fbf3e2]">18+</span>
-            <p className="text-xs font-bold text-[#fbf3e2]/70">Games with real money involve risk. Play responsibly.</p>
-          </div>
-          <div className="px-font flex items-center gap-5 text-[8px]">
-            <Link to="/terms" className="border-b-2 border-[#fbf3e2]/30 pb-0.5 text-[#fbf3e2]/70 hover:text-[#ffd23f]">Rules</Link>
-            <a href={PROPHET_X_URL} target="_blank" rel="noreferrer" className="border-b-2 border-[#fbf3e2]/30 pb-0.5 text-[#fbf3e2]/70 hover:text-[#ffd23f]">
-              X / Twitter
+            <a href="https://pump.fun" target="_blank" rel="noreferrer" className="rx-btn rx-btn-pink" style={{ minHeight: 56, padding: '0 28px', fontFamily: PIXEL, fontSize: 14 }}>
+              BUY ON PUMP.FUN
             </a>
           </div>
         </div>
