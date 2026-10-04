@@ -14,6 +14,7 @@
 //   GET  /wallet/<address>    one wallet's stakes and payouts
 //   GET  /nicknames           wallet -> nickname
 //   POST /deposit {signature} apply a stake right after it confirmed
+//   POST /cheer   {duel, seat}  a free cheer for a duel racer (rate-limited)
 //   POST /action  {message, signature}  a wallet-signed action (create a
 //        race or arena, add a lobby asset, change a prediction, nickname)
 //
@@ -128,10 +129,11 @@ async function refreshSolvency() {
 
 // A few writes per minute per address is plenty for a player.
 const buckets = new Map()
-function allowWrite(ip) {
+/** `perMinute` writes a minute per key (an address, or cheer:<address>). */
+function allowWrite(ip, perMinute = 30) {
   const now = Date.now()
-  const bucket = buckets.get(ip) ?? { tokens: 30, at: now }
-  bucket.tokens = Math.min(30, bucket.tokens + ((now - bucket.at) / 60_000) * 30)
+  const bucket = buckets.get(ip) ?? { tokens: perMinute, at: now }
+  bucket.tokens = Math.min(perMinute, bucket.tokens + ((now - bucket.at) / 60_000) * perMinute)
   bucket.at = now
   buckets.set(ip, bucket)
   if (bucket.tokens < 1) return false
@@ -191,10 +193,11 @@ createServer(async (req, res) => {
             now: Math.floor(Date.now() / 1000),
             races: all.filter((g) => g.kind === 'race').map((g) => gameView(db, g)),
             arenas: all.filter((g) => g.kind === 'arena').map((g) => gameView(db, g)),
+            duels: all.filter((g) => g.kind === 'duel').map((g) => gameView(db, g)),
           }
         }))
       }
-      const game = /^\/games\/(race|arena)\/(\d+)$/.exec(path)
+      const game = /^\/games\/(race|arena|duel)\/(\d+)$/.exec(path)
       if (game) {
         const state = db.getGame(game[1], Number(game[2]))
         return state ? send(req, res, 200, gameView(db, state)) : send(req, res, 404, { error: 'GameNotFound' })
@@ -206,7 +209,17 @@ createServer(async (req, res) => {
       return send(req, res, 404, { error: 'NotFound' })
     }
     if (req.method === 'POST') {
-      if (!allowWrite(req.socket.remoteAddress ?? '')) return send(req, res, 429, { error: 'TooManyRequests' })
+      // Behind nginx every request comes from 127.0.0.1; the visitor is in X-Forwarded-For.
+      const remote = req.socket.remoteAddress ?? ''
+      const ip = /^(::ffff:)?127\.0\.0\.1$|^::1$/.test(remote) ? String(req.headers['x-forwarded-for'] ?? remote).split(',')[0].trim() : remote
+      if (path === '/cheer') {
+        if (!allowWrite(`cheer:${ip}`, 300)) return send(req, res, 429, { error: 'TooManyRequests' })
+        const body = await readBody(req)
+        const cheers = engine.cheer(Number(body.duel), Number(body.seat))
+        invalidate()
+        return send(req, res, 200, { cheers })
+      }
+      if (!allowWrite(ip)) return send(req, res, 429, { error: 'TooManyRequests' })
       const body = await readBody(req)
       if (path === '/deposit') {
         if (typeof body.signature !== 'string' || !/^[1-9A-HJ-NP-Za-km-z]{64,90}$/.test(body.signature)) throw new RuleError('BadSignature')

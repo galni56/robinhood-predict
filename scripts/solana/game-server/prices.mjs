@@ -5,6 +5,12 @@
 
 export function createPriceClient(baseUrl, tag) {
   return {
+    /** Display SOL/USD (for the duel spectator cap; never for settlement). */
+    async solUsd() {
+      const body = await (await fetch(`${baseUrl}/prices`, { signal: AbortSignal.timeout(10_000) })).json()
+      const sol = body.prices?.SOL
+      return sol ? { raw: BigInt(sol.raw), decimals: sol.decimals } : null
+    },
     async boundary(target, sources) {
       const url = `${baseUrl}/attestation?program=${tag}&target=${target}&sources=${sources.join(',')}`
       const response = await fetch(url, { signal: AbortSignal.timeout(20_000) })

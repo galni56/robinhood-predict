@@ -574,6 +574,8 @@ export function arenaSettlements(arena) {
 // names its purpose:
 //   prophet:race:<raceId>:<assetIndex>
 //   prophet:arena:<arenaId>:<prediction>   (prediction 0 = keep, top-up only)
+//   prophet:duel:<duelId>:0                (a racer pays the stake)
+//   prophet:duel:<duelId>:<seat>           (a spectator backs that racer)
 export const MEMO_PREFIX = 'prophet'
 
 export function parseStakeMemo(text) {
@@ -583,8 +585,12 @@ export function parseStakeMemo(text) {
   if (!/^\d{1,12}$/.test(id) || !/^\d{1,30}$/.test(arg)) return null
   if (kind === 'race') return { kind, id: Number(id), assetIndex: Number(arg) }
   if (kind === 'arena') return { kind, id: Number(id), prediction: BigInt(arg) }
+  // Duels: 0 pays the racer's stake, a seat number backs that racer.
+  if (kind === 'duel') return { kind, id: Number(id), seat: Number(arg) }
   return null
 }
+
+export const duelMemo = (duelId, seat = 0) => `${MEMO_PREFIX}:duel:${duelId}:${seat}`
 
 export const raceMemo = (raceId, assetIndex) => `${MEMO_PREFIX}:race:${raceId}:${assetIndex}`
 export const arenaMemo = (arenaId, prediction) => `${MEMO_PREFIX}:arena:${arenaId}:${prediction}`
