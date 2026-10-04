@@ -368,6 +368,7 @@ async function attestation({ program, target, sources }) {
   return {
     target,
     prevSlot: prev.slot,
+    prevBlockTime: prev.blockTime,
     nextSlot: next.slot,
     nextBlockTime: next.blockTime,
     entries: entries.map((e) => ({ ...e, price: e.price.toString() })),

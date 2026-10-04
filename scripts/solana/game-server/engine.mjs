@@ -1,0 +1,606 @@
+// The game server's engine: turns SOL that reaches the game wallet into
+// bets and arena entries, runs every game through its timers with boundary
+// prices from the price service, and pays winners, refunds and creator fees
+// from the game wallet.
+//
+// Money rules:
+// - A stake is a top-level System transfer to the game wallet with one
+//   `prophet:` memo (rules.mjs). Each transaction signature is applied once.
+// - Anything that cannot be applied (late, wrong game, over the limit, no
+//   memo...) is refunded to the sender, minus nothing, when it is at least
+//   MIN_REFUND; smaller dust is kept so nobody can make us pay fees in a loop.
+// - Every transfer we owe is first written to the payouts outbox. It is
+//   signed, its signature and blockhash expiry are stored, and only then is
+//   it broadcast. A stored transaction is only rebuilt once its blockhash has
+//   expired without it landing, so a crash or a lost send never pays twice.
+// - Everything beyond what players are owed (Prophet's fees) can be swept to
+//   the owner's cold wallet, so the hot wallet holds as little as possible.
+// - Top-ups of the game wallet itself (fee money) come from the cold wallet
+//   or the admin, or carry the memo `prophet:fund`; they are never refunded.
+
+import { createPublicKey, verify } from 'node:crypto'
+import {
+  ARENA,
+  COMMUNITY_RACE_DURATIONS,
+  RACE,
+  RuleError,
+  STAKE,
+  addLobbyAsset,
+  arenaDeposit,
+  arenaNeedsResolve,
+  arenaSettlements,
+  arenaTimers,
+  changePrediction,
+  createArena,
+  createCommunityRace,
+  createPlatformRace,
+  parseStakeMemo,
+  placeBet,
+  raceActiveCount,
+  raceNeedsResolve,
+  raceNeedsStart,
+  raceSettlements,
+  raceTimers,
+  resolveArena,
+  resolveRace,
+  startRace,
+} from './rules.mjs'
+import { BASE_FEE, RENT_EXEMPT_MINIMUM, fromBase58, isAddress } from './chain.mjs'
+import { FINAL_STATUSES } from './db.mjs'
+
+const LAMPORTS_PER_SOL = 1_000_000_000n
+
+export const DEFAULTS = {
+  /** Wait this long past a boundary for late-confirming stakes to show up. */
+  settleDelay: 6,
+  /** Smaller unusable deposits are kept instead of refunded. */
+  minRefund: LAMPORTS_PER_SOL / 1_000n,
+  /** Creator fees are sent once they reach this (must exceed rent exemption). */
+  creatorPayoutMin: LAMPORTS_PER_SOL / 1_000n,
+  /** Kept in the hot wallet above what is owed, for transaction fees. */
+  reserve: LAMPORTS_PER_SOL / 50n,
+  /** Sweep surplus to the cold wallet once it reaches this. */
+  sweepMin: LAMPORTS_PER_SOL / 10n,
+  sweepEverySeconds: 3_600,
+  /** Signed actions must be this fresh. */
+  messageMaxAge: 300,
+  maxOpenGamesPerWallet: 3,
+  maxOpenCommunityGames: 50,
+  maxPayoutAttempts: 6,
+  rebroadcastEverySeconds: 8,
+  arenaLobbyDuration: ARENA.lobbyDuration,
+}
+
+const ED25519_SPKI_PREFIX = Buffer.from('302a300506032b6570032100', 'hex')
+
+/** Verifies a wallet's ed25519 signature over `message` (UTF-8). */
+export function verifyWalletSignature(wallet, message, signatureBase64) {
+  const key = createPublicKey({ key: Buffer.concat([ED25519_SPKI_PREFIX, Buffer.from(fromBase58(wallet))]), format: 'der', type: 'spki' })
+  const signature = Buffer.from(signatureBase64, 'base64')
+  return signature.length === 64 && verify(null, Buffer.from(message, 'utf8'), key, signature)
+}
+
+/** Catalog assets (config/solana-assets.json) the games may use. */
+export function catalogAssets(catalog) {
+  return catalog.assets
+    .filter((a) => a.approved !== false)
+    .map((a) => ({
+      symbol: a.symbol,
+      name: a.name,
+      category: a.category.toLowerCase(),
+      priceSource: a.pool,
+      priceDecimals: a.priceDecimals,
+      enabled: true,
+    }))
+}
+
+/**
+ * @param {object} o
+ * @param {ReturnType<import('./db.mjs').openDatabase>} o.db
+ * @param {ReturnType<import('./chain.mjs').createChain>} o.chain
+ * @param {{ boundary(target: number, sources: string[]): Promise<{prevSlot:number, prevBlockTime:number, prices:Record<string,bigint>, decimals:Record<string,number>, attestation:object}> }} o.prices
+ * @param {ReturnType<typeof catalogAssets>} o.assets
+ * @param {string} o.cluster
+ * @param {string|null} [o.coldWallet] owner's wallet that receives swept surplus
+ * @param {string} [o.admin] wallet credited as creator of platform races
+ * @param {() => number} [o.clock] unix seconds
+ */
+export function createEngine({ db, chain, prices, assets, cluster, coldWallet = null, admin = null, clock, log = console, options = {} }) {
+  const opts = { ...DEFAULTS, ...options }
+  const now = clock ?? (() => Math.floor(Date.now() / 1000))
+  const assetBySymbol = new Map(assets.map((a) => [a.symbol, a]))
+  const platformCreator = admin ?? chain.address
+  const funders = new Set([coldWallet, admin].filter(Boolean))
+  let lastScan = { at: 0, pending: 0 }
+  let lastSweepCheck = 0
+  const lastBroadcast = new Map()
+
+  // ------------------------------------------------------------ deposits
+
+  const inflight = new Map()
+
+  /** Applies one transaction that touched the game wallet (idempotent). */
+  function ingest(signature) {
+    if (!inflight.has(signature)) {
+      inflight.set(signature, ingestOnce(signature).finally(() => inflight.delete(signature)))
+    }
+    return inflight.get(signature)
+  }
+
+  async function ingestOnce(signature) {
+    const known = db.getDeposit(signature)
+    if (known) return describeDeposit(known)
+    const tx = await chain.readTransaction(signature)
+    if (!tx) return { signature, status: 'pending' }
+    return db.transaction(() => {
+      const raced = db.getDeposit(signature)
+      if (raced) return describeDeposit(raced)
+      applyTransaction(signature, tx)
+      return describeDeposit(db.getDeposit(signature))
+    })
+  }
+
+  function applyTransaction(signature, tx) {
+    const base = { signature, slot: tx.slot, blockTime: tx.blockTime }
+    if (tx.failed) return db.putDeposit({ ...base, status: 'ignored', reason: 'failed' })
+    if (tx.inbound.length === 0) {
+      if (tx.outbound.length > 0) return db.putDeposit({ ...base, status: 'outgoing' })
+      const unmatched = tx.innerInbound.length > 0 || tx.balanceDelta > 0n
+      if (unmatched) log.warn(`deposit ${signature}: SOL arrived outside a plain transfer; needs a manual look`)
+      return db.putDeposit({ ...base, status: unmatched ? 'unmatched' : 'ignored', amount: tx.balanceDelta > 0n ? tx.balanceDelta : null })
+    }
+    const stakeMemos = tx.memos.filter((m) => m.trim().startsWith('prophet:'))
+    const funding = stakeMemos.length === 0 ? tx.inbound.every((t) => funders.has(t.from)) : stakeMemos.length === 1 && stakeMemos[0].trim() === 'prophet:fund'
+    if (funding) {
+      const total = tx.inbound.reduce((sum, t) => sum + t.lamports, 0n)
+      log.log(`game wallet funded with ${total} lamports by ${tx.inbound[0].from}`)
+      return db.putDeposit({ ...base, wallet: tx.inbound[0].from, amount: total, memo: stakeMemos[0] ?? null, status: 'funding' })
+    }
+    const memo = stakeMemos.length === 1 ? parseStakeMemo(stakeMemos[0]) : null
+    if (tx.inbound.length !== 1 || !memo || tx.blockTime == null) {
+      const reason = tx.inbound.length !== 1 ? 'MultipleTransfers' : tx.blockTime == null ? 'NoBlockTime' : 'NoStakeMemo'
+      tx.inbound.forEach((t, i) => refundDeposit(`${signature}:${i}`, t.from, t.lamports))
+      const total = tx.inbound.reduce((sum, t) => sum + t.lamports, 0n)
+      return db.putDeposit({ ...base, wallet: tx.inbound[0].from, amount: total, memo: stakeMemos.join(' | ') || null, status: 'refunded', reason })
+    }
+    const [transfer] = tx.inbound
+    const record = { ...base, wallet: transfer.from, amount: transfer.lamports, memo: stakeMemos[0], gameKind: memo.kind, gameId: memo.id }
+    try {
+      applyStake(memo, { wallet: transfer.from, amount: transfer.lamports, time: tx.blockTime })
+      db.putDeposit({ ...record, status: 'accepted' })
+    } catch (error) {
+      if (!(error instanceof RuleError)) throw error
+      const refunded = refundDeposit(signature, transfer.from, transfer.lamports)
+      db.putDeposit({ ...record, status: refunded ? 'refunded' : 'kept', reason: error.code })
+    }
+  }
+
+  function refundDeposit(key, wallet, amount) {
+    if (amount < opts.minRefund) return false
+    return db.addPayout({ key: `deposit:${key}`, kind: 'refund', wallet, amount })
+  }
+
+  function applyStake(memo, stake) {
+    const game = db.getGame(memo.kind, memo.id)
+    if (!game) throw new RuleError('GameNotFound')
+    if (memo.kind === 'race') placeBet(game, { ...stake, assetIndex: memo.assetIndex })
+    else arenaDeposit(game, { ...stake, prediction: memo.prediction })
+    db.saveGame(game)
+  }
+
+  function describeDeposit(row) {
+    return {
+      signature: row.signature,
+      status: row.status,
+      reason: row.reason,
+      wallet: row.wallet,
+      amount: row.amount,
+      game: row.game_kind ? { kind: row.game_kind, id: row.game_id } : null,
+      refund: row.status === 'refunded' ? 'queued' : null,
+    }
+  }
+
+  /**
+   * First start on a wallet: whatever it did before belongs to no game, so
+   * its history is recorded as pre-existing instead of being refunded.
+   */
+  async function init() {
+    // One database belongs to one game wallet: what it says we owe is only
+    // true for the wallet that took the stakes.
+    const owner = db.getMeta('game_wallet')
+    if (owner && owner !== chain.address) throw new Error(`this database belongs to game wallet ${owner}, not ${chain.address}`)
+    if (!owner) db.setMeta('game_wallet', chain.address)
+    if (db.getMeta('initialized')) return
+    let before
+    let count = 0
+    for (;;) {
+      const signatures = await chain.signatures(before)
+      db.transaction(() => {
+        for (const { signature, slot, blockTime } of signatures) {
+          if (!db.getDeposit(signature)) db.putDeposit({ signature, slot, blockTime, status: 'preexisting' })
+        }
+      })
+      count += signatures.length
+      if (signatures.length < 1000) break
+      before = signatures[signatures.length - 1].signature
+    }
+    db.setMeta('initialized', now())
+    log.log(`game wallet history: ${count} earlier transaction(s) recorded as pre-existing`)
+  }
+
+  /**
+   * Catches every transaction that touched the game wallet, including stakes
+   * whose sender never told the API. Newest pages first until a fully known
+   * page, then applied oldest first.
+   */
+  async function scanDeposits() {
+    const fresh = []
+    let before
+    for (let page = 0; page < 20; page++) {
+      const signatures = await chain.signatures(before)
+      const unknown = signatures.filter((s) => !db.getDeposit(s.signature))
+      fresh.push(...unknown)
+      if (unknown.length === 0 || signatures.length < 1000) break
+      before = signatures[signatures.length - 1].signature
+    }
+    let pending = 0
+    for (const { signature } of fresh.reverse()) {
+      const result = await ingest(signature)
+      if (result.status === 'pending') pending++
+    }
+    lastScan = { at: now(), pending }
+    return { scanned: fresh.length, pending }
+  }
+
+  // -------------------------------------------------------------- games
+
+  /** Loads a game fresh, applies `fn`, saves it and queues what it now owes. */
+  function mutate(kind, id, fn) {
+    return db.transaction(() => {
+      const game = db.getGame(kind, id)
+      if (!game) throw new RuleError('GameNotFound')
+      const wasFinal = FINAL_STATUSES.has(game.status)
+      const result = fn(game)
+      db.saveGame(game)
+      if (!wasFinal && FINAL_STATUSES.has(game.status)) queueSettlements(game)
+      return result
+    })
+  }
+
+  function queueSettlements(game) {
+    const settlements = game.kind === 'race' ? raceSettlements(game) : arenaSettlements(game)
+    for (const s of settlements) {
+      db.addPayout({ key: `${game.kind}:${game.id}:${s.reason}:${s.wallet}`, kind: s.reason, wallet: s.wallet, amount: s.amount, gameKind: game.kind, gameId: game.id })
+    }
+    // Platform races credit Prophet; their creator half stays with the fees.
+    const creatorPaid = game.kind === 'arena' || game.origin === 'community'
+    if (game.status === 'resolved' && creatorPaid && game.creatorFee > 0n) {
+      const balance = db.creatorBalance(game.creator) + game.creatorFee
+      if (balance >= opts.creatorPayoutMin) {
+        db.addPayout({ key: `creator:${game.creator}:${game.kind}:${game.id}`, kind: 'creator', wallet: game.creator, amount: balance, gameKind: game.kind, gameId: game.id })
+        db.setCreatorBalance(game.creator, 0n)
+      } else {
+        db.setCreatorBalance(game.creator, balance)
+      }
+    }
+    log.log(`${game.kind} #${game.id}: ${game.status}${game.cancelReason && game.cancelReason !== 'none' ? ` (${game.cancelReason})` : ''}, ${settlements.length} payout(s) queued`)
+  }
+
+  /** Prices at a boundary, checked against what each asset expects. */
+  async function boundaryPrices(target, assetsNeeded) {
+    const result = await prices.boundary(target, [...new Set(assetsNeeded.map((a) => a.priceSource))])
+    for (const a of assetsNeeded) {
+      if (result.decimals[a.priceSource] !== a.priceDecimals) throw new Error(`price decimals changed for ${a.symbol}`)
+    }
+    return result
+  }
+
+  const attestationRecord = (b) => ({ prevSlot: b.prevSlot, prevBlockTime: b.prevBlockTime, ...b.attestation })
+
+  /** Every stake confirmed before `boundary` is visible once this is true. */
+  const settledPast = (boundary, t) => t >= boundary + opts.settleDelay && lastScan.at >= boundary + opts.settleDelay && lastScan.pending === 0
+
+  async function advanceRace(race, t) {
+    const { id } = race
+    if (race.status === 'lobby') {
+      if (t >= race.lobbyEndTime) mutate('race', id, (r) => raceTimers(r, t))
+      return
+    }
+    if (race.status === 'betting') {
+      if (!settledPast(race.bettingEndTime, t)) return
+      if (!raceNeedsStart(race, t) || raceActiveCount(race) < race.minActiveContenders) {
+        // Past the start window, or too few backed assets: cancel and refund.
+        mutate('race', id, (r) => raceTimers(r, t) ?? startRace(r, { prices: {}, prevSlot: 0, prevBlockTime: 0 }, t))
+        return
+      }
+      const active = race.assets.filter((a) => a.pool > 0n)
+      const b = await boundaryPrices(race.bettingEndTime, active)
+      mutate('race', id, (r) => {
+        if (!raceNeedsStart(r, t)) return null
+        r.startAttestation = attestationRecord(b)
+        return startRace(r, b, t)
+      })
+      return
+    }
+    if (race.status === 'running' && t >= race.raceEndTime) {
+      if (!raceNeedsResolve(race, t)) {
+        mutate('race', id, (r) => raceTimers(r, t))
+        return
+      }
+      const b = await boundaryPrices(race.raceEndTime, race.assets.filter((a) => a.active))
+      mutate('race', id, (r) => {
+        if (!raceNeedsResolve(r, t)) return null
+        r.endAttestation = attestationRecord(b)
+        return resolveRace(r, b, t)
+      })
+    }
+  }
+
+  async function advanceArena(arena, t) {
+    const { id } = arena
+    if (arena.status !== 'open') return
+    if (t >= arena.startsAt && arena.entries.length < ARENA.minParticipants) {
+      if (settledPast(arena.startsAt, t)) mutate('arena', id, (a) => arenaTimers(a, t))
+      return
+    }
+    if (t < arena.deadline) return
+    if (!arenaNeedsResolve(arena, t)) {
+      mutate('arena', id, (a) => arenaTimers(a, t))
+      return
+    }
+    const asset = { symbol: arena.symbol, priceSource: arena.priceSource, priceDecimals: arena.priceDecimals }
+    const b = await boundaryPrices(arena.deadline, [asset])
+    mutate('arena', id, (a) => {
+      if (!arenaNeedsResolve(a, t)) return null
+      a.finalAttestation = attestationRecord(b)
+      return resolveArena(a, { price: b.prices[a.priceSource], prevSlot: b.prevSlot, prevBlockTime: b.prevBlockTime }, t)
+    })
+  }
+
+  // ------------------------------------------------------------- payouts
+
+  async function processPayouts() {
+    const sent = db.payouts('sent')
+    if (sent.length > 0) {
+      const height = await chain.blockHeight()
+      for (let i = 0; i < sent.length; i += 200) {
+        const chunk = sent.slice(i, i + 200)
+        const statuses = await chain.statuses(chunk.map((p) => p.signature))
+        for (const [k, p] of chunk.entries()) {
+          const status = statuses[k]
+          const landed = status && (status.confirmationStatus === 'confirmed' || status.confirmationStatus === 'finalized')
+          if (landed && status.err == null) {
+            db.markDone(p.id)
+            lastBroadcast.delete(p.id)
+            log.log(`payout #${p.id} ${p.kind}: ${p.amount} lamports to ${p.wallet} done (${p.signature})`)
+          } else if (landed) {
+            // It landed and failed: no SOL moved, a new transaction is safe.
+            lastBroadcast.delete(p.id)
+            db.markRetry(p.id, p.attempts >= opts.maxPayoutAttempts ? 'stuck' : 'pending', JSON.stringify(status.err))
+            log.warn(`payout #${p.id} failed on chain: ${JSON.stringify(status.err)}`)
+          } else if (!status && height > p.last_valid_height) {
+            // Its blockhash expired unseen: it can never land now.
+            lastBroadcast.delete(p.id)
+            db.markRetry(p.id, p.attempts >= opts.maxPayoutAttempts ? 'stuck' : 'pending', 'expired before landing')
+          } else if (!status && (now() - (lastBroadcast.get(p.id) ?? 0)) >= opts.rebroadcastEverySeconds) {
+            lastBroadcast.set(p.id, now())
+            chain.broadcast(p.tx).catch((error) => log.warn(`payout #${p.id} rebroadcast: ${error.message.split('\n')[0]}`))
+          }
+        }
+      }
+    }
+
+    const pending = db.payouts('pending')
+    if (pending.length === 0) return
+    let balance = await chain.balance()
+    for (const p of pending) {
+      const amount = BigInt(p.amount)
+      if (balance - amount - BASE_FEE * 2n < RENT_EXEMPT_MINIMUM) {
+        log.warn(`payout #${p.id}: game wallet balance ${balance} is too low for ${amount}; waiting`)
+        break
+      }
+      const prepared = await chain.preparePayout({ to: p.wallet, lamports: amount, memo: `prophet:payout:${p.id}` })
+      if (!db.markSent(p.id, prepared.signature, prepared.lastValidBlockHeight, prepared.serialized)) continue
+      lastBroadcast.set(p.id, now())
+      try {
+        await chain.broadcast(prepared.serialized)
+      } catch (error) {
+        // Stays `sent`: it is retried only after its blockhash expires.
+        log.warn(`payout #${p.id} send: ${error.message.split('\n')[0]}`)
+      }
+      balance -= amount + BASE_FEE
+    }
+  }
+
+  /** What the game wallet owes: stakes in live games, queued payouts, creator balances. */
+  function liabilities() {
+    const live = db.liveGames().reduce((sum, g) => sum + g.remainingLiability, 0n)
+    return live + db.owedTotal() + db.creatorBalancesTotal()
+  }
+
+  async function solvency() {
+    const balance = await chain.balance()
+    const owed = liabilities()
+    return { balance, owed, surplus: balance - owed - RENT_EXEMPT_MINIMUM }
+  }
+
+  async function maybeSweep(t) {
+    if (!coldWallet || t - lastSweepCheck < opts.sweepEverySeconds) return
+    lastSweepCheck = t
+    const { surplus } = await solvency()
+    const amount = surplus - opts.reserve
+    if (amount >= opts.sweepMin) {
+      db.addPayout({ key: `sweep:${t}`, kind: 'sweep', wallet: coldWallet, amount })
+      log.log(`sweeping ${amount} lamports of surplus to the cold wallet`)
+    }
+  }
+
+  // ---------------------------------------------------------------- tick
+
+  let running = false
+  async function tick() {
+    if (running) return
+    running = true
+    try {
+      await scanDeposits()
+      const t = now()
+      for (const game of db.liveGames()) {
+        try {
+          if (game.kind === 'race') await advanceRace(game, t)
+          else await advanceArena(game, t)
+        } catch (error) {
+          log.warn(`${game.kind} #${game.id}: ${error.message}`)
+        }
+      }
+      await processPayouts()
+      await maybeSweep(t)
+    } finally {
+      running = false
+    }
+  }
+
+  // ------------------------------------------------------------- actions
+
+  const openGamesBy = (wallet) => db.liveGames().filter((g) => g.creator === wallet)
+  const openCommunityGames = () => db.liveGames().filter((g) => g.kind === 'arena' || g.origin === 'community')
+
+  function requireAsset(symbol) {
+    const asset = assetBySymbol.get(symbol)
+    if (!asset) throw new RuleError('AssetNotApproved')
+    return asset
+  }
+
+  function requireCreationRoom(wallet) {
+    if (openGamesBy(wallet).length >= opts.maxOpenGamesPerWallet) throw new RuleError('TooManyOpenGames')
+    if (openCommunityGames().length >= opts.maxOpenCommunityGames) throw new RuleError('TooManyOpenGames')
+  }
+
+  /**
+   * A wallet-signed action. `message` is "Prophet\n" + JSON with `action`,
+   * `wallet`, `cluster`, `issuedAt` and the action's fields; the signature is
+   * the wallet's signMessage over it (base64).
+   */
+  function act({ message, signature }) {
+    if (typeof message !== 'string' || !message.startsWith('Prophet\n')) throw new RuleError('BadMessage')
+    let payload
+    try {
+      payload = JSON.parse(message.slice('Prophet\n'.length))
+    } catch {
+      throw new RuleError('BadMessage')
+    }
+    const { action, wallet, issuedAt } = payload
+    if (!isAddress(wallet) || payload.cluster !== cluster) throw new RuleError('BadMessage')
+    if (!Number.isInteger(issuedAt) || Math.abs(now() - issuedAt) > opts.messageMaxAge) throw new RuleError('MessageExpired')
+    if (typeof signature !== 'string' || !verifyWalletSignature(wallet, message, signature)) throw new RuleError('BadSignature')
+    const t = now()
+    return db.transaction(() => {
+      try {
+        db.useMessage(signature, wallet)
+      } catch {
+        throw new RuleError('MessageReused')
+      }
+      switch (action) {
+        case 'create-race': {
+          requireCreationRoom(wallet)
+          const symbols = Array.isArray(payload.assets) ? payload.assets : []
+          const race = createCommunityRace(db.nextId('race'), {
+            title: payload.title, category: payload.category, creator: wallet, raceDuration: payload.duration,
+          }, symbols.map(requireAsset), t)
+          db.saveGame(race)
+          return { kind: 'race', id: race.id }
+        }
+        case 'add-lobby-asset':
+          mutate('race', Number(payload.race), (r) => addLobbyAsset(r, wallet, requireAsset(payload.asset), t))
+          return { kind: 'race', id: Number(payload.race) }
+        case 'create-arena': {
+          requireCreationRoom(wallet)
+          const arena = createArena(db.nextId('arena'), { title: payload.title, creator: wallet, duration: payload.duration }, requireAsset(payload.asset), t, opts.arenaLobbyDuration)
+          db.saveGame(arena)
+          return { kind: 'arena', id: arena.id }
+        }
+        case 'change-prediction': {
+          if (!/^\d{1,30}$/.test(String(payload.prediction))) throw new RuleError('InvalidPrediction')
+          mutate('arena', Number(payload.arena), (a) => changePrediction(a, { wallet, prediction: BigInt(payload.prediction), time: t }))
+          return { kind: 'arena', id: Number(payload.arena) }
+        }
+        case 'set-nickname': {
+          const nickname = String(payload.nickname ?? '').trim()
+          const bytes = Buffer.byteLength(nickname, 'utf8')
+          if (bytes === 0 || bytes > 24 || /[\u0000-\u001f\u007f]/.test(nickname)) throw new RuleError('InvalidNickname')
+          const owner = db.nicknameOwner(nickname.toLowerCase())
+          if (owner && owner !== wallet) throw new RuleError('NicknameTaken')
+          db.setNickname(wallet, nickname)
+          return { nickname }
+        }
+        default:
+          throw new RuleError('UnknownAction')
+      }
+    })
+  }
+
+  /** A platform race (admin CLI or the schedule). */
+  function createPlatform(input) {
+    return db.transaction(() => {
+      const race = createPlatformRace(db.nextId('race'), {
+        startGrace: 300,
+        resolutionGrace: 600,
+        feeBp: 200,
+        minActiveContenders: 2,
+        minStake: STAKE.min,
+        maxStakePerWallet: STAKE.max,
+        ...input,
+        creator: platformCreator,
+      }, input.symbols.map(requireAsset), now())
+      db.saveGame(race)
+      return race
+    })
+  }
+
+  /** Keeps one race per schedule entry open for betting (config/platform-races.json). */
+  function fillSchedule(schedule) {
+    if (schedule?.enabled !== true) return
+    const t = now()
+    const live = db.liveGames().filter((g) => g.kind === 'race' && g.origin === 'platform')
+    for (const entry of schedule.races) {
+      const open = live.some((r) => r.title === entry.title && r.status === 'betting' && r.bettingEndTime > t)
+      if (open) continue
+      const race = createPlatform({
+        title: entry.title,
+        category: entry.category.toLowerCase(),
+        symbols: entry.symbols,
+        bettingStartTime: t,
+        bettingEndTime: t + entry.bettingSeconds,
+        raceDuration: entry.raceSeconds,
+        startGrace: schedule.defaults?.startGraceSeconds ?? 300,
+        resolutionGrace: schedule.defaults?.resolutionGraceSeconds ?? 600,
+        feeBp: schedule.defaults?.feeBp ?? 200,
+        minActiveContenders: schedule.defaults?.minActiveContenders ?? 2,
+      })
+      log.log(`schedule: race #${race.id} "${race.title}" created`)
+    }
+  }
+
+  return {
+    init,
+    ingest,
+    scanDeposits,
+    tick,
+    act,
+    createPlatform,
+    fillSchedule,
+    processPayouts,
+    solvency,
+    liabilities,
+    get lastScan() {
+      return lastScan
+    },
+    config: () => ({
+      cluster,
+      gameWallet: chain.address,
+      stake: { min: STAKE.min, max: STAKE.max },
+      race: { minAssets: RACE.minAssets, maxAssets: RACE.maxAssets, communityDurations: COMMUNITY_RACE_DURATIONS },
+      arena: { durations: ARENA.durations, lobbyDuration: ARENA.lobbyDuration, maxParticipants: ARENA.maxParticipants, feeBp: ARENA.feeBp },
+      assets,
+    }),
+  }
+}
