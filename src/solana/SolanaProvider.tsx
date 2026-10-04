@@ -3,7 +3,7 @@ import { ConnectionProvider, WalletProvider } from '@solana/wallet-adapter-react
 import { PhantomWalletAdapter } from '@solana/wallet-adapter-phantom'
 import { SolflareWalletAdapter } from '@solana/wallet-adapter-solflare'
 import { UnsafeBurnerWalletAdapter } from '@solana/wallet-adapter-unsafe-burner'
-import { SOLANA_CLUSTER, SOLANA_RPC_URL } from '@/solana/config'
+import { SOLANA_CLUSTER, SOLANA_RPC_URL, SOLANA_WS_URL } from '@/solana/config'
 
 /** Solana connection + wallet context for the whole app. Phantom and Solflare
  * are listed explicitly so they show (with an install link) even when the
@@ -21,7 +21,7 @@ export function SolanaProvider({ children }: { children: ReactNode }) {
     ...(SOLANA_CLUSTER === 'localnet' ? [new UnsafeBurnerWalletAdapter()] : []),
   ], [])
   return (
-    <ConnectionProvider endpoint={SOLANA_RPC_URL} config={{ commitment: 'confirmed' }}>
+    <ConnectionProvider endpoint={SOLANA_RPC_URL} config={{ commitment: 'confirmed', wsEndpoint: SOLANA_WS_URL }}>
       <WalletProvider wallets={wallets} autoConnect>
         {children}
       </WalletProvider>

@@ -590,3 +590,16 @@ RPC: Alchemy (платный) для запросов; Alchemy не поддер
   логотипы новых монет подтягиваются с сервера, монеты доступны при создании мем-гонок и арен.
 - Первый отбор (4 октября): PUMP, Agency, JEANPHIL, AGENTCAT, MISTAKE, HIGGS, CRAWL, knightcat, EGO, BRIDGE.
 - Тесты: 27 (правила отбора добавлены).
+
+## 2026-10-04 — nginx для сайта на GitHub Pages
+
+Сайт остаётся на GitHub Pages; на `prophetmarkets.fun` (nginx, HTTPS) добавлены адреса для него
+(`/etc/nginx/snippets/prophet-solana.conf`, подключён в блок сайта; старые адреса не тронуты, копия конфигурации в
+`/root/predictx.nginx.bak-*`): `/api/solana/game-server/`, `/api/solana/price-service/`, `/api/solana/rpc`
+(Alchemy, кэш 1 с, CORS) и `/api/solana/ws` (подписки через Helius). Ключи — в `prophet-solana-keys.conf`, только
+root, собраны из `/etc/prophet/prophet.env`, в браузер не попадают. Проверено: прокси RPC отвечает из mainnet с CORS,
+старый сайт работает. Сайт умеет брать отдельный адрес подписок (`VITE_SOLANA_WS_URL`). В день теста: включить
+сервисы и собрать Pages с `VITE_SOLANA_CLUSTER=mainnet-beta`, `VITE_SOLANA_RPC_URL=https://prophetmarkets.fun/api/solana/rpc`,
+`VITE_SOLANA_WS_URL=wss://prophetmarkets.fun/api/solana/ws`, `VITE_GAME_SERVER_URL=https://prophetmarkets.fun/api/solana/game-server`,
+`VITE_PRICE_SERVICE_URL=https://prophetmarkets.fun/api/solana/price-service`.
+При чтении nginx в вывод команды частично попал старый ключ Alchemy от Robinhood Chain — его стоит пересоздать.
