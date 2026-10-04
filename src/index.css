@@ -1,8 +1,8 @@
 @import 'tailwindcss';
 
 @theme {
-  --font-sans: 'Nunito', system-ui, 'Segoe UI', Roboto, sans-serif;
-  --font-display: 'Baloo 2', 'Nunito', system-ui, sans-serif;
+  --font-sans: 'Pixelify Sans', 'Nunito', system-ui, sans-serif;
+  --font-display: 'Press Start 2P', 'Courier New', monospace;
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Consolas, monospace;
 
   /* Prophet brand */
@@ -877,9 +877,9 @@ h3,
 
 /* Stepped pixel mounds for ground strips, as a repeating SVG. */
 .px-bushes {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='56' viewBox='0 0 160 56'%3E%3Cpath fill='%233da158' d='M84 56V46h10v-8h12v8h10v10z'/%3E%3Cpath fill='%2358c26e' d='M0 56V36h8V24h10V14h12v10h10v12h8v20zM96 56V40h10V30h12v10h10v16z'/%3E%3Cpath fill='%233da158' d='M52 56V44h8v-8h12v8h8v12z'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='760' height='88' viewBox='0 0 760 88'%3E%3Cpath fill='%2358c26e' d='M24 88V64h20V44h20V28h24v-8h40v8h24v16h20v20h20v24zM236 88V72h16V60h20v12h16v16z'/%3E%3Cpath fill='%233da158' d='M248 88V76h40v12z'/%3E%3Cpath fill='%2358c26e' d='M480 88V62h18V46h20V32h22v-8h38v8h22v14h20v16h18v26zM678 88V70h14V58h20v12h14v18z'/%3E%3C/svg%3E");
   background-repeat: repeat-x;
-  background-position: bottom;
+  background-position: bottom center;
 }
 
 @keyframes px-cloud-drift {

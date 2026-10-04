@@ -5,13 +5,12 @@ import { SOLANA_CLUSTER } from '@/solana/config'
 import { ConnectWalletButton } from '@/components/ConnectWalletButton'
 import { PROPHET_X_URL } from '@/lib/social'
 
+// Mock structure: three items; everything else lives in the wallet menu
+// and the burger.
 const links = [
   { to: '/onchain/races', label: 'Races' },
   { to: '/onchain/arenas', label: 'Arena' },
-  { to: '/onchain/portfolio', label: 'Portfolio' },
-  { to: '/onchain/leaderboard', label: 'Leaderboard' },
-  { to: '/onchain/archive', label: 'Archive' },
-  { to: '/roadmap', label: 'Roadmap' },
+  { to: '/#how-to-play', label: 'How to play' },
 ]
 
 const explorerHref = `https://explorer.solana.com/${SOLANA_CLUSTER === 'mainnet-beta' ? '' : `?cluster=${SOLANA_CLUSTER === 'localnet' ? 'custom' : SOLANA_CLUSTER}`}`
@@ -40,8 +39,8 @@ export function RealNavbar() {
               to={l.to}
               className={({ isActive }) =>
                 clsx(
-                  'px-2.5 py-1.5 transition-colors font-extrabold whitespace-nowrap border-2 border-transparent',
-                  isActive ? 'border-[#191330] bg-[#ffd23f] text-[#191330]' : 'text-[#191330]/65 hover:text-[#191330] hover:bg-[#191330]/5',
+                  'px-font px-3 py-2 text-[10px] transition-colors whitespace-nowrap border-2 border-transparent',
+                  isActive ? 'border-[#191330] bg-[#ffd23f] text-[#191330]' : 'text-[#191330]/70 hover:text-[#191330] hover:bg-[#191330]/5',
                 )
               }
             >
