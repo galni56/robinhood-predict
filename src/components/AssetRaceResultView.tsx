@@ -5,6 +5,7 @@ import { WalletOptionsList } from '@/components/WalletOptionsList'
 import { TokenLogo } from '@/components/TokenLogo'
 import { priceSourceUrlForAssetId } from '@/chain/assetRaceRegistry'
 import type { RaceSettlement } from '@/chain/useAssetRace'
+import { explorerUrl } from '@/solana/config'
 import { formatUnits } from '@/lib/format'
 import {
   ASSET_RACE_CATEGORY,
@@ -14,30 +15,26 @@ import {
   resolvedPositionPayout,
   type AssetRacePosition,
   type AssetRaceViewModel,
+  type RacePayout,
 } from '@/chain/assetRaces'
 
 export function AssetRaceResultView({
   race,
   position,
   settlement,
+  payout: owed,
   isConnected,
-  onClaim,
-  onRefund,
-  onCloseLosing,
-  txLabel,
   error,
   tokenDecimals,
   tokenLabel,
 }: {
   race: AssetRaceViewModel
   position?: AssetRacePosition
-  /** A claim or refund already made (the position account is then closed). */
+  /** The payout or refund that reached the wallet. */
   settlement?: RaceSettlement
+  /** The wallet's payout or refund in any state. */
+  payout?: RacePayout
   isConnected: boolean
-  onClaim: () => void
-  onRefund: () => void
-  onCloseLosing: () => void
-  txLabel: string | null
   error: string | null
   tokenDecimals: number
   tokenLabel: string
@@ -51,33 +48,25 @@ export function AssetRaceResultView({
   const meme = race.category === ASSET_RACE_CATEGORY.MEME
   const payout = won ? resolvedPositionPayout(race, position) : 0n
   const refundable = !resolved && position?.exists && !position.settled
-  // A settled position comes from history: its account is already closed.
   const settled = !!position?.settled
-  // The keeper settles every final position on its own; the button just does it sooner.
-  const autoPayoutPending = isConnected && !settled && !settlement && ((resolved && won) || lost || refundable)
 
+  // The game server sends winnings and refunds on its own; nothing to click.
   const action = !isConnected ? (
     <WalletOptionsList tone="race" />
-  ) : settlement && (settled || !position?.exists) ? (
-    <div className="w-full rounded-none bg-[#1B1340]/5 py-3 text-center text-sm font-bold text-[#1B1340]/55">
-      {settlement.type === 'claim' ? 'Paid' : 'Refunded'} {formatStakeRaw(settlement.amount, tokenDecimals)} {tokenLabel} to your wallet
+  ) : settlement ? (
+    <a href={explorerUrl('tx', settlement.signature)} target="_blank" rel="noreferrer" className="block w-full rounded-none bg-[#1B1340]/5 py-3 text-center text-sm font-bold text-[#1B1340]/55 hover:text-[#1B1340]">
+      {settlement.type === 'claim' ? 'Paid' : 'Refunded'} {formatStakeRaw(settlement.amount, tokenDecimals)} {tokenLabel} to your wallet ↗
+    </a>
+  ) : owed ? (
+    <div className="w-full rounded-none border border-[#ffd23f]/35 bg-[#ffd23f]/15 py-3 text-center text-sm font-bold text-[#B8860B]">
+      {owed.status === 'stuck' ? 'Payout delayed - the team has been alerted' : `Sending ${formatStakeRaw(owed.amount, tokenDecimals)} ${tokenLabel} to your wallet…`}
     </div>
-  ) : settled ? (
-    <div className="w-full rounded-none bg-[#1B1340]/5 py-3 text-center text-sm font-bold text-[#1B1340]/55">
-      {lost ? 'Position closed · account deposit recovered' : 'Settled'}
-    </div>
-  ) : resolved && won ? (
-    <button onClick={onClaim} disabled={!!txLabel} className="w-full rounded-none bg-gradient-to-r from-[#ffd23f] to-[#f7b928] py-3 text-sm font-bold text-[#191330] disabled:opacity-40">
-      {txLabel ?? `Claim ${formatStakeRaw(payout, tokenDecimals)} ${tokenLabel}`}
-    </button>
   ) : lost ? (
-    <button onClick={onCloseLosing} disabled={!!txLabel} className="w-full rounded-none border border-white/15 py-3 text-sm font-bold text-[#1B1340]/70 transition-colors hover:border-white/30 disabled:opacity-40">
-      {txLabel ?? 'Close position and recover its account deposit'}
-    </button>
-  ) : refundable ? (
-    <button onClick={onRefund} disabled={!!txLabel} className="w-full rounded-none border border-[#ffd23f]/35 bg-[#ffd23f]/15 py-3 text-sm font-bold text-[#B8860B] transition-colors hover:bg-[#ffd23f]/25 disabled:opacity-40">
-      {txLabel ?? `Refund ${formatStakeRaw(position.stake, tokenDecimals)} ${tokenLabel}`}
-    </button>
+    <div className="w-full rounded-none bg-[#1B1340]/5 py-3 text-center text-sm font-bold text-[#1B1340]/55">Your pick did not win this time</div>
+  ) : position?.exists && (won || refundable) ? (
+    <div className="w-full rounded-none border border-[#ffd23f]/35 bg-[#ffd23f]/15 py-3 text-center text-sm font-bold text-[#B8860B]">
+      Preparing your {won ? 'payout' : 'refund'}…
+    </div>
   ) : null
 
   return (
@@ -92,7 +81,7 @@ export function AssetRaceResultView({
         <div className="relative text-sm font-bold text-[#B8860B]">{resolved ? won ? 'You won' : 'Winner' : voided ? 'Race void' : 'Race cancelled'}</div>
         <h2 className="relative mt-1 flex items-center gap-3 pr-16 font-display text-3xl font-bold">{winner && <TokenLogo ticker={winner.symbol} className="h-11 w-11 rounded-none" />}{winner ? `${winner.symbol} ${formatReturnWad(winner.returnValue)}` : voided ? 'No legitimate winner' : 'Race never started'}</h2>
         <p className="mt-2 text-sm text-[#1B1340]/60">
-          {won ? `Your pick took the crown. ${meme ? 'Absolute scenes.' : 'Claim your payout below.'}` : lost ? 'Better luck next race. Final ranking uses the immutable P0/P1 values.' : resolved ? 'Final ranking uses the immutable P0/P1 values stored by the program.' : voided ? 'Every principal stake is refundable. No protocol fee was charged.' : 'The start conditions were not met. Every principal stake is refundable with no fee.'}
+          {won ? `Your pick took the crown. ${meme ? 'Absolute scenes.' : 'Your payout goes straight to your wallet.'}` : lost ? 'Better luck next race. Final ranking uses the signed P0/P1 prices.' : resolved ? 'Final ranking uses the signed P0/P1 prices.' : voided ? 'Every stake goes back to its wallet. No fee was charged.' : 'The start conditions were not met. Every stake goes back to its wallet, no fee.'}
         </p>
       </div>
 
@@ -101,7 +90,7 @@ export function AssetRaceResultView({
           <div><div className="text-xs font-bold text-[#1B1340]/55">Your asset</div><div className="mt-1 flex items-center gap-2 font-display font-bold"><TokenLogo ticker={myAsset?.symbol} className="h-7 w-7 rounded-none" />{myAsset?.symbol}</div></div>
           <div><div className="text-xs font-bold text-[#1B1340]/55">Your stake</div><div className="font-mono">{formatStakeRaw(position.stake, tokenDecimals)}</div></div>
           <div><div className="text-xs font-bold text-[#1B1340]/55">Result</div><div className={won ? 'font-bold text-[#B8860B]' : resolved ? 'font-bold text-[#C2245A]' : 'font-bold text-[#B8860B]'}>{won ? 'Won' : resolved ? 'Lost' : 'Refund'}</div></div>
-          <div><div className="text-xs font-bold text-[#1B1340]/55">{settled ? 'Received' : 'Claimable'}</div><div className="font-mono">{settled ? formatStakeRaw(settlement?.amount ?? 0n, tokenDecimals) : won ? formatStakeRaw(payout, tokenDecimals) : refundable ? formatStakeRaw(position.stake, tokenDecimals) : '0'} {tokenLabel}</div></div>
+          <div><div className="text-xs font-bold text-[#1B1340]/55">{settled ? 'Received' : 'Owed to you'}</div><div className="font-mono">{settled ? formatStakeRaw(settlement?.amount ?? 0n, tokenDecimals) : won ? formatStakeRaw(payout, tokenDecimals) : refundable ? formatStakeRaw(position.stake, tokenDecimals) : '0'} {tokenLabel}</div></div>
         </div>
       )}
 
@@ -132,11 +121,6 @@ export function AssetRaceResultView({
       )}
 
       {action}
-      {autoPayoutPending && (
-        <p className="text-center text-xs font-medium text-[#1B1340]/55">
-          {lost ? 'The deposit is returned to your wallet automatically' : 'Sent to your wallet automatically'} within a minute - or do it now.
-        </p>
-      )}
       {error && <p className="text-sm text-[#C2245A]">{error}</p>}
     </div>
   )

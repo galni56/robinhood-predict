@@ -4,24 +4,17 @@ import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 
 const CLUSTERS = ['localnet', 'local', 'devnet', 'mainnet-beta', 'mainnet']
-const BASE58_PUBKEY = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/
-
-/** Refuses builds that would point a mainnet site at development programs or
- * carry malformed Solana settings. */
+/** Refuses builds that would point a mainnet site at the default RPC or at
+ * no game server, or carry malformed Solana settings. */
 export function validateSolanaBuild(env: Record<string, unknown>) {
   const read = (name: string) => (typeof env[name] === 'string' ? (env[name] as string).trim() : '')
   const cluster = read('VITE_SOLANA_CLUSTER')
   if (cluster && !CLUSTERS.includes(cluster)) throw new Error(`Unsupported VITE_SOLANA_CLUSTER: ${cluster}`)
-  for (const name of ['VITE_GAMES_PROGRAM_ID', 'VITE_NICKNAME_PROGRAM_ID']) {
-    const value = read(name)
-    if (value && !BASE58_PUBKEY.test(value)) throw new Error(`${name} is not a valid Solana address`)
-  }
   const flag = read('VITE_ALL_ASSET_TYPES_ENABLED')
   if (flag && !['true', 'false'].includes(flag)) throw new Error('VITE_ALL_ASSET_TYPES_ENABLED must be true or false')
   if (cluster === 'mainnet-beta' || cluster === 'mainnet') {
-    for (const name of ['VITE_GAMES_PROGRAM_ID', 'VITE_NICKNAME_PROGRAM_ID', 'VITE_SOLANA_RPC_URL']) {
-      if (!read(name)) throw new Error(`A mainnet build must set ${name} explicitly`)
-    }
+    if (!read('VITE_SOLANA_RPC_URL')) throw new Error('A mainnet build must set VITE_SOLANA_RPC_URL explicitly')
+    if (read('VITE_GAME_SERVER_URL') === 'off') throw new Error('A mainnet build needs the game server')
   }
 }
 
@@ -46,12 +39,12 @@ export default defineConfig({
     allowedHosts: ['.trycloudflare.com'],
   },
   // Same-origin paths for the off-chain services (src/solana/services.ts).
-  // In dev they reach the local price service and indexer (in WSL, forwarded
-  // to localhost); on the VPS nginx proxies the same paths.
+  // In dev they reach the local price service and game server; on the VPS
+  // nginx proxies the same paths.
   server: {
     proxy: {
       '/price-service': localService('/price-service', process.env.PRICE_SERVICE_PROXY_URL ?? 'http://127.0.0.1:8790'),
-      '/indexer': localService('/indexer', process.env.INDEXER_PROXY_URL ?? 'http://127.0.0.1:8791'),
+      '/game-server': localService('/game-server', process.env.GAME_SERVER_PROXY_URL ?? 'http://127.0.0.1:8792'),
     },
   },
   plugins: [react(), tailwindcss(), {

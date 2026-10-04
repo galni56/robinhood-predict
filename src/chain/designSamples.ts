@@ -15,7 +15,7 @@ import {
 import { NATIVE_SOL } from '@/solana/config'
 
 // Dev-only sample games so list pages, the landing and the archive can be
-// designed and reviewed without a local validator stand. Never ships: the
+// designed and reviewed without the local servers. Never ships: the
 // flag is false in production builds, and the samples only appear when the
 // real data source returned nothing.
 export const DESIGN_SAMPLES_ENABLED = import.meta.env.DEV
@@ -96,6 +96,8 @@ function race(overrides: {
     remainingLiability: 0n,
     lobbyAdders: [],
     assets: overrides.assets,
+    positions: [],
+    payouts: [],
     source: 'onchain',
   }
 }
@@ -200,6 +202,7 @@ function arena(overrides: {
       exists: true,
       settled: false,
     })),
+    payouts: [],
     asset: priceArenaAssetForPool(cat?.pool),
   }
 }

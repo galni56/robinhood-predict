@@ -1,21 +1,21 @@
 import { useMemo } from 'react'
 import type { PublicKey } from '@solana/web3.js'
 import { useQuery } from '@tanstack/react-query'
-import { usePrograms } from '@/solana/programs'
-import { racePda, racePositionPda } from '@/solana/pda'
 import { marketCapUsd, useLivePrices } from '@/chain/livePrices'
-import { useHistory } from '@/chain/history'
+import { getJson, type ServerRace } from '@/chain/gameServer'
+import { GAME_SERVER_URL } from '@/solana/services'
 import { DESIGN_SAMPLES_ENABLED, SAMPLE_RACES } from '@/chain/designSamples'
 import {
   ASSET_RACE_STATUS,
-  positionFromAccount,
-  raceFromAccount,
+  payoutFor,
+  positionFor,
+  raceFromServer,
   type AssetRaceAsset,
-  type AssetRacePosition,
   type AssetRaceViewModel,
+  type RacePayout,
 } from '@/chain/assetRaces'
 
-const ACTIVE_POLL_MS = 4_000
+const ACTIVE_POLL_MS = 3_000
 
 export interface RaceSettlement {
   type: 'claim' | 'refund'
@@ -23,41 +23,34 @@ export interface RaceSettlement {
   signature: string
 }
 
-/** One race, the connected wallet's position in it, and display prices while
- * it runs. A claim or refund closes the position account, so a settled
- * position is recovered from the indexer's activity feed. */
+/** One race, the connected wallet's position and payout, and display prices
+ * while it runs. The game server pays winners and refunds on its own. */
 export function useAssetRace(raceId: bigint | null, wallet?: PublicKey | null) {
-  const { games } = usePrograms()
-  const raceKey = useMemo(() => (raceId == null ? null : racePda(raceId)), [raceId])
-  const positionKey = useMemo(() => (raceKey && wallet ? racePositionPda(raceKey, wallet) : null), [raceKey, wallet])
-
   const raceQuery = useQuery({
-    queryKey: ['race', raceKey?.toBase58()],
+    queryKey: ['race', raceId?.toString()],
     queryFn: async () => {
-      const account = await games.account.race.fetchNullable(raceKey!)
-      return account ? raceFromAccount(raceKey!, account) : null
+      try {
+        return raceFromServer(await getJson<ServerRace>(`/games/race/${raceId}`))
+      } catch (error) {
+        if (error instanceof Error && error.message === 'GameNotFound') return null
+        throw error
+      }
     },
-    enabled: !!raceKey,
+    enabled: raceId != null && GAME_SERVER_URL != null,
     refetchInterval: (query) => {
-      const status = query.state.data?.status
-      const terminal = status === ASSET_RACE_STATUS.RESOLVED || status === ASSET_RACE_STATUS.CANCELLED || status === ASSET_RACE_STATUS.VOID
-      return terminal ? 30_000 : ACTIVE_POLL_MS
+      const race = query.state.data
+      const terminal = race && (race.status === ASSET_RACE_STATUS.RESOLVED || race.status === ASSET_RACE_STATUS.CANCELLED || race.status === ASSET_RACE_STATUS.VOID)
+      // Keep polling a finished race until every payout has landed.
+      return terminal && race.payouts.every((p) => p.status === 'done') ? 30_000 : ACTIVE_POLL_MS
     },
-  })
-  const positionQuery = useQuery({
-    queryKey: ['race-position', positionKey?.toBase58()],
-    queryFn: async () => positionFromAccount(await games.account.position.fetchNullable(positionKey!)) ?? null,
-    enabled: !!positionKey,
-    refetchInterval: ACTIVE_POLL_MS,
   })
 
   // Dev-only: sample races stand in so detail screens can be designed
-  // without a validator (same gate as the list hooks).
+  // without servers (same gate as the list hooks).
   const sample = DESIGN_SAMPLES_ENABLED && raceId != null ? SAMPLE_RACES.find((item) => item.id === raceId) : undefined
-  const base = raceQuery.data ?? (raceQuery.isFetched || raceQuery.isError ? sample : undefined) ?? undefined
+  const base = raceQuery.data ?? (raceQuery.isFetched || raceQuery.isError || GAME_SERVER_URL == null ? sample : undefined) ?? undefined
   const showLive = base?.status === ASSET_RACE_STATUS.RUNNING || base?.status === ASSET_RACE_STATUS.BETTING
   const live = useLivePrices({ enabled: showLive })
-  const history = useHistory({ enabled: !!base && !!wallet })
 
   const race = useMemo<AssetRaceViewModel | undefined>(() => {
     if (!base) return undefined
@@ -79,34 +72,23 @@ export function useAssetRace(raceId: bigint | null, wallet?: PublicKey | null) {
     }
   }, [base, live.assets, showLive])
 
-  const settlement = useMemo<RaceSettlement | undefined>(() => {
-    if (!base || !wallet) return undefined
-    const me = wallet.toBase58()
-    const event = history.data?.activity.find((item) => (
-      item.gameAddress === base.address && item.wallet === me && (item.type === 'claim' || item.type === 'refund')
-    ))
-    return event ? { type: event.type as RaceSettlement['type'], amount: BigInt(event.amount ?? '0'), signature: event.signature } : undefined
-  }, [base, history.data, wallet])
-
-  // After a claim, refund or losing close the position account is gone; the
-  // wallet's bets in the activity feed still say what it backed.
-  const pastPosition = useMemo<AssetRacePosition | undefined>(() => {
-    const terminal = base?.status === ASSET_RACE_STATUS.RESOLVED || base?.status === ASSET_RACE_STATUS.CANCELLED || base?.status === ASSET_RACE_STATUS.VOID
-    if (!base || !wallet || !terminal || !positionQuery.isSuccess || positionQuery.data) return undefined
-    const me = wallet.toBase58()
-    const bets = (history.data?.activity ?? []).filter((item) => item.type === 'bet' && item.gameAddress === base.address && item.wallet === me)
-    if (bets.length === 0) return undefined
-    const stake = bets.reduce((sum, item) => sum + BigInt(item.amount ?? '0'), 0n)
-    return { stake, assetIndex: bets[0].assetIndex ?? 0, exists: true, settled: true }
-  }, [base, history.data, positionQuery.data, positionQuery.isSuccess, wallet])
+  const me = wallet?.toBase58()
+  const payout: RacePayout | undefined = base ? payoutFor(base, me) : undefined
+  const settlement = useMemo<RaceSettlement | undefined>(() => (
+    payout?.status === 'done' && payout.signature
+      ? { type: payout.kind === 'win' ? 'claim' : 'refund', amount: payout.amount, signature: payout.signature }
+      : undefined
+  ), [payout])
 
   return {
     race,
-    position: positionQuery.data ?? pastPosition,
+    position: base ? positionFor(base, me) : undefined,
+    /** The wallet's payout or refund in any state (queued, sending, done). */
+    payout,
     settlement,
     liveDisconnected: showLive && live.disconnected,
     isLoading: raceQuery.isLoading,
     error: raceQuery.error,
-    refetch: async () => { await Promise.all([raceQuery.refetch(), positionQuery.refetch()]) },
+    refetch: async () => { await raceQuery.refetch() },
   }
 }

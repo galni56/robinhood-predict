@@ -21,6 +21,7 @@
 import { createPublicKey, verify } from 'node:crypto'
 import {
   ARENA,
+  COMMUNITY_POLICY,
   COMMUNITY_RACE_DURATIONS,
   RACE,
   RuleError,
@@ -525,8 +526,12 @@ export function createEngine({ db, chain, prices, assets, cluster, coldWallet = 
         }
         case 'set-nickname': {
           const nickname = String(payload.nickname ?? '').trim()
+          if (nickname === '') {
+            db.clearNickname(wallet)
+            return { nickname: null }
+          }
           const bytes = Buffer.byteLength(nickname, 'utf8')
-          if (bytes === 0 || bytes > 24 || /[\u0000-\u001f\u007f]/.test(nickname)) throw new RuleError('InvalidNickname')
+          if (bytes > 24 || /[\u0000-\u001f\u007f]/.test(nickname)) throw new RuleError('InvalidNickname')
           const owner = db.nicknameOwner(nickname.toLowerCase())
           if (owner && owner !== wallet) throw new RuleError('NicknameTaken')
           db.setNickname(wallet, nickname)
@@ -598,7 +603,7 @@ export function createEngine({ db, chain, prices, assets, cluster, coldWallet = 
       cluster,
       gameWallet: chain.address,
       stake: { min: STAKE.min, max: STAKE.max },
-      race: { minAssets: RACE.minAssets, maxAssets: RACE.maxAssets, communityDurations: COMMUNITY_RACE_DURATIONS },
+      race: { minAssets: RACE.minAssets, maxAssets: RACE.maxAssets, communityDurations: COMMUNITY_RACE_DURATIONS, communityPolicy: COMMUNITY_POLICY },
       arena: { durations: ARENA.durations, lobbyDuration: ARENA.lobbyDuration, maxParticipants: ARENA.maxParticipants, feeBp: ARENA.feeBp },
       assets,
     }),

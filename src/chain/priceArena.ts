@@ -1,12 +1,10 @@
-import type { PublicKey } from '@solana/web3.js'
-import type { IdlAccounts } from '@anchor-lang/core'
-import type { ProphetGames } from '@/solana/idl/prophet_games'
 import { assetRaceCatalog, assetIdHexForSymbol, type AssetRaceCategoryName } from '@/chain/assetRaceRegistry'
-import { symbolFromAssetId } from '@/solana/pda'
+import { payoutFromServer, type RacePayout } from '@/chain/assetRaces'
+import type { ServerArena } from '@/chain/gameServer'
 
-// Price Arena view model on top of the `prophet_games` program's Arena account.
-// The program stores status only (open / resolved / cancelled); lobby versus
-// live is derived from the arena's start time.
+// Price Arena view model on top of the game server's arena (same fields as the
+// former program account). The server stores status only (open / resolved /
+// cancelled); lobby versus live is derived from the arena's start time.
 
 export const PRICE_ARENA_CATEGORY = { STOCK: 0, MEME: 1, CRYPTO: 2 } as const
 // UNKNOWN: a status variant this build does not know (program upgraded ahead
@@ -19,13 +17,11 @@ export const PRICE_ARENA_CANCEL_REASON = {
   STALE_DEADLINE_PRICE: 2,
   RESOLUTION_WINDOW_EXPIRED: 3,
 } as const
-// Mirrors ARENA_DURATIONS, ARENA_LOBBY_DURATION and MAX_PARTICIPANTS in
-// solana/programs/prophet_games/src/constants.rs.
+// Mirrors ARENA.durations and ARENA.maxParticipants in
+// scripts/solana/game-server/rules.mjs.
 export const PRICE_ARENA_DURATIONS = [60n, 300n, 900n, 3600n] as const
 export const PRICE_ARENA_MAX_PARTICIPANTS = 10
 export type PriceArenaMode = 'stocks' | 'memes' | 'crypto'
-
-type ArenaAccount = IdlAccounts<ProphetGames>['arena']
 
 export interface PriceArenaAsset {
   assetId: string
@@ -132,11 +128,11 @@ export interface PriceArenaViewModel {
   remainingLiability: bigint
   title: string
   entries: PriceArenaEntry[]
+  payouts: RacePayout[]
   asset?: PriceArenaAsset
 }
 
-const variant = (value: object) => Object.keys(value)[0]
-const big = (value: { toString(): string }) => BigInt(value.toString())
+const big = (value: string | number) => BigInt(value)
 const STATUS_CODES: Record<string, number> = { open: 0, resolved: 1, cancelled: 2 }
 const CANCEL_CODES: Record<string, number> = {
   none: 0,
@@ -157,29 +153,30 @@ export function arenaPhase(status: number, startsAt: bigint, nowSec: number) {
   return BigInt(Math.floor(nowSec)) < startsAt ? PRICE_ARENA_PHASE.LOBBY : PRICE_ARENA_PHASE.RUNNING
 }
 
-export function arenaFromAccount(address: PublicKey, a: ArenaAccount): PriceArenaViewModel {
-  const status = STATUS_CODES[variant(a.status)] ?? PRICE_ARENA_STATUS.UNKNOWN
+export function arenaFromServer(a: ServerArena): PriceArenaViewModel {
+  const status = STATUS_CODES[a.status] ?? PRICE_ARENA_STATUS.UNKNOWN
   const startsAt = big(a.startsAt)
-  const priceSource = a.priceSource.toBase58()
+  const priceSource = a.priceSource
   const asset = priceArenaAssetForPool(priceSource)
-  const symbol = asset?.symbol ?? symbolFromAssetId(a.assetId)
+  const symbol = asset?.symbol ?? a.symbol
+  const paid = new Set(a.payouts.filter((p) => p.status === 'done' && (p.kind === 'win' || p.kind === 'refund')).map((p) => p.wallet))
   return {
     id: big(a.id),
-    address: address.toBase58(),
+    address: a.address,
     assetId: asset?.assetId ?? assetIdHexForSymbol(symbol),
     symbol,
     priceSource,
-    creator: a.creator.toBase58(),
-    stakeMint: a.stakeMint.toBase58(),
+    creator: a.creator,
+    stakeMint: a.stakeMint,
     priceDecimals: a.priceDecimals,
-    category: CATEGORY_CODES[variant(a.category)] ?? 0,
+    category: CATEGORY_CODES[a.category] ?? 0,
     status,
-    cancelReason: CANCEL_CODES[variant(a.cancelReason)] ?? 0,
+    cancelReason: CANCEL_CODES[a.cancelReason] ?? 0,
     createdAt: big(a.createdAt),
     startsAt,
     deadline: big(a.deadline),
     resolvedAt: big(a.resolvedAt),
-    duration: Number(a.duration.toString()),
+    duration: a.duration,
     participantCount: a.entries.length,
     winnerCount: a.winnerCount,
     feeBp: a.feeBp,
@@ -193,7 +190,7 @@ export function arenaFromAccount(address: PublicKey, a: ArenaAccount): PriceAren
     remainingLiability: big(a.remainingLiability),
     title: a.title,
     entries: a.entries.map((entry) => ({
-      player: entry.player.toBase58(),
+      player: entry.player,
       prediction: big(entry.prediction),
       stake: big(entry.stake),
       predictionUpdatedAt: big(entry.predictionUpdatedAt),
@@ -202,8 +199,10 @@ export function arenaFromAccount(address: PublicKey, a: ArenaAccount): PriceAren
       rank: entry.rank,
       accuracyMultiplierBp: entry.accuracyMultiplierBp,
       exists: true,
-      settled: entry.settled,
+      // Paid out or refunded; a losing entry has nothing to settle.
+      settled: paid.has(entry.player) || (status === PRICE_ARENA_STATUS.RESOLVED && big(entry.payout) === 0n),
     })),
+    payouts: a.payouts.map(payoutFromServer),
     asset,
   }
 }

@@ -15,7 +15,6 @@ export function AssetRaceLobbyView({
   isConnected,
   hasAddedAsset,
   onAddAsset,
-  onOpenBetting,
   txLabel,
   error,
 }: {
@@ -24,7 +23,6 @@ export function AssetRaceLobbyView({
   isConnected: boolean
   hasAddedAsset: boolean
   onAddAsset: (assetId: string) => void
-  onOpenBetting: () => void
   txLabel: string | null
   error: string | null
 }) {
@@ -157,15 +155,8 @@ export function AssetRaceLobbyView({
         <div className="rounded-none border border-[#ffd23f]/25 bg-[#FFF6DF] p-5">
           <h3 className="font-display text-lg font-bold">Lobby closed</h3>
           <p className="mt-1 text-sm text-[#1B1340]/55">
-            {race.assets.length >= 2 ? 'The grid is ready. Anyone can open the betting window.' : 'Fewer than two assets joined. Opening will cancel this race with no funds involved.'}
+            {race.assets.length >= 2 ? 'The grid is ready. Betting opens in a few seconds.' : 'Fewer than two assets joined. The race is cancelled; no funds were involved.'}
           </p>
-          <div className="mt-4">
-            {!isConnected ? <WalletOptionsList tone="race" /> : (
-              <button onClick={onOpenBetting} disabled={!!txLabel} className="w-full rounded-none bg-gradient-to-r from-[#ffd23f] to-[#f7b928] py-3 text-sm font-bold text-[#191330] disabled:opacity-40">
-                {txLabel ?? (race.assets.length >= 2 ? 'Open betting' : 'Cancel empty lobby')}
-              </button>
-            )}
-          </div>
         </div>
       )}
 

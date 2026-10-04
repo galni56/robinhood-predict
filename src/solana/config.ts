@@ -1,18 +1,11 @@
 import { PublicKey } from '@solana/web3.js'
 
-// Solana cluster and program bindings for the frontend.
-//
-// Defaults point at devnet with the development program IDs built in
-// `solana/` (see docs/SOLANA_CHANGELOG.md). A mainnet build must name every
-// program explicitly; vite.config.ts refuses to build otherwise.
+// Solana cluster settings for the frontend. Games run on the game server
+// (src/chain/gameServer.ts); the cluster is only where wallets send stakes
+// and receive payouts. A mainnet build must name its RPC explicitly
+// (vite.config.ts refuses to build otherwise).
 
 export type SolanaCluster = 'localnet' | 'devnet' | 'mainnet-beta'
-
-const DEV_PROGRAM_IDS = {
-  // Asset Race and Price Arena share one program.
-  games: 'G1xjFqQ976m5xsybUCjLxjJxRCcx3PCwpxBgj7VM6ME7',
-  nicknameRegistry: '9hbJLs2EGPdvVLcxQs2N2QqZUhh8r2J86PK8rYBRxJdt',
-} as const
 
 function parseCluster(value: string | undefined): SolanaCluster {
   const trimmed = value?.trim()
@@ -37,16 +30,7 @@ function absoluteRpcUrl(value: string) {
 
 export const SOLANA_RPC_URL = absoluteRpcUrl(import.meta.env.VITE_SOLANA_RPC_URL?.trim() || DEFAULT_RPC[SOLANA_CLUSTER])
 
-function programId(envValue: string | undefined, fallback: string) {
-  return new PublicKey(envValue?.trim() || fallback)
-}
-
-export const PROGRAM_IDS = {
-  games: programId(import.meta.env.VITE_GAMES_PROGRAM_ID, DEV_PROGRAM_IDS.games),
-  nicknameRegistry: programId(import.meta.env.VITE_NICKNAME_PROGRAM_ID, DEV_PROGRAM_IDS.nicknameRegistry),
-}
-
-/** Stake-mint sentinel for native SOL, mirroring `NATIVE_SOL` on-chain. */
+/** Stake currency id of native SOL (the only stake currency). */
 export const NATIVE_SOL = PublicKey.default
 
 export const LAMPORTS_PER_SOL = 1_000_000_000n

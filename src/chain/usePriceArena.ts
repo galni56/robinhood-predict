@@ -1,34 +1,38 @@
-import { useMemo } from 'react'
 import type { PublicKey } from '@solana/web3.js'
 import { useQuery } from '@tanstack/react-query'
-import { usePrograms } from '@/solana/programs'
-import { arenaPda } from '@/solana/pda'
-import { PRICE_ARENA_STATUS, arenaFromAccount } from '@/chain/priceArena'
+import { getJson, type ServerArena } from '@/chain/gameServer'
+import { GAME_SERVER_URL } from '@/solana/services'
+import { PRICE_ARENA_STATUS, arenaFromServer } from '@/chain/priceArena'
 import { DESIGN_SAMPLES_ENABLED, SAMPLE_ARENAS } from '@/chain/designSamples'
 
-/** One arena; every entry lives inside the arena account, so a single read
- * covers the board and the connected wallet's entry. */
+/** One arena with every entry, and the connected wallet's entry and payout. */
 export function usePriceArena(arenaId: bigint | null, wallet?: PublicKey | null) {
-  const { games } = usePrograms()
-  const arenaKey = useMemo(() => (arenaId == null ? null : arenaPda(arenaId)), [arenaId])
   const query = useQuery({
-    queryKey: ['arena', arenaKey?.toBase58()],
+    queryKey: ['arena', arenaId?.toString()],
     queryFn: async () => {
-      const account = await games.account.arena.fetchNullable(arenaKey!)
-      return account ? arenaFromAccount(arenaKey!, account) : null
+      try {
+        return arenaFromServer(await getJson<ServerArena>(`/games/arena/${arenaId}`))
+      } catch (error) {
+        if (error instanceof Error && error.message === 'GameNotFound') return null
+        throw error
+      }
     },
-    enabled: !!arenaKey,
-    refetchInterval: (q) => (q.state.data && q.state.data.status !== PRICE_ARENA_STATUS.OPEN ? 30_000 : 4_000),
+    enabled: arenaId != null && GAME_SERVER_URL != null,
+    refetchInterval: (q) => {
+      const arena = q.state.data
+      return arena && arena.status !== PRICE_ARENA_STATUS.OPEN && arena.payouts.every((p) => p.status === 'done') ? 30_000 : 3_000
+    },
   })
   // Dev-only: sample arenas stand in so detail screens can be designed
-  // without a validator (same gate as the list hooks).
+  // without servers (same gate as the list hooks).
   const sample = DESIGN_SAMPLES_ENABLED && arenaId != null ? SAMPLE_ARENAS.find((item) => item.id === arenaId) : undefined
-  const arena = query.data ?? ((query.isFetched || query.isError) ? sample : undefined) ?? undefined
+  const arena = query.data ?? ((query.isFetched || query.isError || GAME_SERVER_URL == null) ? sample : undefined) ?? undefined
   const me = wallet?.toBase58()
   return {
     arena,
     entries: arena?.entries ?? [],
     walletEntry: me ? arena?.entries.find((entry) => entry.player === me) : undefined,
+    payout: me ? arena?.payouts.find((p) => p.wallet === me && (p.kind === 'win' || p.kind === 'refund')) : undefined,
     minStake: arena?.minStake,
     maxStake: arena?.maxStake,
     isLoading: query.isLoading,

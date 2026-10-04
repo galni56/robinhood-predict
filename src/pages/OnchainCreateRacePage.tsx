@@ -1,25 +1,20 @@
 import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
-import { PublicKey } from '@solana/web3.js'
 import { useWallet } from '@solana/wallet-adapter-react'
 import type { ApprovedRaceAsset, AssetRaceMode } from '@/chain/assetRaces'
 import { categoryForRaceMode } from '@/chain/assetRaces'
 import { CRYPTO_ASSETS_ENABLED } from '@/chain/features'
-import { createCommunityRaceInstructions } from '@/chain/gameTx'
+import { useGameServerConfig, useSignedAction } from '@/chain/gameServer'
 import { useApprovedRaceAssets } from '@/chain/useApprovedRaceAssets'
-import { useGameConfig } from '@/chain/useGameConfig'
 import { ClusterBanner } from '@/components/ClusterBanner'
-import { StakeCurrencySelect } from '@/components/StakeCurrencySelect'
 import { CompactAssetSelector } from '@/components/CompactAssetSelector'
 import { GameLifecycleGuide } from '@/components/GameLifecycleGuide'
 import { FilterChips, GAME_MODE_CHIP_OPTIONS } from '@/components/FilterChips'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
-import { NATIVE_SOL } from '@/solana/config'
-import { assetIdFromSymbol } from '@/solana/pda'
-import { usePrograms } from '@/solana/programs'
-import { TxUnconfirmedError, useSendInstructions } from '@/solana/tx'
 import { shortTxError } from '@/lib/format'
+
+const CATEGORY_NAMES = ['stock', 'meme', 'crypto'] as const
 
 function durationLabel(seconds: bigint) {
   if (seconds % 3600n === 0n) return `${seconds / 3600n} hour${seconds === 3600n ? '' : 's'}`
@@ -37,16 +32,20 @@ export function OnchainCreateRacePage() {
   const category = categoryForRaceMode(mode)
   const queryClient = useQueryClient()
   const { publicKey, connected } = useWallet()
-  const { games } = usePrograms()
-  const send = useSendInstructions()
+  const act = useSignedAction()
   const { assets, durations, isLoading, error: registryError } = useApprovedRaceAssets()
-  const config = useGameConfig()
-  const policy = config.data?.communityPolicy
+  const config = useGameServerConfig()
+  const rawPolicy = config.data?.race.communityPolicy
+  const policy = rawPolicy && {
+    lobbyDuration: BigInt(rawPolicy.lobbyDuration),
+    bettingDuration: BigInt(rawPolicy.bettingDuration),
+    startGrace: BigInt(rawPolicy.startGrace),
+    resolutionGrace: BigInt(rawPolicy.resolutionGrace),
+  }
   const minutes = (seconds?: bigint) => (seconds != null ? durationLabel(seconds) : '…')
   const [title, setTitle] = useState('')
   const [duration, setDuration] = useState<bigint>(0n)
   const [selected, setSelected] = useState<ApprovedRaceAsset[]>([])
-  const [stakeMint, setStakeMint] = useState(NATIVE_SOL.toBase58())
   const [txLabel, setTxLabel] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -72,24 +71,20 @@ export function OnchainCreateRacePage() {
     setError(null)
     try {
       if (!publicKey || !validTitle || selectedDuration === 0n) return
-      setTxLabel('Preparing Community Race…')
-      const { raceId, instructions } = await createCommunityRaceInstructions(games, {
-        creator: publicKey,
+      // A signed message, not a transaction: creating a race is free.
+      setTxLabel('Sign race creation in wallet…')
+      const created = await act<{ id: number }>({
+        action: 'create-race',
         title: normalizedTitle,
-        category,
-        raceDuration: selectedDuration,
-        stakeMint: new PublicKey(stakeMint),
-        assetIds: selected.map((asset) => assetIdFromSymbol(asset.symbol)),
+        category: CATEGORY_NAMES[category],
+        duration: Number(selectedDuration),
+        assets: selected.map((asset) => asset.symbol),
       })
-      await send(instructions, {
-        onPhase: (phase) => setTxLabel(phase === 'signing' ? 'Confirm race creation in wallet…' : 'Waiting for race confirmation…'),
-      })
-      await queryClient.invalidateQueries({ queryKey: ['history'] })
-      navigate(`/onchain/races/${raceId}`)
+      await queryClient.invalidateQueries({ queryKey: ['game-state'] })
+      navigate(`/onchain/races/${created.id}`)
     } catch (cause) {
       setTxLabel(null)
       setError(shortTxError(cause, 'create-race'))
-      if (cause instanceof TxUnconfirmedError) void queryClient.invalidateQueries({ queryKey: ['history'] })
     }
   }
 
@@ -117,7 +112,7 @@ export function OnchainCreateRacePage() {
               tone="race"
               eyebrow={`${selectedDuration > 0n ? durationLabel(selectedDuration) : 'Choose a duration'} race · full lifecycle`}
               title="From lobby to finish line"
-              intro="Creating a race places no bet. It costs about 0.009 SOL of rent for the race account, which is not refunded, plus a small network fee. The creator defines the category and duration; the protocol fixes every later phase."
+              intro="Creating a race is free: your wallet signs a message, no transaction. It places no bet. The creator defines the category and duration; the rules fix every later phase, and the creator earns half of the 2% fee."
               stages={[
                 {
                   title: 'Build the grid',
@@ -127,12 +122,12 @@ export function OnchainCreateRacePage() {
                 {
                   title: 'Back one contender',
                   timing: `Betting · ${minutes(policy?.bettingDuration)}`,
-                  body: 'Choose one asset and enter $1–$50 in USD or SOL; the wallet sends SOL directly to the race account. You may add to that same position while betting is open, but cannot switch assets. Your first bet also pays a small refundable deposit for your position account.',
+                  body: 'Choose one asset and enter $1–$50 in USD or SOL; the wallet sends SOL to the Prophet game wallet. You may add to that same position while betting is open, but cannot switch assets. A bet that cannot count (too late, over the limit) is sent back.',
                 },
                 {
                   title: 'Lock the starting prices',
                   timing: 'At betting close',
-                  body: `Only assets with funded pools become active. At least two must be active or the race cancels. The starting price is the signed pool price at the last block before the betting cutoff; its proof has a ${minutes(policy?.startGrace)} submission grace period.`,
+                  body: `Only assets with funded pools become active. At least two must be active or the race cancels. The starting price is the signed pool price at the last block before the betting cutoff; it has to be fixed within ${minutes(policy?.startGrace)}.`,
                 },
                 {
                   title: 'Run the race',
@@ -141,25 +136,21 @@ export function OnchainCreateRacePage() {
                 },
                 {
                   title: 'Fix the finish and settle',
-                  timing: `${minutes(policy?.resolutionGrace)} proof grace`,
+                  timing: `within ${minutes(policy?.resolutionGrace)}`,
                   body: 'The finish snapshot belongs to the scheduled end. Highest return wins - even if every return is negative, the least-negative asset leads. An exact top tie voids the race.',
                 },
                 {
-                  title: 'Claim or refund',
+                  title: 'Paid to your wallet',
                   timing: 'After settlement',
-                  body: 'Winning positions claim principal plus their stake-proportional share of losing pools, minus a 2% fee on that profit only. Cancelled or void races return each position in full.',
+                  body: 'Winners receive their stake plus a stake-proportional share of the losing pools, minus a 2% fee on that profit only, straight to their wallet. Cancelled or void races send every stake back in full.',
                 },
               ]}
-              note="If a required start or finish proof misses its grace period, the contract moves to a refundable terminal state instead of accepting a late substitute price."
+              note="If a start or finish price cannot be fixed in time, the race is cancelled and every stake goes back instead of using a late substitute price."
             />
           </div>
         </div>
 
-        {config.data?.communityPolicyConfigured === false ? (
-          <div className="h-full rounded-none border border-amber-400/25 bg-amber-400/10 p-5 text-sm text-amber-100">
-            Community races are not enabled on this deployment yet.
-          </div>
-        ) : registryError ? (
+        {registryError ? (
           <div className="h-full rounded-none border border-rose-500/25 bg-rose-500/10 p-5 text-sm text-[#C2245A]">Could not read the approved Race registry.</div>
         ) : (
           <div className="rx-raised flex h-full min-w-0 flex-col gap-4 bg-[#FFF6DF] p-5 text-[#1B1340] sm:p-6">
@@ -176,8 +167,7 @@ export function OnchainCreateRacePage() {
           </div>
 
           <div>
-            <StakeCurrencySelect value={stakeMint} onChange={setStakeMint} tone="race" />
-            <label className="mb-2 mt-4 block text-[#1B1340]" style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 11 }}>Race duration</label>
+            <label className="mb-2 block text-[#1B1340]" style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 11 }}>Race duration</label>
             <select
               value={selectedDuration.toString()}
               onChange={(event) => setDuration(BigInt(event.target.value))}

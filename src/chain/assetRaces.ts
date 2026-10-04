@@ -1,11 +1,10 @@
-import type { PublicKey } from '@solana/web3.js'
-import type { IdlAccounts } from '@anchor-lang/core'
-import type { ProphetGames } from '@/solana/idl/prophet_games'
 import { assetRaceCatalogByPool, assetIdHexForSymbol } from '@/chain/assetRaceRegistry'
+import type { ServerPayout, ServerRace } from '@/chain/gameServer'
 import { SOL_DECIMALS } from '@/solana/config'
 
-// Asset Race view model on top of the `prophet_games` program's Race account.
-// Numeric status/category codes are kept stable for the UI components.
+// Asset Race view model on top of the game server's race (same fields as the
+// former program account). Numeric status/category codes are kept stable for
+// the UI components.
 
 export const ASSET_RACE_STATUS = {
   BETTING: 0,
@@ -27,9 +26,6 @@ export const STAKE_DECIMALS = SOL_DECIMALS
 export const RETURN_SCALE = 10n ** 18n
 export const BP_DENOMINATOR = 10_000n
 export const ASSET_RACE_TOKEN_LABEL = 'SOL'
-
-type RaceAccount = IdlAccounts<ProphetGames>['race']
-type PositionAccount = IdlAccounts<ProphetGames>['position']
 
 export interface ApprovedRaceAsset {
   assetId: string
@@ -68,8 +64,17 @@ export interface AssetRacePosition {
   stake: bigint
   assetIndex: number
   exists: boolean
-  /** Positions close on claim/refund, so a settled position no longer exists. */
+  /** Its payout or refund reached the wallet (or there was nothing to pay). */
   settled: boolean
+}
+
+/** A payout the game server owes or made for this race. */
+export interface RacePayout {
+  wallet: string
+  kind: string
+  amount: bigint
+  status: ServerPayout['status']
+  signature: string | null
 }
 
 export interface AssetRaceViewModel {
@@ -107,6 +112,8 @@ export interface AssetRaceViewModel {
   /** Wallets that already used their one lobby addition. */
   lobbyAdders: string[]
   assets: AssetRaceAsset[]
+  positions: { owner: string; assetIndex: number; stake: bigint; payout: bigint }[]
+  payouts: RacePayout[]
   source: 'onchain'
 }
 
@@ -119,23 +126,24 @@ const STATUS_CODES: Record<string, number> = {
   lobby: ASSET_RACE_STATUS.LOBBY,
 }
 const CATEGORY_CODES: Record<string, number> = { stock: 0, meme: 1, crypto: 2 }
-const variant = (value: object) => Object.keys(value)[0]
-const big = (value: { toString(): string }) => BigInt(value.toString())
+const big = (value: string | number) => BigInt(value)
 
-export function categoryCode(category: object) {
-  return CATEGORY_CODES[variant(category)] ?? 0
+export function categoryCode(category: string) {
+  return CATEGORY_CODES[category.toLowerCase()] ?? 0
 }
 
-export function raceFromAccount(address: PublicKey, r: RaceAccount): AssetRaceViewModel {
-  const status = STATUS_CODES[variant(r.status)] ?? ASSET_RACE_STATUS.UNKNOWN
+export const payoutFromServer = (p: ServerPayout): RacePayout => ({ ...p, amount: big(p.amount) })
+
+export function raceFromServer(r: ServerRace): AssetRaceViewModel {
+  const status = STATUS_CODES[r.status] ?? ASSET_RACE_STATUS.UNKNOWN
   return {
     id: big(r.id),
-    address: address.toBase58(),
+    address: r.address,
     category: categoryCode(r.category),
     status,
-    origin: variant(r.origin) === 'community' ? ASSET_RACE_ORIGIN.COMMUNITY : ASSET_RACE_ORIGIN.PLATFORM,
-    creator: r.creator.toBase58(),
-    stakeMint: r.stakeMint.toBase58(),
+    origin: r.origin === 'community' ? ASSET_RACE_ORIGIN.COMMUNITY : ASSET_RACE_ORIGIN.PLATFORM,
+    creator: r.creator,
+    stakeMint: r.stakeMint,
     title: r.title,
     bettingStartTime: big(r.bettingStartTime),
     bettingEndTime: big(r.bettingEndTime),
@@ -161,11 +169,11 @@ export function raceFromAccount(address: PublicKey, r: RaceAccount): AssetRaceVi
     protocolFee: big(r.protocolFee),
     creatorFee: big(r.creatorFee),
     remainingLiability: big(r.remainingLiability),
-    lobbyAdders: r.lobbyAdders.map((adder) => adder.toBase58()),
+    lobbyAdders: r.lobbyAdders,
     assets: r.assets.map((a, assetIndex) => {
-      const source = a.priceSource.toBase58()
+      const source = a.priceSource
       const catalog = assetRaceCatalogByPool.get(source)
-      const symbol = catalog?.symbol ?? new TextDecoder().decode(Uint8Array.from(a.assetId)).replaceAll('\0', '')
+      const symbol = catalog?.symbol ?? a.symbol
       return {
         assetIndex,
         assetId: catalog?.assetId ?? assetIdHexForSymbol(symbol),
@@ -180,13 +188,26 @@ export function raceFromAccount(address: PublicKey, r: RaceAccount): AssetRaceVi
         endOracleUpdatedAt: big(r.endPriceTime),
       }
     }),
+    positions: r.positions.map((p) => ({ owner: p.owner, assetIndex: p.assetIndex, stake: big(p.stake), payout: big(p.payout) })),
+    payouts: r.payouts.map(payoutFromServer),
     source: 'onchain',
   }
 }
 
-export function positionFromAccount(p: PositionAccount | null): AssetRacePosition | undefined {
+const FINAL_RACE = new Set<number>([ASSET_RACE_STATUS.RESOLVED, ASSET_RACE_STATUS.CANCELLED, ASSET_RACE_STATUS.VOID])
+
+/** The wallet's position: settled once its payout landed, or at once for a loss. */
+export function positionFor(race: AssetRaceViewModel, wallet?: string | null): AssetRacePosition | undefined {
+  const p = wallet ? race.positions.find((item) => item.owner === wallet) : undefined
   if (!p) return undefined
-  return { stake: big(p.stake), assetIndex: p.assetIndex, exists: true, settled: false }
+  const owed = payoutFor(race, wallet)
+  const settled = FINAL_RACE.has(race.status) && (owed ? owed.status === 'done' : true)
+  return { stake: p.stake, assetIndex: p.assetIndex, exists: true, settled }
+}
+
+/** The wallet's payout or refund for this race, once the server queued it. */
+export function payoutFor(race: AssetRaceViewModel, wallet?: string | null): RacePayout | undefined {
+  return wallet ? race.payouts.find((item) => item.wallet === wallet && (item.kind === 'win' || item.kind === 'refund')) : undefined
 }
 
 export function assetRaceStatusLabel(status: number) {

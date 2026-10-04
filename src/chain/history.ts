@@ -1,38 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
-import { INDEXER_URL } from '@/solana/services'
+import { GAME_SERVER_URL } from '@/solana/services'
 
-// The history indexer's snapshot (scripts/solana/indexer.mjs, `GET /history`):
-// every race and arena (with raw account data), recent activity, per-wallet
-// totals and the leaderboard. Amounts are decimal strings in base units.
-
-export interface HistoryGameRow {
-  id: number
-  address: string
-  /** Raw account data, base64; decoded with the program IDL. */
-  data: string
-  stakeMint: string
-  status: string
-}
-
-export interface HistoryRaceRow extends HistoryGameRow {
-  title: string
-  category: string
-  creator: string
-  totalPool: string
-  winningAssetIndex: number | null
-  resolvedAt: number | null
-  assets: { symbol: string; pool: string }[]
-}
-
-export interface HistoryArenaRow extends HistoryGameRow {
-  title: string
-  symbol: string
-  category: string
-  creator: string
-  totalPool: string
-  resolvedAt: number | null
-  players: { player: string; prediction: string; stake: string; rank: number; payout: string; settled: boolean }[]
-}
+// The game server's history snapshot (`GET /history`): recent activity
+// (stakes, payouts, refunds), per-wallet totals and the leaderboards.
+// Amounts are decimal strings in lamports.
 
 export type HistoryActivityType = 'bet' | 'entry' | 'claim' | 'refund' | string
 
@@ -75,11 +46,10 @@ export interface HistoryGameStanding {
 
 export interface HistorySnapshot {
   cluster: string
+  /** The game wallet. */
   programId: string
   updatedAt: number
   eventCount: number
-  races: HistoryRaceRow[]
-  arenas: HistoryArenaRow[]
   activity: HistoryActivity[]
   wallets: Record<string, HistoryWallet>
   leaderboard: HistoryWallet[]
@@ -87,17 +57,17 @@ export interface HistorySnapshot {
 }
 
 async function fetchHistory(): Promise<HistorySnapshot> {
-  const response = await fetch(`${INDEXER_URL}/history`)
-  if (!response.ok) throw new Error(`Indexer returned ${response.status}`)
+  const response = await fetch(`${GAME_SERVER_URL}/history`)
+  if (!response.ok) throw new Error(`Game server returned ${response.status}`)
   return (await response.json()) as HistorySnapshot
 }
 
-/** One shared poll of the indexer snapshot for lists, activity and stats. */
+/** One shared poll of the history snapshot for activity and stats. */
 export function useHistory({ enabled = true }: { enabled?: boolean } = {}) {
   return useQuery({
     queryKey: ['history'],
     queryFn: fetchHistory,
-    enabled: enabled && INDEXER_URL != null,
+    enabled: enabled && GAME_SERVER_URL != null,
     refetchInterval: 5_000,
     refetchIntervalInBackground: false,
     retry: 1,

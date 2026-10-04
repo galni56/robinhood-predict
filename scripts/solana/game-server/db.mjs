@@ -100,6 +100,7 @@ export function openDatabase(path) {
     putNickname: q(`INSERT INTO nicknames (wallet, nickname, lower, updated_at) VALUES (?, ?, ?, ?)
       ON CONFLICT (wallet) DO UPDATE SET nickname = excluded.nickname, lower = excluded.lower, updated_at = excluded.updated_at`),
     allNicknames: q('SELECT wallet, nickname FROM nicknames'),
+    dropNickname: q('DELETE FROM nicknames WHERE wallet = ?'),
     useMessage: q('INSERT INTO used_messages (signature, wallet, at) VALUES (?, ?, ?)'),
   }
 
@@ -180,6 +181,7 @@ export function openDatabase(path) {
     nickname: (wallet) => s.getNickname.get(wallet)?.nickname ?? null,
     nicknameOwner: (lower) => s.nicknameOwner.get(lower)?.wallet ?? null,
     setNickname: (wallet, nickname) => s.putNickname.run(wallet, nickname, nickname.toLowerCase(), now()),
+    clearNickname: (wallet) => s.dropNickname.run(wallet),
     nicknames: () => Object.fromEntries(s.allNicknames.all().map((r) => [r.wallet, r.nickname])),
 
     /** Records a signed message; throws on replay (PRIMARY KEY). */

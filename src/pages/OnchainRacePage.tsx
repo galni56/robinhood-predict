@@ -18,13 +18,9 @@ import {
   type FrozenStakeQuote,
   type StakeInputUnit,
 } from '@/chain/stakeQuote'
-import {
-  addLobbyAssetInstructions,
-  betInstructions,
-  openBettingInstructions,
-  settleRaceInstructions,
-  type RaceSettlementAction,
-} from '@/chain/gameTx'
+import { raceStakeMemo, stakeInstructions } from '@/chain/gameTx'
+import { depositOutcomeMessage, reportDeposit, useGameServerConfig, useSignedAction } from '@/chain/gameServer'
+import { assetRaceCatalogById } from '@/chain/assetRaceRegistry'
 import { useAssetRace } from '@/chain/useAssetRace'
 import { useAssetRaceClock } from '@/chain/useAssetRaceClock'
 import { useLivePrices } from '@/chain/livePrices'
@@ -36,7 +32,6 @@ import { ClusterBanner } from '@/components/ClusterBanner'
 import { ShareInviteButton } from '@/components/ShareInviteButton'
 
 import { useStakeBalance, useStakeToken } from '@/solana/stakeTokens'
-import { usePrograms } from '@/solana/programs'
 import { TxUnconfirmedError, useSendInstructions } from '@/solana/tx'
 import { formatUnits, formatCountdown, shortTxError } from '@/lib/format'
 import { formatStakeAmount } from '@/solana/stakeTokens'
@@ -54,19 +49,15 @@ function parseRaceId(value: string | undefined) {
   }
 }
 
-function hexToBytes(hex: string) {
-  const clean = hex.startsWith('0x') ? hex.slice(2) : hex
-  return Uint8Array.from(clean.match(/.{2}/g) ?? [], (byte) => parseInt(byte, 16))
-}
-
 export function OnchainRacePage() {
   const { raceId: routeRaceId } = useParams()
   const raceId = parseRaceId(routeRaceId)
   const { publicKey, connected } = useWallet()
-  const { games } = usePrograms()
   const send = useSendInstructions()
+  const act = useSignedAction()
+  const serverConfig = useGameServerConfig()
   const queryClient = useQueryClient()
-  const { race, position, settlement, isLoading, error: readError, refetch } = useAssetRace(raceId, publicKey)
+  const { race, position, payout, settlement, isLoading, error: readError, refetch } = useAssetRace(raceId, publicKey)
   const [selectedAssetIndex, setSelectedAssetIndex] = useState(0)
   const betFormOwner = `${raceId?.toString() ?? ''}:${publicKey?.toBase58() ?? ''}`
   const [amountState, setAmountState] = useState({ owner: betFormOwner, value: '' })
@@ -103,6 +94,7 @@ export function OnchainRacePage() {
       refetch(),
       balance.refetch(),
       queryClient.invalidateQueries({ queryKey: ['history'] }),
+      queryClient.invalidateQueries({ queryKey: ['game-state'] }),
     ])
   }
 
@@ -110,6 +102,8 @@ export function OnchainRacePage() {
     setError(null)
     try {
       if (raceId == null || !race || !publicKey || !token) return
+      const gameWallet = serverConfig.data?.gameWallet
+      if (!gameWallet) throw new Error('The game server is not reachable right now')
       let frozen: FrozenStakeQuote | null = null
       if (usdQuoted) {
         if (!live.solUsd) throw new Error('SolUsdQuoteStale')
@@ -129,20 +123,17 @@ export function OnchainRacePage() {
       setFrozenBetQuote(frozen)
       const assetIndex = position?.exists ? position.assetIndex : selectedAssetIndex
       setTx({ label: 'Preparing race bet…' })
-      const instructions = await betInstructions(games, {
-        race: race.address,
-        stakeMint: race.stakeMint,
-        bettor: publicKey,
-        assetIndex,
-        amount: betAmount,
-      })
-      await send(instructions, {
+      const instructions = stakeInstructions({ player: publicKey, gameWallet, lamports: betAmount, memo: raceStakeMemo(race.id, assetIndex) })
+      const signature = await send(instructions, {
         onPhase: (phase) =>
           setTx({ label: phase === 'signing' ? 'Confirm race bet in wallet…' : 'Waiting for bet confirmation…' }),
       })
+      setTx({ label: 'Recording your bet…' })
+      const outcome = await reportDeposit(signature).catch(() => null)
       setTx(null)
       setFrozenBetQuote(null)
       setAmount('')
+      if (outcome) setError(depositOutcomeMessage(outcome))
       await refetchAll()
     } catch (cause) {
       setTx(null)
@@ -154,44 +145,20 @@ export function OnchainRacePage() {
     }
   }
 
-  async function handleSettlement(action: RaceSettlementAction) {
+  // Adding a lobby asset is a signed message: no transaction, no fee.
+  async function handleAddAsset(assetId: string) {
     setError(null)
     try {
       if (!race || !publicKey) return
-      const label = action === 'claim' ? 'claim' : action === 'refund' ? 'refund' : 'close'
-      setTx({ label: `Preparing ${label}…` })
-      const instructions = await settleRaceInstructions(games, { race: race.address, stakeMint: race.stakeMint, owner: publicKey, action })
-      await send(instructions, {
-        onPhase: (phase) =>
-          setTx({ label: phase === 'signing' ? `Confirm ${label} in wallet…` : `Waiting for ${label} confirmation…` }),
-      })
-      setTx(null)
-      await refetchAll()
-    } catch (cause) {
-      setTx(null)
-      setError(shortTxError(cause, 'race-settlement'))
-      if (cause instanceof TxUnconfirmedError) void refetchAll()
-    }
-  }
-
-  async function handleLobbyAction(kind: 'addLobbyAsset' | 'openBetting', assetId?: string) {
-    setError(null)
-    try {
-      if (!race || !publicKey) return
-      setTx({ label: kind === 'addLobbyAsset' ? 'Preparing asset addition…' : 'Preparing betting transition…' })
-      const instructions = kind === 'addLobbyAsset'
-        ? await addLobbyAssetInstructions(games, { race: race.address, adder: publicKey, assetId: hexToBytes(assetId!) })
-        : await openBettingInstructions(games, { race: race.address })
-      await send(instructions, {
-        onPhase: (phase) =>
-          setTx({ label: phase === 'signing' ? 'Confirm in wallet…' : 'Waiting for confirmation…' }),
-      })
+      const symbol = assetRaceCatalogById.get(assetId.toLowerCase())?.symbol
+      if (!symbol) throw new Error('Unknown asset')
+      setTx({ label: 'Sign in wallet…' })
+      await act({ action: 'add-lobby-asset', race: Number(race.id), asset: symbol })
       setTx(null)
       await refetchAll()
     } catch (cause) {
       setTx(null)
       setError(shortTxError(cause, 'race-lobby'))
-      if (cause instanceof TxUnconfirmedError) void refetchAll()
     }
   }
 
@@ -278,8 +245,7 @@ export function OnchainRacePage() {
                   nowMs={raceNowMs}
                   isConnected={connected}
                   hasAddedAsset={!!publicKey && race.lobbyAdders.includes(publicKey.toBase58())}
-                  onAddAsset={(assetId) => handleLobbyAction('addLobbyAsset', assetId)}
-                  onOpenBetting={() => handleLobbyAction('openBetting')}
+                  onAddAsset={handleAddAsset}
                   txLabel={tx?.label ?? null}
                   error={error}
                 />
@@ -331,11 +297,8 @@ export function OnchainRacePage() {
                       race={race}
                       position={position}
                       settlement={settlement}
+                      payout={payout}
                       isConnected={connected}
-                      onClaim={() => handleSettlement('claim')}
-                      onRefund={() => handleSettlement('refund')}
-                      onCloseLosing={() => handleSettlement('closeLosing')}
-                      txLabel={tx?.label ?? null}
                       error={error}
                       tokenDecimals={token.decimals}
                       tokenLabel={token.symbol}

@@ -1,35 +1,34 @@
-import { useState, type ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { useQueryClient } from '@tanstack/react-query'
-import type { TransactionInstruction } from '@solana/web3.js'
 import { useWallet } from '@solana/wallet-adapter-react'
+import type { RacePayout } from '@/chain/assetRaces'
 import { assetRaceStatusLabel } from '@/chain/assetRaces'
 import { arenaPhaseLabel, arenaPhase } from '@/chain/priceArena'
-import { settleArenaInstructions, settleRaceInstructions, withdrawCreatorFeesInstructions } from '@/chain/gameTx'
 import { useHistory, type HistoryActivity } from '@/chain/history'
 import { useAssetRaceClock } from '@/chain/useAssetRaceClock'
-import { useWalletGames, type WalletArenaEntry, type WalletGameAction, type WalletRacePosition } from '@/chain/useWalletGames'
+import { useWalletGames, type WalletArenaEntry, type WalletGameOutcome, type WalletRacePosition } from '@/chain/useWalletGames'
 import { ClusterBanner } from '@/components/ClusterBanner'
 import { TokenLogo } from '@/components/TokenLogo'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
-import { NATIVE_SOL, explorerUrl } from '@/solana/config'
-import { usePrograms } from '@/solana/programs'
-import { TxUnconfirmedError, useSendInstructions } from '@/solana/tx'
-import { formatCompactSol, formatSol, shortTxError, timeAgo } from '@/lib/format'
+import { explorerUrl } from '@/solana/config'
+import { formatCompactSol, formatSol, timeAgo } from '@/lib/format'
 import { SOL_STAKE_TOKEN, formatStakeAmount, useStakeTokenLookup } from '@/solana/stakeTokens'
 import { shortHash } from '@/lib/hash'
-
-const ACTION_LABEL: Record<Exclude<WalletGameAction, 'none'>, string> = {
-  claim: 'Claim',
-  refund: 'Refund',
-  closeLosing: 'Close',
-}
 
 const ACTIVITY_LABEL: Record<string, string> = {
   bet: 'Bet',
   entry: 'Arena entry',
-  claim: 'Claimed',
+  claim: 'Paid out',
   refund: 'Refunded',
+}
+
+const OUTCOME_LABEL: Record<WalletGameOutcome, string> = {
+  playing: 'In play',
+  paying: 'Sending',
+  refunding: 'Refunding',
+  paid: 'Paid',
+  refunded: 'Refunded',
+  lost: 'Lost',
 }
 
 function Stat({ label, value, title, tone }: { label: string; value: string; title?: string; tone?: string }) {
@@ -65,67 +64,31 @@ function GameRow({ href, accent, symbols, title, meta, right }: {
 
 export function OnchainPortfolioPage() {
   const { publicKey, connected } = useWallet()
-  const { games } = usePrograms()
-  const send = useSendInstructions()
-  const queryClient = useQueryClient()
   const history = useHistory()
   const tokenOf = useStakeTokenLookup()
   const nowMs = useAssetRaceClock()
-  const { racePositions, arenaEntries, creatorEarnings, isLoading, error, refetch } = useWalletGames(publicKey)
-  const [pending, setPending] = useState<string | null>(null)
-  const [actionError, setActionError] = useState<string | null>(null)
+  const { racePositions, arenaEntries, creatorEarnings, isLoading, error } = useWalletGames(publicKey)
   const me = publicKey?.toBase58()
   const stats = me ? history.data?.wallets[me] : undefined
   const activity = me ? (history.data?.activity ?? []).filter((item) => item.wallet === me).slice(0, 30) : []
 
-  async function run(key: string, build: () => Promise<TransactionInstruction[]>) {
-    setActionError(null)
-    setPending(key)
-    try {
-      await send(await build())
-      await Promise.all([refetch(), queryClient.invalidateQueries({ queryKey: ['history'] }), queryClient.invalidateQueries({ queryKey: ['stake-balance'] })])
-    } catch (cause) {
-      setActionError(shortTxError(cause, 'portfolio'))
-      if (cause instanceof TxUnconfirmedError) {
-        void Promise.all([refetch(), queryClient.invalidateQueries({ queryKey: ['history'] }), queryClient.invalidateQueries({ queryKey: ['sol-balance'] })])
-      }
-    } finally {
-      setPending(null)
-    }
+  // The game server pays winners and refunds on its own; this only reports it.
+  function outcomeBadge(outcome: WalletGameOutcome, amount: bigint, payout?: RacePayout) {
+    const text = `${payout?.status === 'stuck' ? 'Delayed' : OUTCOME_LABEL[outcome]}${amount > 0n ? ` ${formatStakeAmount(amount, SOL_STAKE_TOKEN)}` : ''}`
+    const tone = outcome === 'paid' || outcome === 'paying' ? 'text-[#1E7A36]' : outcome === 'lost' ? 'text-[#1B1340]/45' : 'text-[#B8860B]'
+    return payout?.status === 'done' && payout.signature
+      ? <a href={explorerUrl('tx', payout.signature)} target="_blank" rel="noreferrer" className={`text-xs font-bold hover:underline ${tone}`}>{text} ↗</a>
+      : <span className={`text-xs font-bold ${tone}`}>{text}</span>
   }
 
-  function raceButton(item: WalletRacePosition) {
-    if (item.action === 'none' || !publicKey) return null
-    const key = `race:${item.race.address}`
-    return (
-      <button
-        onClick={() => run(key, () => settleRaceInstructions(games, { race: item.race.address, stakeMint: item.race.stakeMint, owner: publicKey, action: item.action as Exclude<WalletGameAction, 'none'> }))}
-        disabled={!!pending}
-        className={`rounded-full px-4 py-2 text-xs font-bold disabled:opacity-40 ${item.action === 'closeLosing' ? 'border border-[#1B1340]/20 text-[#1B1340]/70 hover:border-white/30' : 'bg-[#f7b928] text-[#191330] hover:bg-[#ffd23f]'}`}
-      >
-        {pending === key ? 'Confirming…' : `${ACTION_LABEL[item.action]}${item.amount > 0n ? ` ${formatStakeAmount(item.amount, tokenOf(item.race.stakeMint))}` : ''}`}
-      </button>
-    )
-  }
-
-  function arenaButton(item: WalletArenaEntry) {
-    if (item.action === 'none' || !publicKey) return null
-    const key = `arena:${item.arena.address}`
-    return (
-      <button
-        onClick={() => run(key, () => settleArenaInstructions(games, { arena: item.arena.address, stakeMint: item.arena.stakeMint, player: publicKey, action: item.action as 'claim' | 'refund' }))}
-        disabled={!!pending}
-        className="rounded-full bg-[#6bcbf4] px-4 py-2 text-xs font-bold text-[#191330] hover:bg-[#8ddaf8] disabled:opacity-40"
-      >
-        {pending === key ? 'Confirming…' : `${ACTION_LABEL[item.action]} ${formatStakeAmount(item.amount, tokenOf(item.arena.stakeMint))}`}
-      </button>
-    )
-  }
-
-  const toCollect = [
-    ...racePositions.filter((item) => item.action !== 'none').map((item) => ({ kind: 'race' as const, item })),
-    ...arenaEntries.filter((item) => item.action !== 'none').map((item) => ({ kind: 'arena' as const, item })),
+  const onTheWay = [
+    ...racePositions.filter((item) => item.outcome === 'paying' || item.outcome === 'refunding').map((item) => ({ kind: 'race' as const, item })),
+    ...arenaEntries.filter((item) => item.outcome === 'paying' || item.outcome === 'refunding').map((item) => ({ kind: 'arena' as const, item })),
   ]
+  const finished = [
+    ...racePositions.filter((item) => item.outcome === 'paid' || item.outcome === 'refunded' || item.outcome === 'lost').map((item) => ({ kind: 'race' as const, item, at: item.race.resolvedAt })),
+    ...arenaEntries.filter((item) => item.outcome === 'paid' || item.outcome === 'refunded' || item.outcome === 'lost').map((item) => ({ kind: 'arena' as const, item, at: item.arena.resolvedAt })),
+  ].sort((a, b) => (a.at > b.at ? -1 : 1)).slice(0, 20)
   const inPlay = [
     ...racePositions.filter((item) => item.inPlay).map((item) => ({ kind: 'race' as const, item })),
     ...arenaEntries.filter((item) => item.inPlay).map((item) => ({ kind: 'arena' as const, item })),
@@ -166,7 +129,7 @@ export function OnchainPortfolioPage() {
     <div className="mx-auto max-w-[1100px] px-4 py-8">
       <ClusterBanner />
       <h1 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">Portfolio</h1>
-      <p className="mt-2 text-sm text-[#1B1340]/55">Your Asset Race positions and Price Arena entries, what is ready to collect, and your history.</p>
+      <p className="mt-2 text-sm text-[#1B1340]/55">Your Asset Race positions and Price Arena entries, payouts on their way to your wallet, and your history.</p>
 
       {!connected || !publicKey ? (
         <div className="mt-6 max-w-md rounded-none border border-[#1B1340]/12 bg-[#FFF6DF] p-5">
@@ -184,7 +147,7 @@ export function OnchainPortfolioPage() {
           </div>
           <p className="mt-2 text-[11px] text-[#1B1340]/50">
             {history.isError && !history.data
-              ? 'History is unavailable right now; open positions below are read from the chain.'
+              ? 'History is unavailable right now.'
               : 'SOL-staked games only. Open stakes count as spent until their game settles.'}
           </p>
 
@@ -192,30 +155,22 @@ export function OnchainPortfolioPage() {
             <section className="mt-6 flex flex-wrap items-center justify-between gap-4 rounded-none border border-[#ff4f8b]/25 bg-[#FFF6DF] p-5">
               <div>
                 <h2 className="font-display text-lg font-bold">Creator earnings</h2>
-                <p className="mt-1 text-sm text-[#1B1340]/55">Your share of fees from games you created · {formatCompactSol(creatorEarnings.totalEarned)} earned in total.</p>
+                <p className="mt-1 text-sm text-[#1B1340]/55">Your share of fees from games you created, sent to your wallet automatically · {formatCompactSol(creatorEarnings.totalEarned)} received in total{creatorEarnings.pending > 0n ? ` · ${formatCompactSol(creatorEarnings.pending)} on the way` : ''}.</p>
               </div>
-              <button
-                onClick={() => run('creator', () => withdrawCreatorFeesInstructions(games, { creator: publicKey, stakeMint: NATIVE_SOL }))}
-                disabled={!!pending || creatorEarnings.amount === 0n}
-                className="rounded-full bg-[#ff4f8b] px-5 py-2.5 text-sm font-bold text-[#1B1340] hover:bg-[#ff4f8b] disabled:opacity-40"
-              >
-                {pending === 'creator' ? 'Confirming…' : creatorEarnings.amount > 0n ? `Withdraw ${formatCompactSol(creatorEarnings.amount)}` : 'Nothing to withdraw'}
-              </button>
             </section>
           )}
 
-          {actionError && <p className="mt-4 text-sm text-[#C2245A]">{actionError}</p>}
-
-          <section className="mt-8">
-            <h2 className="font-display text-xl font-bold">Ready to collect</h2>
-            <p className="mt-1 text-xs text-[#1B1340]/55">Winnings, refunds, and losing race positions you can close to recover their account deposit.</p>
-            <div className="mt-3 space-y-2">
-              {isLoading ? <p className="py-6 text-sm text-[#1B1340]/55">Loading your games…</p>
-                : error ? <p className="py-6 text-sm text-[#C2245A]">Could not read your positions.</p>
-                  : toCollect.length === 0 ? <p className="py-6 text-sm text-[#1B1340]/55">Nothing to collect right now.</p>
-                    : toCollect.map((row) => (row.kind === 'race' ? raceRow(row.item, raceButton(row.item)) : arenaRow(row.item, arenaButton(row.item))))}
-            </div>
-          </section>
+          {onTheWay.length > 0 && (
+            <section className="mt-8">
+              <h2 className="font-display text-xl font-bold">On the way to your wallet</h2>
+              <p className="mt-1 text-xs text-[#1B1340]/55">Winnings and refunds are sent automatically, usually within seconds.</p>
+              <div className="mt-3 space-y-2">
+                {onTheWay.map((row) => (row.kind === 'race'
+                  ? raceRow(row.item, outcomeBadge(row.item.outcome, row.item.amount, row.item.payout))
+                  : arenaRow(row.item, outcomeBadge(row.item.outcome, row.item.amount, row.item.payout))))}
+              </div>
+            </section>
+          )}
 
           <section className="mt-8">
             <h2 className="font-display text-xl font-bold">In play</h2>
@@ -226,11 +181,24 @@ export function OnchainPortfolioPage() {
                 <p className="py-6 text-sm text-[#1B1340]/55">
                   No open games. <Link to="/onchain/races" className="font-bold text-[#B8860B] hover:underline">Find a race</Link> or <Link to="/onchain/arenas" className="font-bold text-[#1F7FD1] hover:underline">join an arena</Link>.
                 </p>
+              ) : isLoading && inPlay.length === 0 ? (
+                <p className="py-6 text-sm text-[#1B1340]/55">Loading your games…</p>
               ) : inPlay.map((row) => (row.kind === 'race'
                 ? raceRow(row.item, <span className="text-xs font-bold text-[#1B1340]/55">In play</span>)
                 : arenaRow(row.item, <span className="text-xs font-bold text-[#1B1340]/55">In play</span>)))}
             </div>
           </section>
+
+          {finished.length > 0 && (
+            <section className="mt-8">
+              <h2 className="font-display text-xl font-bold">Finished</h2>
+              <div className="mt-3 space-y-2">
+                {finished.map((row) => (row.kind === 'race'
+                  ? raceRow(row.item, outcomeBadge(row.item.outcome, row.item.amount, row.item.payout))
+                  : arenaRow(row.item, outcomeBadge(row.item.outcome, row.item.amount, row.item.payout))))}
+              </div>
+            </section>
+          )}
 
           <section className="mt-8">
             <h2 className="font-display text-xl font-bold">Activity</h2>

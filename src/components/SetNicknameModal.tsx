@@ -2,21 +2,19 @@ import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { useWallet } from '@solana/wallet-adapter-react'
-import { MAX_NICKNAME_BYTES, nicknameQueryKey, useNickname } from '@/solana/nicknames'
-import { usePrograms } from '@/solana/programs'
-import { useSendInstructions } from '@/solana/tx'
+import { MAX_NICKNAME_BYTES, NICKNAMES_QUERY_KEY, useNickname } from '@/solana/nicknames'
+import { useSignedAction } from '@/chain/gameServer'
 import { shortTxError } from '@/lib/format'
 
 const byteLength = (value: string) => new TextEncoder().encode(value).length
 
-/** A real transaction on nickname_registry: the nickname is public until
- * changed. Saving an empty value clears it and refunds the account rent. */
+/** Signed with the wallet (no transaction, no fee) and kept by the game
+ * server: public, one per wallet, unique. Saving an empty value clears it. */
 export function SetNicknameModal({ onClose }: { onClose: () => void }) {
   const { publicKey } = useWallet()
   const owner = publicKey?.toBase58()
   const current = useNickname(owner)
-  const programs = usePrograms()
-  const send = useSendInstructions()
+  const act = useSignedAction()
   const queryClient = useQueryClient()
   const [value, setValue] = useState(current.data ?? '')
   const [touched, setTouched] = useState(false)
@@ -26,7 +24,7 @@ export function SetNicknameModal({ onClose }: { onClose: () => void }) {
   // The modal can open before the nickname query resolves, so the input
   // starts empty. Fill it when the data arrives (unless the user already
   // typed) - otherwise pressing Save with the untouched empty input would
-  // send clearNickname and silently delete the existing nickname.
+  // clear the existing nickname.
   useEffect(() => {
     if (!touched && current.data) setValue(current.data)
   }, [current.data, touched])
@@ -49,15 +47,17 @@ export function SetNicknameModal({ onClose }: { onClose: () => void }) {
     setPending(true)
     try {
       const nickname = value.trim()
-      const ix = nickname
-        ? await programs.nicknameRegistry.methods.setNickname(nickname).accounts({ owner: publicKey }).instruction()
-        : await programs.nicknameRegistry.methods.clearNickname().accounts({ owner: publicKey }).instruction()
       if (!nickname && !current.data) {
         onClose()
         return
       }
-      await send([ix])
-      queryClient.setQueryData(nicknameQueryKey(owner), nickname || null)
+      await act({ action: 'set-nickname', nickname })
+      queryClient.setQueryData<Record<string, string>>(NICKNAMES_QUERY_KEY, (all) => {
+        const next = { ...(all ?? {}) }
+        if (nickname) next[owner!] = nickname
+        else delete next[owner!]
+        return next
+      })
       onClose()
     } catch (e) {
       setError(shortTxError(e, 'set-nickname'))
@@ -78,8 +78,8 @@ export function SetNicknameModal({ onClose }: { onClose: () => void }) {
         >
           <h2 className="text-sm font-bold mb-1">Set your nickname</h2>
           <p className="text-[#1B1340]/55 text-xs mb-3">
-            A real Solana transaction - public, and visible wherever your address shows up. Storing it costs a small
-            refundable rent deposit (~0.001 SOL). Leave blank to clear it and get the deposit back.
+            Your wallet signs a message (free, no transaction). The nickname is public and shows wherever your address
+            does; each nickname belongs to one wallet. Leave blank to clear it.
           </p>
           <input
             autoFocus
@@ -110,7 +110,7 @@ export function SetNicknameModal({ onClose }: { onClose: () => void }) {
               disabled={pending || !publicKey || current.isLoading}
               className="flex-1 rounded-none bg-gradient-to-r from-[#ff4f8b] to-[#ff4f8b] hover:brightness-110 text-black font-semibold py-2 text-sm disabled:opacity-50 transition-all"
             >
-              {pending ? 'Confirm in wallet…' : 'Save'}
+              {pending ? 'Sign in wallet…' : 'Save'}
             </button>
           </div>
         </div>
