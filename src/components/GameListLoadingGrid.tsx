@@ -21,14 +21,14 @@ export function GameListLoadingGrid({ accent = 'purple', cards = 6 }: GameListLo
       aria-busy="true"
       className="grid min-h-[32rem] grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3"
     >
-      <div className="col-span-full flex h-8 items-center gap-2 text-sm font-medium text-white/45">
+      <div className="col-span-full flex h-8 items-center gap-2 text-sm font-medium text-[#191330]/50">
         <span className={`h-2 w-2 animate-pulse rounded-full ${accentClass[accent]}`} />
         Searching for active games…
       </div>
       {Array.from({ length: cards }, (_, index) => (
         <div
           key={index}
-          className="min-h-64 animate-pulse rounded-3xl border border-white/5 bg-[#241b2f] p-5"
+          className="min-h-64 animate-pulse border-[3px] border-[#191330] bg-[#221c40] p-5 shadow-[5px_5px_0_#191330]"
         >
           <div className="flex items-center justify-between gap-4">
             <div className={`h-7 w-24 rounded-full ${accentClass[accent]}`} />

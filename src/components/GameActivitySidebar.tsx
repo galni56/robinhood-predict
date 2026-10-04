@@ -26,8 +26,8 @@ export function GameActivitySidebar({
 
   return (
     <div className="space-y-5">
-      <div className="rounded-3xl border border-white/5 bg-[#241b2f] p-4">
-        <h2 className="mb-3 flex items-center gap-2 font-display text-sm font-bold">
+      <div className="border-[3px] border-[#191330] bg-[#221c40] p-4 text-[#fbf3e2] shadow-[5px_5px_0_#191330]">
+        <h2 className="px-font mb-4 flex items-center gap-2 text-[10px]">
           <TrophyIcon className={`h-4 w-4 ${accentText}`} /> Leaderboard
         </h2>
         <div className="space-y-1">
@@ -50,8 +50,8 @@ export function GameActivitySidebar({
         </div>
       </div>
 
-      <div className="rounded-3xl border border-white/5 bg-[#241b2f] p-4">
-        <h2 className="mb-3 flex items-center gap-2 font-display text-sm font-bold">
+      <div className="border-[3px] border-[#191330] bg-[#221c40] p-4 text-[#fbf3e2] shadow-[5px_5px_0_#191330]">
+        <h2 className="px-font mb-4 flex items-center gap-2 text-[10px]">
           <BoltIcon className={`h-4 w-4 ${accentText}`} /> Recent bets
         </h2>
         <div className="space-y-1.5">

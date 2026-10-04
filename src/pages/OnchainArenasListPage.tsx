@@ -60,17 +60,17 @@ function ArenaCard({ arena, nowMs }: { arena: PriceArenaWithPhase; nowMs: number
           navigate(`/onchain/arenas/${arena.id}`)
         }
       }}
-      className="group cursor-pointer rounded-3xl border border-[#7A9FF0]/15 bg-[#241b2f] p-5 transition-all hover:-translate-y-0.5 hover:border-[#B7CEFF]/50"
+      className="group cursor-pointer border-[3px] border-[#191330] bg-[#221c40] p-5 text-[#fbf3e2] shadow-[5px_5px_0_#191330] transition-all hover:-translate-y-1 hover:shadow-[7px_7px_0_#191330]"
     >
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="text-xs font-bold uppercase tracking-[0.16em] text-[#B7CEFF]">{meme ? 'Meme Arena' : crypto ? 'Crypto Arena' : 'Stock Arena'} · #{arena.id.toString()}</div>
+          <div className="px-font text-[8px] text-[#6bcbf4]">{meme ? 'Meme Arena' : crypto ? 'Crypto Arena' : 'Stock Arena'} · #{arena.id.toString()}</div>
           <h2 className="mt-2 font-display text-xl font-bold">{arena.title}</h2>
           <p className="mt-1 text-xs text-white/35">by <AddressLabel address={arena.creator} className="text-white/50" /></p>
         </div>
-        <span className="rounded-full bg-white/5 px-2.5 py-1 text-xs font-bold text-white/60">{displayPhase(arena, nowMs)}</span>
+        <span className="px-font border-2 border-[#191330] bg-[#6bcbf4] px-1.5 py-1 text-[7px] text-[#191330]">{displayPhase(arena, nowMs)}</span>
       </div>
-      <div className="mt-5 grid grid-cols-3 gap-3 rounded-2xl bg-black/10 p-3 text-sm">
+      <div className="mt-5 grid grid-cols-3 gap-3 border-2 border-[#fbf3e2]/15 bg-[#191330]/40 p-3 text-sm">
         <div className="min-w-0"><div className="text-xs text-white/30">Asset</div><div className="mt-1 flex min-w-0 items-center gap-2 font-bold"><TokenLogo ticker={arena.symbol} className="h-7 w-7 shrink-0 rounded-lg" /><span className="truncate">{arena.symbol}</span></div></div>
         <div className="min-w-0"><div className="text-xs text-white/30">Players</div><div className="mt-1 truncate font-mono font-bold tabular-nums">{arena.participantCount} / {PRICE_ARENA_MAX_PARTICIPANTS}</div></div>
         <div className="min-w-0"><div className="text-xs text-white/30">Prize pool</div><div title={formatStakeExact(arena.totalPool, token)} className="mt-1 truncate font-mono text-[0.78rem] font-bold tabular-nums">{formatStakeAmount(arena.totalPool, token, 3)}</div></div>
@@ -82,9 +82,9 @@ function ArenaCard({ arena, nowMs }: { arena: PriceArenaWithPhase; nowMs: number
             href={arena.asset?.priceUrl}
             symbol={arena.symbol}
             tone="arena"
-            className="bg-[#7A9FF0]/10 px-2.5 py-1"
+            className="bg-[#6bcbf4]/10 px-2.5 py-1"
           />
-          <span className="font-bold text-[#B7CEFF]">Open arena →</span>
+          <span className="px-font text-[9px] text-[#6bcbf4]">Open arena →</span>
         </div>
       </div>
     </div>
@@ -121,11 +121,11 @@ export function OnchainArenasListPage() {
       <ClusterBanner />
       <div className="flex flex-wrap items-end justify-between gap-6">
         <div className="max-w-2xl">
-          <p className="text-sm font-bold text-[#B7CEFF]">Price Arena · closest price wins</p>
-          <h1 className="mt-1 font-display text-3xl font-bold sm:text-4xl">Name the final price.</h1>
-          <p className="mt-2 text-sm leading-relaxed text-white/50">Predictions stay hidden in the lobby. When the round starts, the board goes live and the closest half shares the losing half’s pool.</p>
+          <p className="px-font text-[9px] text-[#ff4f8b]">Price Arena · closest price wins</p>
+          <h1 className="px-font mt-3 text-base leading-relaxed sm:text-xl">Name the final price</h1>
+          <p className="mt-3 text-sm font-bold leading-relaxed text-[#191330]/60">Predictions stay hidden in the lobby. When the round starts, the board goes live and the closest half shares the losing half’s pool.</p>
         </div>
-        <Link to={`/onchain/arenas/create${mode === 'stocks' ? '' : `?mode=${mode}`}`} className="rounded-full bg-[#7A9FF0] px-5 py-3 text-sm font-bold text-[#152447] transition-colors hover:bg-[#8EB1F8]">+ Create {mode === 'memes' ? 'meme' : mode === 'crypto' ? 'crypto' : 'stock'} arena</Link>
+        <Link to={`/onchain/arenas/create${mode === 'stocks' ? '' : `?mode=${mode}`}`} className="px-btn px-btn--sm shrink-0 !bg-[#6bcbf4]">+ {mode === 'memes' ? 'meme' : mode === 'crypto' ? 'crypto' : 'stock'} arena</Link>
       </div>
 
       <div className="mt-8 flex flex-wrap items-center justify-between gap-3">
@@ -135,7 +135,7 @@ export function OnchainArenasListPage() {
 
       {terminalFilter && (
         <div className="mt-4 flex justify-end">
-          <Link to="/onchain/archive?mode=arenas" className="text-xs font-bold text-[#B7CEFF] hover:text-white">
+          <Link to="/onchain/archive?mode=arenas" className="px-font text-[9px] text-[#191330]/60 hover:text-[#191330]">
             Open complete Arena history →
           </Link>
         </div>
@@ -144,8 +144,8 @@ export function OnchainArenasListPage() {
       <div className="mt-6 flex items-start gap-6">
         <main className="min-h-[32rem] min-w-0 flex-1">
           {isLoading && visible.length === 0 ? <GameListLoadingGrid accent="blue" />
-            : error && visible.length === 0 ? <div className="rounded-2xl border border-rose-500/25 bg-rose-500/10 p-5 text-rose-300">Could not read Price Arena.</div>
-              : visible.length === 0 ? <p className="py-20 text-center text-white/35">No {mode} arenas yet.</p>
+            : error && visible.length === 0 ? <div className="border-[3px] border-[#191330] bg-[#ff4f8b]/15 p-5 text-sm font-bold text-[#c22957] shadow-[4px_4px_0_#191330]">Could not load arenas. Check your connection and refresh.</div>
+              : visible.length === 0 ? <p className="px-font py-20 text-center text-[10px] text-[#191330]/40">No {mode} arenas yet</p>
                 : <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">{visible.map((arena) => <ArenaCard key={arena.id.toString()} arena={arena} nowMs={nowMs} />)}</div>}
         </main>
         <aside className="sticky top-20 hidden w-72 shrink-0 lg:block">

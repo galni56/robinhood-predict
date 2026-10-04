@@ -77,8 +77,8 @@ const FEATURES = [
     title: 'If the game does not exist, create it',
     body: 'Any wallet can assemble an Asset Race or open a Price Arena from reviewed assets. Set the rules up front, then invite the community into the pool.',
     links: [
-      { label: '+ Race', to: '/onchain/races/create', className: 'bg-[#ED8F3A] text-[#3b2416] hover:bg-[#F2A65A]' },
-      { label: '+ Arena', to: '/onchain/arenas/create', className: 'bg-[#7A9FF0] text-[#152447] hover:bg-[#8EB1F8]' },
+      { label: '+ Race', to: '/onchain/races/create', className: 'border-2 border-[#191330] bg-[#ffd23f] text-[#191330] hover:bg-[#f7b928]' },
+      { label: '+ Arena', to: '/onchain/arenas/create', className: 'border-2 border-[#191330] bg-[#6bcbf4] text-[#191330] hover:bg-[#8ddaf8]' },
     ],
   },
 ] as const
@@ -138,25 +138,25 @@ function GameColumn({
   children: ReactNode
 }) {
   const accentClass = accent === 'orange'
-    ? 'text-[#F2A65A] bg-[#F2A65A]/10'
+    ? 'bg-[#ffd23f] text-[#191330]'
     : accent === 'blue'
-      ? 'text-[#B7CEFF] bg-[#7A9FF0]/10'
-      : 'text-[#B3A7FA] bg-[#8B7CF7]/10'
+      ? 'bg-[#6bcbf4] text-[#191330]'
+      : 'bg-[#ff4f8b] text-[#fbf3e2]'
 
   const skeletonAccent = accent === 'orange'
-    ? 'bg-[#F2A65A]/15'
+    ? 'bg-[#ffd23f]/20'
     : accent === 'blue'
-      ? 'bg-[#7A9FF0]/15'
-      : 'bg-[#8B7CF7]/15'
+      ? 'bg-[#6bcbf4]/20'
+      : 'bg-[#ff4f8b]/20'
 
   return (
     <div className="flex min-h-[18rem] flex-col border-[3px] border-[#191330] bg-[#221c40] p-5 text-[#fbf3e2] shadow-[8px_8px_0_#191330] sm:p-6 lg:min-h-[46rem]">
       <div className="flex items-start justify-between gap-4 border-b border-white/5 pb-5">
         <div>
-          <p className={`inline-flex rounded-full px-2.5 py-1 text-[0.65rem] font-extrabold tracking-[0.16em] ${accentClass}`}>{eyebrow}</p>
-          <h3 className="mt-2 font-display text-2xl font-bold">{title}</h3>
+          <p className={`px-font inline-flex border-2 border-[#191330] px-2 py-1.5 text-[8px] ${accentClass}`}>{eyebrow}</p>
+          <h3 className="px-font mt-3 text-sm sm:text-base">{title}</h3>
         </div>
-        <span className="grid h-9 min-w-9 place-items-center rounded-full bg-white/5 px-2 text-sm font-bold text-white/60">
+        <span className="px-font grid h-9 min-w-9 place-items-center border-2 border-[#fbf3e2]/25 px-2 text-[11px] text-[#fbf3e2]/70">
           {loading ? '…' : count}
         </span>
       </div>
@@ -192,7 +192,7 @@ function GameColumn({
         ) : children}
       </div>
 
-      <Link to={href} className="group flex items-center justify-between border-t border-white/5 pt-4 text-sm font-bold text-white/55 transition-colors hover:text-white">
+      <Link to={href} className="px-font group flex items-center justify-between border-t-2 border-[#fbf3e2]/15 pt-4 text-[10px] text-[#fbf3e2]/60 transition-colors hover:text-[#ffd23f]">
         View all
         <span className="transition-transform group-hover:translate-x-1">→</span>
       </Link>
@@ -224,14 +224,14 @@ function RacePreviewCard({ race, nowMs }: { race: AssetRaceViewModel; nowMs: num
           navigate(`/onchain/races/${race.id}`)
         }
       }}
-      className="group block cursor-pointer rounded-2xl border border-white/5 bg-black/10 p-4 transition-all hover:-translate-y-0.5 hover:border-[#F2A65A]/40 hover:bg-[#F2A65A]/10"
+      className="group block cursor-pointer border-2 border-[#fbf3e2]/15 bg-[#191330]/40 p-4 transition-all hover:-translate-y-0.5 hover:border-[#ffd23f] hover:bg-[#ffd23f]/10"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="text-xs font-bold text-[#F2A65A]">{phaseLabel}</div>
+          <div className="px-font text-[8px] text-[#ffd23f]">{phaseLabel}</div>
           <h4 className="mt-1 truncate font-display text-lg font-bold">{race.title || `Asset Race #${race.id}`}</h4>
         </div>
-        <span className="shrink-0 rounded-full bg-[#F2A65A]/10 px-2.5 py-1 text-xs font-bold text-[#F2A65A]">{timeLeft(target, nowMs)}</span>
+        <span className="px-font shrink-0 border-2 border-[#ffd23f]/40 px-2 py-1.5 text-[9px] text-[#ffd23f]">{timeLeft(target, nowMs)}</span>
       </div>
       <div className="mt-3 flex flex-wrap gap-1.5">
         {race.assets.slice(0, 5).map((asset) => (
@@ -250,7 +250,7 @@ function RacePreviewCard({ race, nowMs }: { race: AssetRaceViewModel; nowMs: num
             symbol={asset.symbol}
             tone="race"
             label={`${asset.symbol} chart`}
-            className="bg-[#F2A65A]/10 px-2 py-1 text-[10px]"
+            className="bg-[#ffd23f]/10 px-2 py-1 text-[10px]"
           />
         ))}
       </div>
@@ -258,7 +258,7 @@ function RacePreviewCard({ race, nowMs }: { race: AssetRaceViewModel; nowMs: num
         <span className="text-white/35">
           {inLobby ? `${race.candidateCount} / 6 assets` : `${formatStakeAmount(race.totalPool, token)} pool`}
         </span>
-        <span className="shrink-0 font-bold text-[#F2A65A]">{actionLabel} →</span>
+        <span className="px-font shrink-0 text-[9px] text-[#ffd23f]">{actionLabel} →</span>
       </div>
     </div>
   )
@@ -291,17 +291,17 @@ function ArenaPreviewCard({ arena, nowMs }: { arena: PriceArenaWithPhase; nowMs:
           navigate(`/onchain/arenas/${arena.id}`)
         }
       }}
-      className="group block cursor-pointer rounded-2xl border border-white/5 bg-black/10 p-4 transition-all hover:-translate-y-0.5 hover:border-[#B7CEFF]/40 hover:bg-[#7A9FF0]/10"
+      className="group block cursor-pointer border-2 border-[#fbf3e2]/15 bg-[#191330]/40 p-4 transition-all hover:-translate-y-0.5 hover:border-[#6bcbf4] hover:bg-[#6bcbf4]/10"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2.5">
           <TokenLogo ticker={arena.asset?.symbol} className="h-9 w-9 rounded-xl" />
           <div className="min-w-0">
-            <div className="text-xs font-bold text-[#B7CEFF]">{arena.asset?.symbol ?? 'ARENA'} · {arenaDurationLabel(arena.duration)}</div>
+            <div className="px-font text-[8px] text-[#6bcbf4]">{arena.asset?.symbol ?? 'ARENA'} · {arenaDurationLabel(arena.duration)}</div>
             <h4 className="mt-1 truncate font-display text-lg font-bold">{arena.title}</h4>
           </div>
         </div>
-        <span className="shrink-0 rounded-full bg-[#7A9FF0]/10 px-2.5 py-1 text-xs font-bold text-[#B7CEFF]">
+        <span className="px-font shrink-0 border-2 border-[#6bcbf4]/40 px-2 py-1.5 text-[9px] text-[#6bcbf4]">
           {phaseLabel}
         </span>
       </div>
@@ -309,7 +309,7 @@ function ArenaPreviewCard({ arena, nowMs }: { arena: PriceArenaWithPhase; nowMs:
         <span className="text-white/35">{arena.participantCount} / {PRICE_ARENA_MAX_PARTICIPANTS} players · {formatStakeAmount(arena.totalPool, token)} pool</span>
         <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
           <PriceSourceLink href={arena.asset?.priceUrl} symbol={arena.asset?.symbol} tone="arena" className="bg-[#7A9FF0]/10 px-2 py-1" />
-          <span className="font-bold text-[#B7CEFF]">{actionLabel} →</span>
+          <span className="px-font text-[9px] text-[#6bcbf4]">{actionLabel} →</span>
         </div>
       </div>
     </div>
@@ -713,7 +713,7 @@ export function OnchainLandingPage() {
                         target="_blank"
                         rel="noopener noreferrer"
                         aria-label={`View ${asset.symbol} price from the exact settlement pool (opens in a new tab)`}
-                        className="group/asset flex min-w-0 items-center gap-2.5 rounded-2xl border border-[#241a33]/[0.07] bg-white/75 p-2.5 transition-all hover:-translate-y-0.5 hover:border-[#241a33]/20 hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-2"
+                        className="group/asset flex min-w-0 items-center gap-2.5 border-2 border-[#191330]/15 bg-white/80 p-2.5 transition-all hover:-translate-y-0.5 hover:border-[#191330] hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-2"
                         style={{ outlineColor: group.accent }}
                         title={`View ${asset.symbol} exact pool chart`}
                       >
@@ -730,7 +730,7 @@ export function OnchainLandingPage() {
 
                 <Link
                   to={group.href}
-                  className="mt-6 inline-flex w-fit items-center gap-2 rounded-full px-4 py-2.5 text-xs font-extrabold transition-all hover:-translate-y-0.5 hover:brightness-105"
+                  className="px-font mt-6 inline-flex w-fit items-center gap-2 border-[3px] border-[#191330] px-4 py-3 text-[9px] shadow-[3px_3px_0_#191330] transition-transform hover:-translate-y-0.5"
                   style={{ backgroundColor: group.accent, color: group.ctaText }}
                 >
                   {group.cta}
@@ -743,7 +743,7 @@ export function OnchainLandingPage() {
           <div className="relative mt-6 flex flex-wrap justify-center gap-x-6 gap-y-2 text-xs font-bold text-[#241a33]/50">
             {['Verified identity', 'Approved price source', 'Reviewed trading depth'].map((label) => (
               <span key={label} className="inline-flex items-center gap-2">
-                <span className="grid h-4 w-4 place-items-center rounded-full bg-[#6A5AE0] text-[0.6rem] text-white">✓</span>
+                <span className="grid h-4 w-4 place-items-center bg-[#ff4f8b] text-[0.6rem] text-[#fbf3e2]">✓</span>
                 {label}
               </span>
             ))}

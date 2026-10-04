@@ -38,7 +38,7 @@
 }
 
 :root {
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 html,
@@ -50,22 +50,16 @@ body,
 body {
   margin: 0;
   overflow-x: hidden;
-  /* Static background painted directly on body - see git history: extra
-     compositing layers intermittently left text unpainted. Brand purple
-     (#8b7cf7 / #6a5ae0) + a warm orange kiss, kept subtle under content. */
-  background:
-    radial-gradient(1200px 700px at 12% -10%, rgba(139, 124, 247, 0.16), transparent 60%),
-    radial-gradient(1000px 650px at 105% 0%, rgba(106, 90, 224, 0.18), transparent 55%),
-    radial-gradient(900px 700px at 50% 115%, rgba(242, 166, 90, 0.1), transparent 55%),
-    #17111f;
-  background-attachment: fixed;
-  color: #f4f0fa;
+  /* Retro arcade paper. Painted directly on body - see git history: extra
+     compositing layers intermittently left text unpainted. */
+  background: var(--color-paper-50);
+  color: var(--color-ink-950);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
 }
 
 ::selection {
-  background: #8b7cf766;
+  background: #ffd23f99;
 }
 
 h1,
