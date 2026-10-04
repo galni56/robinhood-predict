@@ -42,7 +42,7 @@ export function AssetRaceAssetPicker({
         value={query}
         onChange={(event) => setQuery(event.target.value)}
         placeholder={meme ? 'Search approved meme assets…' : crypto ? 'Search crypto assets…' : 'Search Stock Tokens…'}
-        className="w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 text-sm font-medium outline-none transition-colors focus:border-[#F2A65A]/60"
+        className="w-full rounded-none border border-white/10 bg-white/5 px-3.5 py-2.5 text-sm font-medium outline-none transition-colors focus:border-[#ffd23f]/60"
       />
       <div className={`grid grid-cols-1 gap-2 overflow-y-auto pr-1 sm:grid-cols-2 ${compact ? 'max-h-52' : 'max-h-80'}`}>
         {matches.map((asset) => {
@@ -52,10 +52,10 @@ export function AssetRaceAssetPicker({
           return (
             <div
               key={asset.assetId}
-              className={`min-w-0 overflow-hidden rounded-2xl border transition-all ${
+              className={`min-w-0 overflow-hidden rounded-none border transition-all ${
                 highlighted
-                  ? 'border-[#F2A65A]/60 bg-[#F2A65A]/10'
-                  : 'border-white/5 bg-white/5 hover:border-[#F2A65A]/40'
+                  ? 'border-[#ffd23f]/60 bg-[#ffd23f]/10'
+                  : 'border-white/5 bg-white/5 hover:border-[#ffd23f]/40'
               }`}
             >
               <button
@@ -64,13 +64,13 @@ export function AssetRaceAssetPicker({
                 onClick={() => onSelect(asset)}
                 className="flex w-full min-w-0 items-center gap-3 p-3 text-left disabled:cursor-not-allowed disabled:opacity-40"
               >
-                <TokenLogo ticker={asset.symbol} logoUrl={asset.logoUrl} className="h-9 w-9 rounded-xl" />
+                <TokenLogo ticker={asset.symbol} logoUrl={asset.logoUrl} className="h-9 w-9 rounded-none" />
                 <span className="min-w-0 flex-1">
                   <span className="block font-bold">{asset.symbol}</span>
                   <span className="block truncate text-xs text-white/40">{asset.name}</span>
                 </span>
                 <span className="text-right">
-                  <span className="block text-xs font-bold text-[#F2A65A]">
+                  <span className="block text-xs font-bold text-[#ffd23f]">
                     {alreadySelected ? 'Added' : highlighted ? 'Selected' : 'Approved'}
                   </span>
                   {live.assets[asset.symbol] && (

@@ -13,16 +13,16 @@ export interface CompactAssetOption {
 
 const TONE_CLASSES: Record<ProductTone, { selected: string; idle: string }> = {
   market: {
-    selected: 'bg-[#8B7CF7] text-white',
-    idle: 'bg-white/5 text-white/60 hover:bg-[#8B7CF7]/10 hover:text-white',
+    selected: 'bg-[#ff4f8b] text-white',
+    idle: 'bg-white/5 text-white/60 hover:bg-[#ff4f8b]/10 hover:text-white',
   },
   race: {
-    selected: 'bg-[#F2A65A] text-[#3b2416]',
-    idle: 'bg-white/5 text-white/60 hover:bg-[#F2A65A]/10 hover:text-white',
+    selected: 'bg-[#ffd23f] text-[#191330]',
+    idle: 'bg-white/5 text-white/60 hover:bg-[#ffd23f]/10 hover:text-white',
   },
   arena: {
-    selected: 'bg-[#7A9FF0] text-[#152447]',
-    idle: 'bg-white/5 text-white/60 hover:bg-[#7A9FF0]/10 hover:text-white',
+    selected: 'bg-[#6bcbf4] text-[#191330]',
+    idle: 'bg-white/5 text-white/60 hover:bg-[#6bcbf4]/10 hover:text-white',
   },
 }
 
@@ -51,7 +51,7 @@ export function CompactAssetSelector({
         const disabled = multiple && !active && selected.size >= maxSelected
 
         return (
-          <div key={asset.id} className={`min-w-0 overflow-hidden rounded-xl transition-colors ${active ? classes.selected : classes.idle}`}>
+          <div key={asset.id} className={`min-w-0 overflow-hidden rounded-none transition-colors ${active ? classes.selected : classes.idle}`}>
             <button
               type="button"
               title={asset.name ?? asset.symbol}
@@ -61,7 +61,7 @@ export function CompactAssetSelector({
               onClick={() => onSelect(asset.id)}
               className="flex w-full min-w-0 items-center justify-center gap-2 px-2 pb-1.5 pt-2 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-30"
             >
-              <TokenLogo ticker={asset.symbol} logoUrl={asset.logoUrl} className="h-6 w-6 shrink-0 rounded-lg" />
+              <TokenLogo ticker={asset.symbol} logoUrl={asset.logoUrl} className="h-6 w-6 shrink-0 rounded-none" />
               <span className="truncate">{asset.symbol}</span>
             </button>
             <PriceSourceLink

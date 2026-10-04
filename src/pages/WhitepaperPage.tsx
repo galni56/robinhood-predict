@@ -41,14 +41,14 @@ export function WhitepaperPage() {
 
       <article className="min-w-0 space-y-12">
         <div>
-          <p className="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-[#8B7CF7]/80">Whitepaper</p>
+          <p className="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-[#ff4f8b]/80">Whitepaper</p>
           <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">
             Prophet: onchain prediction games on Solana
           </h1>
           <p className="mt-3 text-sm text-white/40">
             Draft · Solana. Prophet has not received an external security audit. This document is not legal,
             financial or investment advice. See the{' '}
-            <Link to="/terms" className="text-[#8B7CF7] hover:underline">
+            <Link to="/terms" className="text-[#ff4f8b] hover:underline">
               Terms of Service
             </Link>
             .
@@ -63,10 +63,10 @@ export function WhitepaperPage() {
             half of the field.
           </p>
           <div className="grid gap-3 sm:grid-cols-2">
-            <ModeCard title="Races" accent="text-[#F2A65A]" link="/onchain/races">
+            <ModeCard title="Races" accent="text-[#ffd23f]" link="/onchain/races">
               Back one of 2–6 assets. The highest percentage return wins the race.
             </ModeCard>
-            <ModeCard title="Arena" accent="text-[#B7CEFF]" link="/onchain/arenas">
+            <ModeCard title="Arena" accent="text-[#6bcbf4]" link="/onchain/arenas">
               Enter a price prediction. The closest half share the losing half&apos;s stakes.
             </ModeCard>
           </div>
@@ -244,7 +244,7 @@ function ModeCard({
   return (
     <Link
       to={link}
-      className="rounded-2xl border border-white/10 bg-[#241b2f] p-4 transition-colors hover:border-[#8B7CF7]/40"
+      className="rounded-none border border-white/10 bg-[#221c40] p-4 transition-colors hover:border-[#ff4f8b]/40"
     >
       <span className={`font-display text-lg font-bold ${accent}`}>{title}</span>
       <span className="mt-1 block text-xs leading-relaxed text-white/45">{children}</span>
@@ -254,7 +254,7 @@ function ModeCard({
 
 function Formula({ children }: { children: ReactNode }) {
   return (
-    <div className="overflow-x-auto rounded-xl border border-[#8B7CF7]/20 bg-[#8B7CF7]/10 px-4 py-3 font-mono text-xs text-[#d7d0ff]">
+    <div className="overflow-x-auto rounded-none border border-[#ff4f8b]/20 bg-[#ff4f8b]/10 px-4 py-3 font-mono text-xs text-[#d7d0ff]">
       {children}
     </div>
   )

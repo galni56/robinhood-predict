@@ -210,20 +210,20 @@ export function OnchainRacePage() {
       {isLoading ? (
         <p className="py-16 text-center text-sm text-white/40">Loading race…</p>
       ) : readError ? (
-        <div className="mt-5 rounded-xl border border-rose-500/25 bg-rose-500/10 p-5 text-sm text-rose-300">Could not read race #{raceId.toString()}.</div>
+        <div className="mt-5 rounded-none border border-rose-500/25 bg-rose-500/10 p-5 text-sm text-rose-300">Could not read race #{raceId.toString()}.</div>
       ) : !race ? (
-        <div className="mt-5 rounded-xl border border-white/10 bg-[#241b2f]/95 p-8 text-center text-white/45">Race not found.</div>
+        <div className="mt-5 rounded-none border border-white/10 bg-[#221c40]/95 p-8 text-center text-white/45">Race not found.</div>
       ) : (
         <div className={race.category === 1 ? 'asset-race-meme' : ''}>
           <div className="mb-6 mt-4 flex flex-wrap items-end justify-between gap-3">
             <div className="flex min-w-0 items-start gap-3">
               <div className="flex shrink-0 -space-x-2 pt-1">
-                {race.assets.slice(0, 4).map((asset) => <TokenLogo key={asset.assetIndex} ticker={asset.symbol} className="h-10 w-10 rounded-xl border-2 border-[#17111f]" />)}
+                {race.assets.slice(0, 4).map((asset) => <TokenLogo key={asset.assetIndex} ticker={asset.symbol} className="h-10 w-10 rounded-none border-2 border-[#221c40]" />)}
               </div>
               <div className="min-w-0">
-              <p className="flex flex-wrap items-center gap-2 text-sm font-bold text-[#F2A65A]">
+              <p className="flex flex-wrap items-center gap-2 text-sm font-bold text-[#ffd23f]">
                 {assetRaceCategoryLabel(race.category)} race #{race.id.toString()}
-                <span className={`rounded-full px-2.5 py-0.5 text-xs ${race.origin === ASSET_RACE_ORIGIN.PLATFORM ? 'bg-[#F2A65A]/15 text-[#F2A65A]' : 'bg-white/5 text-white/50'}`}>
+                <span className={`rounded-full px-2.5 py-0.5 text-xs ${race.origin === ASSET_RACE_ORIGIN.PLATFORM ? 'bg-[#ffd23f]/15 text-[#ffd23f]' : 'bg-white/5 text-white/50'}`}>
                   {race.origin === ASSET_RACE_ORIGIN.PLATFORM ? 'Featured' : 'Community'}
                 </span>
               </p>
@@ -241,7 +241,7 @@ export function OnchainRacePage() {
                     symbol={asset.symbol}
                     tone="race"
                     label={`${asset.symbol} chart`}
-                    className="bg-[#F2A65A]/10 px-2.5 py-1"
+                    className="bg-[#ffd23f]/10 px-2.5 py-1"
                   />
                 ))}
               </div>
@@ -249,7 +249,7 @@ export function OnchainRacePage() {
             </div>
             <div className="flex flex-wrap items-center justify-end gap-2">
               <ShareInviteButton kind="race" id={race.id} />
-              <span className="rounded-full bg-[#F2A65A]/15 px-3 py-1 text-xs font-bold text-[#F2A65A]">{assetRaceStatusLabel(race.status)}</span>
+              <span className="rounded-full bg-[#ffd23f]/15 px-3 py-1 text-xs font-bold text-[#ffd23f]">{assetRaceStatusLabel(race.status)}</span>
             </div>
           </div>
 

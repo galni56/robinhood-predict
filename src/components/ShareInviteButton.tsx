@@ -54,31 +54,31 @@ export function ShareInviteButton({ kind, id, className = '' }: {
   const label = state === 'copied' ? 'Link copied!' : state === 'error' ? 'Copy failed' : 'Invite link'
   const hint = state === 'copied' ? 'Paste it anywhere' : state === 'error' ? 'Tap to try again' : 'Copy game link'
   const tone = kind === 'race' ? {
-    button: 'border-[#F2A65A]/45 bg-gradient-to-r from-[#4A3026] to-[#31231F] shadow-[0_10px_24px_-16px_rgba(242,166,90,0.8)] hover:border-[#F2A65A]/70 hover:bg-[#4A3026] hover:shadow-[0_12px_28px_-16px_rgba(242,166,90,0.9)]',
-    overlay: 'from-[#F2A65A]/10',
-    icon: 'border-[#F2A65A]/30 bg-[#F2A65A]/15',
-    hint: 'text-[#F2A65A]/80',
+    button: 'border-[#ffd23f]/45 bg-gradient-to-r from-[#4A3026] to-[#31231F] shadow-[0_10px_24px_-16px_rgba(242,166,90,0.8)] hover:border-[#ffd23f]/70 hover:bg-[#4A3026] hover:shadow-[0_12px_28px_-16px_rgba(242,166,90,0.9)]',
+    overlay: 'from-[#ffd23f]/10',
+    icon: 'border-[#ffd23f]/30 bg-[#ffd23f]/15',
+    hint: 'text-[#ffd23f]/80',
   } : kind === 'arena' ? {
-    button: 'border-[#7A9FF0]/45 bg-gradient-to-r from-[#293650] to-[#222B40] shadow-[0_10px_24px_-16px_rgba(122,159,240,0.8)] hover:border-[#B7CEFF]/70 hover:bg-[#293650] hover:shadow-[0_12px_28px_-16px_rgba(122,159,240,0.9)]',
-    overlay: 'from-[#7A9FF0]/10',
-    icon: 'border-[#7A9FF0]/30 bg-[#7A9FF0]/15',
-    hint: 'text-[#B7CEFF]/80',
+    button: 'border-[#6bcbf4]/45 bg-gradient-to-r from-[#293650] to-[#222B40] shadow-[0_10px_24px_-16px_rgba(122,159,240,0.8)] hover:border-[#6bcbf4]/70 hover:bg-[#293650] hover:shadow-[0_12px_28px_-16px_rgba(122,159,240,0.9)]',
+    overlay: 'from-[#6bcbf4]/10',
+    icon: 'border-[#6bcbf4]/30 bg-[#6bcbf4]/15',
+    hint: 'text-[#6bcbf4]/80',
   } : {
-    button: 'border-[#8B7CF7]/45 bg-gradient-to-r from-[#3B2D53] to-[#2E2442] shadow-[0_10px_24px_-16px_rgba(139,124,247,0.8)] hover:border-[#8B7CF7]/70 hover:bg-[#3B2D53] hover:shadow-[0_12px_28px_-16px_rgba(139,124,247,0.9)]',
-    overlay: 'from-[#8B7CF7]/10',
-    icon: 'border-[#8B7CF7]/30 bg-[#8B7CF7]/15',
-    hint: 'text-[#B3A7FA]/75',
+    button: 'border-[#ff4f8b]/45 bg-gradient-to-r from-[#3B2D53] to-[#2E2442] shadow-[0_10px_24px_-16px_rgba(139,124,247,0.8)] hover:border-[#ff4f8b]/70 hover:bg-[#3B2D53] hover:shadow-[0_12px_28px_-16px_rgba(139,124,247,0.9)]',
+    overlay: 'from-[#ff4f8b]/10',
+    icon: 'border-[#ff4f8b]/30 bg-[#ff4f8b]/15',
+    hint: 'text-[#ff4f8b]/75',
   }
 
   return (
     <button
       type="button"
       onClick={copyInvite}
-      className={`group relative inline-flex h-[50px] min-w-[210px] items-center gap-2.5 overflow-hidden rounded-xl border bg-gradient-to-r px-3 py-2 text-left text-white transition-all duration-300 hover:-translate-y-0.5 active:translate-y-0 ${tone.button} ${className}`}
+      className={`group relative inline-flex h-[50px] min-w-[210px] items-center gap-2.5 overflow-hidden rounded-none border bg-gradient-to-r px-3 py-2 text-left text-white transition-all duration-300 hover:-translate-y-0.5 active:translate-y-0 ${tone.button} ${className}`}
       aria-label="Copy invite link"
     >
       <span aria-hidden="true" className={`pointer-events-none absolute inset-0 bg-gradient-to-b to-transparent ${tone.overlay}`} />
-      <span className={`relative grid h-8 w-8 shrink-0 place-items-center rounded-lg border transition-transform duration-300 group-hover:rotate-3 group-hover:scale-105 ${tone.icon}`}>
+      <span className={`relative grid h-8 w-8 shrink-0 place-items-center rounded-none border transition-transform duration-300 group-hover:rotate-3 group-hover:scale-105 ${tone.icon}`}>
         {state === 'copied' ? (
           <svg aria-hidden="true" viewBox="0 0 24 24" className="h-4 w-4 fill-none stroke-current" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
             <path d="m5 12 4 4L19 6" />

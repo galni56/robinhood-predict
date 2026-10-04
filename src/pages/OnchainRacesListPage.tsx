@@ -117,7 +117,7 @@ function RaceCard({ race, nowMs }: { race: AssetRaceViewModel; nowMs: number }) 
       <div className="mt-4 flex flex-wrap gap-1.5">
         {race.assets.map((asset) => (
           <span key={asset.assetIndex} className="inline-flex items-center gap-1.5 rounded-full bg-white/5 py-1 pl-1 pr-2.5 text-xs font-bold">
-            <TokenLogo ticker={asset.symbol} className="h-5 w-5 rounded-md" />
+            <TokenLogo ticker={asset.symbol} className="h-5 w-5 rounded-none" />
             {asset.symbol}
           </span>
         ))}
@@ -145,7 +145,7 @@ function RaceCard({ race, nowMs }: { race: AssetRaceViewModel; nowMs: number }) 
         <div className="mt-4 space-y-2">
           {race.assets.map((asset) => (
             <div key={asset.assetIndex} className="grid grid-cols-[5rem_1fr_auto] items-center gap-2 text-xs">
-              <span className="flex items-center gap-1.5 font-bold"><TokenLogo ticker={asset.symbol} className="h-5 w-5 rounded-md" />{asset.symbol}</span>
+              <span className="flex items-center gap-1.5 font-bold"><TokenLogo ticker={asset.symbol} className="h-5 w-5 rounded-none" />{asset.symbol}</span>
               <div className="h-2.5 overflow-hidden border border-[#fbf3e2]/20 bg-[#191330]/60">
                 <div
                   className="h-full bg-[#ffd23f]"

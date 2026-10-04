@@ -73,7 +73,7 @@ export function SetNicknameModal({ onClose }: { onClose: () => void }) {
     <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60" onClick={closeUnlessPending}>
       <div className="min-h-full flex items-center justify-center px-4 py-8">
         <div
-          className="w-full max-w-sm rounded-2xl border border-white/10 bg-[#151622] p-5 shadow-2xl"
+          className="w-full max-w-sm rounded-none border border-white/10 bg-[#221c40] p-5 shadow-2xl"
           onClick={(e) => e.stopPropagation()}
         >
           <h2 className="text-sm font-bold mb-1">Set your nickname</h2>
@@ -91,7 +91,7 @@ export function SetNicknameModal({ onClose }: { onClose: () => void }) {
               setValue(next)
             }}
             placeholder="e.g. satoshi"
-            className="w-full rounded-lg bg-black/30 border border-white/10 px-3 py-2 text-sm outline-none focus:border-[#8B7CF7]/60 transition-colors"
+            className="w-full rounded-none bg-black/30 border border-white/10 px-3 py-2 text-sm outline-none focus:border-[#ff4f8b]/60 transition-colors"
           />
           <p className="text-[11px] text-white/30 mt-1">{byteLength(value)}/{MAX_NICKNAME_BYTES}</p>
 
@@ -101,14 +101,14 @@ export function SetNicknameModal({ onClose }: { onClose: () => void }) {
             <button
               onClick={closeUnlessPending}
               disabled={pending}
-              className="flex-1 rounded-lg border border-white/10 text-white/60 hover:text-white hover:border-white/30 py-2 text-sm transition-colors disabled:opacity-50"
+              className="flex-1 rounded-none border border-white/10 text-white/60 hover:text-white hover:border-white/30 py-2 text-sm transition-colors disabled:opacity-50"
             >
               Cancel
             </button>
             <button
               onClick={submit}
               disabled={pending || !publicKey || current.isLoading}
-              className="flex-1 rounded-lg bg-gradient-to-r from-[#8B7CF7] to-[#6A5AE0] hover:brightness-110 text-black font-semibold py-2 text-sm disabled:opacity-50 transition-all"
+              className="flex-1 rounded-none bg-gradient-to-r from-[#ff4f8b] to-[#ff4f8b] hover:brightness-110 text-black font-semibold py-2 text-sm disabled:opacity-50 transition-all"
             >
               {pending ? 'Confirm in wallet…' : 'Save'}
             </button>

@@ -17,7 +17,7 @@ const GAME_GUIDES = [
     eyebrow: 'FASTEST MOVER',
     title: 'Asset Races',
     summary: 'Back the asset with the strongest percentage return.',
-    accent: '#ED8F3A',
+    accent: '#f7b928',
     soft: '#fff0df',
     image: 'brand/game-guides/asset-races.webp',
     href: '/onchain/races',
@@ -35,7 +35,7 @@ const GAME_GUIDES = [
     eyebrow: 'CLOSEST PRICE',
     title: 'Price Arena',
     summary: 'Forecast the exact price at the end of the round.',
-    accent: '#7A9FF0',
+    accent: '#6bcbf4',
     soft: '#E8F0FF',
     image: 'brand/game-guides/price-arena.webp',
     href: '/onchain/arenas',
@@ -52,28 +52,28 @@ const GAME_GUIDES = [
 const FEATURES = [
   {
     tag: 'POOL TO POOL',
-    color: '#8B7CF7',
+    color: '#ff4f8b',
     title: 'Players compete against players',
     body: 'There are no fixed bookmaker odds. Each game forms an onchain pool, and winners receive principal plus their rule-based share of the losing pool after the 2% protocol fee on that profit portion.',
     links: [],
   },
   {
     tag: 'USD ↔ SOL',
-    color: '#F2A65A',
+    color: '#ffd23f',
     title: 'Choose how you enter the amount',
     body: 'Type a convenient dollar amount or enter SOL directly. Every stake form shows the matching value from one shared SOL/USD quote before the wallet opens; the program receives SOL.',
     links: [],
   },
   {
     tag: 'CLEAR OUTCOMES',
-    color: '#B3A7FA',
+    color: '#ff4f8b',
     title: 'Settle by rule or refund by rule',
     body: 'Each mode defines its price snapshot, eligibility and tie behavior in advance. If a game cannot settle under those rules, it reaches a refundable terminal state instead of substituting an arbitrary result.',
     links: [],
   },
   {
     tag: 'YOUR IDEA, ONCHAIN',
-    color: '#7A9FF0',
+    color: '#6bcbf4',
     title: 'If the game does not exist, create it',
     body: 'Any wallet can assemble an Asset Race or open a Price Arena from reviewed assets. Set the rules up front, then invite the community into the pool.',
     links: [
@@ -169,7 +169,7 @@ function GameColumn({
               Searching for active games…
             </div>
             {Array.from({ length: 3 }, (_, index) => (
-              <div key={index} className="min-h-36 animate-pulse rounded-2xl border border-white/5 bg-black/10 p-4">
+              <div key={index} className="min-h-36 animate-pulse rounded-none border border-white/5 bg-black/10 p-4">
                 <div className="flex items-center justify-between gap-3">
                   <div className={`h-5 w-24 rounded-full ${skeletonAccent}`} />
                   <div className="h-6 w-16 rounded-full bg-white/5" />
@@ -184,11 +184,11 @@ function GameColumn({
             ))}
           </div>
         ) : error && count === 0 ? (
-          <div className="grid flex-1 place-items-center rounded-2xl border border-rose-500/20 bg-rose-500/5 px-6 text-center text-sm leading-relaxed text-rose-300/80">
+          <div className="grid flex-1 place-items-center rounded-none border border-rose-500/20 bg-rose-500/5 px-6 text-center text-sm leading-relaxed text-rose-300/80">
             Could not load the game list. Check your connection and refresh.
           </div>
         ) : count === 0 ? (
-          <div className="grid flex-1 place-items-center rounded-2xl border border-dashed border-white/10 px-6 text-center text-sm leading-relaxed text-white/35">{empty}</div>
+          <div className="grid flex-1 place-items-center rounded-none border border-dashed border-white/10 px-6 text-center text-sm leading-relaxed text-white/35">{empty}</div>
         ) : children}
       </div>
 
@@ -236,7 +236,7 @@ function RacePreviewCard({ race, nowMs }: { race: AssetRaceViewModel; nowMs: num
       <div className="mt-3 flex flex-wrap gap-1.5">
         {race.assets.slice(0, 5).map((asset) => (
           <span key={asset.assetIndex} className="inline-flex items-center gap-1 rounded-full bg-white/5 py-1 pl-1 pr-2 text-xs font-bold text-white/65">
-            <TokenLogo ticker={asset.symbol} className="h-5 w-5 rounded-md" />
+            <TokenLogo ticker={asset.symbol} className="h-5 w-5 rounded-none" />
             {asset.symbol}
           </span>
         ))}
@@ -295,7 +295,7 @@ function ArenaPreviewCard({ arena, nowMs }: { arena: PriceArenaWithPhase; nowMs:
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2.5">
-          <TokenLogo ticker={arena.asset?.symbol} className="h-9 w-9 rounded-xl" />
+          <TokenLogo ticker={arena.asset?.symbol} className="h-9 w-9 rounded-none" />
           <div className="min-w-0">
             <div className="px-font text-[8px] text-[#6bcbf4]">{arena.asset?.symbol ?? 'ARENA'} · {arenaDurationLabel(arena.duration)}</div>
             <h4 className="mt-1 truncate font-display text-lg font-bold">{arena.title}</h4>
@@ -308,7 +308,7 @@ function ArenaPreviewCard({ arena, nowMs }: { arena: PriceArenaWithPhase; nowMs:
       <div className="mt-4 flex items-center justify-between gap-3 text-xs">
         <span className="text-white/35">{arena.participantCount} / {PRICE_ARENA_MAX_PARTICIPANTS} players · {formatStakeAmount(arena.totalPool, token)} pool</span>
         <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
-          <PriceSourceLink href={arena.asset?.priceUrl} symbol={arena.asset?.symbol} tone="arena" className="bg-[#7A9FF0]/10 px-2 py-1" />
+          <PriceSourceLink href={arena.asset?.priceUrl} symbol={arena.asset?.symbol} tone="arena" className="bg-[#6bcbf4]/10 px-2 py-1" />
           <span className="px-font text-[9px] text-[#6bcbf4]">{actionLabel} →</span>
         </div>
       </div>
@@ -506,7 +506,7 @@ export function OnchainLandingPage() {
           <div className="mb-10 max-w-2xl">
             <span className="px-chip mb-5">Two games · one wallet</span>
             <h2 className="px-font text-lg sm:text-2xl">How to play</h2>
-            <p className="mt-3 text-sm font-medium leading-relaxed text-[#241a33]/55 sm:text-base">
+            <p className="mt-3 text-sm font-medium leading-relaxed text-[#191330]/55 sm:text-base">
               Choose the format, make your call, send SOL and let the published rules settle the result.
             </p>
           </div>
@@ -527,7 +527,7 @@ export function OnchainLandingPage() {
                   <div className="relative z-10 max-w-[58%]">
                     <p className="text-[0.68rem] font-extrabold tracking-[0.18em]" style={{ color: guide.accent }}>{guide.eyebrow}</p>
                     <h3 className="mt-2 font-display text-2xl font-bold leading-tight">{guide.title}</h3>
-                    <p className="mt-2 text-sm font-medium leading-relaxed text-[#241a33]/55">{guide.summary}</p>
+                    <p className="mt-2 text-sm font-medium leading-relaxed text-[#191330]/55">{guide.summary}</p>
                   </div>
                   <div className="pointer-events-none absolute -bottom-14 -right-12 h-52 w-52 rounded-full bg-white/55" />
                   <img
@@ -552,7 +552,7 @@ export function OnchainLandingPage() {
                         </span>
                         <div>
                           <h4 className="font-display text-sm font-bold leading-snug">{title}</h4>
-                          <p className="mt-1 text-xs leading-relaxed text-[#241a33]/55">{body}</p>
+                          <p className="mt-1 text-xs leading-relaxed text-[#191330]/55">{body}</p>
                         </div>
                       </li>
                     ))}
@@ -648,7 +648,7 @@ export function OnchainLandingPage() {
           <div className="relative mx-auto max-w-3xl text-center">
             <span className="px-chip mb-5">Curated asset universe</span>
             <h2 className="px-font text-lg sm:text-2xl">Not every asset makes the grid</h2>
-            <p className="mx-auto mt-4 max-w-2xl text-sm font-medium leading-relaxed text-[#241a33]/65 sm:text-base">
+            <p className="mx-auto mt-4 max-w-2xl text-sm font-medium leading-relaxed text-[#191330]/65 sm:text-base">
               Prophet keeps the lineup focused. Every supported asset needs a clear identity, an approved onchain
               price source and reviewed trading depth so games can start and settle against dependable snapshots.
             </p>
@@ -661,7 +661,7 @@ export function OnchainLandingPage() {
                 title: 'Market leaders',
                 description: 'Widely followed companies selected for recognizable markets, active trading and reviewed onchain pricing.',
                 assets: SUPPORTED_STOCKS,
-                accent: '#6A5AE0',
+                accent: '#ff4f8b',
                 soft: '#EEEAFD',
                 ctaText: '#FFFFFF',
                 href: '/onchain/races',
@@ -672,7 +672,7 @@ export function OnchainLandingPage() {
                 title: 'Culture with a price feed',
                 description: 'Community assets admitted only after identity, source and executable trading-depth checks.',
                 assets: SUPPORTED_MEMES,
-                accent: '#ED8F3A',
+                accent: '#f7b928',
                 soft: '#FFF0DF',
                 ctaText: '#3B2416',
                 href: '/onchain/races?mode=memes',
@@ -690,7 +690,7 @@ export function OnchainLandingPage() {
                 cta: 'Explore crypto races',
               }] : []),
             ].map((group) => (
-              <div key={group.eyebrow} className="flex flex-col rounded-[2rem] border border-[#241a33]/10 bg-white/60 p-5 shadow-[0_20px_45px_-35px_rgba(36,26,51,0.45)] sm:p-7">
+              <div key={group.eyebrow} className="flex flex-col rounded-none border border-[#191330]/10 bg-white/60 p-5 shadow-[0_20px_45px_-35px_rgba(36,26,51,0.45)] sm:p-7">
                 <div className="flex items-start justify-between gap-4">
                   <div>
                     <p className="text-[0.68rem] font-extrabold tracking-[0.18em]" style={{ color: group.accent }}>{group.eyebrow}</p>
@@ -700,7 +700,7 @@ export function OnchainLandingPage() {
                     {group.assets.length}
                   </span>
                 </div>
-                <p className="mt-3 min-h-12 text-sm leading-relaxed text-[#241a33]/60">{group.description}</p>
+                <p className="mt-3 min-h-12 text-sm leading-relaxed text-[#191330]/60">{group.description}</p>
 
                 <div className="mt-6 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3">
                   {group.assets.map((asset) => {
@@ -717,10 +717,10 @@ export function OnchainLandingPage() {
                         style={{ outlineColor: group.accent }}
                         title={`View ${asset.symbol} exact pool chart`}
                       >
-                        <TokenLogo ticker={asset.symbol} className="h-9 w-9 shrink-0 rounded-xl text-sm" />
+                        <TokenLogo ticker={asset.symbol} className="h-9 w-9 shrink-0 rounded-none text-sm" />
                         <div className="min-w-0 flex-1">
                           <div className={`truncate font-extrabold tracking-tight ${asset.symbol.length > 8 ? 'text-[0.62rem]' : 'text-xs'}`}>{asset.symbol}</div>
-                          <div className="truncate text-[0.65rem] font-medium text-[#241a33]/45">{asset.displayName}</div>
+                          <div className="truncate text-[0.65rem] font-medium text-[#191330]/45">{asset.displayName}</div>
                           <div className="mt-0.5 text-[0.6rem] font-extrabold" style={{ color: group.accent }}>View price ↗</div>
                         </div>
                       </a>
@@ -740,7 +740,7 @@ export function OnchainLandingPage() {
             ))}
           </div>
 
-          <div className="relative mt-6 flex flex-wrap justify-center gap-x-6 gap-y-2 text-xs font-bold text-[#241a33]/50">
+          <div className="relative mt-6 flex flex-wrap justify-center gap-x-6 gap-y-2 text-xs font-bold text-[#191330]/50">
             {['Verified identity', 'Approved price source', 'Reviewed trading depth'].map((label) => (
               <span key={label} className="inline-flex items-center gap-2">
                 <span className="grid h-4 w-4 place-items-center bg-[#ff4f8b] text-[0.6rem] text-[#fbf3e2]">✓</span>

@@ -79,29 +79,29 @@ export function AssetRaceLeaderboard({
         return (
           <div
             key={entry.assetIndex}
-            className={`rounded-2xl border px-3 py-3 transition-colors ${
-              isMine ? 'border-[#F2A65A]/50 bg-[#F2A65A]/[0.07]' : 'border-white/5 bg-[#241b2f]'
+            className={`rounded-none border px-3 py-3 transition-colors ${
+              isMine ? 'border-[#ffd23f]/50 bg-[#ffd23f]/[0.07]' : 'border-white/5 bg-[#221c40]'
             }`}
           >
             <div className="flex items-center gap-3">
               <span
                 className={`grid h-6 w-6 shrink-0 place-items-center rounded-full text-xs font-bold ${
-                  rank === 0 ? 'bg-[#f7f1e3] text-[#241a33]' : 'text-white/35'
+                  rank === 0 ? 'bg-[#fbf3e2] text-[#191330]' : 'text-white/35'
                 }`}
               >
                 {rank + 1}
               </span>
-              <TokenLogo ticker={entry.symbol} className="h-8 w-8 rounded-lg" />
+              <TokenLogo ticker={entry.symbol} className="h-8 w-8 rounded-none" />
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <span className="font-display font-bold tracking-wide">{entry.symbol}</span>
-                  {isMine && <span className="rounded-full bg-[#F2A65A]/15 px-2 py-0.5 text-[10px] font-bold text-[#F2A65A]">Your pick</span>}
-                  {isWinner && <span className="rounded-full bg-[#f7f1e3]/10 px-2 py-0.5 text-[10px] font-bold text-[#f7f1e3]">Winner</span>}
+                  {isMine && <span className="rounded-full bg-[#ffd23f]/15 px-2 py-0.5 text-[10px] font-bold text-[#ffd23f]">Your pick</span>}
+                  {isWinner && <span className="rounded-full bg-[#fbf3e2]/10 px-2 py-0.5 text-[10px] font-bold text-[#fbf3e2]">Winner</span>}
                 </div>
                 <div className="mt-2 relative h-2 rounded-full bg-white/5 overflow-hidden">
                   <div className="absolute inset-y-0 left-1/2 w-px bg-white/25" />
                   <div
-                    className={`absolute inset-y-0 rounded-full ${entry.returnValue >= 0n ? 'bg-[#F2A65A]' : 'bg-rose-400'}`}
+                    className={`absolute inset-y-0 rounded-full ${entry.returnValue >= 0n ? 'bg-[#ffd23f]' : 'bg-rose-400'}`}
                     style={entry.returnValue >= 0n ? { left: '50%', width: `${width}%` } : { right: '50%', width: `${width}%` }}
                   />
                 </div>
@@ -114,7 +114,7 @@ export function AssetRaceLeaderboard({
               </div>
             </div>
             <div className="mt-2 ml-9 flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-white/35">
-              {entry.marketCapUsd != null && <span className="font-bold text-[#F2A65A]">MC {formatCompactUsd(entry.marketCapUsd)}</span>}
+              {entry.marketCapUsd != null && <span className="font-bold text-[#ffd23f]">MC {formatCompactUsd(entry.marketCapUsd)}</span>}
               {entry.startPrice > 0n && <span>P0 ${formatUnits(entry.startPrice, entry.decimals)}</span>}
               {entry.endPrice > 0n && <span>{final ? 'P1' : 'display'} ${formatUnits(entry.endPrice, entry.decimals)}</span>}
               {entry.source && <span>{entry.source}</span>}

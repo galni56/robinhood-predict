@@ -1,9 +1,9 @@
 type ProductTone = 'market' | 'race' | 'arena'
 
 const TONE_CLASSES: Record<ProductTone, string> = {
-  market: 'text-[#C9C0FF] hover:bg-[#8B7CF7]/15 hover:text-white',
-  race: 'text-[#F2A65A] hover:bg-[#F2A65A]/15 hover:text-[#FFD4A4]',
-  arena: 'text-[#B7CEFF] hover:bg-[#7A9FF0]/15 hover:text-white',
+  market: 'text-[#C9C0FF] hover:bg-[#ff4f8b]/15 hover:text-white',
+  race: 'text-[#ffd23f] hover:bg-[#ffd23f]/15 hover:text-[#FFD4A4]',
+  arena: 'text-[#6bcbf4] hover:bg-[#6bcbf4]/15 hover:text-white',
 }
 
 export function PriceSourceLink({

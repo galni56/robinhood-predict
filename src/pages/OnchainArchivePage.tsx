@@ -66,13 +66,13 @@ export function OnchainArchivePage() {
               : finishedRaces.map((race) => {
                 const winner = race.status === ASSET_RACE_STATUS.RESOLVED ? race.assets[race.winningAssetIndex] : undefined
                 return (
-                  <Link key={race.address} to={`/onchain/races/${race.id}`} className="flex flex-wrap items-center gap-3 rounded-2xl border border-white/5 bg-[#241b2f] px-4 py-3 transition-colors hover:border-[#F2A65A]/40">
+                  <Link key={race.address} to={`/onchain/races/${race.id}`} className="flex flex-wrap items-center gap-3 rounded-none border border-white/5 bg-[#221c40] px-4 py-3 transition-colors hover:border-[#ffd23f]/40">
                     <div className="flex shrink-0 -space-x-2">
-                      {race.assets.slice(0, 4).map((asset) => <TokenLogo key={asset.assetIndex} ticker={asset.symbol} className="h-8 w-8 rounded-lg border-2 border-[#241b2f]" />)}
+                      {race.assets.slice(0, 4).map((asset) => <TokenLogo key={asset.assetIndex} ticker={asset.symbol} className="h-8 w-8 rounded-none border-2 border-[#221c40]" />)}
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="truncate font-bold">{race.title || race.assets.map((asset) => asset.symbol).join(' vs ')}</div>
-                      <div className="truncate text-xs text-[#F2A65A]">{assetRaceCategoryLabel(race.category)} race #{race.id.toString()} · {dateLabel(race.resolvedAt || race.raceEndTime)}</div>
+                      <div className="truncate text-xs text-[#ffd23f]">{assetRaceCategoryLabel(race.category)} race #{race.id.toString()} · {dateLabel(race.resolvedAt || race.raceEndTime)}</div>
                     </div>
                     <div className="text-right">
                       <div className="text-sm font-bold">{winner ? <>{winner.symbol} <span className="font-mono text-emerald-300">{formatReturnWad(winner.returnValue)}</span></> : assetRaceStatusLabel(race.status)}</div>
@@ -87,11 +87,11 @@ export function OnchainArchivePage() {
                 const resolved = arena.status === PRICE_ARENA_STATUS.RESOLVED
                 const category = arena.category === PRICE_ARENA_CATEGORY.MEME ? 'Meme' : arena.category === PRICE_ARENA_CATEGORY.CRYPTO ? 'Crypto' : 'Stock'
                 return (
-                  <Link key={arena.address} to={`/onchain/arenas/${arena.id}`} className="flex flex-wrap items-center gap-3 rounded-2xl border border-white/5 bg-[#241b2f] px-4 py-3 transition-colors hover:border-[#7A9FF0]/40">
-                    <TokenLogo ticker={arena.symbol} className="h-8 w-8 shrink-0 rounded-lg" />
+                  <Link key={arena.address} to={`/onchain/arenas/${arena.id}`} className="flex flex-wrap items-center gap-3 rounded-none border border-white/5 bg-[#221c40] px-4 py-3 transition-colors hover:border-[#6bcbf4]/40">
+                    <TokenLogo ticker={arena.symbol} className="h-8 w-8 shrink-0 rounded-none" />
                     <div className="min-w-0 flex-1">
                       <div className="truncate font-bold">{arena.title}</div>
-                      <div className="truncate text-xs text-[#B7CEFF]">{category} arena #{arena.id.toString()} · {arena.symbol} · {arenaDurationLabel(arena.duration)} · {dateLabel(arena.resolvedAt || arena.deadline)}</div>
+                      <div className="truncate text-xs text-[#6bcbf4]">{category} arena #{arena.id.toString()} · {arena.symbol} · {arenaDurationLabel(arena.duration)} · {dateLabel(arena.resolvedAt || arena.deadline)}</div>
                     </div>
                     <div className="text-right">
                       <div className="text-sm font-bold">

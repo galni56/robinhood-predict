@@ -20,7 +20,7 @@ export function GameActivitySidebar({
   const recent = history.data?.activity
     .filter((item) => item.game === kind && (item.type === 'bet' || item.type === 'entry') && item.wallet && item.amount)
     .slice(0, 12)
-  const accentText = kind === 'race' ? 'text-[#F2A65A]' : 'text-[#B7CEFF]'
+  const accentText = kind === 'race' ? 'text-[#ffd23f]' : 'text-[#6bcbf4]'
   const loading = history.isLoading
   const unavailable = history.isError && !history.data
 
@@ -36,11 +36,11 @@ export function GameActivitySidebar({
               : !leaderboard?.length ? <p className="py-4 text-center text-xs text-white/30">No bets placed yet</p>
                 : leaderboard.map((stats, index) => {
                   const net = BigInt(stats.net)
-                  return <a key={stats.wallet} href={explorerUrl('address', stats.wallet)} target="_blank" rel="noreferrer" className="grid min-w-0 grid-cols-[1rem_auto_minmax(0,1fr)_auto] items-center gap-2 rounded-lg px-2 py-1.5 text-sm transition-colors hover:bg-white/5">
+                  return <a key={stats.wallet} href={explorerUrl('address', stats.wallet)} target="_blank" rel="noreferrer" className="grid min-w-0 grid-cols-[1rem_auto_minmax(0,1fr)_auto] items-center gap-2 rounded-none px-2 py-1.5 text-sm transition-colors hover:bg-white/5">
                     <span className="w-4 text-center font-mono text-xs text-white/30">{index + 1}</span>
                     <span className="flex -space-x-1" title={stats.symbols.join(', ') || 'Asset pending'}>
                       {(stats.symbols.length > 0 ? stats.symbols : [undefined]).map((symbol, symbolIndex) => (
-                        <TokenLogo key={`${symbol ?? 'unknown'}:${symbolIndex}`} ticker={symbol} className="h-5 w-5 rounded-md ring-1 ring-[#241b2f]" />
+                        <TokenLogo key={`${symbol ?? 'unknown'}:${symbolIndex}`} ticker={symbol} className="h-5 w-5 rounded-none ring-1 ring-[#221c40]" />
                       ))}
                     </span>
                     <AddressLabel address={stats.wallet} link={false} className="min-w-0 truncate font-mono text-xs" />
@@ -62,10 +62,10 @@ export function GameActivitySidebar({
                   const amount = BigInt(bet.amount!)
                   // Older snapshots carry no stake mint; those games were all SOL.
                   const token = bet.stakeMint ? tokenOf(bet.stakeMint) : SOL_STAKE_TOKEN
-                  return <div key={`${bet.signature}:${bet.wallet}`} className="rounded-xl bg-white/5 px-2.5 py-2 text-xs">
+                  return <div key={`${bet.signature}:${bet.wallet}`} className="rounded-none bg-white/5 px-2.5 py-2 text-xs">
                     <div className="flex min-w-0 items-center justify-between gap-2">
                       <div className="flex min-w-0 items-center gap-1.5">
-                        <TokenLogo ticker={bet.symbol ?? undefined} className="h-6 w-6 rounded-md" />
+                        <TokenLogo ticker={bet.symbol ?? undefined} className="h-6 w-6 rounded-none" />
                         <div className="min-w-0 truncate font-bold text-white/75">{bet.symbol ?? `${kind} #${bet.gameId ?? '?'}`}</div>
                       </div>
                       <div title={formatStakeExact(amount, token)} className="shrink-0 whitespace-nowrap text-right font-mono text-white/70 tabular-nums">{formatStakeAmount(amount, token)}</div>

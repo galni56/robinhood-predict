@@ -101,7 +101,7 @@ export function OnchainCreateRacePage() {
 
       <div className="mt-4 grid min-w-0 items-stretch gap-6 lg:min-h-[calc(100dvh-180px)] lg:grid-cols-[440px_1fr] xl:gap-8">
         <div className="flex min-w-0 flex-col">
-          <p className="mb-1 text-sm font-bold text-[#F2A65A]">
+          <p className="mb-1 text-sm font-bold text-[#ffd23f]">
             Create a community {mode === 'memes' ? 'meme' : mode === 'crypto' ? 'crypto' : 'stock'} race
           </p>
           <h1 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">
@@ -156,13 +156,13 @@ export function OnchainCreateRacePage() {
         </div>
 
         {config.data?.communityPolicyConfigured === false ? (
-          <div className="h-full rounded-xl border border-amber-400/25 bg-amber-400/10 p-5 text-sm text-amber-100">
+          <div className="h-full rounded-none border border-amber-400/25 bg-amber-400/10 p-5 text-sm text-amber-100">
             Community races are not enabled on this deployment yet.
           </div>
         ) : registryError ? (
-          <div className="h-full rounded-xl border border-rose-500/25 bg-rose-500/10 p-5 text-sm text-rose-300">Could not read the approved Race registry.</div>
+          <div className="h-full rounded-none border border-rose-500/25 bg-rose-500/10 p-5 text-sm text-rose-300">Could not read the approved Race registry.</div>
         ) : (
-          <div className="flex h-full min-w-0 flex-col gap-4 rounded-3xl border border-white/5 bg-[#241b2f] p-5 sm:p-6">
+          <div className="flex h-full min-w-0 flex-col gap-4 rounded-none border border-white/5 bg-[#221c40] p-5 sm:p-6">
           <div>
             <label className="mb-2 block text-sm font-bold text-white/60">Race title</label>
             <input
@@ -170,7 +170,7 @@ export function OnchainCreateRacePage() {
               maxLength={64}
               onChange={(event) => setTitle(event.target.value)}
               placeholder={mode === 'crypto' ? 'BTC vs ETH' : mode === 'memes' ? 'Meme showdown' : 'AI stock battle'}
-              className="w-full rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 font-medium outline-none transition-colors focus:border-[#F2A65A]/50"
+              className="w-full rounded-none border border-white/10 bg-white/5 px-3.5 py-2.5 font-medium outline-none transition-colors focus:border-[#ffd23f]/50"
             />
             <div className={`mt-1 text-right text-[11px] font-medium ${titleBytes > 64 ? 'text-rose-400' : 'text-white/30'}`}>{titleBytes} / 64 bytes</div>
           </div>
@@ -181,7 +181,7 @@ export function OnchainCreateRacePage() {
             <select
               value={selectedDuration.toString()}
               onChange={(event) => setDuration(BigInt(event.target.value))}
-              className="w-full rounded-xl border border-white/10 bg-[#1e1728] px-3.5 py-2.5 font-medium outline-none focus:border-[#F2A65A]/50"
+              className="w-full rounded-none border border-white/10 bg-[#191330] px-3.5 py-2.5 font-medium outline-none focus:border-[#ffd23f]/50"
             >
               {durations.map((seconds) => <option key={seconds.toString()} value={seconds.toString()}>{durationLabel(seconds)}</option>)}
             </select>
@@ -194,7 +194,7 @@ export function OnchainCreateRacePage() {
                 <div className="text-sm font-bold text-white/60">Initial assets · optional</div>
                 <p className="mt-1 text-xs font-medium text-white/35">Approved registry assets only. Minimum two are needed when the lobby closes.</p>
               </div>
-              <span className="shrink-0 rounded-full bg-[#F2A65A]/15 px-2.5 py-1 text-xs font-bold text-[#F2A65A]">{selected.length} / 6</span>
+              <span className="shrink-0 rounded-full bg-[#ffd23f]/15 px-2.5 py-1 text-xs font-bold text-[#ffd23f]">{selected.length} / 6</span>
             </div>
             {isLoading ? <p className="py-8 text-center text-sm text-white/35">Loading approved assets…</p> : (
               <CompactAssetSelector
@@ -223,7 +223,7 @@ export function OnchainCreateRacePage() {
             <button
               onClick={createRace}
               disabled={!publicKey || !validTitle || selectedDuration === 0n || !!txLabel}
-              className="w-full rounded-xl bg-gradient-to-r from-[#F2A65A] to-[#ED8F3A] py-3 text-sm font-bold text-[#3b2416] transition-all hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
+              className="w-full rounded-none bg-gradient-to-r from-[#ffd23f] to-[#f7b928] py-3 text-sm font-bold text-[#191330] transition-all hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-40"
             >
               {txLabel ?? `Create ${mode === 'memes' ? 'meme' : mode === 'crypto' ? 'crypto' : 'stock'} race`}
             </button>

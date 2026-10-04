@@ -4,9 +4,9 @@ interface GameListLoadingGridProps {
 }
 
 const accentClass = {
-  purple: 'bg-[#8B7CF7]/15',
-  orange: 'bg-[#F2A65A]/15',
-  blue: 'bg-[#7A9FF0]/15',
+  purple: 'bg-[#ff4f8b]/15',
+  orange: 'bg-[#ffd23f]/15',
+  blue: 'bg-[#6bcbf4]/15',
 } as const
 
 /**
@@ -34,9 +34,9 @@ export function GameListLoadingGrid({ accent = 'purple', cards = 6 }: GameListLo
             <div className={`h-7 w-24 rounded-full ${accentClass[accent]}`} />
             <div className="h-7 w-20 rounded-full bg-white/5" />
           </div>
-          <div className="mt-5 h-6 w-3/5 rounded-md bg-white/10" />
+          <div className="mt-5 h-6 w-3/5 rounded-none bg-white/10" />
           <div className="mt-3 h-4 w-2/5 rounded bg-white/5" />
-          <div className="mt-7 h-14 rounded-2xl bg-black/10" />
+          <div className="mt-7 h-14 rounded-none bg-black/10" />
           <div className="mt-7 flex items-center justify-between gap-4">
             <div className="h-4 w-28 rounded bg-white/5" />
             <div className={`h-7 w-24 rounded-full ${accentClass[accent]}`} />

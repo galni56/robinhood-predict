@@ -19,28 +19,28 @@ interface GameLifecycleGuideProps {
 
 const toneClasses = {
   market: {
-    accent: 'text-[#B3A7FA]',
-    badge: 'border-[#8B7CF7]/30 bg-[#8B7CF7]/15 text-[#B3A7FA]',
-    number: 'bg-[#8B7CF7] text-white',
-    line: 'bg-[#8B7CF7]/25',
-    note: 'border-[#8B7CF7]/20 bg-[#8B7CF7]/10 text-[#d8d0ff]',
-    disclosure: 'border-[#8B7CF7]/30 bg-[#8B7CF7]/10 text-[#d8d0ff] hover:bg-[#8B7CF7]/20',
+    accent: 'text-[#ff4f8b]',
+    badge: 'border-[#ff4f8b]/30 bg-[#ff4f8b]/15 text-[#ff4f8b]',
+    number: 'bg-[#ff4f8b] text-white',
+    line: 'bg-[#ff4f8b]/25',
+    note: 'border-[#ff4f8b]/20 bg-[#ff4f8b]/10 text-[#d8d0ff]',
+    disclosure: 'border-[#ff4f8b]/30 bg-[#ff4f8b]/10 text-[#d8d0ff] hover:bg-[#ff4f8b]/20',
   },
   race: {
-    accent: 'text-[#F2A65A]',
-    badge: 'border-[#F2A65A]/30 bg-[#F2A65A]/15 text-[#F2A65A]',
-    number: 'bg-[#F2A65A] text-[#3b2416]',
-    line: 'bg-[#F2A65A]/25',
-    note: 'border-[#F2A65A]/20 bg-[#F2A65A]/10 text-[#ffd3a8]',
-    disclosure: 'border-[#F2A65A]/30 bg-[#F2A65A]/10 text-[#ffd3a8] hover:bg-[#F2A65A]/20',
+    accent: 'text-[#ffd23f]',
+    badge: 'border-[#ffd23f]/30 bg-[#ffd23f]/15 text-[#ffd23f]',
+    number: 'bg-[#ffd23f] text-[#191330]',
+    line: 'bg-[#ffd23f]/25',
+    note: 'border-[#ffd23f]/20 bg-[#ffd23f]/10 text-[#ffd23f]',
+    disclosure: 'border-[#ffd23f]/30 bg-[#ffd23f]/10 text-[#ffd23f] hover:bg-[#ffd23f]/20',
   },
   arena: {
-    accent: 'text-[#B7CEFF]',
-    badge: 'border-[#7A9FF0]/30 bg-[#7A9FF0]/15 text-[#B7CEFF]',
-    number: 'bg-[#7A9FF0] text-[#152447]',
-    line: 'bg-[#7A9FF0]/25',
-    note: 'border-[#7A9FF0]/20 bg-[#7A9FF0]/10 text-[#d7e4ff]',
-    disclosure: 'border-[#7A9FF0]/30 bg-[#7A9FF0]/10 text-[#d7e4ff] hover:bg-[#7A9FF0]/20',
+    accent: 'text-[#6bcbf4]',
+    badge: 'border-[#6bcbf4]/30 bg-[#6bcbf4]/15 text-[#6bcbf4]',
+    number: 'bg-[#6bcbf4] text-[#191330]',
+    line: 'bg-[#6bcbf4]/25',
+    note: 'border-[#6bcbf4]/20 bg-[#6bcbf4]/10 text-[#d7e4ff]',
+    disclosure: 'border-[#6bcbf4]/30 bg-[#6bcbf4]/10 text-[#d7e4ff] hover:bg-[#6bcbf4]/20',
   },
 } as const
 
@@ -50,7 +50,7 @@ export function GameLifecycleGuide({ className, tone, eyebrow, title, intro, sta
   const contentId = useId()
 
   return (
-    <section className={clsx('flex flex-col rounded-3xl border border-white/[0.07] bg-[#241b2f]', expanded ? 'p-5 sm:p-6' : 'p-4 sm:p-5', className)}>
+    <section className={clsx('flex flex-col rounded-none border border-white/[0.07] bg-[#221c40]', expanded ? 'p-5 sm:p-6' : 'p-4 sm:p-5', className)}>
       <div className={clsx('mb-3 inline-flex rounded-full border px-3 py-1 text-[11px] font-bold uppercase tracking-[0.14em]', colors.badge)}>
         {eyebrow}
       </div>
@@ -80,10 +80,10 @@ export function GameLifecycleGuide({ className, tone, eyebrow, title, intro, sta
               ))}
             </ol>
 
-            <p className={clsx('mt-4 rounded-2xl border px-4 py-3 text-xs font-medium leading-relaxed', colors.note)}>{note}</p>
+            <p className={clsx('mt-4 rounded-none border px-4 py-3 text-xs font-medium leading-relaxed', colors.note)}>{note}</p>
           </>
         ) : (
-          <ol className="mt-4 grid flex-1 auto-rows-fr overflow-hidden rounded-2xl border border-white/[0.07] bg-black/10">
+          <ol className="mt-4 grid flex-1 auto-rows-fr overflow-hidden rounded-none border border-white/[0.07] bg-black/10">
             {stages.map((stage, index) => (
               <li
                 key={`${stage.title}-${stage.timing}`}
@@ -103,7 +103,7 @@ export function GameLifecycleGuide({ className, tone, eyebrow, title, intro, sta
         aria-expanded={expanded}
         aria-controls={contentId}
         onClick={() => setExpanded((current) => !current)}
-        className={clsx('mt-4 flex w-full items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-xs font-bold transition-colors', colors.disclosure)}
+        className={clsx('mt-4 flex w-full items-center justify-center gap-2 rounded-none border px-4 py-2.5 text-xs font-bold transition-colors', colors.disclosure)}
       >
         {expanded ? 'Collapse lifecycle' : 'Read full lifecycle'}
         <span aria-hidden="true">{expanded ? '↑' : '↓'}</span>

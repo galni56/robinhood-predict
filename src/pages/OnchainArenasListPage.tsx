@@ -71,7 +71,7 @@ function ArenaCard({ arena, nowMs }: { arena: PriceArenaWithPhase; nowMs: number
         <span className="px-font border-2 border-[#191330] bg-[#6bcbf4] px-1.5 py-1 text-[7px] text-[#191330]">{displayPhase(arena, nowMs)}</span>
       </div>
       <div className="mt-5 grid grid-cols-3 gap-3 border-2 border-[#fbf3e2]/15 bg-[#191330]/40 p-3 text-sm">
-        <div className="min-w-0"><div className="text-xs text-white/30">Asset</div><div className="mt-1 flex min-w-0 items-center gap-2 font-bold"><TokenLogo ticker={arena.symbol} className="h-7 w-7 shrink-0 rounded-lg" /><span className="truncate">{arena.symbol}</span></div></div>
+        <div className="min-w-0"><div className="text-xs text-white/30">Asset</div><div className="mt-1 flex min-w-0 items-center gap-2 font-bold"><TokenLogo ticker={arena.symbol} className="h-7 w-7 shrink-0 rounded-none" /><span className="truncate">{arena.symbol}</span></div></div>
         <div className="min-w-0"><div className="text-xs text-white/30">Players</div><div className="mt-1 truncate font-mono font-bold tabular-nums">{arena.participantCount} / {PRICE_ARENA_MAX_PARTICIPANTS}</div></div>
         <div className="min-w-0"><div className="text-xs text-white/30">Prize pool</div><div title={formatStakeExact(arena.totalPool, token)} className="mt-1 truncate font-mono text-[0.78rem] font-bold tabular-nums">{formatStakeAmount(arena.totalPool, token, 3)}</div></div>
       </div>

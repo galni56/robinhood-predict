@@ -114,7 +114,7 @@ export function RealNavbar() {
             onClick={() => setMobileOpen((v) => !v)}
             aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
             aria-expanded={mobileOpen}
-            className="w-9 h-9 shrink-0 rounded-lg border border-white/10 flex flex-col items-center justify-center gap-[3px] hover:border-white/30 transition-colors"
+            className="w-9 h-9 shrink-0 rounded-none border border-white/10 flex flex-col items-center justify-center gap-[3px] hover:border-white/30 transition-colors"
           >
             <span className={clsx('block w-4 h-[4px] bg-white/80 transition-transform', mobileOpen && 'translate-y-[5px] rotate-45')} />
             <span className={clsx('block w-4 h-[4px] bg-white/80 transition-opacity', mobileOpen && 'opacity-0')} />
@@ -124,7 +124,7 @@ export function RealNavbar() {
       </div>
 
       {mobileOpen && (
-        <div className="xl:hidden border-t border-white/10 bg-[#17111f] px-4 py-3 space-y-1">
+        <div className="xl:hidden border-t border-white/10 bg-[#221c40] px-4 py-3 space-y-1">
           {links.map((l) => (
             <NavLink
               key={l.to}
@@ -132,8 +132,8 @@ export function RealNavbar() {
               onClick={() => setMobileOpen(false)}
               className={({ isActive }) =>
                 clsx(
-                  'block px-3 py-2 rounded-lg text-sm font-bold transition-colors',
-                  isActive ? 'bg-[#8B7CF7]/15 text-[#B3A7FA]' : 'text-white/70 hover:bg-white/5 hover:text-white',
+                  'block px-3 py-2 rounded-none text-sm font-bold transition-colors',
+                  isActive ? 'bg-[#ff4f8b]/15 text-[#ff4f8b]' : 'text-white/70 hover:bg-white/5 hover:text-white',
                 )
               }
             >
@@ -143,14 +143,14 @@ export function RealNavbar() {
           <NavLink
             to="/onchain/races/create"
             onClick={() => setMobileOpen(false)}
-            className="block px-3 py-2 rounded-lg text-sm font-medium text-[#F2A65A] hover:bg-[#F2A65A]/10"
+            className="block px-3 py-2 rounded-none text-sm font-medium text-[#ffd23f] hover:bg-[#ffd23f]/10"
           >
             + Create Race
           </NavLink>
           <NavLink
             to="/onchain/arenas/create"
             onClick={() => setMobileOpen(false)}
-            className="block px-3 py-2 rounded-lg text-sm font-medium text-[#B7CEFF] hover:bg-[#7A9FF0]/10"
+            className="block px-3 py-2 rounded-none text-sm font-medium text-[#6bcbf4] hover:bg-[#6bcbf4]/10"
           >
             + Create Arena
           </NavLink>
@@ -158,7 +158,7 @@ export function RealNavbar() {
             href={explorerHref}
             target="_blank"
             rel="noreferrer"
-            className="block px-3 py-2 rounded-lg text-sm font-bold text-white/40 hover:bg-white/5"
+            className="block px-3 py-2 rounded-none text-sm font-bold text-white/40 hover:bg-white/5"
           >
             Solana explorer ↗
           </a>
@@ -167,8 +167,8 @@ export function RealNavbar() {
             onClick={() => setMobileOpen(false)}
             className={({ isActive }) =>
               clsx(
-                'block px-3 py-2 rounded-lg text-sm font-bold transition-colors',
-                isActive ? 'bg-[#8B7CF7]/15 text-[#B3A7FA]' : 'text-white/40 hover:bg-white/5 hover:text-white',
+                'block px-3 py-2 rounded-none text-sm font-bold transition-colors',
+                isActive ? 'bg-[#ff4f8b]/15 text-[#ff4f8b]' : 'text-white/40 hover:bg-white/5 hover:text-white',
               )
             }
           >
@@ -179,7 +179,7 @@ export function RealNavbar() {
             target="_blank"
             rel="noreferrer"
             onClick={() => setMobileOpen(false)}
-            className="flex items-center gap-2 rounded-lg border border-[#8B7CF7]/30 bg-[#8B7CF7]/10 px-3 py-2 text-sm font-bold text-white/80 hover:border-[#B3A7FA] hover:bg-[#8B7CF7]/20 hover:text-white"
+            className="flex items-center gap-2 rounded-none border border-[#ff4f8b]/30 bg-[#ff4f8b]/10 px-3 py-2 text-sm font-bold text-white/80 hover:border-[#ff4f8b] hover:bg-[#ff4f8b]/20 hover:text-white"
           >
             <svg viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5">
               <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />

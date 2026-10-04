@@ -12,7 +12,7 @@ export function TermsPage() {
   return (
     <div className="max-w-3xl mx-auto px-4 py-10 space-y-10">
       <div>
-        <p className="text-xs font-bold tracking-[0.2em] text-[#8B7CF7]/80 uppercase mb-2">Legal</p>
+        <p className="text-xs font-bold tracking-[0.2em] text-[#ff4f8b]/80 uppercase mb-2">Legal</p>
         <h1 className="text-3xl font-extrabold tracking-tight">Terms of Service</h1>
         <p className="text-white/40 text-sm mt-3">
           Last updated {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}.
@@ -22,7 +22,7 @@ export function TermsPage() {
         </p>
       </div>
 
-      <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+      <div className="rounded-none border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
         This is a template, not reviewed by a lawyer. It is not a substitute for real legal review - see the{' '}
         <a href="#launch-status" onClick={(e) => scrollToSection(e, 'launch-status')} className="underline">
           §9 note
