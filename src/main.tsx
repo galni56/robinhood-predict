@@ -5,6 +5,8 @@ import { HashRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { SolanaProvider } from '@/solana/SolanaProvider'
 import './index.css'
+import { installButtonSfx } from '@/lib/sfx'
+installButtonSfx()
 import App from './App.tsx'
 
 const queryClient = new QueryClient()

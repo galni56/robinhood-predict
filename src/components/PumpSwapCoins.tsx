@@ -1,11 +1,13 @@
 import { Link } from 'react-router-dom'
 import { usePumpSwapAssets } from '@/chain/gameServer'
 import { useLivePrices } from '@/chain/livePrices'
-import { TokenLogo } from '@/components/TokenLogo'
+import { CoinFighter } from '@/retro/landingFx'
+import { coinBlueGrin, coinOrangeGrin, coinPinkGrin, coinPurpleGrin } from '@/retro/spriteData'
 import { formatUnits } from '@/lib/format'
 import { CREAM, INK, PINK, YELLOW } from '@/retro/scene'
 
 const PIXEL = "'Press Start 2P', 'Courier New', monospace"
+const BODIES = [coinOrangeGrin, coinPinkGrin, coinBlueGrin, coinPurpleGrin]
 
 const usd = (value?: number) => (value == null ? '—' : value >= 1e6 ? `$${(value / 1e6).toFixed(1)}M` : value >= 1e3 ? `$${Math.round(value / 1e3)}K` : `$${Math.round(value)}`)
 
@@ -42,15 +44,15 @@ export function PumpSwapCoins({ limit, feed = false }: { limit?: number; feed?: 
       </div>
       {isLoading && assets.length === 0 ? <p style={{ marginTop: 24, opacity: 0.7 }}>Loading coins…</p> : (
         <div style={{ marginTop: 24, display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))' }}>
-          {shown.map((asset) => {
+          {shown.map((asset, index) => {
             const livePrice = live.assets[asset.symbol]
             const price = livePrice ? { raw: livePrice.raw, decimals: livePrice.decimals } : asset.price ? { raw: BigInt(asset.price.raw), decimals: asset.price.decimals } : null
             const fresh = Date.parse(asset.addedAt ?? '0') === newest && Date.now() - newest < 15 * 60_000
             return (
-              <div key={asset.symbol} className="rx-raised" style={{ position: 'relative', background: CREAM, color: INK, padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div key={asset.symbol} className="rx-raised rx-hop-host" style={{ position: 'relative', background: CREAM, color: INK, padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {fresh && <span style={{ position: 'absolute', top: -10, right: 12, background: PINK, color: INK, fontFamily: PIXEL, fontSize: 9, padding: '6px 8px', border: `3px solid ${INK}` }}>NEW</span>}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
-                  <TokenLogo ticker={asset.symbol} logoUrl={asset.logoUrl ?? undefined} className="h-10 w-10 shrink-0 rounded-none" />
+                  <CoinFighter body={BODIES[index % BODIES.length]} logoUrl={asset.logoUrl} symbol={asset.symbol} size={52} />
                   <div style={{ minWidth: 0 }}>
                     <div style={{ fontWeight: 700, fontSize: 20, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{asset.symbol}</div>
                     <div style={{ fontSize: 14, opacity: 0.6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{asset.name}</div>

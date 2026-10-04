@@ -1063,3 +1063,71 @@ h3,
 @media (prefers-reduced-motion: reduce) {
   [style*='rx-bob'], .rx-road-dashes { animation: none !important; }
 }
+
+/* ---------------------------------------------------- landing motion kit */
+/* Used by src/retro/landingFx.tsx. The race loop: running 0-80%, finish
+   celebration (crown, waving flag, confetti) 80-100%. */
+
+@keyframes rx-fx-spin { to { transform: rotate(360deg); } }
+.rx-fx-spin { animation: rx-fx-spin 24s steps(48) infinite; }
+
+@keyframes rx-fx-cross {
+  from { transform: translateX(-200px); }
+  to { transform: translateX(110vw); }
+}
+.rx-fx-cross { animation: rx-fx-cross 60s linear infinite; }
+
+@keyframes rx-fx-crown {
+  0%, 79% { opacity: 0; transform: translateY(6px); }
+  82%, 100% { opacity: 1; transform: translateY(0); }
+}
+.rx-fx-crown { animation: rx-fx-crown 11s steps(4) infinite; }
+
+@keyframes rx-fx-flag {
+  0%, 79%, 100% { transform: skewY(0deg); }
+  83% { transform: skewY(-12deg); }
+  87% { transform: skewY(8deg); }
+  91% { transform: skewY(-10deg); }
+  95% { transform: skewY(6deg); }
+}
+.rx-fx-flag { transform-origin: left center; animation: rx-fx-flag 11s steps(2) infinite; }
+
+@keyframes rx-fx-confetti {
+  0%, 79% { opacity: 0; transform: translate(0, 0) rotate(0deg); }
+  81% { opacity: 1; }
+  98% { opacity: 1; transform: translate(var(--rx-dx, 16px), 60px) rotate(270deg); }
+  100% { opacity: 0; }
+}
+.rx-fx-confetti { animation: rx-fx-confetti 11s steps(12) infinite; opacity: 0; }
+
+@keyframes rx-fx-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+.rx-fx-float { animation: rx-fx-float 2.4s steps(4) infinite; }
+
+@keyframes rx-fx-shine {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.35); }
+}
+.rx-fx-shine { animation: rx-fx-shine 1.6s steps(4) infinite; }
+
+/* Coin characters hop when their card is hovered. */
+@keyframes rx-hop {
+  0%, 100% { transform: translateY(0); }
+  30% { transform: translateY(-12px); }
+  60% { transform: translateY(-4px); }
+}
+.rx-hop-host:hover .rx-hop, .rx-hop:hover { animation: rx-hop 0.5s steps(5) infinite; }
+
+/* Arcade press: the button sinks onto its base. */
+.rx-btn:active:not(:disabled) {
+  transform: translateY(8px);
+  box-shadow:
+    -4px 0 0 0 #1b1340, 4px 0 0 0 #1b1340, 0 -4px 0 0 #1b1340, 0 4px 0 0 #1b1340,
+    inset 4px 4px 0 0 rgba(0, 0, 0, 0.12);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rx-fx-spin, .rx-fx-cross, .rx-fx-float, .rx-fx-shine, .rx-hop-host:hover .rx-hop, .rx-hop:hover { animation: none !important; }
+}
