@@ -52,8 +52,8 @@ body {
   overflow-x: hidden;
   /* Retro arcade paper. Painted directly on body - see git history: extra
      compositing layers intermittently left text unpainted. */
-  background: var(--color-paper-50);
-  color: var(--color-ink-950);
+  background: #fff6df;
+  color: #1b1340;
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
 }
@@ -807,8 +807,8 @@ h3,
    pixel headline font. Scoped by class so screens migrate one at a time. */
 
 .retro {
-  background: var(--color-paper-50);
-  color: var(--color-ink-950);
+  background: #fff6df;
+  color: #1b1340;
 }
 
 .px-font {
@@ -862,8 +862,8 @@ h3,
   text-transform: uppercase;
   padding: 9px 14px 7px;
   border: 3px solid var(--color-ink-950);
-  background: var(--color-paper-50);
-  color: var(--color-ink-950);
+  background: #fff6df;
+  color: #1b1340;
 }
 
 /* Checkered finish-line strip (vertical by default). */
