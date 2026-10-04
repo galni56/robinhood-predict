@@ -562,3 +562,16 @@ IDL и клиент программы на сайте. В истории git в
 ошибочная ставка вернулась (0.05 SOL), победитель получил 0.592 SOL — до лампорта как по правилам (ставка + банк
 проигравших минус 2%), проигравшие ничего, кошелёк сервера сходится с долгами. Игроки после ставки ничего не
 подписывали. Исправлено ложное «INSOLVENT» при пустом кошельке на старте.
+
+## 2026-10-04 — Установка на VPS (mainnet), сервисы пока выключены
+
+На VPS `104.207.90.56` (SSH-порт 22022): Node 24 в `/opt/node24` (системный Node 20 не тронут), код ветки
+`solana-migration` в `/opt/prophet-solana`, настройки `/etc/prophet/prophet.env` (только root; ключи RPC вписал
+владелец сам), база `/var/lib/prophet/game-server.sqlite`, сервисы systemd `prophet-price-service` и
+`prophet-game-server` (оба слушают 127.0.0.1). Ключи созданы владельцем на сервере: `/root/prophet-keys/game-wallet.json`
+(игровой кошелёк `3hA9JZ3gT6jU8CQ7L729sAaKNojRy47kAGXDB4FrkPrY`, пополнен на 0.049 SOL) и `oracle.json`
+(`G6ZoKS2QqBFWHov9Ethib4dbHvWuK9PathwgpYTTSgLj`). Холодный кошелёк `Aa3khk27u4qgheU2342puP1VKfQifindzpi3Y2zrnNdJ`.
+RPC: Alchemy (платный) для запросов; Alchemy не поддерживает `accountSubscribe`, поэтому подписки сервиса цен идут
+через Helius (`SOLANA_MAINNET_WS_URLS`, бесплатный тариф). Оба сервиса проверены в mainnet (живые цены, игровой
+сервер видит кошелёк, пополнение не возвращает) и выключены до тестов. Старые EVM-боты остановлены владельцем.
+Осталось: nginx (решить, где сайт), сборка сайта под mainnet, первая ставка на $1.
