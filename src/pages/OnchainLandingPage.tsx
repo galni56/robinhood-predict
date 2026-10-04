@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
 import { TokenLogo } from '@/components/TokenLogo'
 import { PROPHET_X_URL } from '@/lib/social'
@@ -25,37 +26,44 @@ function PixelCloud({ className, drift }: { className?: string; drift?: string }
   )
 }
 
-function CoinRunner({ symbol, size = 'md' }: { symbol: string; size?: 'sm' | 'md' }) {
-  const coin = size === 'sm' ? 'h-7 w-7' : 'h-9 w-9'
+function CoinRunner({ symbol, size = 'md', stride = '0.55s' }: { symbol: string; size?: 'sm' | 'md'; stride?: string }) {
+  const coin = size === 'sm' ? 'h-7 w-7' : 'h-10 w-10'
   return (
     <div className="flex flex-col items-center">
       <span className="px-font border-2 border-[#191330] bg-[#fbf3e2] px-1.5 py-1 text-[7px] text-[#191330]">{symbol}</span>
-      <div className={`mt-1 overflow-hidden rounded-full border-[3px] border-[#191330] bg-white ${coin}`}>
+      <div className={`mt-1 overflow-hidden rounded-full border-[3px] border-[#191330] bg-white ${coin}`} style={{ transform: 'rotate(5deg)' }}>
         <TokenLogo ticker={symbol} className="h-full w-full" />
       </div>
       <div className="flex gap-1.5">
-        <span className="h-2 w-[3px] bg-[#191330]" style={{ animation: 'hero-leg 0.55s linear infinite' }} />
-        <span className="h-2 w-[3px] bg-[#191330]" style={{ animation: 'hero-leg 0.55s linear infinite', animationDelay: '-0.27s' }} />
+        <span className="h-2 w-[3px] bg-[#191330]" style={{ animation: `hero-leg ${stride} linear infinite` }} />
+        <span className="h-2 w-[3px] bg-[#191330]" style={{ animation: `hero-leg ${stride} linear infinite`, animationDelay: `calc(${stride} / -2)` }} />
       </div>
     </div>
   )
 }
 
-function HeroRunner({ symbol, left, duration, lane }: { symbol: string; left: string; duration: string; lane: number }) {
-  return (
-    <div className="absolute -translate-x-1/2" style={{ left, top: `${4 + lane * 27}%` }}>
-      <div style={{ animation: `hero-run ${duration} ease-in-out infinite` }}>
-        <CoinRunner symbol={symbol} />
-      </div>
-    </div>
-  )
-}
-
-const HERO_RUNNERS = [
-  { symbol: 'TRUMP', left: '62%', duration: '0.52s' },
-  { symbol: 'WIF', left: '38%', duration: '0.64s' },
-  { symbol: 'SOL', left: '22%', duration: '0.58s' },
+// Each runner crosses the whole strip on its own lap time, so the order
+// keeps changing; depth grows toward the near lanes.
+const TRACK_RUNNERS = [
+  { symbol: 'TRUMP', top: '1%', lap: '13s', delay: '-4s', scale: 0.82, stride: '0.5s' },
+  { symbol: 'WIF', top: '24%', lap: '16.5s', delay: '-10s', scale: 0.92, stride: '0.56s' },
+  { symbol: 'SOL', top: '46%', lap: '11.5s', delay: '-2s', scale: 1.02, stride: '0.47s' },
+  { symbol: 'PENGU', top: '67%', lap: '14.5s', delay: '-8s', scale: 1.12, stride: '0.53s' },
 ]
+
+function TrackRunner({ symbol, top, lap, delay, scale, stride }: (typeof TRACK_RUNNERS)[number]) {
+  return (
+    <div className="track-runner" style={{ top, '--lap': lap, '--lap-delay': delay } as CSSProperties}>
+      <div className="relative" style={{ transform: `scale(${scale})` }}>
+        <span className="track-trail" />
+        <div style={{ animation: `hero-run ${stride} ease-in-out infinite` }}>
+          <CoinRunner symbol={symbol} stride={stride} />
+        </div>
+        <div className="track-shadow" />
+      </div>
+    </div>
+  )
+}
 
 const STEPS = [
   ['Connect a wallet', 'A Solana wallet and a little SOL for the stake. One transaction per bet, no sign-ups.'],
@@ -98,17 +106,14 @@ export function OnchainLandingPage() {
 
       {/* ------------------------------------------------- night track */}
       <section className="relative overflow-hidden border-b-[3px] border-[#191330] bg-[#221c40]">
-        <div className="relative mx-auto h-36 max-w-[1500px] sm:h-40">
-          {[0, 1, 2].map((lane) => (
-            <div
-              key={lane}
-              className="absolute left-0 right-0 border-b-2 border-dashed border-white/15"
-              style={{ top: `${26 + lane * 26}%` }}
-            />
+        <div className="relative h-56 sm:h-64">
+          {/* Lane markings slide left: the road moves even between overtakes. */}
+          {['24%', '47%', '70%', '92%'].map((top, index) => (
+            <div key={top} className="track-lane-line" style={{ top, animationDelay: `${index * -0.2}s` }} />
           ))}
-          <div className="px-checker absolute bottom-0 right-6 top-0 w-9 border-x-[3px] border-[#191330] sm:right-14" />
-          {HERO_RUNNERS.map((runner, index) => (
-            <HeroRunner key={runner.symbol} {...runner} lane={index} />
+          <div className="track-finish px-checker absolute bottom-0 right-8 top-0 z-10 w-10 border-x-[3px] border-[#191330] sm:right-16" />
+          {TRACK_RUNNERS.map((runner) => (
+            <TrackRunner key={runner.symbol} {...runner} />
           ))}
         </div>
       </section>
@@ -129,13 +134,14 @@ export function OnchainLandingPage() {
                   <PixelCloud className="absolute right-[18%] top-[40%] w-9" drift="30s" />
                 </div>
                 <div className="absolute inset-x-0 bottom-0 h-[62%] bg-[#221c40]">
-                  <div className="absolute left-0 right-0 top-[45%] border-b-2 border-dashed border-white/15" />
+                  <div className="track-lane-line" style={{ top: '38%' }} />
+                  <div className="track-lane-line" style={{ top: '78%', animationDelay: '-0.3s' }} />
                   <div className="px-checker absolute bottom-0 right-4 top-0 w-6 border-x-2 border-[#191330]" />
-                  <div className="absolute left-[30%] top-[6%]" style={{ animation: 'hero-run 0.6s ease-in-out infinite' }}>
-                    <CoinRunner symbol="WIF" size="sm" />
+                  <div className="track-runner" style={{ top: '4%', '--lap': '7.5s', '--lap-delay': '-2.5s' } as CSSProperties}>
+                    <CoinRunner symbol="WIF" size="sm" stride="0.5s" />
                   </div>
-                  <div className="absolute left-[58%] top-[40%]" style={{ animation: 'hero-run 0.5s ease-in-out infinite' }}>
-                    <CoinRunner symbol="SOL" size="sm" />
+                  <div className="track-runner" style={{ top: '42%', '--lap': '9.5s', '--lap-delay': '-6s' } as CSSProperties}>
+                    <CoinRunner symbol="SOL" size="sm" stride="0.56s" />
                   </div>
                 </div>
               </div>

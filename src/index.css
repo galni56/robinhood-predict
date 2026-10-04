@@ -901,3 +901,69 @@ h3,
   50% { transform: translate(-2px, 0); }
   75% { transform: translate(0, -2px); }
 }
+
+/* ---------------------------------------------------------- track scene */
+/* Landing night road: lane markings slide left while runners cross the
+   whole strip at different lap times, so the order genuinely changes. */
+
+@keyframes track-dash {
+  from { background-position-x: 0; }
+  to { background-position-x: -224px; }
+}
+
+.track-lane-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background-image: repeating-linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.22) 0 26px,
+    transparent 26px 56px
+  );
+  animation: track-dash 0.85s linear infinite;
+}
+
+@keyframes track-run-across {
+  from { left: -14%; }
+  to { left: 110%; }
+}
+
+.track-runner {
+  position: absolute;
+  animation: track-run-across var(--lap, 13s) linear infinite;
+  animation-delay: var(--lap-delay, 0s);
+  will-change: left;
+}
+
+.track-trail {
+  position: absolute;
+  right: calc(100% + 4px);
+  top: 58%;
+  width: 52px;
+  height: 4px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4));
+  border-radius: 999px;
+}
+
+.track-shadow {
+  margin: 3px auto 0;
+  height: 5px;
+  width: 26px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.4);
+  filter: blur(1px);
+}
+
+@keyframes finish-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.75; }
+}
+
+.track-finish { animation: finish-pulse 1.6s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .track-lane-line,
+  .track-runner,
+  .track-finish { animation: none !important; }
+}
