@@ -20,6 +20,21 @@
   --color-lav-100: #f2effb;
   --color-lav-200: #e7e1f8;
   --color-lav-300: #d8cff2;
+
+  /* Retro arcade system (Solana redesign) */
+  --font-pixel: 'Press Start 2P', 'Courier New', monospace;
+  --color-paper-50: #fbf3e2;
+  --color-paper-100: #f3e8cf;
+  --color-sky-400: #6bcbf4;
+  --color-sky-300: #8ddaf8;
+  --color-night-900: #221c40;
+  --color-night-700: #453a7e;
+  --color-ink-950: #191330;
+  --color-sun-400: #ffd23f;
+  --color-sun-500: #f7b928;
+  --color-punch-500: #ff4f8b;
+  --color-grass-500: #58c26e;
+  --color-grass-600: #3da158;
 }
 
 :root {
@@ -791,4 +806,104 @@ h3,
   .roadmap-flow-arrow,
   .roadmap-loop-symbol,
   .roadmap-fee-bar { animation: none !important; }
+}
+
+/* ------------------------------------------------------------------ retro */
+/* Retro arcade building blocks: hard offset shadows, thick ink borders,
+   pixel headline font. Scoped by class so screens migrate one at a time. */
+
+.retro {
+  background: var(--color-paper-50);
+  color: var(--color-ink-950);
+}
+
+.px-font {
+  font-family: var(--font-pixel);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  line-height: 1.5;
+}
+
+.px-border { border: 3px solid var(--color-ink-950); }
+
+.px-card {
+  border: 3px solid var(--color-ink-950);
+  background: var(--color-paper-50);
+  box-shadow: 6px 6px 0 var(--color-ink-950);
+}
+
+.px-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-family: var(--font-pixel);
+  font-size: 12px;
+  text-transform: uppercase;
+  padding: 15px 24px 13px;
+  border: 3px solid var(--color-ink-950);
+  background: var(--color-sun-400);
+  color: var(--color-ink-950);
+  box-shadow: 4px 4px 0 var(--color-ink-950);
+  cursor: pointer;
+  transition: transform 0.08s ease, box-shadow 0.08s ease, background 0.12s ease;
+}
+
+.px-btn:hover { transform: translate(-1px, -1px); box-shadow: 5px 5px 0 var(--color-ink-950); background: var(--color-sun-500); }
+.px-btn:active { transform: translate(3px, 3px); box-shadow: 1px 1px 0 var(--color-ink-950); }
+.px-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: 4px 4px 0 var(--color-ink-950); }
+
+.px-btn--pink { background: var(--color-punch-500); color: var(--color-paper-50); }
+.px-btn--pink:hover { background: #ff69a0; }
+.px-btn--paper { background: var(--color-paper-50); }
+.px-btn--paper:hover { background: #ffffff; }
+.px-btn--sm { font-size: 10px; padding: 11px 16px 9px; box-shadow: 3px 3px 0 var(--color-ink-950); }
+
+.px-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-pixel);
+  font-size: 10px;
+  text-transform: uppercase;
+  padding: 9px 14px 7px;
+  border: 3px solid var(--color-ink-950);
+  background: var(--color-paper-50);
+  color: var(--color-ink-950);
+}
+
+/* Checkered finish-line strip (vertical by default). */
+.px-checker {
+  background-image: repeating-conic-gradient(var(--color-ink-950) 0% 25%, var(--color-paper-50) 0% 50%);
+  background-size: 18px 18px;
+}
+
+/* Upscaled low-res art stays crisp instead of blurring. */
+.px-art { image-rendering: pixelated; }
+
+/* Stepped pixel mounds for ground strips, as a repeating SVG. */
+.px-bushes {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='56' viewBox='0 0 160 56'%3E%3Cpath fill='%233da158' d='M84 56V46h10v-8h12v8h10v10z'/%3E%3Cpath fill='%2358c26e' d='M0 56V36h8V24h10V14h12v10h10v12h8v20zM96 56V40h10V30h12v10h10v16z'/%3E%3Cpath fill='%233da158' d='M52 56V44h8v-8h12v8h8v12z'/%3E%3C/svg%3E");
+  background-repeat: repeat-x;
+  background-position: bottom;
+}
+
+@keyframes px-cloud-drift {
+  from { transform: translateX(0); }
+  to { transform: translateX(28px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .px-btn, .px-btn:hover, .px-btn:active { transform: none; }
+}
+
+@keyframes hero-run {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+@keyframes hero-leg {
+  0%, 100% { transform: translate(2px, 0); }
+  50% { transform: translate(-2px, 0); }
+  75% { transform: translate(0, -2px); }
 }

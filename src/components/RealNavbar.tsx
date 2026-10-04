@@ -23,14 +23,14 @@ export function RealNavbar() {
   const [mobileOpen, setMobileOpen] = useState(false)
 
   return (
-    <header className="sticky top-0 z-20 border-b border-white/10 bg-[#17111f]/95 xl:bg-[#17111f]/85 xl:backdrop-blur">
+    <header className="sticky top-0 z-20 border-b-[3px] border-[#191330] bg-[#fbf3e2]">
       <div className="max-w-[1500px] mx-auto px-4 h-16 flex items-center gap-3 xl:gap-4">
         <NavLink to="/" className="flex items-center gap-2 shrink-0">
-          <img src={`${import.meta.env.BASE_URL}brand/mascot-small.png`} alt="" className="w-9 h-9 shrink-0" />
-          <span className="font-display font-bold text-xl leading-none text-[#f7f1e3]">
-            Prophet<span className="hidden sm:inline"> Markets</span><span className="text-[#8B7CF7]">.</span>
+          <img src={`${import.meta.env.BASE_URL}brand/mascot-pixel.png`} alt="" className="px-art w-8 h-8 shrink-0" />
+          <span className="px-font text-[11px] leading-none text-[#191330] sm:text-[13px]">
+            Prophet
           </span>
-          {SOLANA_CLUSTER !== 'mainnet-beta' && <span className="hidden text-xs font-normal text-white/30 sm:inline">{SOLANA_CLUSTER}</span>}
+          {SOLANA_CLUSTER !== 'mainnet-beta' && <span className="px-font hidden text-[8px] text-[#ff4f8b] sm:inline">{SOLANA_CLUSTER}</span>}
         </NavLink>
 
         <nav className="hidden xl:flex items-center gap-0.5 text-[13px] shrink-0">
@@ -40,8 +40,8 @@ export function RealNavbar() {
               to={l.to}
               className={({ isActive }) =>
                 clsx(
-                  'px-2.5 py-1.5 rounded-full transition-colors font-bold whitespace-nowrap',
-                  isActive ? 'bg-[#8B7CF7]/15 text-[#B3A7FA]' : 'text-white/60 hover:text-white hover:bg-white/5',
+                  'px-2.5 py-1.5 transition-colors font-extrabold whitespace-nowrap border-2 border-transparent',
+                  isActive ? 'border-[#191330] bg-[#ffd23f] text-[#191330]' : 'text-[#191330]/65 hover:text-[#191330] hover:bg-[#191330]/5',
                 )
               }
             >
@@ -52,8 +52,8 @@ export function RealNavbar() {
             to="/onchain/races/create"
             className={({ isActive }) =>
               clsx(
-                'px-2.5 py-1.5 rounded-full transition-colors font-medium text-[#F2A65A] whitespace-nowrap',
-                isActive ? 'bg-[#F2A65A]/15' : 'hover:bg-[#F2A65A]/10',
+                'px-2.5 py-1.5 transition-colors font-extrabold text-[#f7931a] whitespace-nowrap border-2 border-transparent',
+                isActive ? 'border-[#191330] bg-[#f7931a]/15' : 'hover:bg-[#f7931a]/10',
               )
             }
           >
@@ -63,8 +63,8 @@ export function RealNavbar() {
             to="/onchain/arenas/create"
             className={({ isActive }) =>
               clsx(
-                'px-2.5 py-1.5 rounded-full transition-colors font-medium text-[#B7CEFF] whitespace-nowrap',
-                isActive ? 'bg-[#7A9FF0]/15' : 'hover:bg-[#7A9FF0]/10',
+                'px-2.5 py-1.5 transition-colors font-extrabold text-[#453a7e] whitespace-nowrap border-2 border-transparent',
+                isActive ? 'border-[#191330] bg-[#453a7e]/10' : 'hover:bg-[#453a7e]/10',
               )
             }
           >
@@ -74,7 +74,7 @@ export function RealNavbar() {
             href={explorerHref}
             target="_blank"
             rel="noreferrer"
-            className="px-2.5 py-1.5 rounded-full transition-colors font-bold text-white/40 hover:text-white hover:bg-white/5 whitespace-nowrap"
+            className="px-2.5 py-1.5 transition-colors font-extrabold text-[#191330]/45 hover:text-[#191330] hover:bg-[#191330]/5 whitespace-nowrap"
           >
             Solana explorer ↗
           </a>
@@ -83,7 +83,7 @@ export function RealNavbar() {
             className={({ isActive }) =>
               clsx(
                 'px-2.5 py-1.5 rounded-full transition-colors font-bold whitespace-nowrap',
-                isActive ? 'bg-[#8B7CF7]/15 text-[#B3A7FA]' : 'text-white/40 hover:text-white hover:bg-white/5',
+                isActive ? 'border-[#191330] bg-[#ffd23f] text-[#191330]' : 'text-[#191330]/45 hover:text-[#191330] hover:bg-[#191330]/5',
               )
             }
           >
@@ -94,7 +94,7 @@ export function RealNavbar() {
             target="_blank"
             rel="noreferrer"
             aria-label="Prophet on X"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[#8B7CF7]/40 bg-[#8B7CF7]/15 text-white shadow-[0_6px_18px_-8px_rgba(139,124,247,0.9)] transition-all hover:-translate-y-0.5 hover:border-[#B3A7FA] hover:bg-[#8B7CF7]/30"
+            className="flex h-10 w-10 shrink-0 items-center justify-center border-[3px] border-[#191330] bg-[#fbf3e2] text-[#191330] shadow-[3px_3px_0_#191330] transition-all hover:-translate-y-0.5"
           >
             <svg viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4">
               <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />

@@ -150,7 +150,7 @@ function GameColumn({
       : 'bg-[#8B7CF7]/15'
 
   return (
-    <div className="flex min-h-[18rem] flex-col rounded-[2rem] border border-white/5 bg-[#21182c] p-5 sm:p-6 lg:min-h-[46rem]">
+    <div className="flex min-h-[18rem] flex-col border-[3px] border-[#191330] bg-[#221c40] p-5 text-[#fbf3e2] shadow-[8px_8px_0_#191330] sm:p-6 lg:min-h-[46rem]">
       <div className="flex items-start justify-between gap-4 border-b border-white/5 pb-5">
         <div>
           <p className={`inline-flex rounded-full px-2.5 py-1 text-[0.65rem] font-extrabold tracking-[0.16em] ${accentClass}`}>{eyebrow}</p>
@@ -316,6 +316,50 @@ function ArenaPreviewCard({ arena, nowMs }: { arena: PriceArenaWithPhase; nowMs:
   )
 }
 
+
+// ----------------------------------------------------------------- retro bits
+
+function PixelCloud({ className, drift }: { className?: string; drift?: string }) {
+  return (
+    <svg
+      viewBox="0 0 44 18"
+      aria-hidden="true"
+      className={`px-art pointer-events-none ${className ?? ''}`}
+      style={{ animation: `px-cloud-drift ${drift ?? '28s'} ease-in-out infinite alternate` }}
+    >
+      <g fill="#ffffff">
+        <rect x="10" y="0" width="18" height="6" />
+        <rect x="2" y="6" width="34" height="6" />
+        <rect x="28" y="4" width="16" height="8" />
+      </g>
+      <rect x="2" y="12" width="42" height="4" fill="#d9eefb" />
+    </svg>
+  )
+}
+
+const HERO_RUNNERS = [
+  { symbol: 'BONK', left: '62%', duration: '0.52s' },
+  { symbol: 'WIF', left: '38%', duration: '0.64s' },
+  { symbol: 'SOL', left: '22%', duration: '0.58s' },
+]
+
+function HeroRunner({ symbol, left, duration, lane }: { symbol: string; left: string; duration: string; lane: number }) {
+  return (
+    <div className="absolute -translate-x-1/2" style={{ left, top: `${4 + lane * 27}%` }}>
+      <div className="flex flex-col items-center" style={{ animation: `hero-run ${duration} ease-in-out infinite` }}>
+        <span className="px-font border-2 border-[#191330] bg-[#fbf3e2] px-1.5 py-1 text-[8px] text-[#191330]">{symbol}</span>
+        <div className="mt-1 h-9 w-9 overflow-hidden rounded-full border-[3px] border-[#191330] bg-white">
+          <TokenLogo ticker={symbol} className="h-full w-full" />
+        </div>
+        <div className="flex gap-2">
+          <span className="h-2 w-[3px] bg-[#191330]" style={{ animation: `hero-leg ${duration} linear infinite` }} />
+          <span className="h-2 w-[3px] bg-[#191330]" style={{ animation: `hero-leg ${duration} linear infinite`, animationDelay: `calc(${duration} / -2)` }} />
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export function OnchainLandingPage() {
   const { races, isLoading: racesLoading, error: racesError } = useAssetRaces()
   const { arenas, isLoading: arenasLoading, error: arenasError } = usePriceArenas()
@@ -338,98 +382,69 @@ export function OnchainLandingPage() {
   const featuresReveal = useRevealOnScroll<HTMLDivElement>()
 
   return (
-    <div>
-      {/* Hero -- light lavender card floating on the dark page, per the
-          approved Prophet mockup */}
+    <div className="retro">
+      {/* Retro hero: pixel sky, drifting clouds, chunky CTAs, pixel mascot
+          sprinting a night track below. Reference: the approved 8-bit mock. */}
       <div>
-        <section className="max-w-[1500px] mx-auto px-4 pt-8 pb-8">
-          <div className="relative overflow-hidden rounded-[2.5rem] bg-[#e7e1f8] text-[#241a33] px-6 py-12 sm:px-14 sm:py-16">
-            <div className="relative grid min-w-0 grid-cols-1 items-center gap-12 lg:grid-cols-2">
-              <div className="min-w-0">
-                <p className="inline-flex items-center gap-2 rounded-full bg-white/60 px-3.5 py-1.5 text-xs font-bold text-[#241a33]/70 mb-6">
-                  <span className="text-[#8B7CF7]">✦</span>
-                  Two ways to call the market
-                </p>
-                <h1 className="font-display text-5xl sm:text-[4rem] font-bold tracking-tight leading-[1.04]">
-                  Race it.
-                  <br />
-                  Name the price.
-                </h1>
-                <p className="text-[#241a33]/70 text-base sm:text-lg mt-5 max-w-md font-medium">
-                  Back the fastest mover in Asset Races, or forecast the exact finish in Price Arena. Enter your
-                  stake in USD or SOL; your wallet sends SOL on Solana.
-                </p>
+        <section className="relative overflow-hidden border-b-[3px] border-[#191330] bg-[#6bcbf4]">
+          <PixelCloud className="absolute left-[6%] top-[14%] w-28 opacity-95" drift="26s" />
+          <PixelCloud className="absolute right-[10%] top-[24%] w-20 opacity-90" drift="34s" />
+          <PixelCloud className="absolute left-[30%] top-[58%] w-16 opacity-80" drift="22s" />
 
-                <div className="mt-8 flex flex-col items-start gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-                  <Link
-                    to="/onchain/races"
-                    className="inline-flex min-w-[190px] items-center justify-between gap-3 rounded-full bg-[#ED8F3A] py-2.5 pl-6 pr-2.5 text-sm font-bold text-[#3b2416] shadow-[0_12px_28px_-16px_rgba(237,143,58,0.9)] transition-all hover:-translate-y-0.5 hover:bg-[#F2A65A]"
-                  >
-                    Asset Races
-                    <span className="grid h-8 w-8 place-items-center rounded-full bg-[#3b2416]/15 text-sm">↗</span>
-                  </Link>
-                  <Link
-                    to="/onchain/arenas"
-                    className="inline-flex min-w-[190px] items-center justify-between gap-3 rounded-full bg-[#7A9FF0] py-2.5 pl-6 pr-2.5 text-sm font-bold text-[#152447] shadow-[0_12px_28px_-16px_rgba(122,159,240,0.9)] transition-all hover:-translate-y-0.5 hover:bg-[#8EB1F8]"
-                  >
-                    Price Arena
-                    <span className="grid h-8 w-8 place-items-center rounded-full bg-[#152447]/15 text-sm">↗</span>
-                  </Link>
-                </div>
+          <div className="relative mx-auto max-w-[1100px] px-4 pt-16 text-center sm:pt-24">
+            <span className="px-chip bg-[#fbf3e2]">On Solana</span>
+            <h1 className="px-font mx-auto mt-9 max-w-4xl text-[22px] leading-[1.7] sm:text-4xl sm:leading-[1.6]">
+              <span className="text-[#ffd23f]" style={{ textShadow: '4px 4px 0 #191330' }}>Coin races</span>
+              <br />
+              <span className="text-[#ff4f8b]" style={{ textShadow: '4px 4px 0 #191330' }}>& arena fights</span>
+            </h1>
+            <p className="mx-auto mt-7 max-w-xl text-base font-extrabold leading-relaxed text-[#191330]/80 sm:text-lg">
+              Pick a coin, stake SOL, watch it sprint for the finish. The strongest move takes the pot.
+            </p>
 
-              </div>
-
-              <div className="relative flex flex-col items-center py-6 mt-6 lg:mt-0">
-                <span className="pointer-events-none absolute right-[8%] top-[12%] text-[#7C5CF0] text-3xl" style={{ animation: 'sparkle-pop 2.6s ease-in-out infinite' }}>
-                  ✦
-                </span>
-                <span
-                  className="pointer-events-none absolute left-[10%] bottom-[22%] text-[#7C5CF0] text-xl"
-                  style={{ animation: 'sparkle-pop 2.6s ease-in-out infinite', animationDelay: '1.1s' }}
-                >
-                  ✦
-                </span>
-                <div className="absolute -top-1 right-[4%] sm:right-[10%] rotate-2 rounded-2xl rounded-br-sm bg-[#fdf9ee] px-4 py-2.5 shadow-lg text-sm font-bold z-10">
-                  The future called.
-                  <br />
-                  It wants your take.
-                </div>
-                <div className="relative">
-                  {/* circle anchored to the mascot itself, so stacked mobile
-                      layout can never overlap the text column above */}
-                  <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[122%] aspect-square rounded-full bg-[#F2A65A]" />
-                  <img
-                    src={`${import.meta.env.BASE_URL}brand/mascot.png`}
-                    alt="Prophet mascot"
-                    width={512}
-                    height={512}
-                    className="relative z-[5] w-56 sm:w-72 lg:w-[21rem] h-auto"
-                    style={{ animation: 'mascot-float 5s ease-in-out infinite' }}
-                  />
-                </div>
-                <p className="relative z-[5] mt-14 lg:mt-20 text-sm font-bold text-[#241a33]/50">Meet your inner prophet</p>
-              </div>
+            <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
+              <Link to="/onchain/races" className="px-btn">Start racing</Link>
+              <Link to="/onchain/arenas" className="px-btn px-btn--pink">Enter arena</Link>
             </div>
+
+            <div className="h-16 sm:h-20" />
           </div>
 
-          <div className="relative mt-5 overflow-hidden rounded-[2rem] border border-[#B3A7FA]/30 bg-gradient-to-br from-[#6A5AE0] via-[#5B49C7] to-[#322451] px-6 py-7 shadow-[0_24px_60px_-35px_rgba(139,124,247,0.95)] sm:px-9 sm:py-9">
-            <div className="pointer-events-none absolute -right-16 -top-24 h-64 w-64 rounded-full bg-[#F2A65A]/20 blur-3xl" />
-            <div className="relative grid gap-7 lg:grid-cols-[1fr_auto] lg:items-center">
-              <div className="max-w-2xl">
-                <p className="mb-2 text-xs font-extrabold uppercase tracking-[0.18em] text-white/65">✦ Create onchain</p>
-                <h2 className="font-display text-2xl font-bold tracking-tight text-white sm:text-3xl">Don’t just play. Create the game.</h2>
-                <p className="mt-2 text-sm leading-relaxed text-white/70 sm:text-base">
-                  Any wallet can assemble an Asset Race or launch a Price Arena for the community.
+          <div className="px-bushes h-14" />
+        </section>
+
+        {/* Night track: the hero rolls straight onto the road. */}
+        <section className="relative overflow-hidden border-b-[3px] border-[#191330] bg-[#221c40]">
+          <div className="relative mx-auto h-36 max-w-[1500px] sm:h-40">
+            {[0, 1, 2].map((lane) => (
+              <div
+                key={lane}
+                className="absolute left-0 right-0 border-b-2 border-dashed border-white/15"
+                style={{ top: `${26 + lane * 26}%` }}
+              />
+            ))}
+            <div className="px-checker absolute bottom-0 right-6 top-0 w-9 border-x-[3px] border-[#191330] sm:right-14" />
+            {HERO_RUNNERS.map((runner, index) => (
+              <HeroRunner key={runner.symbol} {...runner} lane={index} />
+            ))}
+          </div>
+        </section>
+
+        {/* Create strip: sunny billboard, chunky actions. */}
+        <section className="border-b-[3px] border-[#191330] bg-[#ffd23f]">
+          <div className="mx-auto flex max-w-[1100px] flex-wrap items-center justify-between gap-6 px-4 py-9">
+            <div className="flex min-w-0 items-center gap-4">
+              <img src={`${import.meta.env.BASE_URL}brand/mascot-pixel.png`} alt="" className="px-art h-12 w-12" />
+              <div className="min-w-0">
+                <h2 className="px-font text-sm sm:text-base">Create the game</h2>
+                <p className="mt-2 text-sm font-extrabold text-[#191330]/70">
+                  Any wallet can assemble a race or launch an arena for the community.
                 </p>
               </div>
-              <div className="grid gap-2.5 sm:grid-cols-2">
-                <Link to="/onchain/races/create" className="inline-flex min-w-40 items-center justify-between gap-3 rounded-full bg-[#f7f1e3] py-2.5 pl-5 pr-2.5 text-sm font-extrabold text-[#241a33] transition-all hover:-translate-y-0.5 hover:bg-white">
-                  Race <span className="grid h-8 w-8 place-items-center rounded-full bg-[#ED8F3A] text-[#3b2416]">↗</span>
-                </Link>
-                <Link to="/onchain/arenas/create" className="inline-flex min-w-40 items-center justify-between gap-3 rounded-full bg-[#f7f1e3] py-2.5 pl-5 pr-2.5 text-sm font-extrabold text-[#241a33] transition-all hover:-translate-y-0.5 hover:bg-white">
-                  Arena <span className="grid h-8 w-8 place-items-center rounded-full bg-[#7A9FF0] text-[#152447]">↗</span>
-                </Link>
-              </div>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <Link to="/onchain/races/create" className="px-btn px-btn--paper px-btn--sm">+ Race</Link>
+              <Link to="/onchain/arenas/create" className="px-btn px-btn--paper px-btn--sm">+ Arena</Link>
             </div>
           </div>
         </section>
@@ -437,8 +452,8 @@ export function OnchainLandingPage() {
 
       {/* A stable cross-product board driven by authoritative onchain phases. */}
       <section className="mx-auto max-w-[1500px] px-4 pb-10 pt-14">
-        <p className="mb-2 text-sm font-bold text-[#B3A7FA]">Active now</p>
-        <h2 className="mb-8 font-display text-3xl font-bold tracking-tight sm:text-4xl">Choose your game.</h2>
+        <p className="px-font mb-4 text-[10px] text-[#ff4f8b]">Active now</p>
+        <h2 className="px-font mb-10 text-lg sm:text-2xl">Choose your game</h2>
 
         <div className="grid gap-5 lg:grid-cols-2">
           <GameColumn
@@ -472,28 +487,25 @@ export function OnchainLandingPage() {
           </GameColumn>
         </div>
 
-        <p className="pt-6 text-xs font-medium text-white/30">SOL wagers · One wallet transaction · Onchain settlement</p>
+        <p className="pt-6 text-xs font-extrabold text-[#191330]/50">SOL wagers · One wallet transaction · Onchain settlement</p>
       </section>
 
       {/* Three product flows in one glance. */}
       <section className="max-w-[1500px] mx-auto px-4 py-14">
-        <div ref={stepsReveal.ref} className="relative overflow-hidden rounded-[2.5rem] bg-[#e7e1f8] text-[#241a33] px-6 py-12 sm:px-12 sm:py-14">
-          <span className="pointer-events-none absolute right-[6%] top-[8%] text-[#7C5CF0] text-2xl" style={{ animation: 'sparkle-pop 2.6s ease-in-out infinite' }}>
+        <div ref={stepsReveal.ref} className="relative overflow-hidden border-[3px] border-[#191330] bg-[#f3e8cf] px-6 py-12 text-[#191330] shadow-[8px_8px_0_#191330] sm:px-12 sm:py-14">
+          <span className="pointer-events-none absolute right-[6%] top-[8%] text-[#ff4f8b] text-2xl" style={{ animation: 'sparkle-pop 2.6s ease-in-out infinite' }}>
             ✦
           </span>
           <span
-            className="pointer-events-none absolute left-[4%] bottom-[10%] text-[#7C5CF0] text-lg"
+            className="pointer-events-none absolute left-[4%] bottom-[10%] text-[#ff4f8b] text-lg"
             style={{ animation: 'sparkle-pop 2.6s ease-in-out infinite', animationDelay: '1.3s' }}
           >
             ✦
           </span>
 
           <div className="mb-10 max-w-2xl">
-            <p className="mb-4 inline-flex items-center gap-2 rounded-full bg-white/60 px-3.5 py-1.5 text-xs font-bold text-[#241a33]/70">
-              <span className="text-[#8B7CF7]">✦</span>
-              Two games · one wallet flow
-            </p>
-            <h2 className="font-display text-3xl font-bold tracking-tight sm:text-5xl">How each game works</h2>
+            <span className="px-chip mb-5">Two games · one wallet</span>
+            <h2 className="px-font text-lg sm:text-2xl">How to play</h2>
             <p className="mt-3 text-sm font-medium leading-relaxed text-[#241a33]/55 sm:text-base">
               Choose the format, make your call, send SOL and let the published rules settle the result.
             </p>
@@ -503,15 +515,15 @@ export function OnchainLandingPage() {
             {GAME_GUIDES.map((guide, guideIndex) => (
               <article
                 key={guide.title}
-                className="group flex flex-col overflow-hidden rounded-[2rem] border border-[#241a33]/5 bg-white/65 transition-all duration-500 hover:-translate-y-1 hover:bg-white/85 hover:shadow-[0_22px_50px_-28px_rgba(36,26,51,0.35)]"
+                className="group flex flex-col overflow-hidden border-[3px] border-[#191330] bg-[#fbf3e2] shadow-[6px_6px_0_#191330] transition-transform duration-300 hover:-translate-y-1"
                 style={{
                   opacity: stepsReveal.visible ? 1 : 0,
                   transform: stepsReveal.visible ? 'translateY(0)' : 'translateY(28px)',
                   transitionDelay: `${guideIndex * 110}ms`,
                 }}
               >
-                <div className="h-2" style={{ background: guide.accent }} />
-                <div className="relative min-h-48 overflow-hidden border-b border-[#241a33]/5 p-6 sm:p-7" style={{ background: guide.soft }}>
+                <div className="h-2.5 border-b-[3px] border-[#191330]" style={{ background: guide.accent }} />
+                <div className="relative min-h-48 overflow-hidden border-b-[3px] border-[#191330] p-6 sm:p-7" style={{ background: guide.soft }}>
                   <div className="relative z-10 max-w-[58%]">
                     <p className="text-[0.68rem] font-extrabold tracking-[0.18em]" style={{ color: guide.accent }}>{guide.eyebrow}</p>
                     <h3 className="mt-2 font-display text-2xl font-bold leading-tight">{guide.title}</h3>
@@ -533,8 +545,8 @@ export function OnchainLandingPage() {
                     {guide.steps.map(([title, body], stepIndex) => (
                       <li key={title} className="grid grid-cols-[2rem_1fr] gap-3">
                         <span
-                          className="grid h-8 w-8 place-items-center rounded-xl font-display text-sm font-bold"
-                          style={{ background: guide.soft, color: guide.accent }}
+                          className="px-font grid h-8 w-8 place-items-center border-2 border-[#191330] text-[11px]"
+                          style={{ background: guide.accent, color: '#fbf3e2' }}
                         >
                           {stepIndex + 1}
                         </span>
@@ -548,11 +560,11 @@ export function OnchainLandingPage() {
 
                   <Link
                     to={guide.href}
-                    className="mt-7 inline-flex items-center justify-between rounded-full py-2.5 pl-5 pr-2.5 text-sm font-bold text-white transition-all hover:brightness-110"
+                    className="px-font mt-7 inline-flex items-center justify-between border-[3px] border-[#191330] py-3.5 pl-5 pr-4 text-[10px] text-[#fbf3e2] shadow-[4px_4px_0_#191330] transition-transform hover:-translate-y-0.5 active:translate-x-0.5 active:translate-y-0.5"
                     style={{ background: guide.accent }}
                   >
                     {guide.cta}
-                    <span className="grid h-8 w-8 place-items-center rounded-full bg-white/20">→</span>
+                    <span>→</span>
                   </Link>
                 </div>
               </article>
@@ -563,27 +575,24 @@ export function OnchainLandingPage() {
 
       {/* Why Prophet */}
       <section className="max-w-[1500px] mx-auto px-4 py-16">
-        <p className="flex items-center justify-center gap-2 text-sm font-bold text-[#B3A7FA] mb-4">
-          <span className="text-[#8B7CF7]">✦</span>
-          The Prophet difference
-        </p>
-        <h2 className="font-display text-2xl sm:text-4xl font-bold tracking-tight text-center mb-3">
-          Why <span className="text-[#B3A7FA]">Prophet</span>
+        <p className="px-font mb-4 text-center text-[10px] text-[#ff4f8b]">The Prophet difference</p>
+        <h2 className="px-font mb-3 text-center text-lg sm:text-2xl">
+          Why Prophet
         </h2>
-        <p className="text-white/40 text-sm sm:text-base text-center mb-12 max-w-xl mx-auto">
+        <p className="mx-auto mb-12 max-w-xl text-center text-sm font-bold text-[#191330]/60 sm:text-base">
           Pick the format that matches your conviction. The rules, pools and settlement state stay visible onchain.
         </p>
         <div ref={featuresReveal.ref} className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           {FEATURES.map((f, i) => {
             const tile = i === 3
-              ? { background: 'linear-gradient(105deg, #6A5AE0, #ED8F3A 52%, #7A9FF0)', color: '#fff', shadow: '0 14px 30px -14px rgba(122,159,240,0.8)' }
+              ? { background: '#ff4f8b', color: '#fbf3e2' }
               : i % 2 === 0
-                ? { background: '#6A5AE0', color: '#f7f1e3', shadow: '0 14px 30px -14px rgba(106,90,224,0.8)' }
-                : { background: '#F2A65A', color: '#3b2416', shadow: '0 14px 30px -14px rgba(237,143,58,0.8)' }
+                ? { background: '#ffd23f', color: '#191330' }
+                : { background: '#6bcbf4', color: '#191330' }
             return (
               <div
                 key={f.title}
-                className="group relative overflow-hidden rounded-3xl bg-[#241b2f] border border-white/5 p-8 transition-all duration-500 hover:-translate-y-1.5 hover:border-[#8B7CF7]/40 hover:shadow-[0_24px_60px_-30px_rgba(106,90,224,0.6)]"
+                className="group relative overflow-hidden border-[3px] border-[#191330] bg-[#221c40] p-8 text-[#fbf3e2] shadow-[6px_6px_0_#191330] transition-transform duration-300 hover:-translate-y-1.5"
                 style={{
                   opacity: featuresReveal.visible ? 1 : 0,
                   transform: featuresReveal.visible ? 'translateY(0)' : 'translateY(28px)',
@@ -595,8 +604,8 @@ export function OnchainLandingPage() {
                   style={{ background: f.color }}
                 />
                 <span
-                  className="relative inline-block rounded-2xl px-4 py-2 mb-6 font-display font-bold text-lg -rotate-2 transition-transform duration-300 group-hover:rotate-0"
-                  style={{ background: tile.background, color: tile.color, boxShadow: tile.shadow }}
+                  className="px-font relative mb-6 inline-block border-2 border-[#191330] px-3.5 py-2.5 text-[11px] -rotate-2 transition-transform duration-300 group-hover:rotate-0"
+                  style={{ background: tile.background, color: tile.color }}
                 >
                   {f.tag}
                 </span>
@@ -625,23 +634,20 @@ export function OnchainLandingPage() {
           registry used by Races and Arena. This is intentionally a curated
           lineup rather than the chain's full token catalog. */}
       <section className="max-w-[1500px] mx-auto px-4 py-14">
-        <div className="relative overflow-hidden rounded-[2.5rem] bg-[#e7e1f8] px-6 py-12 text-[#241a33] sm:px-12 sm:py-14">
-          <span className="pointer-events-none absolute left-[5%] top-[10%] text-[#7C5CF0] text-2xl" style={{ animation: 'sparkle-pop 2.6s ease-in-out infinite' }}>
+        <div className="relative overflow-hidden border-[3px] border-[#191330] bg-[#f3e8cf] px-6 py-12 text-[#191330] shadow-[8px_8px_0_#191330] sm:px-12 sm:py-14">
+          <span className="pointer-events-none absolute left-[5%] top-[10%] text-[#ff4f8b] text-2xl" style={{ animation: 'sparkle-pop 2.6s ease-in-out infinite' }}>
             ✦
           </span>
           <span
-            className="pointer-events-none absolute right-[4%] bottom-[12%] text-[#7C5CF0] text-lg"
+            className="pointer-events-none absolute right-[4%] bottom-[12%] text-[#ff4f8b] text-lg"
             style={{ animation: 'sparkle-pop 2.6s ease-in-out infinite', animationDelay: '1.2s' }}
           >
             ✦
           </span>
 
           <div className="relative mx-auto max-w-3xl text-center">
-            <p className="inline-flex items-center gap-2 rounded-full bg-white/60 px-3.5 py-1.5 text-xs font-bold text-[#241a33]/70 mb-4">
-              <span className="text-[#8B7CF7]">✦</span>
-              Curated asset universe
-            </p>
-            <h2 className="font-display text-3xl font-bold tracking-tight sm:text-5xl">Not every asset makes the grid.</h2>
+            <span className="px-chip mb-5">Curated asset universe</span>
+            <h2 className="px-font text-lg sm:text-2xl">Not every asset makes the grid</h2>
             <p className="mx-auto mt-4 max-w-2xl text-sm font-medium leading-relaxed text-[#241a33]/65 sm:text-base">
               Prophet keeps the lineup focused. Every supported asset needs a clear identity, an approved onchain
               price source and reviewed trading depth so games can start and settle against dependable snapshots.
