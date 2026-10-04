@@ -32,6 +32,7 @@
 import { mkdirSync, readFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { Keypair } from '@solana/web3.js'
 import { openDatabase } from './db.mjs'
 import { createChain, isAddress } from './chain.mjs'
@@ -47,7 +48,7 @@ const CLUSTER = /127\.0\.0\.1|localhost/.test(RPC) ? 'localnet' : /devnet/.test(
 const PORT = Number(process.env.GAME_SERVER_PORT ?? 8792)
 const HOST = process.env.GAME_SERVER_HOST ?? '127.0.0.1'
 const TICK_MS = Number(process.env.TICK_MS ?? 3_000)
-const DB_PATH = resolve(process.env.GAME_DB ?? new URL('.data/game-server.sqlite', ROOT).pathname.replace(/^\/(\w:)/, '$1'))
+const DB_PATH = resolve(process.env.GAME_DB ?? fileURLToPath(new URL('.data/game-server.sqlite', ROOT)))
 const ORIGINS = (process.env.ALLOWED_ORIGINS ?? '*').split(',').map((s) => s.trim())
 const readJson = (path) => JSON.parse(readFileSync(path, 'utf8'))
 
