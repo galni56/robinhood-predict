@@ -513,7 +513,7 @@ export function createEngine({ db, chain, prices, assets, cluster, coldWallet = 
           requireCreationRoom(wallet)
           const symbols = Array.isArray(payload.assets) ? payload.assets : []
           const race = createCommunityRace(db.nextId('race'), {
-            title: payload.title, category: payload.category, creator: wallet, raceDuration: payload.duration,
+            title: payload.title, category: payload.category, creator: wallet, raceDuration: payload.duration, unit: payload.unit,
           }, symbols.map(requireAsset), t)
           db.saveGame(race)
           return { kind: 'race', id: race.id }
@@ -523,7 +523,7 @@ export function createEngine({ db, chain, prices, assets, cluster, coldWallet = 
           return { kind: 'race', id: Number(payload.race) }
         case 'create-arena': {
           requireCreationRoom(wallet)
-          const arena = createArena(db.nextId('arena'), { title: payload.title, creator: wallet, duration: payload.duration }, requireAsset(payload.asset), t, opts.arenaLobbyDuration)
+          const arena = createArena(db.nextId('arena'), { title: payload.title, creator: wallet, duration: payload.duration, unit: payload.unit }, requireAsset(payload.asset), t, opts.arenaLobbyDuration)
           db.saveGame(arena)
           return { kind: 'arena', id: arena.id }
         }

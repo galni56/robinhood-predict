@@ -129,6 +129,8 @@ export interface PriceArenaViewModel {
   title: string
   entries: PriceArenaEntry[]
   payouts: RacePayout[]
+  /** Calls shown as prices or market caps (display only). */
+  unit: 'price' | 'cap'
   asset?: PriceArenaAsset
 }
 
@@ -203,6 +205,7 @@ export function arenaFromServer(a: ServerArena): PriceArenaViewModel {
       settled: paid.has(entry.player) || (status === PRICE_ARENA_STATUS.RESOLVED && big(entry.payout) === 0n),
     })),
     payouts: a.payouts.map(payoutFromServer),
+    unit: a.unit === 'cap' ? 'cap' : 'price',
     asset,
   }
 }

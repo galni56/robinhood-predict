@@ -33,6 +33,9 @@ export function OnchainCreateArenaPage() {
   const [title, setTitle] = useState('')
   const [assetId, setAssetId] = useState('')
   const [duration, setDuration] = useState<bigint>(300n)
+  // How players call the final number; memes default to market cap.
+  const [unitChoice, setUnitChoice] = useState<'cap' | 'price' | null>(null)
+  const unit = unitChoice ?? (mode === 'memes' ? 'cap' : 'price')
   const [txLabel, setTxLabel] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const { publicKey, connected } = useWallet()
@@ -53,7 +56,7 @@ export function OnchainCreateArenaPage() {
     try {
       // A signed message, not a transaction: creating an arena is free.
       setTxLabel('Sign arena creation in wallet…')
-      const created = await act<{ id: number }>({ action: 'create-arena', title: title.trim(), asset: selected.symbol, duration: Number(duration) })
+      const created = await act<{ id: number }>({ action: 'create-arena', title: title.trim(), asset: selected.symbol, duration: Number(duration), unit })
       await queryClient.invalidateQueries({ queryKey: ['game-state'] })
       navigate(`/onchain/arenas/${created.id}`)
     } catch (cause) {
@@ -134,6 +137,7 @@ export function OnchainCreateArenaPage() {
                 />
               ) : <p className="py-5 text-sm text-[#1B1340]/55">{approved.isLoading ? 'Loading approved assets…' : 'No approved assets in this category yet.'}</p>}
           </div>
+          <div><div className="mb-2 text-sm font-bold text-[#1B1340]/70">Players call the final</div><div className="flex flex-wrap gap-1">{(['cap', 'price'] as const).map((choice) => <button key={choice} type="button" onClick={() => setUnitChoice(choice)} className={`rx-btn ${unit === choice ? 'rx-btn-yellow' : 'rx-btn-white'}`} style={{ padding: '10px 16px', fontSize: 15, fontWeight: 700 }}>{choice === 'cap' ? 'Market cap' : 'Price'}</button>)}</div></div>
           <div><div className="mb-2 text-sm font-bold text-[#1B1340]/70">Game duration</div><div className="grid grid-cols-2 gap-2 sm:grid-cols-4">{PRICE_ARENA_DURATIONS.map((seconds) => <button key={seconds.toString()} onClick={() => setDuration(seconds)} className={`rounded-none border px-3 py-3 text-sm font-bold ${duration === seconds ? 'border-[#6bcbf4] bg-[#6bcbf4]/15 text-[#1F7FD1]' : 'border-[#1B1340]/12 bg-white/[0.03] text-[#1B1340]/60'}`}>{arenaDurationLabel(seconds)}</button>)}</div></div>
           {error && <p className="text-sm text-[#C2245A]">{error}</p>}
           {!connected ? <WalletOptionsList tone="arena" /> : <button onClick={create} disabled={!publicKey || !valid || !!txLabel} className="w-full rounded-none bg-gradient-to-r from-[#8ddaf8] to-[#6bcbf4] py-3 font-bold text-[#191330] disabled:opacity-40">{txLabel ?? 'Create Price Arena'}</button>}

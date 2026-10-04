@@ -37,6 +37,8 @@ export interface ServerRace {
   kind: 'race'
   id: number
   address: string
+  /** Display unit chosen by the creator (older games: none = price). */
+  unit?: 'price' | 'cap'
   status: 'lobby' | 'betting' | 'running' | 'resolved' | 'cancelled' | 'void'
   cancelReason: string | null
   origin: 'platform' | 'community'
@@ -88,6 +90,7 @@ export interface ServerArena {
   kind: 'arena'
   id: number
   address: string
+  unit?: 'price' | 'cap'
   symbol: string
   priceSource: string
   priceDecimals: number

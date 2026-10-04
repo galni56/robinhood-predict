@@ -155,8 +155,9 @@ export function OnchainArenaPage() {
   const referencePrice = phase === PRICE_ARENA_PHASE.RESOLVED ? arena!.finalPrice : livePrice
   // Memes are called by market cap (price x supply) unless the player picks price.
   const supplyTokens = liveAsset?.supply ? Number(liveAsset.supply.raw) / 10 ** liveAsset.supply.decimals : undefined
-  const [unitChoice, setUnitChoice] = useState<'cap' | 'price'>('cap')
-  const unit = supplyTokens ? unitChoice : 'price'
+  // The creator picked the arena's unit; a player may still switch the input.
+  const [unitChoice, setUnitChoice] = useState<'cap' | 'price' | null>(null)
+  const unit = supplyTokens ? (unitChoice ?? arena?.unit ?? 'price') : 'price'
   const supply: Supply = unit === 'cap' ? supplyTokens : undefined
   let quotedEntry: FrozenStakeQuote | undefined
   try {

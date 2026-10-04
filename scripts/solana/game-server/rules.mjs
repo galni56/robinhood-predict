@@ -53,6 +53,10 @@ export const ARENA = {
 }
 
 export const CATEGORIES = ['stock', 'meme', 'crypto']
+/** How a game shows its numbers: by price or by market cap. Display only:
+ * outcomes always use the signed pool price. */
+export const UNITS = ['price', 'cap']
+const unitOf = (unit) => (UNITS.includes(unit) ? unit : 'price')
 
 export class RuleError extends Error {
   constructor(code, message = code) {
@@ -186,6 +190,7 @@ export function createCommunityRace(id, input, assets, now) {
   const race = emptyRace(id, {
     origin: 'community',
     status: 'lobby',
+    unit: unitOf(input.unit),
     category: input.category,
     creator: input.creator,
     title: input.title,
@@ -380,6 +385,7 @@ export function createArena(id, input, asset, now, lobbyDuration = ARENA.lobbyDu
   return {
     kind: 'arena',
     id,
+    unit: unitOf(input.unit),
     symbol: asset.symbol,
     priceSource: asset.priceSource,
     priceDecimals: asset.priceDecimals,

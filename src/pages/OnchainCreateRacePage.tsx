@@ -36,6 +36,9 @@ export function OnchainCreateRacePage() {
   const [title, setTitle] = useState('')
   const [duration, setDuration] = useState<bigint>(0n)
   const [selected, setSelected] = useState<ApprovedRaceAsset[]>([])
+  // How the race shows its numbers; memes default to market cap.
+  const [unitChoice, setUnitChoice] = useState<'cap' | 'price' | null>(null)
+  const unit = unitChoice ?? (mode === 'memes' ? 'cap' : 'price')
   const [txLabel, setTxLabel] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -68,6 +71,7 @@ export function OnchainCreateRacePage() {
         category: CATEGORY_NAMES[category],
         duration: Number(selectedDuration),
         assets: selected.map((asset) => asset.symbol),
+        unit,
       })
       await queryClient.invalidateQueries({ queryKey: ['game-state'] })
       navigate(`/onchain/races/${created.id}`)
@@ -114,6 +118,17 @@ export function OnchainCreateRacePage() {
                 className="rx-input w-full px-3.5 font-medium"
                 style={{ height: 52 }}
               />
+            </div>
+
+            <div>
+              <span style={label}>RACE BY</span>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                {(['cap', 'price'] as const).map((choice) => (
+                  <button key={choice} type="button" onClick={() => setUnitChoice(choice)} className={`rx-btn ${unit === choice ? 'rx-btn-yellow' : 'rx-btn-white'}`} style={{ padding: '10px 16px', fontSize: 15, fontWeight: 700 }}>
+                    {choice === 'cap' ? 'Market cap' : 'Price'}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div>
