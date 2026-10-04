@@ -98,6 +98,7 @@ export function selectPumpSwapAssets(pools, { takenSymbols, previous = [], keepS
     liquidityUsd: Math.round(p.liquidityUsd),
     volume24hUsd: Math.round(p.volume24hUsd),
     poolCreatedAt: p.createdAt,
+    addedAt: prior.get(p.symbol)?.mint === p.mint && prior.get(p.symbol).addedAt ? prior.get(p.symbol).addedAt : new Date(now).toISOString(),
   })
   const out = picked.map(asset)
   for (const symbol of keepSymbols) {

@@ -14,6 +14,7 @@ import { SOLANA_CLUSTER } from '@/solana/config'
 const LINKS = [
   { to: '/onchain/races', label: 'Races' },
   { to: '/onchain/arenas', label: 'Arena' },
+  { to: '/onchain/pumpswap', label: 'PumpSwap' },
   { to: '/#how', label: 'How to play' },
 ]
 
@@ -21,7 +22,6 @@ const MORE = [
   { to: '/onchain/portfolio', label: 'Portfolio' },
   { to: '/onchain/leaderboard', label: 'Leaderboard' },
   { to: '/onchain/archive', label: 'Archive' },
-  { to: '/onchain/pumpswap', label: 'PumpSwap coins' },
 ]
 
 const PIXEL = "'Press Start 2P', 'Courier New', monospace"

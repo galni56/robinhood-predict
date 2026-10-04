@@ -1,0 +1,205 @@
+{
+ "capturedAt": "2026-10-04T20:54:42.851Z",
+ "assets": [
+  {
+   "symbol": "PUMP",
+   "name": "Pump",
+   "category": "meme",
+   "priceSource": "2uF4Xh61rDwxnG9woyxsVQP7zuA6kLFpb3NvnRQeoiSd",
+   "priceDecimals": 9,
+   "enabled": true,
+   "mint": "pumpCmXqMfrsAkQ5r49WcJnRayYRqmXz6ae8H7H9Dfn",
+   "logoUrl": "https://coin-images.coingecko.com/coins/images/67164/large/pump.jpg?1751949376",
+   "priceUrl": "https://dexscreener.com/solana/2uF4Xh61rDwxnG9woyxsVQP7zuA6kLFpb3NvnRQeoiSd",
+   "source": "pumpswap",
+   "liquidityUsd": 28959053,
+   "volume24hUsd": 6354984,
+   "poolCreatedAt": "2025-07-14T16:55:54Z",
+   "addedAt": "2026-10-04T20:54:42.851Z",
+   "price": {
+    "raw": "6428004",
+    "decimals": 9
+   }
+  },
+  {
+   "symbol": "Agency",
+   "name": "Agency",
+   "category": "meme",
+   "priceSource": "CyJwKnLiiY4fmiwqMCSWFSHxo7T9Ubshgs2uRAuJCrk5",
+   "priceDecimals": 8,
+   "enabled": true,
+   "mint": "7VertkgF9KLhxxJXHX6uaWuoYZTP9LdGj2bWmVXVpump",
+   "logoUrl": "https://coin-images.coingecko.com/coins/images/102179030/large/zzro423qro5foux1ewpujd0c8hh4.?1791012903",
+   "priceUrl": "https://dexscreener.com/solana/CyJwKnLiiY4fmiwqMCSWFSHxo7T9Ubshgs2uRAuJCrk5",
+   "source": "pumpswap",
+   "liquidityUsd": 515387,
+   "volume24hUsd": 18074436,
+   "poolCreatedAt": "2026-10-01T22:42:35Z",
+   "addedAt": "2026-10-04T20:54:42.851Z",
+   "price": {
+    "raw": "1347461",
+    "decimals": 8
+   }
+  },
+  {
+   "symbol": "JEANPHIL",
+   "name": "Jean Phil",
+   "category": "meme",
+   "priceSource": "4R8CiMnJWDNoes3fQi1ccPFJygPXazaHaWpHrN3rZeNj",
+   "priceDecimals": 9,
+   "enabled": true,
+   "mint": "GTBxUiw6wJdmmkCGZgRHLyYxqu1vG4KtRpeox6yDpump",
+   "logoUrl": "https://assets.geckoterminal.com/pkwz4cwv7pwdsdmvepbecsh2ybit",
+   "priceUrl": "https://dexscreener.com/solana/4R8CiMnJWDNoes3fQi1ccPFJygPXazaHaWpHrN3rZeNj",
+   "source": "pumpswap",
+   "liquidityUsd": 405114,
+   "volume24hUsd": 3768353,
+   "poolCreatedAt": "2026-09-19T19:06:59Z",
+   "addedAt": "2026-10-04T20:54:42.851Z",
+   "price": {
+    "raw": "6605517",
+    "decimals": 9
+   }
+  },
+  {
+   "symbol": "AGENTCAT",
+   "name": "Agent Cat",
+   "category": "meme",
+   "priceSource": "HyLTPacbYR4V8yQw5bbWwAETZkjcsRw9xzCbayMnU45o",
+   "priceDecimals": 8,
+   "enabled": true,
+   "mint": "CZJfrAmMs5Cz4H22PWzfqTJu5FkP7Q2Vvx1oPVL9pump",
+   "logoUrl": "https://assets.geckoterminal.com/2o1bir2mxp4tb9xvgcikc7v9wlew",
+   "priceUrl": "https://dexscreener.com/solana/HyLTPacbYR4V8yQw5bbWwAETZkjcsRw9xzCbayMnU45o",
+   "source": "pumpswap",
+   "liquidityUsd": 317944,
+   "volume24hUsd": 3642893,
+   "poolCreatedAt": "2026-10-03T22:52:57Z",
+   "addedAt": "2026-10-04T20:54:42.851Z",
+   "price": {
+    "raw": "1038386",
+    "decimals": 8
+   }
+  },
+  {
+   "symbol": "MISTAKE",
+   "name": "Make No Mistakes",
+   "category": "meme",
+   "priceSource": "867dKvaCcyRrUDP66bqNXbujXfjaxsNB9wTpc4CmBdAD",
+   "priceDecimals": 9,
+   "enabled": true,
+   "mint": "HKZDfZnkHZxd9agRDNPyDv4iT6LmAurJnpRtj9wpump",
+   "logoUrl": "https://coin-images.coingecko.com/coins/images/102179070/large/qe1h05miaqbnzfi3l9r2uj2km7ei.?1791097807",
+   "priceUrl": "https://dexscreener.com/solana/867dKvaCcyRrUDP66bqNXbujXfjaxsNB9wTpc4CmBdAD",
+   "source": "pumpswap",
+   "liquidityUsd": 270641,
+   "volume24hUsd": 12390173,
+   "poolCreatedAt": "2026-09-11T02:19:31Z",
+   "addedAt": "2026-10-04T20:54:42.851Z",
+   "price": {
+    "raw": "5759829",
+    "decimals": 9
+   }
+  },
+  {
+   "symbol": "HIGGS",
+   "name": "Higgspad",
+   "category": "meme",
+   "priceSource": "BFrSZakeqNzVtM3EFhroo4eRhagmmWN8BRntiQKFH6Ru",
+   "priceDecimals": 9,
+   "enabled": true,
+   "mint": "DoVAVzViX8Bjy3r15nwikSaSbzE6dV4ovd28aWpJpump",
+   "logoUrl": "https://assets.geckoterminal.com/laq3fsorn4t00ragoegzybag9chg",
+   "priceUrl": "https://dexscreener.com/solana/BFrSZakeqNzVtM3EFhroo4eRhagmmWN8BRntiQKFH6Ru",
+   "source": "pumpswap",
+   "liquidityUsd": 231499,
+   "volume24hUsd": 15424647,
+   "poolCreatedAt": "2026-10-04T12:36:16Z",
+   "addedAt": "2026-10-04T20:54:42.851Z",
+   "price": {
+    "raw": "2565136",
+    "decimals": 9
+   }
+  },
+  {
+   "symbol": "CRAWL",
+   "name": "CRAWLNET",
+   "category": "meme",
+   "priceSource": "2B8tftZ5ww8TREMr3pgkgERLNjJyJxEAPWMENViGMsL4",
+   "priceDecimals": 9,
+   "enabled": true,
+   "mint": "BXoHJddsWJLHtAopeiSbKUSELsu8hSFMs8baGMDkpump",
+   "logoUrl": "https://assets.geckoterminal.com/10pn21cgbpfrpmee6cvv6w0nrv74",
+   "priceUrl": "https://dexscreener.com/solana/2B8tftZ5ww8TREMr3pgkgERLNjJyJxEAPWMENViGMsL4",
+   "source": "pumpswap",
+   "liquidityUsd": 191137,
+   "volume24hUsd": 17410280,
+   "poolCreatedAt": "2026-10-03T22:08:10Z",
+   "addedAt": "2026-10-04T20:54:42.851Z",
+   "price": {
+    "raw": "2540276",
+    "decimals": 9
+   }
+  },
+  {
+   "symbol": "knightcat",
+   "name": "Knight Cat",
+   "category": "meme",
+   "priceSource": "DreMAMRc83uJtbvWuWrDqDaQUGHDbFGopmbTYbM3tJFW",
+   "priceDecimals": 9,
+   "enabled": true,
+   "mint": "3Dgwn5E7H5a8k6iGrz3qirkaJqUaJrKHEZ2xPcLRpump",
+   "logoUrl": "https://assets.geckoterminal.com/qx7fobxihmmzcsrftimm3lm8bgvb",
+   "priceUrl": "https://dexscreener.com/solana/DreMAMRc83uJtbvWuWrDqDaQUGHDbFGopmbTYbM3tJFW",
+   "source": "pumpswap",
+   "liquidityUsd": 184869,
+   "volume24hUsd": 8613577,
+   "poolCreatedAt": "2026-10-03T18:05:34Z",
+   "addedAt": "2026-10-04T20:54:42.851Z",
+   "price": {
+    "raw": "2836265",
+    "decimals": 9
+   }
+  },
+  {
+   "symbol": "EGO",
+   "name": "EGO",
+   "category": "meme",
+   "priceSource": "AZBsSg82ZpspEF97t1G7pHWjaiKNTXMatwC3TGDqPKxK",
+   "priceDecimals": 10,
+   "enabled": true,
+   "mint": "BbJJUTuGV2B7tJ99YeryiCBFLG39Hoc4RTzEwchtpump",
+   "logoUrl": "https://assets.geckoterminal.com/5u9zkz67terulpze9toqziv0z7fr",
+   "priceUrl": "https://dexscreener.com/solana/AZBsSg82ZpspEF97t1G7pHWjaiKNTXMatwC3TGDqPKxK",
+   "source": "pumpswap",
+   "liquidityUsd": 86154,
+   "volume24hUsd": 6511809,
+   "poolCreatedAt": "2026-10-04T16:47:37Z",
+   "addedAt": "2026-10-04T20:54:42.851Z",
+   "price": {
+    "raw": "6433097",
+    "decimals": 10
+   }
+  },
+  {
+   "symbol": "BRIDGE",
+   "name": "Bridge",
+   "category": "meme",
+   "priceSource": "HdNba9ciTgWD6GGFcJXf4MMp21yAi61r6WCdAtru5wYd",
+   "priceDecimals": 10,
+   "enabled": true,
+   "mint": "CpRkPw9M2iMDUozQFvkEeAjGJWucbLCJw3m3vZqdpump",
+   "logoUrl": "https://assets.geckoterminal.com/gdvjeuh2ruev4byv4h0jkvkfobz4",
+   "priceUrl": "https://dexscreener.com/solana/HdNba9ciTgWD6GGFcJXf4MMp21yAi61r6WCdAtru5wYd",
+   "source": "pumpswap",
+   "liquidityUsd": 37433,
+   "volume24hUsd": 4356418,
+   "poolCreatedAt": "2026-10-03T21:30:58Z",
+   "addedAt": "2026-10-04T20:54:42.851Z",
+   "price": {
+    "raw": "1195471",
+    "decimals": 10
+   }
+  }
+ ]
+}

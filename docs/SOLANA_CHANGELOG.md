@@ -603,3 +603,13 @@ root, собраны из `/etc/prophet/prophet.env`, в браузер не п�
 `VITE_SOLANA_WS_URL=wss://prophetmarkets.fun/api/solana/ws`, `VITE_GAME_SERVER_URL=https://prophetmarkets.fun/api/solana/game-server`,
 `VITE_PRICE_SERVICE_URL=https://prophetmarkets.fun/api/solana/price-service`.
 При чтении nginx в вывод команды частично попал старый ключ Alchemy от Robinhood Chain — его стоит пересоздать.
+
+## 2026-10-04 — PumpSwap: шапка, лента на главной, снимок
+
+- Ссылка «PumpSwap» в шапке рядом с Races и Arena.
+- На главной блок «Fresh from PumpSwap» — лента: новые монеты сверху, «Added … ago», значок NEW у добавленных в
+  последние 15 минут. Сервер запоминает, когда монета попала в список (`addedAt`).
+- Снимок `src/chain/pumpswapSnapshot.json` (10 монет с ценами и логотипами, снят 4 октября с живых сервисов через
+  nginx): когда сервисы выключены, сайт показывает его с мелкой строкой «Prices as of …», а не пустой список.
+- Сервисы включались ~10 минут: сервис цен подхватил 10 монет на ходу (74 подписки), публичные адреса nginx отдали
+  данные. Потом снова выключены.

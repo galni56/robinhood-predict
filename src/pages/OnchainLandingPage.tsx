@@ -162,7 +162,7 @@ export function OnchainLandingPage() {
       {/* ---------------------------------------------- PumpSwap coins */}
       <section style={{ background: '#4B37B0', borderTop: `4px solid ${INK}`, padding: '56px clamp(16px, 4vw, 64px)' }}>
         <div style={{ maxWidth: 1200, margin: '0 auto' }}>
-          <PumpSwapCoins limit={6} />
+          <PumpSwapCoins limit={6} feed />
         </div>
       </section>
 

@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useWallet } from '@solana/wallet-adapter-react'
 import { GAME_SERVER_URL } from '@/solana/services'
 import { registerAssetIcons } from '@/lib/assetIcons'
+import pumpswapSnapshot from '@/chain/pumpswapSnapshot.json'
 
 // Client of the game server (scripts/solana/game-server). The server holds
 // the game wallet: stakes are SOL transfers to it with a `prophet:` memo
@@ -146,6 +147,10 @@ export interface ServerAsset {
   liquidityUsd?: number
   volume24hUsd?: number
   poolCreatedAt?: string
+  /** When the game server added the coin to the list. */
+  addedAt?: string
+  /** Price kept in the bundled snapshot (shown while the server is off). */
+  price?: { raw: string; decimals: number } | null
 }
 
 export interface ServerWallet {
@@ -218,11 +223,17 @@ export function useGameServerConfig() {
   })
 }
 
-/** PumpSwap coins the game server added to the meme category, most liquid first. */
+registerAssetIcons(pumpswapSnapshot.assets)
+
+/** PumpSwap coins the game server added to the meme category, most liquid
+ * first. While the server is off or unreachable the bundled snapshot
+ * (src/chain/pumpswapSnapshot.json) stands in, so the list is never empty. */
 export function usePumpSwapAssets() {
   const config = useGameServerConfig()
-  const assets = (config.data?.assets ?? []).filter((a) => a.source === 'pumpswap').sort((a, b) => (b.liquidityUsd ?? 0) - (a.liquidityUsd ?? 0))
-  return { assets, isLoading: config.isLoading, error: config.error }
+  const live = (config.data?.assets ?? []).filter((a) => a.source === 'pumpswap')
+  const snapshot = live.length === 0 && !config.isLoading
+  const assets = (snapshot ? (pumpswapSnapshot.assets as ServerAsset[]) : live).slice().sort((a, b) => (b.liquidityUsd ?? 0) - (a.liquidityUsd ?? 0))
+  return { assets, snapshotAt: snapshot ? pumpswapSnapshot.capturedAt : null, isLoading: config.isLoading && GAME_SERVER_URL != null }
 }
 
 /** One wallet's stakes and payouts. */
