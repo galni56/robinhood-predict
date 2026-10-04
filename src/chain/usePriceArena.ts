@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { usePrograms } from '@/solana/programs'
 import { arenaPda } from '@/solana/pda'
 import { PRICE_ARENA_STATUS, arenaFromAccount } from '@/chain/priceArena'
+import { DESIGN_SAMPLES_ENABLED, SAMPLE_ARENAS } from '@/chain/designSamples'
 
 /** One arena; every entry lives inside the arena account, so a single read
  * covers the board and the connected wallet's entry. */
@@ -19,7 +20,10 @@ export function usePriceArena(arenaId: bigint | null, wallet?: PublicKey | null)
     enabled: !!arenaKey,
     refetchInterval: (q) => (q.state.data && q.state.data.status !== PRICE_ARENA_STATUS.OPEN ? 30_000 : 4_000),
   })
-  const arena = query.data ?? undefined
+  // Dev-only: sample arenas stand in so detail screens can be designed
+  // without a validator (same gate as the list hooks).
+  const sample = DESIGN_SAMPLES_ENABLED && arenaId != null ? SAMPLE_ARENAS.find((item) => item.id === arenaId) : undefined
+  const arena = query.data ?? ((query.isFetched || query.isError) ? sample : undefined) ?? undefined
   const me = wallet?.toBase58()
   return {
     arena,

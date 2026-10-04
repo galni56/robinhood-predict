@@ -29,14 +29,15 @@ import {
 import { AddressLabel } from '@/components/AddressLabel'
 import { ClusterBanner } from '@/components/ClusterBanner'
 import { ShareInviteButton } from '@/components/ShareInviteButton'
-import { PriceSourceLink } from '@/components/PriceSourceLink'
 import { StakeAmountInput } from '@/components/StakeAmountInput'
-import { TokenLogo } from '@/components/TokenLogo'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
 import { formatStakeAmount, formatStakeExact, useStakeBalance, useStakeToken, type StakeToken } from '@/solana/stakeTokens'
 import { usePrograms } from '@/solana/programs'
 import { TxUnconfirmedError, useSendInstructions } from '@/solana/tx'
 import { formatCountdown, formatUnits, formatUsdPrice, parseUnits, shortTxError } from '@/lib/format'
+import { FightStage } from '@/retro/arena'
+import { CREAM, INK } from '@/retro/scene'
+import { PIXEL } from '@/retro/race'
 
 function parseId(value?: string) {
   if (!value || !/^\d+$/.test(value)) return null
@@ -231,31 +232,44 @@ export function OnchainArenaPage() {
     }
   }
 
-  if (arenaId == null) return <div className="mx-auto max-w-4xl px-4 py-12 text-rose-300">Invalid arena ID.</div>
+  if (arenaId == null) return <div style={{ padding: 48, textAlign: 'center', fontFamily: PIXEL, fontSize: 12 }}>INVALID ARENA ID</div>
   return (
+    <div style={{ minHeight: '100%', background: '#4B37B0', color: CREAM, fontFamily: "'Pixelify Sans', 'Courier New', monospace" }}>
     <div className="mx-auto max-w-[1200px] px-4 py-8">
       <ClusterBanner className="mb-5" />
-      <Link to={`/onchain/arenas${arena ? `?mode=${modeForArenaCategory(arena.category)}` : ''}`} className="text-sm font-bold text-white/40 hover:text-white">← All arenas</Link>
+      <Link to={`/onchain/arenas${arena ? `?mode=${modeForArenaCategory(arena.category)}` : ''}`} style={{ color: CREAM, fontSize: 20, fontWeight: 600 }}>← All arenas</Link>
       {isLoading ? <p className="py-20 text-center text-white/40">Loading arena…</p> : readError ? <div className="mt-6 rounded-none border border-rose-500/25 bg-rose-500/10 p-5 text-rose-300">Could not read this arena.</div> : !arena ? <p className="py-20 text-center text-white/40">Arena not found.</p> : <>
-        <div className="mt-5 flex flex-wrap items-end justify-between gap-4">
-          <div className="flex min-w-0 items-start gap-3"><TokenLogo ticker={arena.symbol} className="mt-1 h-12 w-12 shrink-0 rounded-none" /><div className="min-w-0"><p className="text-sm font-bold text-[#6bcbf4]">{arena.symbol} Price Arena · #{arena.id.toString()}</p><h1 className="mt-1 break-words font-display text-3xl font-bold sm:text-4xl">{arena.title}</h1><p className="mt-1 text-xs text-white/40">Created by <AddressLabel address={arena.creator} className="text-white/60" /> · {arenaDurationLabel(arena.duration)} game</p><PriceSourceLink href={arena.asset?.priceUrl} symbol={arena.symbol} tone="arena" className="mt-2 bg-[#6bcbf4]/10 px-3 py-1.5" /></div></div>
-          <div className="flex w-full min-w-0 flex-wrap items-center justify-between gap-3 sm:w-auto sm:flex-nowrap sm:justify-start"><ShareInviteButton kind="arena" id={arena.id} /><div className="text-right"><div className="text-xs font-bold uppercase tracking-wider text-white/35">{displayedPhase}</div><div className="font-mono text-3xl font-bold">{clock}</div></div></div>
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-4">
+          <h1 style={{ margin: 0, fontFamily: PIXEL, fontSize: 'clamp(18px, 2vw, 28px)', fontWeight: 400, lineHeight: 1.3, textShadow: `4px 4px 0 ${INK}` }}>
+            ARENA · FIGHT #{arena.id.toString()}
+          </h1>
+          <ShareInviteButton kind="arena" id={arena.id} />
+        </div>
+        {arena.title && <p style={{ margin: '10px 0 0', fontSize: 20, fontWeight: 600 }}>{arena.title} · by <AddressLabel address={arena.creator} /> · {arenaDurationLabel(arena.duration)}</p>}
+
+        <div className="mt-6">
+          <FightStage
+            leftLabel={arena.symbol}
+            rightLabel="MARKET"
+            timerLabel={phase === PRICE_ARENA_PHASE.LOBBY ? 'to the fight' : phase === PRICE_ARENA_PHASE.RUNNING ? 'to the bell' : displayedPhase.toLowerCase()}
+            timerValue={clock}
+          />
         </div>
 
-        <div className="mt-6 grid gap-4 sm:grid-cols-3">
-          <div className="min-w-0 rounded-none border border-white/5 bg-[#221c40] p-4"><div className="text-xs text-white/35">Players</div><div className="mt-1 truncate font-mono text-2xl font-bold tabular-nums">{arena.participantCount} / {PRICE_ARENA_MAX_PARTICIPANTS}</div></div>
-          <div className="min-w-0 rounded-none border border-white/5 bg-[#221c40] p-4"><div className="text-xs text-white/35">Prize pool</div><div title={fmtExact(arena.totalPool)} className="mt-1 truncate font-mono text-2xl font-bold tabular-nums">{fmt(arena.totalPool)}</div></div>
-          <div className="min-w-0 rounded-none border border-white/5 bg-[#221c40] p-4"><div className="text-xs text-white/35">{phase === PRICE_ARENA_PHASE.RESOLVED ? 'Final price' : 'Live price'}</div><div className="mt-1 truncate font-mono text-2xl font-bold tabular-nums">{displayPrice(referencePrice, arena.priceDecimals)}</div></div>
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-3" style={{ fontSize: 20, fontWeight: 600 }}>
+          <span>Players {arena.participantCount} / {PRICE_ARENA_MAX_PARTICIPANTS}</span>
+          <span style={{ fontFamily: PIXEL, fontSize: 14 }}>BANK {fmt(arena.totalPool)}</span>
+          <span>{phase === PRICE_ARENA_PHASE.RESOLVED ? 'Final price' : 'Live price'} <span style={{ fontFamily: PIXEL, fontSize: 14 }}>{displayPrice(referencePrice, arena.priceDecimals)}</span></span>
         </div>
 
         {!token ? <p className="py-10 text-center text-sm text-white/40">Loading stake currency…</p> : phase === PRICE_ARENA_PHASE.LOBBY ? <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_0.8fr]">
-          <section className="min-w-0"><h2 className="font-display text-xl font-bold">Lobby stakes</h2><p className="mt-1 text-sm text-white/40">Predictions stay hidden here until the game starts. Account data on Solana is public, so this is a display courtesy, not secrecy.</p><div className="mt-4 space-y-2">{entries.map((entry) => <div key={entry.player} className="flex min-w-0 items-center justify-between gap-3 rounded-none border border-white/5 bg-[#221c40] px-4 py-3"><AddressLabel address={entry.player} className="min-w-0 font-bold text-white/70" /><span title={fmtExact(entry.stake)} className="shrink-0 whitespace-nowrap font-mono">{fmt(entry.stake)} · prediction hidden</span></div>)}{entries.length === 0 && <p className="py-8 text-sm text-white/35">Be the first player.</p>}</div></section>
-          <section className="rounded-none border border-[#6bcbf4]/20 bg-[#221c40] p-5">
-            <h2 className="font-display text-xl font-bold">{walletEntry ? 'Update your entry' : 'Make your prediction'}</h2>
+          <section className="rx-raised min-w-0" style={{ background: CREAM, color: INK, padding: 24 }}><h2 style={{ margin: 0, fontFamily: PIXEL, fontSize: 14, fontWeight: 400, lineHeight: 1.4 }}>LOBBY STAKES</h2><p className="mt-2" style={{ fontSize: 18, fontWeight: 500, opacity: 0.7 }}>Predictions stay hidden here until the game starts. Account data on Solana is public, so this is a display courtesy, not secrecy.</p><div className="mt-4 space-y-2">{entries.map((entry) => <div key={entry.player} className="rx-plate flex min-w-0 items-center justify-between gap-3 px-4 py-3" style={{ background: '#FFFFFF' }}><AddressLabel address={entry.player} className="min-w-0 font-bold" /><span title={fmtExact(entry.stake)} className="shrink-0 whitespace-nowrap font-mono">{fmt(entry.stake)} · prediction hidden</span></div>)}{entries.length === 0 && <p className="py-8" style={{ fontSize: 18, fontWeight: 500, opacity: 0.6 }}>Be the first player.</p>}</div></section>
+          <section className="rx-raised" style={{ background: CREAM, color: INK, padding: 24 }}>
+            <h2 style={{ margin: 0, fontFamily: PIXEL, fontSize: 14, fontWeight: 400, lineHeight: 1.4 }}>{walletEntry ? 'UPDATE YOUR ENTRY' : 'YOUR CALL'}</h2>
             {walletEntry && <p title={fmtExact(walletEntry.stake)} className="mt-2 text-sm text-white/50">Your current stake is {fmt(walletEntry.stake)}. Leave price empty to keep it. Money cannot be withdrawn before settlement.</p>}
             <label className="mt-5 block">
               <span className="mb-1.5 block text-sm text-white/50">{walletEntry ? 'New price · optional' : 'Predicted final price · USD'}</span>
-              <input value={prediction} onChange={(event) => setPrediction(event.target.value)} inputMode="decimal" placeholder={walletEntry ? 'Keep current prediction' : '0.00'} className="w-full rounded-none border border-white/10 bg-white/5 px-4 py-3 font-mono outline-none focus:border-[#6bcbf4]" />
+              <input value={prediction} onChange={(event) => setPrediction(event.target.value)} inputMode="decimal" placeholder={walletEntry ? 'Keep current prediction' : '0.00'} className="rx-input" style={{ width: 'calc(100% - 8px)', height: 56, padding: '0 16px', fontFamily: PIXEL, fontSize: 20 }} />
             </label>
             <div className="mt-4">
               <StakeAmountInput
@@ -296,13 +310,15 @@ export function OnchainArenaPage() {
               : <button
                   onClick={submitEntry}
                   disabled={!!txLabel || (!walletEntry && displayedEntryAmount <= 0n) || !!violation}
-                  className="mt-5 w-full rounded-none bg-gradient-to-r from-[#8ddaf8] to-[#6bcbf4] py-3 font-bold text-[#191330] disabled:opacity-40"
+                  className="rx-btn rx-btn-pink mt-5 w-full"
+                  style={{ minHeight: 64, fontFamily: PIXEL, fontSize: 14 }}
                 >
-                  {txLabel ?? (walletEntry ? 'Update entry' : `Enter arena with ${token.symbol}`)}
+                  {txLabel ?? (walletEntry ? 'UPDATE ENTRY' : 'STEP INTO THE RING')}
                 </button>}
           </section>
-        </div> : phase === PRICE_ARENA_PHASE.CANCELLED ? <div className="mt-6 rounded-none border border-amber-400/20 bg-amber-400/10 p-6"><h2 className="font-display text-2xl font-bold">Arena cancelled</h2><p className="mt-2 text-sm text-white/55">{cancelReasonText(arena.cancelReason)} Every player gets a full refund.</p>{walletEntry && !walletEntry.settled && <button title={fmtExact(walletEntry.stake)} onClick={() => settle('refund')} disabled={!!txLabel} className="mt-5 max-w-full truncate rounded-none bg-[#6bcbf4] px-6 py-3 font-bold text-[#191330] hover:bg-[#8ddaf8]">{txLabel ?? `Refund ${fmt(walletEntry.stake)}`}</button>}{walletEntry?.settled && <div className="mt-5 text-sm font-bold text-white/40">Refunded</div>}{error && <p className="mt-3 text-sm text-rose-400">{error}</p>}</div> : <section className="mt-7"><div className="mb-4 flex items-end justify-between"><div><h2 className="font-display text-2xl font-bold">{phase === PRICE_ARENA_PHASE.RUNNING ? underfilled ? 'Not enough players' : awaitingSettlement ? 'Settlement pending' : 'Live leaderboard' : 'Final standings'}</h2><p className="mt-1 text-sm text-white/40">{phase === PRICE_ARENA_PHASE.RUNNING ? underfilled ? 'Fewer than two players joined. The keeper cancels this arena and every stake becomes refundable.' : awaitingSettlement ? 'The round is closed. The keeper is fixing the deadline price and final ranking onchain.' : 'Positions update with the display price; settlement uses the signed pool price at the deadline.' : `Closest ${arena.winnerCount} player${arena.winnerCount === 1 ? '' : 's'} won.`}</p></div>{phase === PRICE_ARENA_PHASE.RUNNING && !awaitingSettlement && live.disconnected && <span className="text-xs font-bold text-amber-300">Live feed reconnecting…</span>}</div><ArenaBoard rows={entries} referencePrice={referencePrice} decimals={arena.priceDecimals} resolved={phase === PRICE_ARENA_PHASE.RESOLVED} winnerCount={arena.winnerCount} token={token} />{phase === PRICE_ARENA_PHASE.RESOLVED && walletEntry && walletEntry.payout > 0n && !walletEntry.settled ? (!connected ? <div className="mt-6"><WalletOptionsList tone="arena" /></div> : <button title={fmtExact(walletEntry.payout)} onClick={() => settle('claim')} disabled={!!txLabel} className="mt-6 w-full truncate rounded-none bg-gradient-to-r from-[#8ddaf8] to-[#6bcbf4] py-3 font-bold text-[#191330]">{txLabel ?? `Claim ${fmt(walletEntry.payout)}`}</button>) : phase === PRICE_ARENA_PHASE.RESOLVED && walletEntry?.settled ? <div className="mt-6 rounded-none bg-white/5 py-3 text-center font-bold text-white/40">Already claimed</div> : null}{error && <p className="mt-3 text-sm text-rose-400">{error}</p>}</section>}
+        </div> : phase === PRICE_ARENA_PHASE.CANCELLED ? <div className="rx-raised mt-6" style={{ background: CREAM, color: INK, padding: 24 }}><h2 style={{ margin: 0, fontFamily: PIXEL, fontSize: 16 }}>ARENA CANCELLED</h2><p className="mt-2 text-sm text-white/55">{cancelReasonText(arena.cancelReason)} Every player gets a full refund.</p>{walletEntry && !walletEntry.settled && <button title={fmtExact(walletEntry.stake)} onClick={() => settle('refund')} disabled={!!txLabel} className="rx-btn rx-btn-yellow mt-5 max-w-full truncate" style={{ minHeight: 56, padding: '0 28px', fontFamily: PIXEL, fontSize: 14 }}>{txLabel ?? `REFUND ${fmt(walletEntry.stake)}`}</button>}{walletEntry?.settled && <div className="mt-5 text-sm font-bold text-white/40">Refunded</div>}{error && <p className="mt-3 text-sm text-rose-400">{error}</p>}</div> : <section className="rx-raised mt-7" style={{ background: CREAM, color: INK, padding: 24 }}><div className="mb-4 flex items-end justify-between"><div><h2 style={{ margin: 0, fontFamily: PIXEL, fontSize: 14, fontWeight: 400, lineHeight: 1.4 }}>{phase === PRICE_ARENA_PHASE.RUNNING ? underfilled ? 'NOT ENOUGH PLAYERS' : awaitingSettlement ? 'SETTLEMENT PENDING' : 'LIVE LEADERBOARD' : 'FINAL STANDINGS'}</h2><p className="mt-2" style={{ fontSize: 18, fontWeight: 500, opacity: 0.7 }}>{phase === PRICE_ARENA_PHASE.RUNNING ? underfilled ? 'Fewer than two players joined. The keeper cancels this arena and every stake becomes refundable.' : awaitingSettlement ? 'The round is closed. The keeper is fixing the deadline price and final ranking onchain.' : 'Positions update with the display price; settlement uses the signed pool price at the deadline.' : `Closest ${arena.winnerCount} player${arena.winnerCount === 1 ? '' : 's'} won.`}</p></div>{phase === PRICE_ARENA_PHASE.RUNNING && !awaitingSettlement && live.disconnected && <span className="text-xs font-bold text-amber-300">Live feed reconnecting…</span>}</div><ArenaBoard rows={entries} referencePrice={referencePrice} decimals={arena.priceDecimals} resolved={phase === PRICE_ARENA_PHASE.RESOLVED} winnerCount={arena.winnerCount} token={token} />{phase === PRICE_ARENA_PHASE.RESOLVED && walletEntry && walletEntry.payout > 0n && !walletEntry.settled ? (!connected ? <div className="mt-6"><WalletOptionsList tone="arena" /></div> : <button title={fmtExact(walletEntry.payout)} onClick={() => settle('claim')} disabled={!!txLabel} className="rx-btn rx-btn-yellow mt-6 w-full truncate" style={{ minHeight: 64, fontFamily: PIXEL, fontSize: 14 }}>{txLabel ?? `CLAIM ${fmt(walletEntry.payout)}`}</button>) : phase === PRICE_ARENA_PHASE.RESOLVED && walletEntry?.settled ? <div className="mt-6 rounded-none bg-white/5 py-3 text-center font-bold text-white/40">Already claimed</div> : null}{error && <p className="mt-3 text-sm text-rose-400">{error}</p>}</section>}
       </>}
+    </div>
     </div>
   )
 }
