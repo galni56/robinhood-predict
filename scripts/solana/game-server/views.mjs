@@ -31,6 +31,13 @@ export function gameView(db, game) {
 
 function symbolsOf(game, wallet) {
   if (game.kind === 'arena') return [game.symbol]
+  if (game.kind === 'duel') {
+    const own = game.racers.find((r) => r.wallet === wallet)
+    const backed = game.backers.find((b) => b.wallet === wallet)
+    const seat = own?.seat ?? backed?.seat
+    const racer = game.racers.find((r) => r.seat === seat)
+    return racer ? [racer.symbol] : []
+  }
   const position = game.positions.find((p) => p.owner === wallet)
   return position ? [game.assets[position.assetIndex].symbol] : []
 }
@@ -47,7 +54,7 @@ export function historyView(db, cluster, gameWallet, games) {
       signature: d.signature,
       slot: d.slot,
       time: d.block_time,
-      type: d.game_kind === 'race' ? 'bet' : 'entry',
+      type: d.game_kind === 'race' ? 'bet' : d.game_kind === 'duel' ? 'duel' : 'entry',
       game: d.game_kind,
       gameId: d.game_id,
       gameAddress: gameAddress(d.game_kind, d.game_id),
@@ -76,7 +83,7 @@ export function historyView(db, cluster, gameWallet, games) {
   activity.sort((a, b) => (b.time ?? 0) - (a.time ?? 0))
 
   const wallets = new Map()
-  const kinds = { race: new Map(), arena: new Map() }
+  const kinds = { race: new Map(), arena: new Map(), duel: new Map() }
   const total = (map, wallet) => {
     if (!map.has(wallet)) map.set(wallet, { staked: 0n, claimed: 0n, refunded: 0n, games: new Set(), wins: 0, lastActive: 0, symbols: new Set() })
     return map.get(wallet)
@@ -127,7 +134,7 @@ export function historyView(db, cluster, gameWallet, games) {
     activity: activity.slice(0, 500),
     wallets: walletRows,
     leaderboard: Object.values(walletRows).sort(byNet).slice(0, 100),
-    leaderboards: { race: board(kinds.race), arena: board(kinds.arena) },
+    leaderboards: { race: board(kinds.duel.size ? kinds.duel : kinds.race), arena: board(kinds.arena), duel: board(kinds.duel) },
   }
 }
 

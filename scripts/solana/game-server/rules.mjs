@@ -53,6 +53,10 @@ export const ARENA = {
 }
 
 export const CATEGORIES = ['stock', 'meme', 'crypto']
+/** How a game shows its numbers: by price or by market cap. Display only:
+ * outcomes always use the signed pool price. */
+export const UNITS = ['price', 'cap']
+const unitOf = (unit) => (UNITS.includes(unit) ? unit : 'price')
 
 export class RuleError extends Error {
   constructor(code, message = code) {
@@ -186,6 +190,7 @@ export function createCommunityRace(id, input, assets, now) {
   const race = emptyRace(id, {
     origin: 'community',
     status: 'lobby',
+    unit: unitOf(input.unit),
     category: input.category,
     creator: input.creator,
     title: input.title,
@@ -380,6 +385,7 @@ export function createArena(id, input, asset, now, lobbyDuration = ARENA.lobbyDu
   return {
     kind: 'arena',
     id,
+    unit: unitOf(input.unit),
     symbol: asset.symbol,
     priceSource: asset.priceSource,
     priceDecimals: asset.priceDecimals,
@@ -568,6 +574,8 @@ export function arenaSettlements(arena) {
 // names its purpose:
 //   prophet:race:<raceId>:<assetIndex>
 //   prophet:arena:<arenaId>:<prediction>   (prediction 0 = keep, top-up only)
+//   prophet:duel:<duelId>:0                (a racer pays the stake)
+//   prophet:duel:<duelId>:<seat>           (a spectator backs that racer)
 export const MEMO_PREFIX = 'prophet'
 
 export function parseStakeMemo(text) {
@@ -577,8 +585,12 @@ export function parseStakeMemo(text) {
   if (!/^\d{1,12}$/.test(id) || !/^\d{1,30}$/.test(arg)) return null
   if (kind === 'race') return { kind, id: Number(id), assetIndex: Number(arg) }
   if (kind === 'arena') return { kind, id: Number(id), prediction: BigInt(arg) }
+  // Duels: 0 pays the racer's stake, a seat number backs that racer.
+  if (kind === 'duel') return { kind, id: Number(id), seat: Number(arg) }
   return null
 }
+
+export const duelMemo = (duelId, seat = 0) => `${MEMO_PREFIX}:duel:${duelId}:${seat}`
 
 export const raceMemo = (raceId, assetIndex) => `${MEMO_PREFIX}:race:${raceId}:${assetIndex}`
 export const arenaMemo = (arenaId, prediction) => `${MEMO_PREFIX}:arena:${arenaId}:${prediction}`

@@ -1,0 +1,39 @@
+import { test } from 'node:test'
+import assert from 'node:assert/strict'
+import { priceDecimalsFor, selectPumpSwapAssets } from './pumpswap.mjs'
+
+const WSOL = 'So11111111111111111111111111111111111111112'
+const now = Date.parse('2026-10-04T12:00:00Z')
+const pool = (symbol, mint, liquidityUsd, hoursOld, extra = {}) => ({
+  pool: `pool-${symbol}-${liquidityUsd}`, mint, quote: WSOL, symbol, name: symbol, logoUrl: null, tokenDecimals: 6,
+  priceUsd: 0.001, liquidityUsd, volume24hUsd: 1, createdAt: new Date(now - hoursOld * 3.6e6).toISOString(), ...extra,
+})
+
+test('pumpswap filter: real pump.fun coins, SOL/USDC pairs, liquidity, age, one per symbol', () => {
+  const pools = [
+    pool('GOOD', 'Aaapump', 50_000, 5),
+    pool('GOOD', 'Bbbpump', 20_000, 5), // same name, smaller pool: dropped
+    pool('FAKE', 'NotAPumpMint', 900_000, 5), // not a pump.fun mint
+    pool('THIN', 'Cccpump', 9_000, 5), // below $10k
+    pool('NEW', 'Dddpump', 80_000, 0.5), // younger than an hour
+    pool('PAIR', 'Eeepump', 80_000, 5, { quote: 'SomeOtherMint' }), // not SOL/USDC
+    pool('WIF', 'Fffpump', 80_000, 5), // already in the reviewed catalog
+  ]
+  const out = selectPumpSwapAssets(pools, { takenSymbols: new Set(['WIF']), now })
+  assert.deepEqual(out.map((a) => [a.symbol, a.mint]), [['GOOD', 'Aaapump']])
+  assert.equal(out[0].poolKind, 'pumpswap')
+})
+
+test('pumpswap filter keeps price decimals and coins of running games', () => {
+  const previous = [{ symbol: 'GOOD', mint: 'Aaapump', pool: 'old-pool', priceDecimals: 11 }, { symbol: 'GONE', mint: 'Zzzpump', pool: 'p', priceDecimals: 9 }]
+  const out = selectPumpSwapAssets([pool('GOOD', 'Aaapump', 50_000, 5)], { takenSymbols: new Set(), previous, keepSymbols: new Set(['GONE']), now })
+  assert.equal(out.find((a) => a.symbol === 'GOOD').priceDecimals, 11)
+  assert.equal(out.find((a) => a.symbol === 'GOOD').pool, 'old-pool')
+  assert.ok(out.some((a) => a.symbol === 'GONE'), 'a coin in a running game stays')
+})
+
+test('price decimals give about six significant digits', () => {
+  assert.equal(priceDecimalsFor(0.0137), 8)
+  assert.equal(priceDecimalsFor(0.00000123), 12)
+  assert.equal(priceDecimalsFor(5000), 8)
+})

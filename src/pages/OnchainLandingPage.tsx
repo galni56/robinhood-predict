@@ -1,7 +1,14 @@
 import { Link } from 'react-router-dom'
+import { PumpSwapCoins } from '@/components/PumpSwapCoins'
+import { useHistory } from '@/chain/history'
+import { AddressLabel } from '@/components/AddressLabel'
 import { PxSprite } from '@/retro/Sprite'
-import { boxerOrange, boxerPink, coinBlue, coinOrangeGrin, coinPinkGrin, coinPurple, logoCoin } from '@/retro/spriteData'
-import { Cloud, CREAM, GrassStrip, Hills, INK, NIGHT, PINK, RoadBand, RoadLane, SKY, Stars, YELLOW } from '@/retro/scene'
+import { coinBlue, coinBlueGrin, coinOrangeGrin, coinPinkGrin, coinPurple, coinPurpleGrin, logoCoin } from '@/retro/spriteData'
+import { Cloud, CREAM, GrassStrip, Hills, INK, NIGHT, PINK, RoadLane, SKY, Stars, YELLOW } from '@/retro/scene'
+import { AnimatedRace, ArenaCallsScene, DriftingCloud, PixelDivider, Podium, Sun } from '@/retro/landingFx'
+import { assetRaceCatalog } from '@/chain/assetRaceRegistry'
+import pumpswapSnapshot from '@/chain/pumpswapSnapshot.json'
+import { formatCompactSol } from '@/lib/format'
 
 // 1:1 port of the approved mock's landing (Main.dc.html), English copy,
 // wired to the app's routes. Every size, color and animation step comes
@@ -10,10 +17,43 @@ import { Cloud, CREAM, GrassStrip, Hills, INK, NIGHT, PINK, RoadBand, RoadLane, 
 const PIXEL = "'Press Start 2P', 'Courier New', monospace"
 
 const STEPS = [
-  ['Connect a wallet', 'You need a Solana wallet and some SOL to stake.'],
-  ['Pick your coin', 'Back the favorite in a race or a fighter in the arena.'],
-  ['Claim your win', 'Your coin won? Take your share of the bank.'],
+  ['Create an account', 'One click, no extension. Top it up with some SOL to stake.'],
+  ['Pick your coin', 'Back the favorite in a race, or call one coin\'s final price in the arena.'],
+  ['Win lands in your account', 'Your call won? Your share of the bank is sent to your account automatically.'],
 ] as const
+
+// Hero heats: four random coins from the game's catalog and the PumpSwap
+// list, a random winner every time.
+const HERO_NAMES = [...new Set([
+  ...assetRaceCatalog.filter((a) => a.category !== 'STOCK').map((a) => a.symbol),
+  ...pumpswapSnapshot.assets.map((a) => a.symbol),
+])].filter((name) => name.length <= 9)
+const HERO_BODIES = [coinOrangeGrin, coinPinkGrin, coinPurple, coinBlue]
+
+const PODIUM_SPRITES = [coinOrangeGrin, coinPinkGrin, coinBlueGrin]
+
+function TopPlayers() {
+  const history = useHistory()
+  const top = (history.data?.leaderboard ?? []).filter((row) => BigInt(row.net) > 0n).slice(0, 3)
+  const places = [0, 1, 2].map((i) => (top[i]
+    ? { name: <AddressLabel address={top[i].wallet} />, value: `+${formatCompactSol(BigInt(top[i].net))}`, sprite: PODIUM_SPRITES[i] }
+    : undefined)) as Parameters<typeof Podium>[0]['places']
+  return (
+    <section style={{ background: CREAM, padding: '64px clamp(16px, 4vw, 64px) 72px' }}>
+      <div style={{ maxWidth: 760, margin: '0 auto', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 56 }}>
+        <h2 style={{ margin: 0, fontFamily: PIXEL, fontSize: 'clamp(20px, 2.4vw, 32px)', fontWeight: 400, lineHeight: 1.4, textAlign: 'center', textShadow: `4px 4px 0 ${YELLOW}` }}>
+          TOP PLAYERS
+        </h2>
+        <div style={{ width: '100%' }}>
+          <Podium places={places} />
+        </div>
+        <Link to="/onchain/leaderboard" style={{ fontSize: 20, fontWeight: 700, textDecoration: 'underline', textUnderlineOffset: 6 }}>
+          {top.length ? 'Full leaderboard →' : 'The podium is empty - take the first spot →'}
+        </Link>
+      </div>
+    </section>
+  )
+}
 
 export function OnchainLandingPage() {
   return (
@@ -30,9 +70,11 @@ export function OnchainLandingPage() {
           textAlign: 'center',
         }}
       >
-        <Cloud width={140} duration="7s" style={{ top: 36, left: '6%' }} />
-        <Cloud width={112} duration="9s" style={{ top: 150, right: '7%' }} />
-        <Cloud width={84} duration="11s" style={{ top: 330, left: '16%' }} />
+        <Sun style={{ top: 28, right: '6%' }} />
+        <DriftingCloud width={140} top={36} duration={70} delay={10} />
+        <DriftingCloud width={112} top={150} duration={55} delay={30} />
+        <DriftingCloud width={84} top={330} duration={85} delay={50} />
+        <DriftingCloud width={96} top={250} duration={65} delay={5} />
 
         <span className="rx-plate" style={{ position: 'relative', fontFamily: PIXEL, fontSize: 12, lineHeight: 1, background: CREAM, padding: '12px 14px' }}>
           ON SOLANA
@@ -60,12 +102,7 @@ export function OnchainLandingPage() {
         <div aria-hidden="true" style={{ alignSelf: 'stretch', margin: '32px calc(clamp(16px, 4vw, 64px) * -1) 0', position: 'relative' }}>
           <Hills />
           <GrassStrip height={20} top />
-          <RoadBand>
-            <RoadLane height={76} coinSprite={coinOrangeGrin} x={70} label="BONK" blinkDelay="0s" />
-            <RoadLane height={76} coinSprite={coinPinkGrin} x={55} label="WIF" blinkDelay="0.25s" />
-            <RoadLane height={76} coinSprite={coinPurple} x={62} label="SOL" blinkDelay="0.1s" />
-            <RoadLane height={76} coinSprite={coinBlue} x={38} label="POPCAT" blinkDelay="0.35s" />
-          </RoadBand>
+          <AnimatedRace names={HERO_NAMES} bodies={HERO_BODIES} />
           <GrassStrip height={28} />
         </div>
       </header>
@@ -100,7 +137,7 @@ export function OnchainLandingPage() {
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 14, padding: 28 }}>
                 <h3 style={{ margin: 0, fontFamily: PIXEL, fontSize: 24, fontWeight: 400, lineHeight: 1.3 }}>RACES</h3>
                 <p style={{ margin: 0, fontSize: 20, lineHeight: 1.4, fontWeight: 500, textWrap: 'pretty' }}>
-                  Several coins start at once. The one whose price grows the most during the run takes the win.
+                  Bring your coin, match the stake and hit READY. The coin that grows the most takes the pot - spectators back racers and cheer.
                 </p>
                 <Link to="/onchain/races" className="rx-btn rx-btn-yellow" style={{ minHeight: 56, padding: '0 28px', fontFamily: PIXEL, fontSize: 16 }}>
                   TO THE START
@@ -121,15 +158,7 @@ export function OnchainLandingPage() {
                     ['91%', 22, 4, 2.1],
                   ]}
                 />
-                <div style={{ position: 'absolute', left: 0, right: 0, bottom: 40, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: 28 }}>
-                  <div style={{ animation: 'rx-bob 0.6s steps(1) infinite' }}>
-                    <PxSprite data={boxerOrange} width={114} height={102} />
-                  </div>
-                  <span style={{ alignSelf: 'center', fontFamily: PIXEL, fontSize: 32, color: YELLOW, textShadow: '4px 4px 0 #C2245A' }}>VS</span>
-                  <div style={{ animation: 'rx-bob 0.6s steps(1) 0.3s infinite' }}>
-                    <PxSprite data={boxerPink} width={114} height={102} flip />
-                  </div>
-                </div>
+                <ArenaCallsScene coin={coinPurpleGrin} calls={['$121.40', '$123.10', '$119.85', '$122.60', '$120.02']} />
                 <div
                   style={{
                     position: 'absolute',
@@ -147,7 +176,7 @@ export function OnchainLandingPage() {
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 14, padding: 28 }}>
                 <h3 style={{ margin: 0, fontFamily: PIXEL, fontSize: 24, fontWeight: 400, lineHeight: 1.3 }}>ARENA</h3>
                 <p style={{ margin: 0, fontSize: 20, lineHeight: 1.4, fontWeight: 500, textWrap: 'pretty' }}>
-                  One coin, one round. Call the final price - the closest call takes the bank.
+                  One coin, one round. Every player calls its final price - the closest calls take the bank.
                 </p>
                 <Link to="/onchain/arenas" className="rx-btn rx-btn-pink" style={{ minHeight: 56, padding: '0 28px', fontFamily: PIXEL, fontSize: 16 }}>
                   INTO THE FIGHT
@@ -157,6 +186,19 @@ export function OnchainLandingPage() {
           </div>
         </div>
       </section>
+
+      <PixelDivider kind="fence" from="#58D36B" to="#4B37B0" />
+
+      {/* ---------------------------------------------- PumpSwap coins */}
+      <section style={{ background: '#4B37B0', padding: '56px clamp(16px, 4vw, 64px)' }}>
+        <div style={{ maxWidth: 1200, margin: '0 auto' }}>
+          <PumpSwapCoins limit={10} feed />
+        </div>
+      </section>
+
+      <PixelDivider kind="finish" from="#4B37B0" to={CREAM} />
+      <TopPlayers />
+      <PixelDivider kind="grass" from="#58D36B" to={CREAM} />
 
       {/* ------------------------------------------------ how to play */}
       <section id="how" style={{ background: CREAM, padding: '72px clamp(16px, 4vw, 64px)' }}>
@@ -178,8 +220,10 @@ export function OnchainLandingPage() {
         </div>
       </section>
 
+      <PixelDivider kind="finish" from={CREAM} to={YELLOW} />
+
       {/* ------------------------------------------------------ token */}
-      <section style={{ background: YELLOW, borderTop: `4px solid ${INK}`, padding: '56px clamp(16px, 4vw, 64px)' }}>
+      <section style={{ background: YELLOW, padding: '56px clamp(16px, 4vw, 64px)' }}>
         <div style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '32px 48px' }}>
           <div style={{ flex: '1 1 420px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 24 }}>
             <div style={{ animation: 'rx-bob 0.6s steps(1) infinite' }}>

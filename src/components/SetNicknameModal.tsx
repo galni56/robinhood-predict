@@ -110,7 +110,7 @@ export function SetNicknameModal({ onClose }: { onClose: () => void }) {
               disabled={pending || !publicKey || current.isLoading}
               className="flex-1 rounded-none bg-gradient-to-r from-[#ff4f8b] to-[#ff4f8b] hover:brightness-110 text-black font-semibold py-2 text-sm disabled:opacity-50 transition-all"
             >
-              {pending ? 'Sign in wallet…' : 'Save'}
+              {pending ? 'Signing…' : 'Save'}
             </button>
           </div>
         </div>

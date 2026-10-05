@@ -14,6 +14,7 @@
 //   GET  /wallet/<address>    one wallet's stakes and payouts
 //   GET  /nicknames           wallet -> nickname
 //   POST /deposit {signature} apply a stake right after it confirmed
+//   POST /cheer   {duel, seat}  a free cheer for a duel racer (rate-limited)
 //   POST /action  {message, signature}  a wallet-signed action (create a
 //        race or arena, add a lobby asset, change a prediction, nickname)
 //
@@ -28,17 +29,24 @@
 //   PLATFORM_RACES        schedule file (default config/platform-races.json)
 //   GAME_SERVER_PORT / GAME_SERVER_HOST, TICK_MS (3000),
 //   PRIORITY_MICROLAMPORTS (0), ALLOWED_ORIGINS (comma list, default *)
+//   EXTRA_ASSETS          PumpSwap catalog file it writes and the price
+//                         service reads (default ./.data/pumpswap-assets.json)
+//   PUMPSWAP_REFRESH_MINUTES (15; 0 = off)
+//   PUBLIC_DATA_DIR       last-known data the site shows while the services
+//                         are off (pumpswap.json); nginx serves it as static
+//                         files (default ./.data/public)
 
-import { mkdirSync, readFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { Keypair } from '@solana/web3.js'
+import { Keypair, PublicKey } from '@solana/web3.js'
 import { openDatabase } from './db.mjs'
 import { createChain, isAddress } from './chain.mjs'
 import { catalogAssets, createEngine } from './engine.mjs'
 import { createPriceClient } from './prices.mjs'
 import { RuleError } from './rules.mjs'
+import { fetchPumpSwapPools, pumpFunMints, selectPumpSwapAssets } from './pumpswap.mjs'
 import { gameView, historyView, walletView } from './views.mjs'
 import { toJson } from './db.mjs'
 
@@ -71,7 +79,17 @@ mkdirSync(dirname(DB_PATH), { recursive: true })
 const db = openDatabase(DB_PATH)
 const chain = createChain({ rpcUrl: RPC, wallet, priorityMicroLamports: Number(process.env.PRIORITY_MICROLAMPORTS ?? 0) })
 const prices = createPriceClient(process.env.PRICE_SERVICE_URL ?? 'http://127.0.0.1:8790', chain.address)
-const assets = catalogAssets(readJson(new URL('config/solana-assets.json', ROOT)))
+const baseCatalog = readJson(new URL('config/solana-assets.json', ROOT))
+const EXTRA_ASSETS = resolve(process.env.EXTRA_ASSETS ?? fileURLToPath(new URL('.data/pumpswap-assets.json', ROOT)))
+const readExtra = () => {
+  try {
+    return readJson(EXTRA_ASSETS).assets ?? []
+  } catch {
+    return []
+  }
+}
+const allAssets = (extra) => catalogAssets({ assets: [...baseCatalog.assets, ...extra] })
+const assets = allAssets(readExtra())
 const schedulePath = process.env.PLATFORM_RACES ?? new URL('config/platform-races.json', ROOT)
 const engine = createEngine({
   db,
@@ -102,7 +120,7 @@ let solvency = null
 async function refreshSolvency() {
   try {
     const s = await engine.solvency()
-    solvency = { balance: s.balance.toString(), owed: s.owed.toString(), surplus: s.surplus.toString(), solvent: s.surplus >= 0n, at: Date.now() }
+    solvency = { balance: s.balance.toString(), owed: s.owed.toString(), surplus: s.surplus.toString(), solvent: s.balance >= s.owed, at: Date.now() }
     if (!solvency.solvent) console.error(`INSOLVENT: game wallet holds ${s.balance}, owes ${s.owed}`)
   } catch (error) {
     console.warn(`solvency check: ${error.message}`)
@@ -111,10 +129,11 @@ async function refreshSolvency() {
 
 // A few writes per minute per address is plenty for a player.
 const buckets = new Map()
-function allowWrite(ip) {
+/** `perMinute` writes a minute per key (an address, or cheer:<address>). */
+function allowWrite(ip, perMinute = 30) {
   const now = Date.now()
-  const bucket = buckets.get(ip) ?? { tokens: 30, at: now }
-  bucket.tokens = Math.min(30, bucket.tokens + ((now - bucket.at) / 60_000) * 30)
+  const bucket = buckets.get(ip) ?? { tokens: perMinute, at: now }
+  bucket.tokens = Math.min(perMinute, bucket.tokens + ((now - bucket.at) / 60_000) * perMinute)
   bucket.at = now
   buckets.set(ip, bucket)
   if (bucket.tokens < 1) return false
@@ -174,10 +193,11 @@ createServer(async (req, res) => {
             now: Math.floor(Date.now() / 1000),
             races: all.filter((g) => g.kind === 'race').map((g) => gameView(db, g)),
             arenas: all.filter((g) => g.kind === 'arena').map((g) => gameView(db, g)),
+            duels: all.filter((g) => g.kind === 'duel').map((g) => gameView(db, g)),
           }
         }))
       }
-      const game = /^\/games\/(race|arena)\/(\d+)$/.exec(path)
+      const game = /^\/games\/(race|arena|duel)\/(\d+)$/.exec(path)
       if (game) {
         const state = db.getGame(game[1], Number(game[2]))
         return state ? send(req, res, 200, gameView(db, state)) : send(req, res, 404, { error: 'GameNotFound' })
@@ -189,7 +209,17 @@ createServer(async (req, res) => {
       return send(req, res, 404, { error: 'NotFound' })
     }
     if (req.method === 'POST') {
-      if (!allowWrite(req.socket.remoteAddress ?? '')) return send(req, res, 429, { error: 'TooManyRequests' })
+      // Behind nginx every request comes from 127.0.0.1; the visitor is in X-Forwarded-For.
+      const remote = req.socket.remoteAddress ?? ''
+      const ip = /^(::ffff:)?127\.0\.0\.1$|^::1$/.test(remote) ? String(req.headers['x-forwarded-for'] ?? remote).split(',')[0].trim() : remote
+      if (path === '/cheer') {
+        if (!allowWrite(`cheer:${ip}`, 300)) return send(req, res, 429, { error: 'TooManyRequests' })
+        const body = await readBody(req)
+        const cheers = engine.cheer(Number(body.duel), Number(body.seat))
+        invalidate()
+        return send(req, res, 200, { cheers })
+      }
+      if (!allowWrite(ip)) return send(req, res, 429, { error: 'TooManyRequests' })
       const body = await readBody(req)
       if (path === '/deposit') {
         if (typeof body.signature !== 'string' || !/^[1-9A-HJ-NP-Za-km-z]{64,90}$/.test(body.signature)) throw new RuleError('BadSignature')
@@ -213,6 +243,55 @@ createServer(async (req, res) => {
 }).listen(PORT, HOST, () => {
   console.log(`game server on ${HOST}:${PORT} · ${CLUSTER} · game wallet ${chain.address} · ${assets.length} assets · db ${DB_PATH}`)
 })
+
+// The PumpSwap meme catalog: refreshed every PUMPSWAP_REFRESH_MINUTES and
+// written for the price service, which starts tracking new pools on the fly.
+const PUMPSWAP_MINUTES = Number(process.env.PUMPSWAP_REFRESH_MINUTES ?? 15)
+async function refreshPumpSwap() {
+  try {
+    const previous = readExtra()
+    const pools = await fetchPumpSwapPools()
+    const takenSymbols = new Set(baseCatalog.assets.map((a) => a.symbol.toUpperCase()))
+    // Coins launched from our site have ordinary mint addresses: confirm them by their pump.fun curve.
+    const others = [...new Set(pools.map((p) => p.mint).filter((m) => m && !m.endsWith('pump')))]
+    const pumpMints = others.length ? await pumpFunMints(chain.connection, others, PublicKey).catch(() => new Set()) : new Set()
+    const extra = selectPumpSwapAssets(pools, { takenSymbols, previous, keepSymbols: engine.liveSymbols(), pumpMints })
+    mkdirSync(dirname(EXTRA_ASSETS), { recursive: true })
+    writeFileSync(`${EXTRA_ASSETS}.tmp`, JSON.stringify({ updatedAt: new Date().toISOString(), source: 'pumpswap', assets: extra }, null, 1))
+    renameSync(`${EXTRA_ASSETS}.tmp`, EXTRA_ASSETS)
+    engine.setAssets(allAssets(extra))
+    invalidate()
+    console.log(`pumpswap: ${extra.length} coins (${extra.map((a) => a.symbol).join(', ')})`)
+  } catch (error) {
+    console.warn(`pumpswap refresh: ${error.message}`)
+  }
+}
+if (PUMPSWAP_MINUTES > 0) {
+  void refreshPumpSwap()
+  setInterval(refreshPumpSwap, PUMPSWAP_MINUTES * 60_000)
+}
+
+// Last-known PumpSwap coins with prices, rewritten every few minutes. The
+// site falls back to it when the game server is off, so nothing goes empty.
+const PUBLIC_DATA_DIR = resolve(process.env.PUBLIC_DATA_DIR ?? fileURLToPath(new URL('.data/public', ROOT)))
+async function writeLastData() {
+  try {
+    const prices = await fetch(`${process.env.PRICE_SERVICE_URL ?? 'http://127.0.0.1:8790'}/prices`, { signal: AbortSignal.timeout(10_000) }).then((r) => r.json())
+    const assets = engine.config().assets.filter((a) => a.source === 'pumpswap').map((a) => ({
+      ...a,
+      price: prices.prices?.[a.symbol] ? { raw: prices.prices[a.symbol].raw, decimals: prices.prices[a.symbol].decimals } : null,
+    }))
+    if (assets.length === 0) return
+    mkdirSync(PUBLIC_DATA_DIR, { recursive: true })
+    const file = `${PUBLIC_DATA_DIR}/pumpswap.json`
+    writeFileSync(`${file}.tmp`, toJson({ capturedAt: new Date().toISOString(), assets }))
+    renameSync(`${file}.tmp`, file)
+  } catch (error) {
+    console.warn(`last data: ${error.message}`)
+  }
+}
+setTimeout(writeLastData, 90_000)
+setInterval(writeLastData, 5 * 60_000)
 
 await engine.init()
 await refreshSolvency()

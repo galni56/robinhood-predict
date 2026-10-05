@@ -17,7 +17,6 @@ const ACTIVE: Record<ChipAccent, string> = {
 
 /** The Stocks/Memes category segment shared by race and arena pages. */
 const BASE_GAME_MODE_CHIP_OPTIONS = [
-  { key: 'stocks', label: 'Stocks', accent: 'cream' },
   { key: 'memes', label: 'Memes', accent: 'raceSoft' },
 ] as const satisfies readonly ChipOption<'stocks' | 'memes' | 'crypto'>[]
 

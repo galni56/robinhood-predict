@@ -2,7 +2,7 @@ import { useMemo, type ReactNode } from 'react'
 import { ConnectionProvider, WalletProvider } from '@solana/wallet-adapter-react'
 import { PhantomWalletAdapter } from '@solana/wallet-adapter-phantom'
 import { SolflareWalletAdapter } from '@solana/wallet-adapter-solflare'
-import { SOLANA_RPC_URL } from '@/solana/config'
+import { SOLANA_RPC_URL, SOLANA_WS_URL } from '@/solana/config'
 import { ProphetWalletAdapter } from '@/solana/prophetWallet'
 
 /** External extension wallets are off by default: players get the platform
@@ -22,7 +22,7 @@ export function SolanaProvider({ children }: { children: ReactNode }) {
     [],
   )
   return (
-    <ConnectionProvider endpoint={SOLANA_RPC_URL} config={{ commitment: 'confirmed' }}>
+    <ConnectionProvider endpoint={SOLANA_RPC_URL} config={{ commitment: 'confirmed', wsEndpoint: SOLANA_WS_URL }}>
       <WalletProvider wallets={wallets} autoConnect>
         {children}
       </WalletProvider>

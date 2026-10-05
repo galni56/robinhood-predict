@@ -265,3 +265,72 @@ test('first start records the wallet history instead of refunding it', async () 
   assert.equal(chain.paid.length, 0)
   assert.equal(db.getDeposit('dep-1').status, 'preexisting')
 })
+
+test('duel: empty lobbies, signed joins, stakes and backing by transfer, ready, payouts', async () => {
+  const { clock, chain, db, engine } = setup({})
+  const prices = {}
+  engine._setPrices?.(prices)
+  await engine.init()
+  await engine.tick()
+  const lobbies = db.games('duel')
+  assert.equal(lobbies.length, 10, 'ten empty lobbies wait for racers')
+  const id = lobbies[0].id
+  const vasya = wallet()
+  const petya = wallet()
+  engine.act(vasya.signed(clock, { action: 'duel-join', duel: id, asset: 'SOL', stake: String(SOL / 10n), duration: 300, unit: 'price' }))
+  engine.act(petya.signed(clock, { action: 'duel-join', duel: id, asset: 'BTC' }))
+  chain.deposit(vasya.address, SOL / 10n, `prophet:duel:${id}:0`, clock.t + 1)
+  chain.deposit(petya.address, SOL / 10n, `prophet:duel:${id}:0`, clock.t + 1)
+  chain.deposit('fan', SOL / 5n, `prophet:duel:${id}:2`, clock.t + 2)
+  chain.deposit('late', SOL / 10n, `prophet:duel:${id}:9`, clock.t + 2) // no such seat: refunded
+  await engine.tick()
+  let duel = db.getGame('duel', id)
+  assert.equal(duel.status, 'ready')
+  assert.equal(duel.backers.length, 1)
+  assert.equal(db.games('duel').filter((d) => d.racers.length === 0).length, 10, 'a used lobby is replaced')
+  clock.t += 5
+  engine.act(vasya.signed(clock, { action: 'duel-ready', duel: id }))
+  engine.act(petya.signed(clock, { action: 'duel-ready', duel: id }))
+  duel = db.getGame('duel', id)
+  assert.equal(duel.status, 'starting')
+  assert.equal(engine.cheer(id, 1), 1)
+  return { clock, chain, db, engine, id, duel }
+})
+
+test('duel: start and finish on boundary prices, the winner and his backers are paid', async () => {
+  const table = {}
+  const { clock, chain, db, engine } = setup(table)
+  await engine.init()
+  await engine.tick()
+  const id = db.games('duel')[0].id
+  const vasya = wallet()
+  const petya = wallet()
+  engine.act(vasya.signed(clock, { action: 'duel-join', duel: id, asset: 'SOL', stake: String(SOL / 10n), duration: 300 }))
+  engine.act(petya.signed(clock, { action: 'duel-join', duel: id, asset: 'BTC' }))
+  chain.deposit(vasya.address, SOL / 10n, `prophet:duel:${id}:0`, clock.t + 1)
+  chain.deposit(petya.address, SOL / 10n, `prophet:duel:${id}:0`, clock.t + 1)
+  chain.deposit('fan', SOL / 5n, `prophet:duel:${id}:2`, clock.t + 2)
+  chain.deposit('other', SOL / 10n, `prophet:duel:${id}:1`, clock.t + 2)
+  await engine.tick()
+  clock.t += 5
+  engine.act(vasya.signed(clock, { action: 'duel-ready', duel: id }))
+  engine.act(petya.signed(clock, { action: 'duel-ready', duel: id }))
+  const start = db.getGame('duel', id).startTime
+  table[start] = { 'pool-SOL': 100n, 'pool-BTC': 100n }
+  table[start + 300] = { 'pool-SOL': 101n, 'pool-BTC': 105n }
+  clock.t = start + 3
+  await engine.tick()
+  assert.equal(db.getGame('duel', id).status, 'running')
+  clock.t = start + 307
+  await engine.tick()
+  await engine.tick()
+  const duel = db.getGame('duel', id)
+  assert.equal(duel.status, 'resolved')
+  assert.equal(duel.winnerSeat, 2)
+  // Petya: 0.1 + 0.1 + 30% of 0.1 = 0.23, minus 2% of the 0.13 gain.
+  assert.equal(paidTo(chain, petya.address), (23n * SOL) / 100n - ((13n * SOL) / 100n) / 50n)
+  // fan: 0.2 + 70% of 0.1, minus 2% of the 0.07 gain.
+  assert.equal(paidTo(chain, 'fan'), (27n * SOL) / 100n - ((7n * SOL) / 100n) / 50n)
+  assert.equal(paidTo(chain, vasya.address) + paidTo(chain, 'other'), 0n)
+  assert.equal(db.payouts('pending').length + db.payouts('sent').length, 0)
+})

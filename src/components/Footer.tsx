@@ -1,4 +1,6 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { piu, setSfxEnabled, sfxEnabled } from '@/lib/sfx'
 import { CREAM, INK, PINK } from '@/retro/scene'
 import { PROPHET_X_URL } from '@/lib/social'
 
@@ -6,6 +8,7 @@ import { PROPHET_X_URL } from '@/lib/social'
 // underlined link row.
 
 export function Footer() {
+  const [sound, setSound] = useState(sfxEnabled)
   const linkStyle = {
     display: 'inline-flex',
     alignItems: 'center',
@@ -43,6 +46,17 @@ export function Footer() {
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 28px', fontSize: 20, fontWeight: 600 }}>
           <Link to="/terms" style={linkStyle}>Rules</Link>
           <a href={PROPHET_X_URL} target="_blank" rel="noreferrer" style={linkStyle}>X / Twitter</a>
+          <button
+            type="button"
+            onClick={() => {
+              setSfxEnabled(!sound)
+              setSound(!sound)
+              if (!sound) piu()
+            }}
+            style={{ ...linkStyle, background: 'none', border: 0, cursor: 'pointer', font: 'inherit' }}
+          >
+            Sound: {sound ? 'on' : 'off'}
+          </button>
         </div>
       </div>
     </footer>

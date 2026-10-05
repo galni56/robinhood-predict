@@ -35,7 +35,7 @@ import { WalletOptionsList } from '@/components/WalletOptionsList'
 import { formatStakeAmount, formatStakeExact, useStakeBalance, useStakeToken, type StakeToken } from '@/solana/stakeTokens'
 import { explorerUrl } from '@/solana/config'
 import { TxUnconfirmedError, useSendInstructions } from '@/solana/tx'
-import { formatCountdown, formatUnits, formatUsdPrice, parseUnits, shortTxError } from '@/lib/format'
+import { formatCompactUsd, formatCountdown, formatUnits, formatUsdPrice, parseUnits, shortTxError } from '@/lib/format'
 import { FightStage } from '@/retro/arena'
 import { CREAM, INK } from '@/retro/scene'
 import { PIXEL } from '@/retro/race'
@@ -45,12 +45,31 @@ function parseId(value?: string) {
   try { return BigInt(value) } catch { return null }
 }
 
-function displayPrice(raw: bigint, decimals: number) {
-  if (raw <= 0n) return '-'
-  return formatUsdPrice(Number(formatUnits(raw, decimals)))
+function absError(a: bigint, b: bigint) { return a >= b ? a - b : b - a }
+
+/** Coin supply in whole tokens (memes): turns a price into a market cap. */
+type Supply = number | undefined
+
+/** "4.2M", "850k", "1.5b" or a plain number, in USD. */
+function parseCapUsd(value: string) {
+  const match = /^\s*\$?\s*([0-9]+(?:[.,][0-9]+)?)\s*([kmb]?)\s*$/i.exec(value)
+  if (!match) return null
+  const base = Number(match[1].replace(',', '.'))
+  const scale = { '': 1, k: 1e3, m: 1e6, b: 1e9 }[match[2].toLowerCase() as '' | 'k' | 'm' | 'b']
+  return base * scale
 }
 
-function absError(a: bigint, b: bigint) { return a >= b ? a - b : b - a }
+/** A market cap entered by a player, as the raw price the game settles on. */
+function capToPrice(capUsd: number, supply: number, decimals: number) {
+  const price = capUsd / supply
+  return BigInt(Math.round(price * 10 ** decimals))
+}
+
+function displayValue(raw: bigint, decimals: number, supply: Supply) {
+  if (raw <= 0n) return '-'
+  const price = Number(formatUnits(raw, decimals))
+  return supply ? formatCompactUsd(price * supply) : formatUsdPrice(price)
+}
 
 /** A form problem caught before any transaction; shown as-is. */
 class EntryInputError extends Error {}
@@ -71,9 +90,10 @@ function cancelReasonText(reason: number) {
   return 'The round was cancelled.'
 }
 
-function ArenaBoard({ rows, referencePrice, decimals, resolved, winnerCount, token }: {
+function ArenaBoard({ rows, referencePrice, decimals, resolved, winnerCount, token, supply }: {
   rows: PriceArenaEntry[]
   token: StakeToken
+  supply: Supply
   referencePrice: bigint
   decimals: number
   resolved: boolean
@@ -99,7 +119,7 @@ function ArenaBoard({ rows, referencePrice, decimals, resolved, winnerCount, tok
         return <div key={entry.player} className={`grid gap-3 rounded-none border-[3px] border-[#1B1340] p-4 text-[#1B1340] sm:grid-cols-[2.5rem_1fr_1fr_1fr] sm:items-center ${winning ? 'bg-[#8BE89A]/60' : 'bg-white'}`}>
           <div className="font-mono text-lg text-[#1B1340]/60">#{resolved ? entry.rank : index + 1}</div>
           <div className="min-w-0"><AddressLabel address={entry.player} className="font-bold text-[#1B1340]" /><div title={fmtExact(entry.stake)} className="truncate text-sm font-semibold text-[#1B1340]/55">{fmt(entry.stake)}</div></div>
-          <div><div className="text-sm font-semibold text-[#1B1340]/55">Prediction</div><div className="font-mono font-bold">{displayPrice(entry.prediction, decimals)}</div></div>
+          <div><div className="text-sm font-semibold text-[#1B1340]/55">{supply ? 'Market cap call' : 'Prediction'}</div><div className="font-mono font-bold">{displayValue(entry.prediction, decimals, supply)}</div></div>
           <div className="min-w-0 sm:text-right"><div className="text-sm font-semibold text-[#1B1340]/55">{resolved ? (winning ? 'Payout' : 'Result') : 'Live deviation'}</div><div title={resolved && entry.payout > 0n ? fmtExact(entry.payout) : undefined} className={`truncate font-mono font-bold ${winning ? 'text-[#1E7A36]' : 'text-[#1B1340]/60'}`}>{resolved ? (entry.payout > 0n ? fmt(entry.payout) : 'Lost') : `${error.toFixed(4)}%`}</div></div>
         </div>
       })}
@@ -133,6 +153,12 @@ export function OnchainArenaPage() {
   const liveAsset = arena ? live.assets[arena.symbol] : undefined
   const livePrice = liveAsset && liveAsset.decimals === arena?.priceDecimals ? liveAsset.raw : 0n
   const referencePrice = phase === PRICE_ARENA_PHASE.RESOLVED ? arena!.finalPrice : livePrice
+  // Memes are called by market cap (price x supply) unless the player picks price.
+  const supplyTokens = liveAsset?.supply ? Number(liveAsset.supply.raw) / 10 ** liveAsset.supply.decimals : undefined
+  // The creator picked the arena's unit; a player may still switch the input.
+  const [unitChoice, setUnitChoice] = useState<'cap' | 'price' | null>(null)
+  const unit = supplyTokens ? (unitChoice ?? arena?.unit ?? 'price') : 'price'
+  const supply: Supply = unit === 'cap' ? supplyTokens : undefined
   let quotedEntry: FrozenStakeQuote | undefined
   try {
     quotedEntry = usdQuoted && amount.trim() && live.solUsd ? freezeStakeQuote(amount, stakeInputUnit, live.solUsd) : undefined
@@ -183,7 +209,14 @@ export function OnchainArenaPage() {
       const frozenQuote = usdQuoted && amount.trim() && live.solUsd ? freezeStakeQuote(amount, stakeInputUnit, live.solUsd) : null
       const additional = frozenQuote?.lamports ?? (!usdQuoted && amount.trim() ? parseTokenAmount(amount, token.decimals) : 0n)
       setFrozenEntryQuote(frozenQuote)
-      const predicted = parsePrediction(prediction, arena.priceDecimals)
+      let predicted: bigint
+      if (unit === 'cap' && supplyTokens && prediction.trim()) {
+        const cap = parseCapUsd(prediction)
+        if (cap == null || cap <= 0) throw new EntryInputError('Enter a market cap like 4.2M or 850K')
+        predicted = capToPrice(cap, supplyTokens, arena.priceDecimals)
+      } else {
+        predicted = parsePrediction(prediction, arena.priceDecimals)
+      }
       if (!walletEntry && (predicted <= 0n || additional <= 0n)) throw new EntryInputError(usdQuoted ? 'Enter a price and a stake from $1 to $50' : 'Enter a price and a stake')
       if (walletEntry && predicted === 0n && additional === 0n) throw new EntryInputError('Enter a new price or a top-up amount')
       const guardrail = stakeGuardrailViolation(additional, {
@@ -199,7 +232,7 @@ export function OnchainArenaPage() {
       }
       if (additional === 0n) {
         // Only the prediction changes: a signed message, no transaction.
-        setTxLabel('Sign in wallet…')
+        setTxLabel('Signing…')
         await act({ action: 'change-prediction', arena: Number(arena.id), prediction: predicted.toString() })
         setPrediction(''); setTxLabel(null)
         await refetchAfterTx()
@@ -210,7 +243,7 @@ export function OnchainArenaPage() {
       setTxLabel(walletEntry ? 'Preparing arena update…' : 'Preparing arena entry…')
       const instructions = stakeInstructions({ player: publicKey, gameWallet, lamports: additional, memo: arenaStakeMemo(arena.id, predicted) })
       const signature = await send(instructions, {
-        onPhase: (phase) => setTxLabel(phase === 'signing' ? 'Confirm in wallet…' : 'Waiting for confirmation…'),
+        onPhase: (phase) => setTxLabel(phase === 'signing' ? 'Sending…' : 'Waiting for confirmation…'),
       })
       setTxLabel('Recording your entry…')
       const outcome = await reportDeposit(signature).catch(() => null)
@@ -261,7 +294,7 @@ export function OnchainArenaPage() {
         <div className="mt-2 flex flex-wrap items-center justify-between gap-3" style={{ fontSize: 20, fontWeight: 600 }}>
           <span>Players {arena.participantCount} / {PRICE_ARENA_MAX_PARTICIPANTS}</span>
           <span style={{ fontFamily: PIXEL, fontSize: 14 }}>BANK {fmt(arena.totalPool)}</span>
-          <span>{phase === PRICE_ARENA_PHASE.RESOLVED ? 'Final price' : 'Live price'} <span style={{ fontFamily: PIXEL, fontSize: 14 }}>{displayPrice(referencePrice, arena.priceDecimals)}</span></span>
+          <span>{phase === PRICE_ARENA_PHASE.RESOLVED ? (supply ? 'Final cap' : 'Final price') : (supply ? 'Live cap' : 'Live price')} <span style={{ fontFamily: PIXEL, fontSize: 14 }}>{displayValue(referencePrice, arena.priceDecimals, supply)}</span></span>
         </div>
 
         {!token ? <p className="py-10 text-center text-sm text-white/40">Loading stake currency…</p> : phase === PRICE_ARENA_PHASE.LOBBY ? <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_0.8fr]">
@@ -269,9 +302,18 @@ export function OnchainArenaPage() {
           <section className="rx-raised" style={{ background: CREAM, color: INK, padding: 24 }}>
             <h2 style={{ margin: 0, fontFamily: PIXEL, fontSize: 14, fontWeight: 400, lineHeight: 1.4 }}>{walletEntry ? 'UPDATE YOUR ENTRY' : 'YOUR CALL'}</h2>
             {walletEntry && <p title={fmtExact(walletEntry.stake)} className="mt-2 text-sm text-white/50">Your current stake is {fmt(walletEntry.stake)}. Leave price empty to keep it. Money cannot be withdrawn before settlement.</p>}
-            <label className="mt-5 block">
-              <span className="mb-1.5 block text-sm text-white/50">{walletEntry ? 'New price · optional' : 'Predicted final price · USD'}</span>
-              <input value={prediction} onChange={(event) => setPrediction(event.target.value)} inputMode="decimal" placeholder={walletEntry ? 'Keep current prediction' : '0.00'} className="rx-input" style={{ width: 'calc(100% - 8px)', height: 56, padding: '0 16px', fontFamily: PIXEL, fontSize: 20 }} />
+            {supplyTokens && (
+              <div className="mt-5" style={{ display: 'flex', gap: 4 }}>
+                {(['cap', 'price'] as const).map((choice) => (
+                  <button key={choice} type="button" onClick={() => { setUnitChoice(choice); setPrediction('') }} className={`rx-btn ${unit === choice ? 'rx-btn-yellow' : 'rx-btn-white'}`} style={{ padding: '8px 14px', fontSize: 14, fontWeight: 700 }}>
+                    {choice === 'cap' ? 'Market cap' : 'Price'}
+                  </button>
+                ))}
+              </div>
+            )}
+            <label className="mt-4 block">
+              <span className="mb-1.5 block text-sm text-white/50">{walletEntry ? `New ${unit === 'cap' ? 'market cap' : 'price'} · optional` : unit === 'cap' ? 'Final market cap · USD (e.g. 4.2M)' : 'Predicted final price · USD'}</span>
+              <input value={prediction} onChange={(event) => setPrediction(event.target.value)} inputMode="decimal" placeholder={walletEntry ? 'Keep current prediction' : unit === 'cap' ? `now ${displayValue(livePrice, arena.priceDecimals, supplyTokens)}` : '0.00'} className="rx-input" style={{ width: 'calc(100% - 8px)', height: 56, padding: '0 16px', fontFamily: PIXEL, fontSize: 20 }} />
             </label>
             <div className="mt-4">
               <StakeAmountInput
@@ -318,7 +360,7 @@ export function OnchainArenaPage() {
                   {txLabel ?? (walletEntry ? 'UPDATE ENTRY' : 'STEP INTO THE RING')}
                 </button>}
           </section>
-        </div> : phase === PRICE_ARENA_PHASE.CANCELLED ? <div className="rx-raised mt-6" style={{ background: CREAM, color: INK, padding: 24 }}><h2 style={{ margin: 0, fontFamily: PIXEL, fontSize: 16 }}>ARENA CANCELLED</h2><p className="mt-2 text-sm text-white/55">{cancelReasonText(arena.cancelReason)} Every player gets a full refund, sent to their wallet automatically.</p>{walletEntry && (payoutNote ?? <div className="mt-5 text-center text-sm font-bold" style={{ color: '#B8860B' }}>Preparing your refund…</div>)}{error && <p className="mt-3 text-sm text-rose-400">{error}</p>}</div> : <section className="rx-raised mt-7" style={{ background: CREAM, color: INK, padding: 24 }}><div className="mb-4 flex items-end justify-between"><div><h2 style={{ margin: 0, fontFamily: PIXEL, fontSize: 14, fontWeight: 400, lineHeight: 1.4 }}>{phase === PRICE_ARENA_PHASE.RUNNING ? underfilled ? 'NOT ENOUGH PLAYERS' : awaitingSettlement ? 'SETTLEMENT PENDING' : 'LIVE LEADERBOARD' : 'FINAL STANDINGS'}</h2><p className="mt-2" style={{ fontSize: 18, fontWeight: 500, opacity: 0.7 }}>{phase === PRICE_ARENA_PHASE.RUNNING ? underfilled ? 'Fewer than two players joined. This arena is being cancelled and every stake goes back to its wallet.' : awaitingSettlement ? 'The round is closed. The game server is fixing the signed deadline price and the final ranking.' : 'Positions update with the display price; settlement uses the signed pool price at the deadline.' : `Closest ${arena.winnerCount} player${arena.winnerCount === 1 ? '' : 's'} won.`}</p></div>{phase === PRICE_ARENA_PHASE.RUNNING && !awaitingSettlement && live.disconnected && <span className="text-xs font-bold text-[#B8860B]">Live feed reconnecting…</span>}</div><ArenaBoard rows={entries} referencePrice={referencePrice} decimals={arena.priceDecimals} resolved={phase === PRICE_ARENA_PHASE.RESOLVED} winnerCount={arena.winnerCount} token={token} />{phase === PRICE_ARENA_PHASE.RESOLVED && walletEntry && walletEntry.payout > 0n ? (payoutNote ?? <div className="mt-5 text-center text-sm font-bold" style={{ color: '#B8860B' }}>Preparing your payout…</div>) : null}{error && <p className="mt-3 text-sm text-rose-400">{error}</p>}</section>}
+        </div> : phase === PRICE_ARENA_PHASE.CANCELLED ? <div className="rx-raised mt-6" style={{ background: CREAM, color: INK, padding: 24 }}><h2 style={{ margin: 0, fontFamily: PIXEL, fontSize: 16 }}>ARENA CANCELLED</h2><p className="mt-2 text-sm text-white/55">{cancelReasonText(arena.cancelReason)} Every player gets a full refund, sent to their wallet automatically.</p>{walletEntry && (payoutNote ?? <div className="mt-5 text-center text-sm font-bold" style={{ color: '#B8860B' }}>Preparing your refund…</div>)}{error && <p className="mt-3 text-sm text-rose-400">{error}</p>}</div> : <section className="rx-raised mt-7" style={{ background: CREAM, color: INK, padding: 24 }}><div className="mb-4 flex items-end justify-between"><div><h2 style={{ margin: 0, fontFamily: PIXEL, fontSize: 14, fontWeight: 400, lineHeight: 1.4 }}>{phase === PRICE_ARENA_PHASE.RUNNING ? underfilled ? 'NOT ENOUGH PLAYERS' : awaitingSettlement ? 'SETTLEMENT PENDING' : 'LIVE LEADERBOARD' : 'FINAL STANDINGS'}</h2><p className="mt-2" style={{ fontSize: 18, fontWeight: 500, opacity: 0.7 }}>{phase === PRICE_ARENA_PHASE.RUNNING ? underfilled ? 'Fewer than two players joined. This arena is being cancelled and every stake goes back to its wallet.' : awaitingSettlement ? 'The round is closed. The game server is fixing the signed deadline price and the final ranking.' : 'Positions update with the display price; settlement uses the signed pool price at the deadline.' : `Closest ${arena.winnerCount} player${arena.winnerCount === 1 ? '' : 's'} won.`}</p></div>{phase === PRICE_ARENA_PHASE.RUNNING && !awaitingSettlement && live.disconnected && <span className="text-xs font-bold text-[#B8860B]">Live feed reconnecting…</span>}</div><ArenaBoard rows={entries} referencePrice={referencePrice} decimals={arena.priceDecimals} resolved={phase === PRICE_ARENA_PHASE.RESOLVED} winnerCount={arena.winnerCount} token={token} supply={supply} />{phase === PRICE_ARENA_PHASE.RESOLVED && walletEntry && walletEntry.payout > 0n ? (payoutNote ?? <div className="mt-5 text-center text-sm font-bold" style={{ color: '#B8860B' }}>Preparing your payout…</div>) : null}{error && <p className="mt-3 text-sm text-rose-400">{error}</p>}</section>}
       </>}
     </div>
     </div>

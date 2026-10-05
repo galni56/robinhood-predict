@@ -5,4 +5,5 @@ export const ALL_ASSET_TYPES_ENABLED = import.meta.env.VITE_ALL_ASSET_TYPES_ENAB
 
 // Transitional alias keeps the category components small. It means "all
 // three asset types", not Crypto in isolation.
-export const CRYPTO_ASSETS_ENABLED = ALL_ASSET_TYPES_ENABLED
+// Stocks are off (owner, 2026-10-05); memes and crypto are always on.
+export const CRYPTO_ASSETS_ENABLED = true

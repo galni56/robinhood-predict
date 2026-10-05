@@ -47,6 +47,7 @@ import {
   startRace,
 } from './rules.mjs'
 import { BASE_FEE, RENT_EXEMPT_MINIMUM, fromBase58, isAddress } from './chain.mjs'
+import { DUEL, backDuel, createDuel, duelNeedsResolve, duelNeedsStart, duelSettlements, duelTimers, joinDuel, leaveDuel, payDuel, prepareDuel, readyDuel, resolveDuel, startDuel } from './duel.mjs'
 import { FINAL_STATUSES } from './db.mjs'
 
 const LAMPORTS_PER_SOL = 1_000_000_000n
@@ -70,6 +71,8 @@ export const DEFAULTS = {
   maxPayoutAttempts: 6,
   rebroadcastEverySeconds: 8,
   arenaLobbyDuration: ARENA.lobbyDuration,
+  /** Spectators may back one duel racer with up to this much (USD cents). */
+  duelBackCapUsdCents: 10_000,
 }
 
 const ED25519_SPKI_PREFIX = Buffer.from('302a300506032b6570032100', 'hex')
@@ -84,7 +87,8 @@ export function verifyWalletSignature(wallet, message, signatureBase64) {
 /** Catalog assets (config/solana-assets.json) the games may use. */
 export function catalogAssets(catalog) {
   return catalog.assets
-    .filter((a) => a.approved !== false)
+    // Stocks are off (owner decision, 2026-10-05): memes and crypto only.
+    .filter((a) => a.approved !== false && a.category !== 'STOCK')
     .map((a) => ({
       symbol: a.symbol,
       name: a.name,
@@ -92,6 +96,11 @@ export function catalogAssets(catalog) {
       priceSource: a.pool,
       priceDecimals: a.priceDecimals,
       enabled: true,
+      mint: a.mint,
+      logoUrl: a.icon ?? null,
+      priceUrl: a.priceUrl ?? null,
+      source: a.source ?? 'catalog',
+      ...(a.source === 'pumpswap' ? { liquidityUsd: a.liquidityUsd, volume24hUsd: a.volume24hUsd, poolCreatedAt: a.poolCreatedAt, addedAt: a.addedAt } : {}),
     }))
 }
 
@@ -109,7 +118,9 @@ export function catalogAssets(catalog) {
 export function createEngine({ db, chain, prices, assets, cluster, coldWallet = null, admin = null, clock, log = console, options = {} }) {
   const opts = { ...DEFAULTS, ...options }
   const now = clock ?? (() => Math.floor(Date.now() / 1000))
-  const assetBySymbol = new Map(assets.map((a) => [a.symbol, a]))
+  // Replaced when the PumpSwap catalog refreshes (setAssets).
+  let currentAssets = assets
+  let assetBySymbol = new Map(assets.map((a) => [a.symbol, a]))
   const platformCreator = admin ?? chain.address
   const funders = new Set([coldWallet, admin].filter(Boolean))
   let lastScan = { at: 0, pending: 0 }
@@ -185,7 +196,9 @@ export function createEngine({ db, chain, prices, assets, cluster, coldWallet = 
     const game = db.getGame(memo.kind, memo.id)
     if (!game) throw new RuleError('GameNotFound')
     if (memo.kind === 'race') placeBet(game, { ...stake, assetIndex: memo.assetIndex })
-    else arenaDeposit(game, { ...stake, prediction: memo.prediction })
+    else if (memo.kind === 'arena') arenaDeposit(game, { ...stake, prediction: memo.prediction })
+    else if (memo.seat === 0) payDuel(game, stake)
+    else backDuel(game, { ...stake, seat: memo.seat, maxPerWallet: duelBackCap() })
     db.saveGame(game)
   }
 
@@ -268,13 +281,27 @@ export function createEngine({ db, chain, prices, assets, cluster, coldWallet = 
     })
   }
 
+  /** Money the duel rules moved outside settlement (leaves, kicks, tax shares). */
+  function queueDuelTransfers(duel, transfers, tag) {
+    transfers.forEach((tr, i) => {
+      db.addPayout({ key: `duel:${duel.id}:${tag}:${i}:${tr.reason}:${tr.wallet}`, kind: tr.reason === 'tax-share' ? 'tax-share' : 'refund', wallet: tr.wallet, amount: tr.amount, gameKind: 'duel', gameId: duel.id })
+    })
+  }
+
   function queueSettlements(game) {
-    const settlements = game.kind === 'race' ? raceSettlements(game) : arenaSettlements(game)
+    const raw = game.kind === 'race' ? raceSettlements(game) : game.kind === 'arena' ? arenaSettlements(game) : duelSettlements(game)
+    // One payout per wallet and reason (a spectator may have backed twice).
+    const merged = new Map()
+    for (const s of raw) {
+      const key = `${s.reason}:${s.wallet}`
+      merged.set(key, { ...s, amount: (merged.get(key)?.amount ?? 0n) + s.amount })
+    }
+    const settlements = [...merged.values()]
     for (const s of settlements) {
       db.addPayout({ key: `${game.kind}:${game.id}:${s.reason}:${s.wallet}`, kind: s.reason, wallet: s.wallet, amount: s.amount, gameKind: game.kind, gameId: game.id })
     }
-    // Platform races credit Prophet; their creator half stays with the fees.
-    const creatorPaid = game.kind === 'arena' || game.origin === 'community'
+    // Platform races and duels credit Prophet; their creator half stays with the fees.
+    const creatorPaid = game.kind === 'arena' || (game.kind === 'race' && game.origin === 'community')
     if (game.status === 'resolved' && creatorPaid && game.creatorFee > 0n) {
       const balance = db.creatorBalance(game.creator) + game.creatorFee
       if (balance >= opts.creatorPayoutMin) {
@@ -436,6 +463,48 @@ export function createEngine({ db, chain, prices, assets, cluster, coldWallet = 
     }
   }
 
+  // --------------------------------------------------------------- duels
+
+  // SOL/USD for the spectator cap; refreshed every tick when the service has it.
+  let solUsd = null
+  const duelBackCap = () => (solUsd ? (BigInt(opts.duelBackCapUsdCents) * LAMPORTS_PER_SOL * 10n ** BigInt(solUsd.decimals)) / (solUsd.raw * 100n) : LAMPORTS_PER_SOL / 2n)
+  const kicksThisWeek = (wallet) => db.kicksSince(wallet, now() - 7 * 24 * 3600)
+
+  async function advanceDuel(duel, t) {
+    const { id } = duel
+    if (duel.status === 'open' || duel.status === 'ready' || duel.status === 'starting' || duel.status === 'running') {
+      mutate('duel', id, (d) => {
+        const { transfers, kicked } = duelTimers(d, t, kicksThisWeek)
+        for (const wallet of kicked) db.addKick(wallet, t)
+        if (transfers.length) queueDuelTransfers(d, transfers, `t${t}`)
+      })
+    }
+    const fresh = db.getGame('duel', id)
+    if (fresh.status === 'starting' && t >= fresh.startTime + 2 && duelNeedsStart(fresh, t)) {
+      const b = await boundaryPrices(fresh.startTime, fresh.racers.map((r) => ({ symbol: r.symbol, priceSource: r.priceSource, priceDecimals: r.priceDecimals })))
+      mutate('duel', id, (d) => {
+        if (!duelNeedsStart(d, t)) return null
+        d.startAttestation = attestationRecord(b)
+        return startDuel(d, b, t)
+      })
+    } else if (fresh.status === 'running' && duelNeedsResolve(fresh, t)) {
+      const b = await boundaryPrices(fresh.endTime, fresh.racers.map((r) => ({ symbol: r.symbol, priceSource: r.priceSource, priceDecimals: r.priceDecimals })))
+      mutate('duel', id, (d) => {
+        if (!duelNeedsResolve(d, t)) return null
+        d.endAttestation = attestationRecord(b)
+        return resolveDuel(d, b, t)
+      })
+    }
+  }
+
+  /** Keeps DUEL.emptyLobbies empty lobbies waiting for racers. */
+  function fillDuelLobbies(t) {
+    const empty = db.liveGames().filter((g) => g.kind === 'duel' && g.status === 'open' && g.racers.length === 0).length
+    for (let i = empty; i < DUEL.emptyLobbies; i++) {
+      db.transaction(() => db.saveGame(createDuel(db.nextId('duel'), t)))
+    }
+  }
+
   // ---------------------------------------------------------------- tick
 
   let running = false
@@ -445,10 +514,13 @@ export function createEngine({ db, chain, prices, assets, cluster, coldWallet = 
     try {
       await scanDeposits()
       const t = now()
+      if (prices?.solUsd) solUsd = await prices.solUsd().catch(() => solUsd)
+      fillDuelLobbies(t)
       for (const game of db.liveGames()) {
         try {
           if (game.kind === 'race') await advanceRace(game, t)
-          else await advanceArena(game, t)
+          else if (game.kind === 'arena') await advanceArena(game, t)
+          else await advanceDuel(game, t)
         } catch (error) {
           log.warn(`${game.kind} #${game.id}: ${error.message}`)
         }
@@ -505,7 +577,7 @@ export function createEngine({ db, chain, prices, assets, cluster, coldWallet = 
           requireCreationRoom(wallet)
           const symbols = Array.isArray(payload.assets) ? payload.assets : []
           const race = createCommunityRace(db.nextId('race'), {
-            title: payload.title, category: payload.category, creator: wallet, raceDuration: payload.duration,
+            title: payload.title, category: payload.category, creator: wallet, raceDuration: payload.duration, unit: payload.unit,
           }, symbols.map(requireAsset), t)
           db.saveGame(race)
           return { kind: 'race', id: race.id }
@@ -515,7 +587,7 @@ export function createEngine({ db, chain, prices, assets, cluster, coldWallet = 
           return { kind: 'race', id: Number(payload.race) }
         case 'create-arena': {
           requireCreationRoom(wallet)
-          const arena = createArena(db.nextId('arena'), { title: payload.title, creator: wallet, duration: payload.duration }, requireAsset(payload.asset), t, opts.arenaLobbyDuration)
+          const arena = createArena(db.nextId('arena'), { title: payload.title, creator: wallet, duration: payload.duration, unit: payload.unit }, requireAsset(payload.asset), t, opts.arenaLobbyDuration)
           db.saveGame(arena)
           return { kind: 'arena', id: arena.id }
         }
@@ -537,6 +609,26 @@ export function createEngine({ db, chain, prices, assets, cluster, coldWallet = 
           db.setNickname(wallet, nickname)
           return { nickname }
         }
+        case 'duel-create': {
+          if (openGamesBy(wallet).filter((g) => g.kind === 'duel').length >= opts.maxOpenGamesPerWallet) throw new RuleError('TooManyOpenGames')
+          const duel = createDuel(db.nextId('duel'), t, wallet)
+          db.saveGame(duel)
+          return { kind: 'duel', id: duel.id }
+        }
+        case 'duel-join': {
+          const stake = payload.stake != null && /^\d{1,20}$/.test(String(payload.stake)) ? BigInt(payload.stake) : undefined
+          mutate('duel', Number(payload.duel), (d) => joinDuel(d, { wallet, asset: requireAsset(payload.asset), stake, duration: payload.duration, unit: payload.unit, title: payload.title }, t))
+          return { kind: 'duel', id: Number(payload.duel) }
+        }
+        case 'duel-leave':
+          mutate('duel', Number(payload.duel), (d) => queueDuelTransfers(d, leaveDuel(d, wallet), `leave${t}`))
+          return { kind: 'duel', id: Number(payload.duel) }
+        case 'duel-ready':
+          mutate('duel', Number(payload.duel), (d) => readyDuel(d, wallet, t))
+          return { kind: 'duel', id: Number(payload.duel) }
+        case 'duel-prepare':
+          mutate('duel', Number(payload.duel), (d) => prepareDuel(d, wallet, t))
+          return { kind: 'duel', id: Number(payload.duel) }
         default:
           throw new RuleError('UnknownAction')
       }
@@ -585,8 +677,19 @@ export function createEngine({ db, chain, prices, assets, cluster, coldWallet = 
     }
   }
 
+  /** A free cheer for a racer (no wallet; the server rate-limits per address). */
+  function cheer(duelId, seat) {
+    return mutate('duel', Number(duelId), (d) => {
+      const r = d.racers.find((x) => x.seat === Number(seat))
+      if (!r || d.status === 'resolved' || d.status === 'void') throw new RuleError('NoSuchRacer')
+      r.cheers += 1
+      return r.cheers
+    })
+  }
+
   return {
     init,
+    cheer,
     ingest,
     scanDeposits,
     tick,
@@ -605,7 +708,16 @@ export function createEngine({ db, chain, prices, assets, cluster, coldWallet = 
       stake: { min: STAKE.min, max: STAKE.max },
       race: { minAssets: RACE.minAssets, maxAssets: RACE.maxAssets, communityDurations: COMMUNITY_RACE_DURATIONS, communityPolicy: COMMUNITY_POLICY },
       arena: { durations: ARENA.durations, lobbyDuration: ARENA.lobbyDuration, maxParticipants: ARENA.maxParticipants, feeBp: ARENA.feeBp },
-      assets,
+      duel: { minRacers: DUEL.minRacers, maxRacers: DUEL.maxRacers, durations: DUEL.durations, payWindow: DUEL.payWindow, readyWindow: DUEL.readyWindow, prepareExtra: DUEL.prepareExtra, backCap: duelBackCap(), racerShareBp: Number(DUEL.racerShareBp), feeBp: Number(DUEL.feeBp) },
+      assets: currentAssets,
     }),
+    setAssets(list) {
+      currentAssets = list
+      assetBySymbol = new Map(list.map((a) => [a.symbol, a]))
+    },
+    /** Symbols of assets used by games that are not final yet. */
+    liveSymbols() {
+      return new Set(db.liveGames().flatMap((g) => (g.kind === 'race' ? g.assets.map((a) => a.symbol) : [g.symbol])))
+    },
   }
 }

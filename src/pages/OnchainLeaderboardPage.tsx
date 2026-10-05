@@ -8,6 +8,10 @@ import { FilterChips } from '@/components/FilterChips'
 import { TrophyIcon } from '@/components/icons'
 import { TokenLogo } from '@/components/TokenLogo'
 import { formatCompactSol, formatSol } from '@/lib/format'
+import { Podium } from '@/retro/landingFx'
+import { coinBlueGrin, coinOrangeGrin, coinPinkGrin } from '@/retro/spriteData'
+
+const PODIUM_SPRITES = [coinOrangeGrin, coinPinkGrin, coinBlueGrin]
 
 type Board = 'all' | 'races' | 'arenas'
 
@@ -50,6 +54,12 @@ export function OnchainLeaderboardPage() {
           <p className="mt-2 text-sm text-[#1B1340]/55">Ranked by net result in SOL: everything received back minus everything staked.</p>
         </div>
         <FilterChips options={BOARD_OPTIONS} value={board} onChange={(next) => setParams(next === 'all' ? {} : { board: next })} />
+      </div>
+
+      <div className="mt-16">
+        <Podium places={[0, 1, 2].map((i) => (rows[i] && BigInt(rows[i].net) > 0n
+          ? { name: <AddressLabel address={rows[i].wallet} />, value: `+${formatCompactSol(BigInt(rows[i].net))}`, sprite: PODIUM_SPRITES[i] }
+          : undefined)) as Parameters<typeof Podium>[0]['places']} />
       </div>
 
       <div className="mt-6 overflow-hidden rounded-none border border-[#1B1340]/12 bg-[#FFF6DF]">

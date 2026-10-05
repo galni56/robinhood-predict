@@ -1,7 +1,9 @@
 import { useCallback } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useWallet } from '@solana/wallet-adapter-react'
-import { GAME_SERVER_URL } from '@/solana/services'
+import { GAME_SERVER_URL, LAST_DATA_URL } from '@/solana/services'
+import { registerAssetIcons } from '@/lib/assetIcons'
+import pumpswapSnapshot from '@/chain/pumpswapSnapshot.json'
 
 // Client of the game server (scripts/solana/game-server). The server holds
 // the game wallet: stakes are SOL transfers to it with a `prophet:` memo
@@ -35,6 +37,8 @@ export interface ServerRace {
   kind: 'race'
   id: number
   address: string
+  /** Display unit chosen by the creator (older games: none = price). */
+  unit?: 'price' | 'cap'
   status: 'lobby' | 'betting' | 'running' | 'resolved' | 'cancelled' | 'void'
   cancelReason: string | null
   origin: 'platform' | 'community'
@@ -86,6 +90,7 @@ export interface ServerArena {
   kind: 'arena'
   id: number
   address: string
+  unit?: 'price' | 'cap'
   symbol: string
   priceSource: string
   priceDecimals: number
@@ -128,7 +133,27 @@ export interface ServerConfig {
   stake: { min: string; max: string }
   race: { minAssets: number; maxAssets: number; communityDurations: number[]; communityPolicy: { lobbyDuration: number; bettingDuration: number; startGrace: number; resolutionGrace: number; feeBp: number } }
   arena: { durations: number[]; lobbyDuration: number; maxParticipants: number; feeBp: number }
-  assets: { symbol: string; name: string; category: string; priceSource: string; priceDecimals: number }[]
+  assets: ServerAsset[]
+}
+
+export interface ServerAsset {
+  symbol: string
+  name: string
+  category: string
+  priceSource: string
+  priceDecimals: number
+  mint?: string
+  logoUrl?: string | null
+  priceUrl?: string | null
+  /** 'catalog' (owner-reviewed) or 'pumpswap' (added automatically). */
+  source?: string
+  liquidityUsd?: number
+  volume24hUsd?: number
+  poolCreatedAt?: string
+  /** When the game server added the coin to the list. */
+  addedAt?: string
+  /** Price kept in the bundled snapshot (shown while the server is off). */
+  price?: { raw: string; decimals: number } | null
 }
 
 export interface ServerWallet {
@@ -190,11 +215,42 @@ export function useGameState() {
 export function useGameServerConfig() {
   return useQuery({
     queryKey: ['game-config'],
-    queryFn: () => getJson<ServerConfig>('/config'),
+    queryFn: async () => {
+      const config = await getJson<ServerConfig>('/config')
+      registerAssetIcons(config.assets)
+      return config
+    },
     enabled,
     staleTime: 60_000,
     refetchInterval: 120_000,
   })
+}
+
+registerAssetIcons(pumpswapSnapshot.assets)
+
+interface PumpSwapSnapshot {
+  capturedAt: string
+  assets: ServerAsset[]
+}
+
+/** PumpSwap coins the game server added to the meme category, most liquid
+ * first. While the server is off: the last data the VPS keeps publishing
+ * (LAST_DATA_URL/pumpswap.json), else the bundled snapshot - never empty. */
+export function usePumpSwapAssets() {
+  const config = useGameServerConfig()
+  const live = (config.data?.assets ?? []).filter((a) => a.source === 'pumpswap')
+  const needFallback = live.length === 0 && !config.isLoading
+  const last = useQuery({
+    queryKey: ['pumpswap-last'],
+    queryFn: async () => (await (await fetch(`${LAST_DATA_URL}/pumpswap.json`)).json()) as PumpSwapSnapshot,
+    enabled: needFallback && LAST_DATA_URL != null,
+    staleTime: 60_000,
+    retry: 1,
+  })
+  const fallback = last.data?.assets?.length ? last.data : (pumpswapSnapshot as PumpSwapSnapshot)
+  if (needFallback && fallback === last.data) registerAssetIcons(fallback.assets)
+  const assets = (needFallback ? fallback.assets : live).slice().sort((a, b) => (b.liquidityUsd ?? 0) - (a.liquidityUsd ?? 0))
+  return { assets, snapshotAt: needFallback ? fallback.capturedAt : null, isLoading: (config.isLoading && GAME_SERVER_URL != null) || (needFallback && last.isLoading) }
 }
 
 /** One wallet's stakes and payouts. */
@@ -235,7 +291,7 @@ export function useSignedAction() {
   const config = useGameServerConfig()
   return useCallback(
     async <T = unknown>(fields: Record<string, unknown>): Promise<T> => {
-      if (!publicKey) throw new Error('Connect a wallet first')
+      if (!publicKey) throw new Error('Log in first')
       if (!signMessage) throw new GameServerError('WalletCannotSignMessages')
       const cluster = config.data?.cluster ?? (await getJson<ServerConfig>('/config')).cluster
       const message = `Prophet\n${JSON.stringify({ ...fields, wallet: publicKey.toBase58(), cluster, issuedAt: Math.floor(Date.now() / 1000) })}`
@@ -276,7 +332,7 @@ const FRIENDLY: Record<string, string> = {
   MessageExpired: 'Your device clock looks off; check the time and retry.',
   MessageReused: 'That request was already sent.',
   BadSignature: 'The wallet signature did not check out. Try again.',
-  WalletCannotSignMessages: 'This wallet cannot sign messages. Use Phantom or Solflare.',
+  WalletCannotSignMessages: 'This wallet cannot sign messages. Log in with your Prophet account.',
   InvalidNickname: 'Nicknames are 1–24 bytes, no control characters.',
   NicknameTaken: 'That nickname is taken.',
   TooManyRequests: 'Too many requests; wait a minute.',

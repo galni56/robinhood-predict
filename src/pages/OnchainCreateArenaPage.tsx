@@ -2,49 +2,85 @@ import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { useWallet } from '@solana/wallet-adapter-react'
-import { CRYPTO_ASSETS_ENABLED } from '@/chain/features'
-import {
-  PRICE_ARENA_DURATIONS,
-  PRICE_ARENA_MAX_PARTICIPANTS,
-  arenaDurationLabel,
-  categoryForArenaMode,
-  type PriceArenaMode,
-} from '@/chain/priceArena'
+import type { ApprovedRaceAsset } from '@/chain/assetRaces'
+import { PRICE_ARENA_DURATIONS, PRICE_ARENA_MAX_PARTICIPANTS, arenaDurationLabel, categoryForArenaMode, type PriceArenaMode } from '@/chain/priceArena'
 import { useSignedAction } from '@/chain/gameServer'
+import { useLivePrices, marketCapUsd } from '@/chain/livePrices'
 import { useApprovedRaceAssets } from '@/chain/useApprovedRaceAssets'
 import { ClusterBanner } from '@/components/ClusterBanner'
-import { CompactAssetSelector } from '@/components/CompactAssetSelector'
 import { FilterChips, GAME_MODE_CHIP_OPTIONS } from '@/components/FilterChips'
+import { CoinPicker, COIN_BODIES, HowItWorksStrip } from '@/components/GamePickers'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
-import { GameLifecycleGuide } from '@/components/GameLifecycleGuide'
-import { shortTxError } from '@/lib/format'
+import { assetIconUrl } from '@/lib/assetIcons'
+import { formatCompactUsd, formatUnits, shortTxError } from '@/lib/format'
+import { CoinFighter } from '@/retro/landingFx'
+import { CREAM, INK, NIGHT, PINK, Stars, YELLOW } from '@/retro/scene'
+import { coinBlueGrin, coinOrangeGrin, coinPinkGrin, logoCoin } from '@/retro/spriteData'
+
+const PIXEL = "'Press Start 2P', 'Courier New', monospace"
+const ARENA_BLUE = '#6BCBF4'
+
+/** The ring: the chosen coin in the middle, sample calls floating around it. */
+function ArenaPreview({ coin, unit }: { coin?: ApprovedRaceAsset; unit: 'cap' | 'price' }) {
+  const live = useLivePrices()
+  const price = coin ? live.assets[coin.symbol] : undefined
+  const now = price ? (unit === 'cap' ? marketCapUsd(price) : Number(formatUnits(price.raw, price.decimals))) : undefined
+  const fmt = (v: number) => (unit === 'cap' ? formatCompactUsd(v) : `$${Number(v.toPrecision(4))}`)
+  const calls = now ? [0.93, 1.06, 0.98, 1.12, 1.01].map((k) => fmt(now * k)) : ['?', '?', '?', '?', '?']
+  const spots = [[6, 16], [70, 12], [4, 58], [72, 56], [30, 30]]
+  return (
+    <div className="rx-raised" style={{ position: 'relative', height: 340, background: NIGHT, overflow: 'hidden' }}>
+      <Stars stars={[['8%', 24, 4, 1.3], ['21%', 58, 8, 1.9], ['37%', 18, 4, 1.1], ['63%', 30, 8, 1.7], ['78%', 62, 4, 1.4], ['91%', 22, 4, 2.1]]} />
+      <div style={{ position: 'absolute', top: 12, left: 14, right: 14, display: 'flex', justifyContent: 'space-between', fontFamily: PIXEL, fontSize: 10, color: CREAM }}>
+        <span>FIGHT PREVIEW</span>
+        <span style={{ color: coin ? '#8BE89A' : YELLOW, animation: coin ? undefined : 'rx-blink 0.8s steps(1) infinite' }}>{coin ? 'READY' : 'PICK A COIN'}</span>
+      </div>
+      {calls.map((call, i) => (
+        <span key={i} className="rx-plate rx-fx-float" style={{ position: 'absolute', left: `${spots[i][0]}%`, top: `${spots[i][1] + 10}%`, fontFamily: PIXEL, fontSize: 10, background: i === 1 ? YELLOW : CREAM, color: INK, padding: '7px 8px', animationDelay: `${i * 0.4}s` }}>
+          {call}
+        </span>
+      ))}
+      <div style={{ position: 'absolute', left: 0, right: 0, bottom: 52, display: 'flex', justifyContent: 'center' }}>
+        <div style={{ position: 'relative', animation: 'rx-bob 0.6s steps(1) infinite' }}>
+          <span className="rx-plate" style={{ position: 'absolute', left: '50%', top: -36, transform: 'translateX(-50%)', fontFamily: PIXEL, fontSize: 11, background: PINK, color: INK, padding: '6px 8px', whiteSpace: 'nowrap' }}>
+            {coin ? `${coin.symbol} ${unit === 'cap' ? 'CAP' : 'PRICE'} ?` : '???'}
+          </span>
+          {coin
+            ? <CoinFighter body={COIN_BODIES[1]} logoUrl={coin.logoUrl ?? assetIconUrl(coin.symbol)} symbol={coin.symbol} size={96} />
+            : <span style={{ display: 'inline-flex', width: 96, height: 102, alignItems: 'center', justifyContent: 'center', border: `4px dashed rgba(255,246,223,0.4)`, color: CREAM, fontFamily: PIXEL, fontSize: 24 }}>?</span>}
+        </div>
+      </div>
+      <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 40, background: '#C2245A', backgroundImage: 'repeating-linear-gradient(90deg, rgba(27, 19, 64, 0.4) 0 4px, transparent 4px 56px)', borderTop: `4px solid ${INK}` }} />
+    </div>
+  )
+}
 
 export function OnchainCreateArenaPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [params, setParams] = useSearchParams()
-  const requestedMode = params.get('mode')
-  const mode: PriceArenaMode = requestedMode === 'memes' || (CRYPTO_ASSETS_ENABLED && requestedMode === 'crypto')
-    ? requestedMode
-    : 'stocks'
+  const mode: PriceArenaMode = params.get('mode') === 'crypto' ? 'crypto' : 'memes'
   const category = categoryForArenaMode(mode)
   const approved = useApprovedRaceAssets()
   const assets = approved.assets.filter((asset) => asset.category === category)
   const [title, setTitle] = useState('')
   const [assetId, setAssetId] = useState('')
   const [duration, setDuration] = useState<bigint>(300n)
+  // How players call the final number; memes default to market cap.
+  const [unitChoice, setUnitChoice] = useState<'cap' | 'price' | null>(null)
+  const unit = unitChoice ?? (mode === 'memes' ? 'cap' : 'price')
   const [txLabel, setTxLabel] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const { publicKey, connected } = useWallet()
   const act = useSignedAction()
-  const selected = assets.find((asset) => asset.assetId === assetId) ?? assets[0]
+  const selected = assets.find((asset) => asset.assetId === assetId)
   const titleBytes = new TextEncoder().encode(title.trim()).length
   const valid = !!selected && titleBytes > 0 && titleBytes <= 64
   const maxWinners = Math.floor(PRICE_ARENA_MAX_PARTICIPANTS / 2)
 
   function selectMode(next: PriceArenaMode) {
     setAssetId('')
-    setParams(next === 'stocks' ? {} : { mode: next })
+    setParams(next === 'memes' ? {} : { mode: next })
   }
 
   async function create() {
@@ -52,8 +88,8 @@ export function OnchainCreateArenaPage() {
     setError(null)
     try {
       // A signed message, not a transaction: creating an arena is free.
-      setTxLabel('Sign arena creation in wallet…')
-      const created = await act<{ id: number }>({ action: 'create-arena', title: title.trim(), asset: selected.symbol, duration: Number(duration) })
+      setTxLabel('Signing…')
+      const created = await act<{ id: number }>({ action: 'create-arena', title: title.trim(), asset: selected.symbol, duration: Number(duration), unit })
       await queryClient.invalidateQueries({ queryKey: ['game-state'] })
       navigate(`/onchain/arenas/${created.id}`)
     } catch (cause) {
@@ -62,84 +98,79 @@ export function OnchainCreateArenaPage() {
     }
   }
 
+  const label = { display: 'block', marginBottom: 8, fontFamily: PIXEL, fontSize: 11 } as const
+  const choice = (active: boolean) => `rx-btn ${active ? 'rx-btn-yellow' : 'rx-btn-white'}`
+
   return (
-    <div style={{ minHeight: '100%', background: '#4B37B0', color: '#FFF6DF', fontFamily: "'Pixelify Sans', 'Courier New', monospace" }}>
-    <div className="mx-auto max-w-[1280px] px-4 py-5">
-      <ClusterBanner className="mb-4" />
-      <Link to={`/onchain/arenas${mode === 'stocks' ? '' : `?mode=${mode}`}`} className="text-sm text-[#1B1340]/55 hover:text-[#1B1340]">← All arenas</Link>
-      <div className="mt-4 grid min-w-0 items-stretch gap-6 lg:min-h-[calc(100dvh-180px)] lg:grid-cols-[440px_1fr] xl:gap-8">
-        <div className="flex min-w-0 flex-col">
-          <p className="text-sm font-bold text-[#1F7FD1]">Create Price Arena</p>
-          <h1 className="mt-1 font-display text-3xl font-bold sm:text-4xl">Set the stage.</h1>
-          <div className="mt-3 flex gap-1.5">
-            <FilterChips size="sm" options={GAME_MODE_CHIP_OPTIONS} value={mode} onChange={selectMode} />
+    <div style={{ minHeight: '100%', background: '#4B37B0', color: INK, fontFamily: "'Pixelify Sans', 'Courier New', monospace" }}>
+      <div className="mx-auto max-w-[1200px] px-4 py-6">
+        <ClusterBanner className="mb-4" />
+        <Link to={`/onchain/arenas${mode === 'memes' ? '' : `?mode=${mode}`}`} style={{ color: CREAM, fontSize: 16, fontWeight: 700 }}>← All arenas</Link>
+
+        <div style={{ marginTop: 12, display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16 }}>
+          <h1 style={{ margin: 0, color: CREAM, fontFamily: PIXEL, fontSize: 'clamp(18px, 2.4vw, 30px)', fontWeight: 400, lineHeight: 1.4, textShadow: `4px 4px 0 ${INK}` }}>
+            SET UP THE FIGHT
+          </h1>
+          <FilterChips size="sm" options={GAME_MODE_CHIP_OPTIONS} value={mode} onChange={selectMode} />
+        </div>
+
+        <div style={{ marginTop: 24, display: 'grid', gap: 24, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 420px), 1fr))', alignItems: 'start' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <ArenaPreview coin={selected} unit={unit} />
+            <p style={{ margin: 0, color: CREAM, fontSize: 16, fontWeight: 600 }}>
+              One coin, up to {PRICE_ARENA_MAX_PARTICIPANTS} players. Everyone calls its final {unit === 'cap' ? 'market cap' : 'price'}; the closest half split the bank. Creating is free - your wallet just signs.
+            </p>
           </div>
 
-          <div className="mt-4 flex-1">
-            <GameLifecycleGuide
-              className="lg:h-full"
-              tone="arena"
-              eyebrow={`${arenaDurationLabel(duration)} arena · full lifecycle`}
-              title="From forecast to final ranking"
-              intro="Creating an arena is free (your wallet signs a message) and does not enter a forecast. The 10-minute lobby begins at once; the selected game duration follows it. The creator earns half of the 2% fee."
-              stages={[
-                {
-                  title: 'Players enter forecasts',
-                  timing: 'Lobby · 10 min',
-                  body: `Between 2 and ${PRICE_ARENA_MAX_PARTICIPANTS} wallets submit an exact final USD price and stake $1-$50, entered in USD or SOL. The wallet sends SOL to the Prophet game wallet. During the lobby, a player may change the prediction (free, a signed message) and add stake, but cannot reduce or withdraw it.`,
-                },
-                {
-                  title: 'Forecasts stay off the board',
-                  timing: 'During the lobby',
-                  body: 'Predictions are hidden from the arena board until the lobby closes, reducing copycat play. The stake transaction carries the prediction in a public memo, so a determined reader can still look it up.',
-                },
-                {
-                  title: 'The game runs',
-                  timing: arenaDurationLabel(duration),
-                  body: 'The lobby closes automatically: no new players, prediction changes or top-ups are accepted. Forecasts become visible and the game counts down to its fixed deadline.',
-                },
-                {
-                  title: 'The deadline price ranks everyone',
-                  timing: 'At the fixed finish',
-                  body: `Settlement uses the signed price of the reviewed pool at the last block before the deadline. The closest floor(player count ÷ 2) forecasts win - one winner with 2–3 players and up to ${maxWinners} with ${PRICE_ARENA_MAX_PARTICIPANTS}. Equal errors are ordered by who set their final prediction first.`,
-                },
-                {
-                  title: 'Paid to your wallet',
-                  timing: 'After settlement',
-                  body: 'Winners receive their stake plus an accuracy-and-stake-weighted share of the losing pool, straight to their wallet; the 2% fee applies only to that losing-pool profit. Fewer than two players or no valid deadline price cancels the arena and sends every stake back.',
-                },
-              ]}
-              note={`Selected schedule: 10-minute lobby, then a ${arenaDurationLabel(duration)} game. The closest forecast can receive up to 3× the accuracy weight used to divide the losing pool.`}
-            />
+          <div className="rx-raised" style={{ background: CREAM, padding: 20, display: 'flex', flexDirection: 'column', gap: 18 }}>
+            <div>
+              <label style={label} htmlFor="arena-title">ARENA TITLE</label>
+              <input id="arena-title" value={title} maxLength={64} onChange={(event) => setTitle(event.target.value)} placeholder={mode === 'crypto' ? 'SOL closing shot' : 'Meme cap showdown'} className="rx-input w-full px-3.5 font-medium" style={{ height: 52 }} />
+            </div>
+
+            <div>
+              <span style={label}>PLAYERS CALL THE FINAL</span>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                {(['cap', 'price'] as const).map((c) => (
+                  <button key={c} type="button" onClick={() => setUnitChoice(c)} className={choice(unit === c)} style={{ padding: '10px 16px', fontSize: 15, fontWeight: 700 }}>{c === 'cap' ? 'Market cap' : 'Price'}</button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <span style={label}>FIGHT LENGTH</span>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                {PRICE_ARENA_DURATIONS.map((seconds) => (
+                  <button key={seconds.toString()} type="button" onClick={() => setDuration(seconds)} className={choice(duration === seconds)} style={{ padding: '10px 16px', fontSize: 15, fontWeight: 700 }}>{arenaDurationLabel(seconds)}</button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <span style={label}>COIN</span>
+              <CoinPicker assets={assets} selected={selected ? [selected.assetId] : []} onToggle={(asset) => setAssetId(asset.assetId === assetId ? '' : asset.assetId)} max={1} accent={ARENA_BLUE} />
+            </div>
+
+            {error && <p style={{ margin: 0, color: '#C2245A', fontWeight: 600 }}>{error}</p>}
+            {!connected ? <WalletOptionsList tone="arena" /> : (
+              <button onClick={create} disabled={!publicKey || !valid || !!txLabel} className="rx-btn rx-btn-pink w-full" style={{ minHeight: 60, fontFamily: PIXEL, fontSize: 13 }}>
+                {txLabel ?? (!selected ? 'PICK A COIN' : titleBytes === 0 ? 'NAME YOUR ARENA' : 'OPEN THE LOBBY')}
+              </button>
+            )}
           </div>
         </div>
 
-        <div className="rx-raised flex h-full min-w-0 flex-col gap-4 bg-[#FFF6DF] p-5 text-[#1B1340] sm:p-6">
-          <label className="block"><span className="mb-2 block text-[#1B1340]" style={{ fontFamily: "'Press Start 2P', monospace", fontSize: 11 }}>Arena title</span><input value={title} onChange={(event) => setTitle(event.target.value)} maxLength={64} placeholder={mode === 'memes' ? 'Meme price showdown' : mode === 'crypto' ? 'SOL closing shot' : 'NVDAx closing shot'} className="w-full rounded-none border border-[#1B1340]/15 bg-[#1B1340]/5 px-4 py-3 outline-none focus:border-[#6bcbf4]/50" /><span className="mt-1 block text-right text-xs text-[#1B1340]/50">{titleBytes} / 64 bytes</span></label>
-          <div>
-            <div className="mb-2 text-sm font-bold text-[#1B1340]/70">Asset</div>
-            {approved.error ? <p className="py-5 text-sm text-[#C2245A]">Could not read the approved assets.</p>
-              : assets.length > 0 ? (
-                <CompactAssetSelector
-                  assets={assets.map((asset) => ({
-                    id: asset.assetId,
-                    symbol: asset.symbol,
-                    name: asset.name,
-                    logoUrl: asset.logoUrl,
-                    priceUrl: asset.priceUrl,
-                  }))}
-                  selectedIds={selected ? [selected.assetId] : []}
-                  onSelect={setAssetId}
-                  tone="arena"
-                />
-              ) : <p className="py-5 text-sm text-[#1B1340]/55">{approved.isLoading ? 'Loading approved assets…' : 'No approved assets in this category yet.'}</p>}
-          </div>
-          <div><div className="mb-2 text-sm font-bold text-[#1B1340]/70">Game duration</div><div className="grid grid-cols-2 gap-2 sm:grid-cols-4">{PRICE_ARENA_DURATIONS.map((seconds) => <button key={seconds.toString()} onClick={() => setDuration(seconds)} className={`rounded-none border px-3 py-3 text-sm font-bold ${duration === seconds ? 'border-[#6bcbf4] bg-[#6bcbf4]/15 text-[#1F7FD1]' : 'border-[#1B1340]/12 bg-white/[0.03] text-[#1B1340]/60'}`}>{arenaDurationLabel(seconds)}</button>)}</div></div>
-          {error && <p className="text-sm text-[#C2245A]">{error}</p>}
-          {!connected ? <WalletOptionsList tone="arena" /> : <button onClick={create} disabled={!publicKey || !valid || !!txLabel} className="w-full rounded-none bg-gradient-to-r from-[#8ddaf8] to-[#6bcbf4] py-3 font-bold text-[#191330] disabled:opacity-40">{txLabel ?? 'Create Price Arena'}</button>}
-        </div>
+        <h2 style={{ margin: '48px 0 24px', color: CREAM, fontFamily: PIXEL, fontSize: 16, fontWeight: 400 }}>HOW A FIGHT GOES</h2>
+        <HowItWorksStrip
+          accent={ARENA_BLUE}
+          steps={[
+            { sprite: logoCoin, title: 'Lobby', timing: '10 MIN', body: `2-${PRICE_ARENA_MAX_PARTICIPANTS} players call the final ${unit === 'cap' ? 'cap' : 'price'} and stake $1-$50.` },
+            { sprite: coinOrangeGrin, title: 'Calls hidden', timing: 'DURING LOBBY', body: 'Nobody sees the other calls until the lobby closes.' },
+            { sprite: coinPinkGrin, title: 'The fight', timing: arenaDurationLabel(duration).toUpperCase(), body: 'The live board shows who is closest right now.' },
+            { sprite: coinBlueGrin, title: 'Paid out', timing: 'AUTOMATIC', body: `The closest ${maxWinners > 1 ? 'half' : 'call'} split the bank, up to 3x for a near hit.` },
+          ]}
+        />
       </div>
-    </div>
     </div>
   )
 }

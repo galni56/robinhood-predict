@@ -126,7 +126,7 @@ export function OnchainRacePage() {
       const instructions = stakeInstructions({ player: publicKey, gameWallet, lamports: betAmount, memo: raceStakeMemo(race.id, assetIndex) })
       const signature = await send(instructions, {
         onPhase: (phase) =>
-          setTx({ label: phase === 'signing' ? 'Confirm race bet in wallet…' : 'Waiting for bet confirmation…' }),
+          setTx({ label: phase === 'signing' ? 'Placing bet…' : 'Waiting for bet confirmation…' }),
       })
       setTx({ label: 'Recording your bet…' })
       const outcome = await reportDeposit(signature).catch(() => null)
@@ -152,7 +152,7 @@ export function OnchainRacePage() {
       if (!race || !publicKey) return
       const symbol = assetRaceCatalogById.get(assetId.toLowerCase())?.symbol
       if (!symbol) throw new Error('Unknown asset')
-      setTx({ label: 'Sign in wallet…' })
+      setTx({ label: 'Signing…' })
       await act({ action: 'add-lobby-asset', race: Number(race.id), asset: symbol })
       setTx(null)
       await refetchAll()

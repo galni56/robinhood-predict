@@ -126,12 +126,12 @@ export function AssetRaceBettingView({
                     </div>
                     {asset.livePrice != null && (
                       <div>
-                        <div style={{ fontSize: 15, fontWeight: 600, opacity: 0.6 }}>{asset.liveMarketCapUsd != null ? 'Market cap' : 'Price'}</div>
+                        <div style={{ fontSize: 15, fontWeight: 600, opacity: 0.6 }}>{race.unit === 'cap' && asset.liveMarketCapUsd != null ? 'Market cap' : 'Price'}</div>
                         <div
-                          title={asset.liveMarketCapUsd != null ? `Price ${formatUsdPrice(Number(formatUnits(asset.livePrice, asset.liveDecimals ?? asset.expectedDecimals)))}` : undefined}
+                          title={race.unit === 'cap' && asset.liveMarketCapUsd != null ? `Price ${formatUsdPrice(Number(formatUnits(asset.livePrice, asset.liveDecimals ?? asset.expectedDecimals)))}` : undefined}
                           className="font-mono text-sm" style={{ color: '#B8860B' }}
                         >
-                          {asset.liveMarketCapUsd != null
+                          {race.unit === 'cap' && asset.liveMarketCapUsd != null
                             ? formatCompactUsd(asset.liveMarketCapUsd)
                             : formatUsdPrice(Number(formatUnits(asset.livePrice, asset.liveDecimals ?? asset.expectedDecimals)))}
                         </div>

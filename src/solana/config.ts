@@ -29,6 +29,9 @@ function absoluteRpcUrl(value: string) {
 }
 
 export const SOLANA_RPC_URL = absoluteRpcUrl(import.meta.env.VITE_SOLANA_RPC_URL?.trim() || DEFAULT_RPC[SOLANA_CLUSTER])
+/** Optional websocket endpoint (transaction confirmations); by default web3.js
+ * derives it from the RPC URL. The VPS proxies one at /api/solana/ws. */
+export const SOLANA_WS_URL = import.meta.env.VITE_SOLANA_WS_URL?.trim() || undefined
 
 /** Stake currency id of native SOL (the only stake currency). */
 export const NATIVE_SOL = PublicKey.default

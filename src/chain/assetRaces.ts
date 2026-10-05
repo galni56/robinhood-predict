@@ -114,6 +114,8 @@ export interface AssetRaceViewModel {
   assets: AssetRaceAsset[]
   positions: { owner: string; assetIndex: number; stake: bigint; payout: bigint }[]
   payouts: RacePayout[]
+  /** Show prices or market caps (display only). */
+  unit: 'price' | 'cap'
   source: 'onchain'
 }
 
@@ -190,6 +192,7 @@ export function raceFromServer(r: ServerRace): AssetRaceViewModel {
     }),
     positions: r.positions.map((p) => ({ owner: p.owner, assetIndex: p.assetIndex, stake: big(p.stake), payout: big(p.payout) })),
     payouts: r.payouts.map(payoutFromServer),
+    unit: r.unit === 'cap' ? 'cap' : 'price',
     source: 'onchain',
   }
 }

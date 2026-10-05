@@ -6,7 +6,8 @@ import { TokenLogo } from '@/components/TokenLogo'
 import { priceSourceUrlForAssetId } from '@/chain/assetRaceRegistry'
 import type { RaceSettlement } from '@/chain/useAssetRace'
 import { explorerUrl } from '@/solana/config'
-import { formatUnits } from '@/lib/format'
+import { formatCompactUsd, formatUnits } from '@/lib/format'
+import { useLivePrices } from '@/chain/livePrices'
 import {
   ASSET_RACE_CATEGORY,
   ASSET_RACE_STATUS,
@@ -39,6 +40,12 @@ export function AssetRaceResultView({
   tokenDecimals: number
   tokenLabel: string
 }) {
+  // Memes also show market cap (price x supply); supply comes with live prices.
+  const live = useLivePrices()
+  const capOf = (symbol: string, price: bigint, decimals: number) => {
+    const supply = race.unit === 'cap' ? live.assets[symbol]?.supply : undefined
+    return supply ? formatCompactUsd(Number(formatUnits(price, decimals)) * (Number(supply.raw) / 10 ** supply.decimals)) : null
+  }
   const resolved = race.status === ASSET_RACE_STATUS.RESOLVED
   const voided = race.status === ASSET_RACE_STATUS.VOID
   const winner = resolved ? race.assets[race.winningAssetIndex] : undefined
@@ -115,7 +122,7 @@ export function AssetRaceResultView({
         <div className="overflow-x-auto rounded-none border border-[#1B1340]/15">
           <table className="w-full min-w-[560px] text-left text-xs">
             <thead className="bg-[#1B1340]/5 text-[#1B1340]/55"><tr><th className="px-3 py-2">Asset</th><th className="px-3 py-2">P0</th><th className="px-3 py-2">P1</th><th className="px-3 py-2">Return</th></tr></thead>
-            <tbody>{race.assets.filter((asset) => asset.active).map((asset) => <tr key={asset.assetIndex} className="border-t border-[#1B1340]/15"><td className="px-3 py-2 font-bold"><span className="flex items-center gap-2"><TokenLogo ticker={asset.symbol} className="h-6 w-6 rounded-none" />{asset.symbol}</span></td><td className="px-3 py-2 font-mono">${formatUnits(asset.startPrice, asset.expectedDecimals)}</td><td className="px-3 py-2 font-mono">${formatUnits(asset.endPrice, asset.expectedDecimals)}</td><td className={`px-3 py-2 font-mono ${asset.returnValue >= 0n ? 'text-emerald-300' : 'text-[#C2245A]'}`}>{formatReturnWad(asset.returnValue)}</td></tr>)}</tbody>
+            <tbody>{race.assets.filter((asset) => asset.active).map((asset) => <tr key={asset.assetIndex} className="border-t border-[#1B1340]/15"><td className="px-3 py-2 font-bold"><span className="flex items-center gap-2"><TokenLogo ticker={asset.symbol} className="h-6 w-6 rounded-none" />{asset.symbol}</span></td><td className="px-3 py-2 font-mono">${formatUnits(asset.startPrice, asset.expectedDecimals)}{capOf(asset.symbol, asset.startPrice, asset.expectedDecimals) && <div className="text-[10px] opacity-60">cap {capOf(asset.symbol, asset.startPrice, asset.expectedDecimals)}</div>}</td><td className="px-3 py-2 font-mono">${formatUnits(asset.endPrice, asset.expectedDecimals)}{capOf(asset.symbol, asset.endPrice, asset.expectedDecimals) && <div className="text-[10px] opacity-60">cap {capOf(asset.symbol, asset.endPrice, asset.expectedDecimals)}</div>}</td><td className={`px-3 py-2 font-mono ${asset.returnValue >= 0n ? 'text-emerald-300' : 'text-[#C2245A]'}`}>{formatReturnWad(asset.returnValue)}</td></tr>)}</tbody>
           </table>
         </div>
       )}

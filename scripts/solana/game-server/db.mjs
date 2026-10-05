@@ -45,13 +45,15 @@ CREATE TABLE IF NOT EXISTS nicknames (
 );
 CREATE TABLE IF NOT EXISTS used_messages (signature TEXT PRIMARY KEY, wallet TEXT NOT NULL, at INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS creator_balances (wallet TEXT PRIMARY KEY, amount TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS duel_kicks (wallet TEXT NOT NULL, at INTEGER NOT NULL);
+CREATE INDEX IF NOT EXISTS duel_kicks_wallet ON duel_kicks (wallet, at);
 `
 
 // Game-state fields that hold BigInt values (amounts and prices).
 const BIGINT_KEYS = new Set([
   'minStake', 'maxStakePerWallet', 'maxStake', 'totalPool', 'winningPool', 'distributableLosingPool',
   'protocolFee', 'creatorFee', 'remainingLiability', 'pool', 'startPrice', 'endPrice', 'returnValue',
-  'stake', 'payout', 'prediction', 'finalPrice',
+  'stake', 'payout', 'prediction', 'finalPrice', 'paidAmount', 'amount', 'tax',
 ])
 
 export const toJson = (value) => JSON.stringify(value, (_, v) => (typeof v === 'bigint' ? v.toString() : v))
@@ -102,6 +104,8 @@ export function openDatabase(path) {
     allNicknames: q('SELECT wallet, nickname FROM nicknames'),
     dropNickname: q('DELETE FROM nicknames WHERE wallet = ?'),
     useMessage: q('INSERT INTO used_messages (signature, wallet, at) VALUES (?, ?, ?)'),
+    addKick: q('INSERT INTO duel_kicks (wallet, at) VALUES (?, ?)'),
+    kicksSince: q('SELECT COUNT(*) AS n FROM duel_kicks WHERE wallet = ? AND at >= ?'),
   }
 
   let depth = 0
@@ -183,6 +187,9 @@ export function openDatabase(path) {
     setNickname: (wallet, nickname) => s.putNickname.run(wallet, nickname, nickname.toLowerCase(), now()),
     clearNickname: (wallet) => s.dropNickname.run(wallet),
     nicknames: () => Object.fromEntries(s.allNicknames.all().map((r) => [r.wallet, r.nickname])),
+
+    addKick: (wallet, at) => s.addKick.run(wallet, at),
+    kicksSince: (wallet, since) => Number(s.kicksSince.get(wallet, since)?.n ?? 0),
 
     /** Records a signed message; throws on replay (PRIMARY KEY). */
     useMessage: (signature, wallet) => s.useMessage.run(signature, wallet, now()),

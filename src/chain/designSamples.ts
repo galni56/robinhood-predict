@@ -98,6 +98,7 @@ function race(overrides: {
     assets: overrides.assets,
     positions: [],
     payouts: [],
+    unit: 'price',
     source: 'onchain',
   }
 }
@@ -203,6 +204,7 @@ function arena(overrides: {
       settled: false,
     })),
     payouts: [],
+    unit: 'price',
     asset: priceArenaAssetForPool(cat?.pool),
   }
 }
