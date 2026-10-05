@@ -38,6 +38,14 @@ function fakeChain() {
       balance += lamports
       return signature
     },
+    /** One transaction carrying several inbound transfers (no memo). */
+    depositRaw(inbound, blockTime = 1) {
+      const signature = `dep-${n + 1}`
+      const total = inbound.reduce((sum, t) => sum + t.lamports, 0n)
+      record(signature, { blockTime, inbound, memos: [], balanceDelta: total })
+      balance += total
+      return signature
+    },
     advanceBlocks(k) {
       height += k
     },
@@ -123,8 +131,9 @@ test('race: stakes become bets, bad deposits are refunded, winners are paid once
   let state = db.getGame('race', race.id)
   assert.equal(state.totalPool, (6n * SOL) / 10n)
   assert.equal(state.positions.length, 3)
-  assert.equal(paidTo(chain, 'dave'), SOL / 10n, 'late bet refunded')
-  assert.equal(paidTo(chain, 'erin'), SOL / 10n, 'memo-less transfer refunded')
+  // Refunds carry their own network fee (5000 lamports).
+  assert.equal(paidTo(chain, 'dave'), SOL / 10n - 5_000n, 'late bet refunded')
+  assert.equal(paidTo(chain, 'erin'), SOL / 10n - 5_000n, 'memo-less transfer refunded')
   assert.equal(paidTo(chain, 'frank'), 0n, 'dust is kept')
   assert.equal(paidTo(chain, COLD), 0n, 'funding is not refunded')
 
@@ -399,4 +408,18 @@ test('payouts: a confirmed-but-not-final payout is not marked done', async () =>
   await engine.tick()
   assert.equal(db.payouts('done').length, 1)
   assert.equal(chain.paid.filter((p) => p.to === 'bob').length, 1)
+})
+
+test('refunds: many transfers in one transaction cost one refund, fee included', async () => {
+  const { chain, engine } = setup({})
+  await engine.init()
+  chain.deposit(COLD, SOL, null, 1) // owner funding: rent and fee reserve
+  // One tx, ten 0.002 SOL transfers from the same sender, no memo.
+  const inbound = Array.from({ length: 10 }, () => ({ from: 'spammer', lamports: SOL / 500n, signed: true }))
+  chain.depositRaw(inbound)
+  await engine.tick()
+  await engine.tick()
+  const refunds = chain.paid.filter((p) => p.to === 'spammer')
+  assert.equal(refunds.length, 1, 'one refund for the whole transaction')
+  assert.equal(refunds[0].lamports, (SOL / 500n) * 10n - 5_000n)
 })

@@ -172,7 +172,11 @@ export function createEngine({ db, chain, prices, assets, cluster, coldWallet = 
     const memo = stakeMemos.length === 1 ? parseStakeMemo(stakeMemos[0]) : null
     if (tx.inbound.length !== 1 || !memo || tx.blockTime == null) {
       const reason = tx.inbound.length !== 1 ? 'MultipleTransfers' : tx.blockTime == null ? 'NoBlockTime' : 'NoStakeMemo'
-      tx.inbound.forEach((t, i) => refundDeposit(`${signature}:${i}`, t.from, t.lamports))
+      // One refund per sender per transaction: N tiny transfers in one tx
+      // used to cost us N refund fees for the sender's one.
+      const bySender = new Map()
+      for (const t of tx.inbound) bySender.set(t.from, (bySender.get(t.from) ?? 0n) + t.lamports)
+      for (const [from, lamports] of bySender) refundDeposit(`${signature}:${from}`, from, lamports)
       const total = tx.inbound.reduce((sum, t) => sum + t.lamports, 0n)
       return db.putDeposit({ ...base, wallet: tx.inbound[0].from, amount: total, memo: stakeMemos.join(' | ') || null, status: 'refunded', reason })
     }
@@ -189,8 +193,11 @@ export function createEngine({ db, chain, prices, assets, cluster, coldWallet = 
   }
 
   function refundDeposit(key, wallet, amount) {
-    if (amount < opts.minRefund) return false
-    return db.addPayout({ key: `deposit:${key}`, kind: 'refund', wallet, amount })
+    // The refund's own network fee comes out of it, so bouncing deposits off
+    // the game wallet can never drain the fee reserve.
+    const net = amount - BASE_FEE
+    if (net < opts.minRefund) return false
+    return db.addPayout({ key: `deposit:${key}`, kind: 'refund', wallet, amount: net })
   }
 
   function applyStake(memo, stake) {
