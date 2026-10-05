@@ -136,11 +136,15 @@ export function createChain({ rpcUrl, wallet, priorityMicroLamports = 0 }) {
    * stores the signature and expiry before broadcasting, so a crash between
    * the two can be told apart from a lost transaction.
    */
+  const PAYOUT_COMPUTE_UNITS = 20_000
+  /** What one payout costs the game wallet in network fees. */
+  const payoutFee = BASE_FEE + (BigInt(PAYOUT_COMPUTE_UNITS) * BigInt(priorityMicroLamports) + 999_999n) / 1_000_000n
+
   async function preparePayout({ to, lamports, memo }) {
     const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash('confirmed')
     const tx = new Transaction({ feePayer: address, blockhash, lastValidBlockHeight })
     if (priorityMicroLamports > 0) {
-      tx.add(ComputeBudgetProgram.setComputeUnitLimit({ units: 20_000 }))
+      tx.add(ComputeBudgetProgram.setComputeUnitLimit({ units: PAYOUT_COMPUTE_UNITS }))
       tx.add(ComputeBudgetProgram.setComputeUnitPrice({ microLamports: priorityMicroLamports }))
     }
     tx.add(SystemProgram.transfer({ fromPubkey: address, toPubkey: new PublicKey(to), lamports }))
@@ -160,6 +164,7 @@ export function createChain({ rpcUrl, wallet, priorityMicroLamports = 0 }) {
   return {
     connection,
     address: self,
+    payoutFee,
     readTransaction,
     preparePayout,
     broadcast,

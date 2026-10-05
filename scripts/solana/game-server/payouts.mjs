@@ -15,6 +15,8 @@ import { BASE_FEE, RENT_EXEMPT_MINIMUM } from './chain.mjs'
  */
 export function createPayouts({ db, chain, opts, log, now, coldWallet, lastScan: currentScan }) {
   const lastBroadcast = new Map()
+  // Base fee plus the priority fee, when one is configured.
+  const txFee = chain.payoutFee ?? BASE_FEE
   let lastSweepCheck = 0
 
   async function processPayouts() {
@@ -68,7 +70,7 @@ export function createPayouts({ db, chain, opts, log, now, coldWallet, lastScan:
     let balance = await chain.balance()
     for (const p of pending) {
       const amount = BigInt(p.amount)
-      if (balance - amount - BASE_FEE * 2n < RENT_EXEMPT_MINIMUM) {
+      if (balance - amount - txFee * 2n < RENT_EXEMPT_MINIMUM) {
         log.warn(`payout #${p.id}: game wallet balance ${balance} is too low for ${amount}; waiting`)
         continue
       }
@@ -81,7 +83,7 @@ export function createPayouts({ db, chain, opts, log, now, coldWallet, lastScan:
         // Stays `sent`: it is retried only after its blockhash expires.
         log.warn(`payout #${p.id} send: ${error.message.split('\n')[0]}`)
       }
-      balance -= amount + BASE_FEE
+      balance -= amount + txFee
     }
   }
 
@@ -104,7 +106,12 @@ export function createPayouts({ db, chain, opts, log, now, coldWallet, lastScan:
     if (currentScan().pending > 0 || now() - currentScan().at > opts.sweepEverySeconds + 60) return
     lastSweepCheck = t
     const { surplus } = await solvency()
-    const amount = surplus - opts.reserve
+    // Only what the books say we earned, and never more than is really
+    // spare: a liability bug can then not turn player stakes into a sweep.
+    const fees = db.unsweptFees()
+    const spare = surplus - opts.reserve
+    const amount = fees < spare ? fees : spare
+    if (spare > fees + opts.sweepMin) log.warn(`game wallet holds ${spare - fees} lamports beyond earned fees; left in place for review`)
     if (amount >= opts.sweepMin) {
       db.addPayout({ key: `sweep:${t}`, kind: 'sweep', wallet: coldWallet, amount })
       log.log(`sweeping ${amount} lamports of surplus to the cold wallet`)

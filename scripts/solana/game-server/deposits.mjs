@@ -62,9 +62,11 @@ export function createDeposits({ db, chain, opts, log, now, funders, adoptWallet
       // used to cost us N refund fees for the sender's one.
       const bySender = new Map()
       for (const t of tx.inbound) bySender.set(t.from, (bySender.get(t.from) ?? 0n) + t.lamports)
-      for (const [from, lamports] of bySender) refundDeposit(`${signature}:${from}`, from, lamports)
+      let refunded = false
+      for (const [from, lamports] of bySender) refunded = refundDeposit(`${signature}:${from}`, from, lamports) || refunded
       const total = tx.inbound.reduce((sum, t) => sum + t.lamports, 0n)
-      return db.putDeposit({ ...base, wallet: tx.inbound[0].from, amount: total, memo: stakeMemos.join(' | ') || null, status: 'refunded', reason })
+      // Dust too small to refund is kept (and counted as earned by the fee ledger).
+      return db.putDeposit({ ...base, wallet: tx.inbound[0].from, amount: total, memo: stakeMemos.join(' | ') || null, status: refunded ? 'refunded' : 'kept', reason })
     }
     const [transfer] = tx.inbound
     const record = { ...base, wallet: transfer.from, amount: transfer.lamports, memo: stakeMemos[0], gameKind: memo.kind, gameId: memo.id }

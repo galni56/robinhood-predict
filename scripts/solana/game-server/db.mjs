@@ -78,12 +78,13 @@ export function openDatabase(path) {
   db.exec('PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000; PRAGMA foreign_keys = ON;')
   db.exec(SCHEMA)
   const q = (sql) => db.prepare(sql)
+  const FINAL_SQL = [...FINAL_STATUSES].map((st) => `'${st}'`).join(', ')
   const s = {
     getMeta: q('SELECT value FROM meta WHERE key = ?'),
     setMeta: q('INSERT INTO meta (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value'),
     getGame: q('SELECT state FROM games WHERE kind = ? AND id = ?'),
     gamesByKind: q('SELECT state FROM games WHERE kind = ? ORDER BY id'),
-    liveGames: q(`SELECT state FROM games WHERE status NOT IN (${[...FINAL_STATUSES].map((st) => `'${st}'`).join(', ')}) ORDER BY kind, id`),
+    liveGames: q(`SELECT state FROM games WHERE status NOT IN (${FINAL_SQL}) ORDER BY kind, id`),
     allGames: q('SELECT state FROM games ORDER BY kind, id'),
     putGame: q(`INSERT INTO games (kind, id, status, state, updated_at) VALUES (?, ?, ?, ?, ?)
       ON CONFLICT (kind, id) DO UPDATE SET status = excluded.status, state = excluded.state, updated_at = excluded.updated_at`),
@@ -104,6 +105,15 @@ export function openDatabase(path) {
     markDone: q("UPDATE payouts SET status = 'done', done_at = ? WHERE id = ? AND status = 'sent'"),
     markRetry: q("UPDATE payouts SET status = ?, error = ? WHERE id = ? AND status = 'sent'"),
     owedTotal: q("SELECT amount FROM payouts WHERE status IN ('pending', 'sent', 'stuck')"),
+    // Fee ledger: what finished games kept (stakes in minus payouts out, which
+    // is the protocol and creator fees plus rounding dust), plus kept dust
+    // deposits, minus creator credits and earlier sweeps.
+    finalStakesIn: q(`SELECT d.amount FROM deposits d JOIN games g ON g.kind = d.game_kind AND g.id = d.game_id
+      WHERE d.status = 'accepted' AND g.status IN (${FINAL_SQL})`),
+    finalPaidOut: q(`SELECT p.amount FROM payouts p JOIN games g ON g.kind = p.game_kind AND g.id = p.game_id
+      WHERE p.kind NOT IN ('creator', 'sweep') AND g.status IN (${FINAL_SQL})`),
+    keptDeposits: q("SELECT amount FROM deposits WHERE status = 'kept' AND amount IS NOT NULL"),
+    creatorAndSweepPayouts: q("SELECT amount FROM payouts WHERE kind IN ('creator', 'sweep')"),
     getCreator: q('SELECT amount FROM creator_balances WHERE wallet = ?'),
     putCreator: q('INSERT INTO creator_balances (wallet, amount) VALUES (?, ?) ON CONFLICT (wallet) DO UPDATE SET amount = excluded.amount'),
     allCreators: q('SELECT wallet, amount FROM creator_balances'),
@@ -197,6 +207,13 @@ export function openDatabase(path) {
     creatorBalance: (wallet) => BigInt(s.getCreator.get(wallet)?.amount ?? 0),
     setCreatorBalance: (wallet, amount) => s.putCreator.run(wallet, amount.toString()),
     creatorBalancesTotal: () => s.allCreators.all().reduce((sum, r) => sum + BigInt(r.amount), 0n),
+
+    /** Fees Prophet has earned and not swept yet (the most a sweep may take). */
+    unsweptFees() {
+      const total = (rows) => rows.reduce((sum, r) => sum + BigInt(r.amount), 0n)
+      return total(s.finalStakesIn.all()) - total(s.finalPaidOut.all()) + total(s.keptDeposits.all())
+        - total(s.creatorAndSweepPayouts.all()) - total(s.allCreators.all())
+    },
 
     nickname: (wallet) => s.getNickname.get(wallet)?.nickname ?? null,
     nicknameOwner: (lower) => s.nicknameOwner.get(lower)?.wallet ?? null,

@@ -158,14 +158,16 @@ test('race: stakes become bets, bad deposits are refunded, winners are paid once
   // losing pool 0.5 SOL, fee 2% -> alice gets 0.1 + 0.49
   assert.equal(paidTo(chain, 'alice'), (59n * SOL) / 100n)
   assert.equal(paidTo(chain, 'bob'), 0n)
-  assert.equal(db.payouts('pending').length + db.payouts('sent').length, 0)
+  assert.equal([...db.payouts('pending'), ...db.payouts('sent')].filter((p) => p.kind !== 'sweep').length, 0)
 
-  // Nothing left owed; the fee is surplus and goes to the cold wallet.
+  // Nothing left owed. Only the earned fee (2% of the 0.5 SOL losing pool)
+  // and the kept dust go to the cold wallet; the owner's unexplained 0.05
+  // SOL funding stays in the game wallet.
   clock.t += 10
   await engine.tick()
   await engine.tick()
   assert.equal(engine.liabilities(), 0n)
-  assert.ok(paidTo(chain, COLD) > 0n)
+  assert.equal(paidTo(chain, COLD), SOL / 100n + 1_000n)
 })
 
 test('payouts: a lost send is rebuilt after expiry; a restart never pays twice', async () => {
