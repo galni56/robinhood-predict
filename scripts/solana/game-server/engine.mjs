@@ -271,8 +271,15 @@ export function createEngine({ db, chain, prices, assets, cluster, coldWallet = 
     }
     let pending = 0
     for (const { signature } of fresh.reverse()) {
-      const result = await ingest(signature)
-      if (result.status === 'pending') pending++
+      try {
+        const result = await ingest(signature)
+        if (result.status === 'pending') pending++
+      } catch (error) {
+        // A 429/timeout on one transaction: count it as pending (games keep
+        // waiting for it) and keep ingesting the rest.
+        pending++
+        log.warn(`scan ${signature}: ${error.message.split('\n')[0]}`)
+      }
     }
     lastScan = { at: now(), pending }
     return { scanned: fresh.length, pending }
@@ -538,11 +545,20 @@ export function createEngine({ db, chain, prices, assets, cluster, coldWallet = 
   async function tick() {
     if (running) return
     running = true
+    // Each stage is isolated: an RPC error in the scan or a slow price
+    // service must never stop winners from being paid (or vice versa).
+    const stage = async (name, fn) => {
+      try {
+        await fn()
+      } catch (error) {
+        log.warn(`tick ${name}: ${error.message.split('\n')[0]}`)
+      }
+    }
     try {
-      await scanDeposits()
+      await stage('scan', scanDeposits)
       const t = now()
       if (prices?.solUsd) solUsd = await prices.solUsd().catch(() => solUsd)
-      fillDuelLobbies(t)
+      await stage('lobbies', async () => fillDuelLobbies(t))
       for (const game of db.liveGames()) {
         try {
           if (game.kind === 'race') await advanceRace(game, t)
@@ -552,8 +568,8 @@ export function createEngine({ db, chain, prices, assets, cluster, coldWallet = 
           log.warn(`${game.kind} #${game.id}: ${error.message}`)
         }
       }
-      await processPayouts()
-      await maybeSweep(t)
+      await stage('payouts', processPayouts)
+      await stage('sweep', () => maybeSweep(t))
     } finally {
       running = false
     }
