@@ -20,6 +20,10 @@ const DECODABLE = new Set([
 
 const scan = JSON.parse(readFileSync('docs/solana-catalog/scan.json', 'utf8'))
 const approval = JSON.parse(readFileSync('config/solana-catalog-approved.json', 'utf8'))
+// Assets the owner took below the floor, knowing a thin pool's price is cheaper
+// to move (keyed by display symbol; scan symbols may carry a "w" wrapper prefix).
+const thinAccepted = approval.thinPoolsAccepted ?? {}
+const display = { cbBTC: 'BTC', wXRP: 'XRP', wNEAR: 'NEAR' }
 const kind = (p) => `${p.dex} ${p.kind}`
 const fmt = (n) => (n >= 1e6 ? `$${(n / 1e6).toFixed(1)}M` : `$${Math.round(n / 1e3)}k`)
 
@@ -30,11 +34,12 @@ for (const r of scan.report) {
     rejected.push({ ...r, reason: r.status })
     continue
   }
-  const floor = FLOORS[r.category]
+  const floor = thinAccepted[display[r.symbol] ?? r.symbol] ? 0 : FLOORS[r.category]
   const pick = [r.bestUsdcPool, r.bestPool]
     .filter(Boolean)
     .filter((p) => DECODABLE.has(kind(p)) && p.liquidityUsd >= floor)
-    .sort((a, b) => (a.quote === 'USDC' ? -1 : 1) - (b.quote === 'USDC' ? -1 : 1))[0]
+    // Above the floor a USDC pool wins; a thin pool takes the deepest one.
+    .sort((a, b) => (floor === 0 ? b.liquidityUsd - a.liquidityUsd : (a.quote === 'USDC' ? -1 : 1) - (b.quote === 'USDC' ? -1 : 1)))[0]
   if (!pick) {
     const best = r.bestPool
     rejected.push({

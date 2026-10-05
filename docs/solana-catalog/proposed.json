@@ -53,6 +53,66 @@
     },
     {
       "category": "crypto",
+      "symbol": "wXRP",
+      "mint": "6UpQcMAb5xMzxc7ZfPaVMgx3KqsvKZdT5U718BzD5We2",
+      "decimals": 6,
+      "tokenProgram": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+      "pool": "D41vQSqdboLAhnhr22Ggdf62xp47dvjJjq7QDWoixto3",
+      "poolKind": "raydium CLMM",
+      "quote": "SOL",
+      "liquidityUsd": 40203,
+      "volume24hUsd": 185919,
+      "priceUsdAtScan": 1.69,
+      "freezeAuthorityDisabled": null,
+      "url": "https://dexscreener.com/solana/d41vqsqdbolahnhr22ggdf62xp47dvjjjq7qdwoixto3"
+    },
+    {
+      "category": "crypto",
+      "symbol": "SUI",
+      "mint": "suifhC9gU1VbJAPYPTBkHJyyyStKGLLYPVDTmPoqbvA",
+      "decimals": 8,
+      "tokenProgram": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+      "pool": "Fs8gf9VNSRw8nx3FYFWkJeLj8EyssMgQYQmwU36KCvST",
+      "poolKind": "raydium CLMM",
+      "quote": "USDC",
+      "liquidityUsd": 101804,
+      "volume24hUsd": 3660,
+      "priceUsdAtScan": 1.24,
+      "freezeAuthorityDisabled": true,
+      "url": "https://dexscreener.com/solana/fs8gf9vnsrw8nx3fyfwkjelj8eyssmgqyqmwu36kcvst"
+    },
+    {
+      "category": "crypto",
+      "symbol": "BNB",
+      "mint": "9gP2kCy3wA1ctvYWQk75guqXuHfrEomqydHLtcTCqiLa",
+      "decimals": 8,
+      "tokenProgram": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+      "pool": "CmyuZJEnEoTnSD5mJLMtzLApocPNszZCWwkiEBbUD3ez",
+      "poolKind": "orca wp",
+      "quote": "SOL",
+      "liquidityUsd": 163926,
+      "volume24hUsd": 33258,
+      "priceUsdAtScan": 785.2,
+      "freezeAuthorityDisabled": true,
+      "url": "https://dexscreener.com/solana/cmyuzjeneotnsd5mjlmtzlapocpnszzcwwkiebbud3ez"
+    },
+    {
+      "category": "crypto",
+      "symbol": "DOGE",
+      "mint": "DoGEV7LASBkQbibMc5k5vKnTZoMg423GpJ5QtJEGfm7R",
+      "decimals": 8,
+      "tokenProgram": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+      "pool": "7s9GwyhHTmszPpzYtLaUDFW3LYfuS6XCnFWrGqUk5X4n",
+      "poolKind": "raydium CLMM",
+      "quote": "USDC",
+      "liquidityUsd": 340910,
+      "volume24hUsd": 710469,
+      "priceUsdAtScan": 0.0962,
+      "freezeAuthorityDisabled": true,
+      "url": "https://dexscreener.com/solana/7s9gwyhhtmszppzytlaudfw3lyfus6xcnfwrgquk5x4n"
+    },
+    {
+      "category": "crypto",
       "symbol": "HYPE",
       "mint": "98sMhvDwXj1RQi5c5Mndm3vPe9cBqPrbLaufMXFNMh5g",
       "decimals": 9,
@@ -460,28 +520,8 @@
   "rejected": [
     {
       "category": "crypto",
-      "symbol": "wXRP",
-      "reason": "liquidity $40k < $500k"
-    },
-    {
-      "category": "crypto",
       "symbol": "ADA",
       "reason": "liquidity $83k < $500k"
-    },
-    {
-      "category": "crypto",
-      "symbol": "SUI",
-      "reason": "liquidity $102k < $500k"
-    },
-    {
-      "category": "crypto",
-      "symbol": "BNB",
-      "reason": "liquidity $164k < $500k"
-    },
-    {
-      "category": "crypto",
-      "symbol": "DOGE",
-      "reason": "liquidity $341k < $500k"
     }
   ]
 }

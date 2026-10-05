@@ -3,7 +3,7 @@
 Собрано скриптами `scripts/solana-catalog-scan.mjs` → `scripts/solana-catalog-propose.mjs` по живым данным Jupiter и DexScreener (2026-10-05T11:16:12.905Z).
 Адреса токенов — только «verified» в Jupiter.
 
-**Утверждено владельцем 2026-10-05** (`config/solana-catalog-approved.json`): 30 активов. В программы и интерфейс mainnet попадают только они.
+**Утверждено владельцем 2026-10-05** (`config/solana-catalog-approved.json`): 34 активов. В программы и интерфейс mainnet попадают только они.
 
 ## Правила отбора
 
@@ -12,13 +12,17 @@
 - Только типы пулов, которые умеет читать сервис цен: Raydium AMM v4 / CPMM / CLMM, Orca Whirlpool, Meteora DLMM, PumpSwap.
 - Ликвидность и объём — снимок на момент скана; перед mainnet скан повторяется.
 
-## Крипта — предлагается (7)
+## Крипта — предлагается (11)
 
 | Актив | Пул | Тип | Котировка | Ликвидность | Объём 24ч | Mint токена |
 |---|---|---|---|---|---|---|
 | SOL | [`Czfq3x…44zE`](https://dexscreener.com/solana/czfq3xzzdmsdgduyrnltrhgc47cxcztlg4crryfu44ze) | orca wp | USDC | $30.6M | $89.3M | `So11111111111111111111111111111111111111112` |
 | cbBTC | [`HxA6SK…syLM`](https://dexscreener.com/solana/hxa6skw5qa4o12fjvgtpxdq2ynz5zv1s7sb4ffomsylm) | orca wp | USDC | $6.0M | $12.0M | `cbbtcf3aa214zXHbiAZQwf4122FBYbraNdFqgw4iMij` |
 | ETH | [`HktfL7…CcEF`](https://dexscreener.com/solana/hktfl7iwgkt5qhjywqkcdnzxscoh811k7akrmzjkccef) | orca wp | SOL | $7.0M | $4.2M | `7vfCXTUXx5WJV5JADk17DUJ4ksgau7utNKj4b963voxs` |
+| wXRP | [`D41vQS…xto3`](https://dexscreener.com/solana/d41vqsqdbolahnhr22ggdf62xp47dvjjjq7qdwoixto3) | raydium CLMM | SOL | $40k | $186k | `6UpQcMAb5xMzxc7ZfPaVMgx3KqsvKZdT5U718BzD5We2` |
+| SUI | [`Fs8gf9…CvST`](https://dexscreener.com/solana/fs8gf9vnsrw8nx3fyfwkjelj8eyssmgqyqmwu36kcvst) | raydium CLMM | USDC | $102k | $4k | `suifhC9gU1VbJAPYPTBkHJyyyStKGLLYPVDTmPoqbvA` |
+| BNB | [`CmyuZJ…D3ez`](https://dexscreener.com/solana/cmyuzjeneotnsd5mjlmtzlapocpnszzcwwkiebbud3ez) | orca wp | SOL | $164k | $33k | `9gP2kCy3wA1ctvYWQk75guqXuHfrEomqydHLtcTCqiLa` |
+| DOGE | [`7s9Gwy…5X4n`](https://dexscreener.com/solana/7s9gwyhhtmszppzytlaudfw3lyfus6xcnfwrgquk5x4n) | raydium CLMM | USDC | $341k | $710k | `DoGEV7LASBkQbibMc5k5vKnTZoMg423GpJ5QtJEGfm7R` |
 | HYPE | [`ANCx14…3qLB`](https://dexscreener.com/solana/ancx141sujgvdbkz9nteh8f38qwsnyyxsvju64au3qlb) | meteora DLMM | USDC | $3.0M | $506k | `98sMhvDwXj1RQi5c5Mndm3vPe9cBqPrbLaufMXFNMh5g` |
 | wNEAR | [`gyYigq…238U`](https://dexscreener.com/solana/gyyigqg8vdemkdnttvl6at2msbhdtdwyb6bccyr238u) | raydium CPMM | USDC | $2.7M | $433k | `3ZLekZYq2qkZiSpnSvabjit34tUkjSwD1JFuW9as9wBG` |
 | ZEC | [`GTHKH8…jiPm`](https://dexscreener.com/solana/gthkh8s82zr8gtsfz1duu6wfdxhy59wpmshxzg5zjipm) | orca wp | USDC | $3.2M | $6.3M | `A7bdiYdS5GjqGFtxf17ppRHtDKPkkRqbKtR27dxvQXaS` |
@@ -64,21 +68,13 @@
 | BONK | best decodable pool $412k, below the $500k meme floor |
 | AI16Z | best pool $49k; price can be moved cheaply at a boundary |
 | SLERF | no supported USDC/SOL pool |
-| XRP | wXRP best pool $40k, below the $500k floor |
-| ADA | best pool $83k |
-| SUI | best pool $102k |
-| BNB | best pool $164k |
-| DOGE | best USDC pool $341k, below the $500k floor |
+| ADA | no Cardano on Solana: the verified "ADA" mint is an unrelated pump.fun meme at $0.0003 |
 
 ## Не прошли автоматический отбор
 
 | Категория | Актив | Причина |
 |---|---|---|
-| crypto | wXRP | liquidity $40k < $500k |
 | crypto | ADA | liquidity $83k < $500k |
-| crypto | SUI | liquidity $102k < $500k |
-| crypto | BNB | liquidity $164k < $500k |
-| crypto | DOGE | liquidity $341k < $500k |
 
 ## Что учесть при утверждении
 
