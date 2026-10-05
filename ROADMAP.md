@@ -35,7 +35,7 @@ Change log: [`docs/SOLANA_CHANGELOG.md`](./docs/SOLANA_CHANGELOG.md). Status and
 
 ## Before real volume (owner)
 
-- Wind down the EVM product, then merge to `main` (VPS keepers run from `main`).
+- Point prophetmarkets.fun at the Solana site (the EVM product is abandoned; the code is on `main`).
 - Decide on an external audit and the legal side of holding stakes during games.
 
 ## Later

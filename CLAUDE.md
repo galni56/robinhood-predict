@@ -29,8 +29,10 @@ Prices are USD spot prices from reviewed Solana DEX pools, signed by the **price
 the **Prophet wallet** — a keypair kept in their browser; we never see or store player keys (owner decision,
 2026-10-05). The site is on GitHub Pages; the VPS serves the APIs.
 
-This branch (`solana-migration`) **replaces** the earlier Robinhood Chain (EVM) product, which is **still
-live with real money from `main`** at https://prophetmarkets.fun, run by keepers on the VPS. The earlier
+The Solana code lives on `main` (the `solana-migration` branch was merged on 2026-10-05). It **replaces** the
+earlier Robinhood Chain (EVM) product, which the owner abandoned: its keepers on the VPS are stopped and hold
+no user funds; prophetmarkets.fun still serves its old static build from `/opt/robinhood-predict` (do not run
+the old deploy there - it would build the Solana site without its settings). The earlier
 Anchor programs of this branch were removed too (deploy cost); both remain in git history. Nothing from this
 branch has handled real money yet. No external security audit.
 
@@ -43,7 +45,7 @@ branch has handled real money yet. No external security audit.
 | Catalog | 11 crypto (BTC, SOL, ETH, HYPE, ZEC, PUMP, NEAR, DOGE, BNB, SUI, XRP; the last four below the $500k pool floor by owner decision), 10 memes, + PumpSwap. No stocks. |
 | Frontend | Duels, arenas, PumpSwap table, launchpad, portfolio/leaderboard/archive, Prophet wallet (password-encrypted key), hero race; phone layout. Pages builds mainnet when the repo variable `SOLANA_LIVE` is `true`. Never show "devnet" wording. |
 | VPS | Services installed at `/opt/prophet-solana` (price service 8793, game server 8792), **stopped and disabled** until the live test. |
-| Not done | Own domain (browser-held keys should not live on `github.io`), live $1 test, owner's first launch, review leftovers, EVM wind-down. |
+| Not done | Own domain (browser-held keys should not live on `github.io`), live $1 test, owner's first launch, moving prophetmarkets.fun to the Solana site. |
 
 ### Product color system
 
@@ -72,11 +74,9 @@ semantic meaning; do not use them to redefine a product's identity color.
    each broadcast as its own tool call; if one gets blocked twice in a row,
    stop and ask rather than finding a workaround. The game server pays real
    money automatically once it runs on mainnet: starting it is a mainnet action.
-4. **Do not merge this branch into `main` before the EVM product is wound
-   down.** The VPS builds the site and runs the live EVM keepers from `main`;
-   this branch deletes those keepers, so a merge would strand real user funds
-   mid-game. Wind-down (owner-run): stop new games, let open ones settle,
-   keep claims/refunds reachable, then switch.
+4. **Work on `main`.** GitHub Pages deploys from it on every push, so a push
+   publishes the site. The EVM product is abandoned by the owner (2026-10-05);
+   moving prophetmarkets.fun to the Solana site is a separate, owner-approved step.
 5. **VPS SSH uses a non-default port.** `ssh -i ~/.ssh/id_ed25519 -p 22022
    root@104.207.90.56` — port `22022`, not `22`. Solana services live in
    `/opt/prophet-solana` (see `docs/HANDOFF.md`); never touch the EVM side. The live EVM deploy command

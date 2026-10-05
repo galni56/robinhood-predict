@@ -1,9 +1,7 @@
 name: Deploy to GitHub Pages
 
-# Owner decision (2026-10-03): GitHub Pages shows the Solana preview from
-# branch solana-migration instead of the EVM mirror. The live EVM product keeps
-# running from main on the VPS (prophetmarkets.fun); note that a push to main
-# still runs main's own copy of this workflow and would put the EVM build back.
+# GitHub Pages builds the Solana site from main (owner, 2026-10-05: the
+# solana-migration branch was merged into main; the EVM product is abandoned).
 #
 # Two modes, switched by the repository variable SOLANA_LIVE (Settings ->
 # Secrets and variables -> Actions -> Variables), no code change needed:
@@ -16,7 +14,7 @@ name: Deploy to GitHub Pages
 # after changing the variable.
 on:
   push:
-    branches: [solana-migration]
+    branches: [main]
   workflow_dispatch:
 
 permissions:

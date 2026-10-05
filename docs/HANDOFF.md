@@ -1,6 +1,6 @@
 # Developer handoff — Prophet on Solana
 
-State as of 2026-10-05, branch `solana-migration`. Git history and the code are the source of truth; this
+State as of 2026-10-05, branch `main` (`solana-migration` was merged into it on 2026-10-05). Git history and the code are the source of truth; this
 file is the starting point. Step-by-step history (in Russian), including how each piece differs from the EVM
 product: [`SOLANA_CHANGELOG.md`](./SOLANA_CHANGELOG.md).
 
@@ -47,7 +47,7 @@ mainnet DEX pools ──subscribe──> price service ──signed boundary pri
 | Asset catalog | 11 crypto (BTC, SOL, ETH, HYPE, ZEC, PUMP, NEAR, DOGE, BNB, SUI, XRP — the last four below the $500k floor by owner decision, `thinPoolsAccepted`), 10 memes, + PumpSwap coins. xStocks removed; ADA rejected (no real Cardano on Solana) | Scan + owner approval |
 | Frontend | Races tab = Coin Duels; Price Arena (price or market cap, chosen by the creator); PumpSwap table; Launchpad; portfolio, leaderboard, archive from the game server; Prophet wallet (password-encrypted key in the browser, create, unlock per visit, forced backup, top up, withdraw, restore); hero race on the landing; works on phones | Screenshots (desktop and 390 px frame), `npm run build` |
 | Launchpad | pump.fun `create_v2` (Token-2022) signed by the player; IPFS upload through the VPS (pump.fun blocks many browsers) | Simulation on the live pump.fun program. **Owner's first real launch pending** |
-| GitHub Pages | https://galni56.github.io/robinhood-predict/ from `solana-migration`, services `off`: shows last known data | `.github/workflows/deploy.yml` |
+| GitHub Pages | https://galni56.github.io/robinhood-predict/ built from `main` on every push; preview (services off) unless the repo variable `SOLANA_LIVE` is `true` | `.github/workflows/deploy.yml` |
 | VPS services | Installed, **stopped and disabled** until the live test (see below) | Ran live for a check: prices, 30 PumpSwap coins, last-data serving |
 
 ## VPS (Solana side)
@@ -57,7 +57,7 @@ documented in `CLAUDE.md` on `main` — do not touch it.
 
 | What | Where |
 |---|---|
-| Code (pulled from `solana-migration`) | `/opt/prophet-solana` |
+| Code (pulled from `main`) | `/opt/prophet-solana` |
 | Node 24 | `/opt/node24` |
 | Environment (RPC keys entered by the owner; never print it) | `/etc/prophet/prophet.env` |
 | Keys (created on the VPS, never printed) | `/root/prophet-keys/game-wallet.json`, `oracle.json` |
@@ -109,7 +109,7 @@ http://localhost:5173/robinhood-predict/ (HashRouter: routes after `#`). The dev
    4. To go back to the preview: `SOLANA_LIVE` = `false`, re-run the workflow, stop the services.
 3. **Price sanity threshold (owner):** set `PRICE_MAX_DEVIATION_BP` in `/etc/prophet/prophet.env` (e.g. `500`
    = 5%) and restart the price service; until then the check is off.
-4. **EVM wind-down (owner):** stop new games on `main`, let open ones settle, keep claims reachable, then merge.
+4. **prophetmarkets.fun → the Solana site** (owner decides when; the EVM product is abandoned).
 5. Ideas: launch races (pump.fun coins launched in a lobby, first to graduate to PumpSwap wins), "will it
    graduate in 24 h" bets.
 
