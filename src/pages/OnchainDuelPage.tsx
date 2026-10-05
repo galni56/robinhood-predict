@@ -262,7 +262,7 @@ export function OnchainDuelPage() {
                 ) : (
                   <>
                     {open && duel.racers.length < DUEL_RULES.maxRacers && myBacking.length === 0 && (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      <fieldset disabled={!!busy} style={{ display: 'flex', flexDirection: 'column', gap: 12, border: 0, margin: 0, padding: 0, minWidth: 0 }}>
                         <span style={label}>{duel.racers.length === 0 ? 'START THIS LOBBY WITH YOUR COIN' : 'JOIN WITH YOUR COIN'}</span>
                         <CoinPicker assets={pickable} selected={coin ? [coin.assetId] : []} onToggle={(a) => setCoin(coin?.assetId === a.assetId ? null : a)} max={1} />
                         {duel.racers.length === 0 && (
@@ -288,10 +288,10 @@ export function OnchainDuelPage() {
                         >
                           {busy === 'join' ? 'SIGNING…' : coin ? `ENTER WITH ${coin.symbol}` : 'PICK A COIN'}
                         </button>
-                      </div>
+                      </fieldset>
                     )}
                     {open && duel.racers.some((r) => r.paid) && (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      <fieldset disabled={!!busy} style={{ display: 'flex', flexDirection: 'column', gap: 10, border: 0, margin: 0, padding: 0, minWidth: 0 }}>
                         <span style={label}>BACK A RACER · UP TO $100</span>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>{duel.racers.filter((r) => r.paid && (myBacking.length === 0 || myBacking[0].seat === r.seat)).map((r) => <button key={r.seat} type="button" onClick={() => setBackSeat(r.seat)} className={choice(backSeat === r.seat)} style={{ padding: '8px 12px', fontWeight: 700 }}>{r.symbol}</button>)}</div>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>{BACK_PRESETS.map((c) => <button key={String(c)} type="button" onClick={() => setBackCents(c)} className={choice(backCents === c)} style={{ padding: '8px 12px', fontWeight: 700 }}>{usd(c)}</button>)}</div>
@@ -300,7 +300,7 @@ export function OnchainDuelPage() {
                         </button>
                         {myBacking.length > 0 && <p style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>You backed {duel.racers.find((r) => r.seat === myBacking[0].seat)?.symbol} with {sol(myBacking.reduce((s, b) => s + b.amount, 0n))}.</p>}
                         <p style={{ margin: 0, fontSize: 13, opacity: 0.7 }}>If your racer wins you get your money back plus 70% of what was bet on the others (pro rata), minus 2% of the win. Racers cannot back.</p>
-                      </div>
+                      </fieldset>
                     )}
                     {!open && <p style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>{duel.status === 'running' ? <>The race is on! Cheer for your coin <span style={{ fontFamily: EMOJI }}>🎆</span></> : 'Starting…'}</p>}
                   </>

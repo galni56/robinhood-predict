@@ -297,7 +297,7 @@ export function OnchainArenaPage() {
             {supplyTokens && (
               <div className="mt-5" style={{ display: 'flex', gap: 4 }}>
                 {(['cap', 'price'] as const).map((choice) => (
-                  <button key={choice} type="button" onClick={() => { setUnitChoice(choice); setPrediction('') }} className={`rx-btn ${unit === choice ? 'rx-btn-yellow' : 'rx-btn-white'}`} style={{ padding: '8px 14px', fontSize: 14, fontWeight: 700 }}>
+                  <button key={choice} type="button" disabled={!!txLabel} onClick={() => { setUnitChoice(choice); setPrediction('') }} className={`rx-btn ${unit === choice ? 'rx-btn-yellow' : 'rx-btn-white'}`} style={{ padding: '8px 14px', fontSize: 14, fontWeight: 700 }}>
                     {choice === 'cap' ? 'Market cap' : 'Price'}
                   </button>
                 ))}

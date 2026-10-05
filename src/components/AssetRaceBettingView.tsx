@@ -109,9 +109,9 @@ export function AssetRaceBettingView({
               >
                 <button
                   type="button"
-                  disabled={unavailable}
+                  disabled={unavailable || !!txLabel}
                   onClick={() => setSelectedAssetIndex(asset.assetIndex)}
-                  className="w-full p-4 text-left disabled:cursor-not-allowed disabled:opacity-35"
+                  className={`w-full p-4 text-left disabled:cursor-not-allowed ${unavailable ? 'opacity-35' : ''}`}
                 >
                   <div className="flex items-center justify-between">
                     <span className="flex items-center gap-3" style={{ fontFamily: PIXEL, fontSize: 14 }}><PxSprite data={coinSkin(asset.symbol, asset.assetIndex).sprite} width={40} height={43} />{asset.symbol}</span>
