@@ -18,6 +18,7 @@
 //   spectators get their money back in full.
 
 import { BP_DENOMINATOR, RuleError, STAKE, calculateReturn, validateTitle } from './rules.mjs'
+import { FINAL_STATUSES } from './db.mjs'
 
 export const DUEL = {
   minRacers: 2,
@@ -41,7 +42,6 @@ export const DUEL = {
 const require = (condition, code) => {
   if (!condition) throw new RuleError(code)
 }
-const FINAL = new Set(['resolved', 'void', 'cancelled'])
 
 export function createDuel(id, now, creator = null) {
   return {
@@ -326,7 +326,7 @@ export function resolveDuel(duel, { prices, prevSlot }, now) {
 
 /** What every wallet receives once the duel is final: [{ wallet, amount, reason }]. */
 export function duelSettlements(duel) {
-  if (!FINAL.has(duel.status)) return []
+  if (!FINAL_STATUSES.has(duel.status)) return []
   if (duel.status !== 'resolved') {
     return [
       ...duel.racers.filter((r) => r.paid).map((r) => ({ wallet: r.wallet, amount: r.paidAmount, reason: 'refund' })),

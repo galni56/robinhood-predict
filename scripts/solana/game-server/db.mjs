@@ -60,6 +60,16 @@ export const toJson = (value) => JSON.stringify(value, (_, v) => (typeof v === '
 export const fromJson = (text) =>
   JSON.parse(text, (key, v) => (BIGINT_KEYS.has(key) && typeof v === 'string' ? BigInt(v) : v))
 
+// Stored game state tags every BigInt ({"$n":"123"}) so it comes back as a
+// BigInt whatever its field is called: reviving by field name alone turned
+// any new amount field missing from BIGINT_KEYS into a string, and string +
+// or < on money fails silently. Rows written before tagging still revive
+// through BIGINT_KEYS.
+const isTagged = (v) => v !== null && typeof v === 'object' && !Array.isArray(v) && typeof v.$n === 'string' && Object.keys(v).length === 1
+export const encodeState = (value) => JSON.stringify(value, (_, v) => (typeof v === 'bigint' ? { $n: v.toString() } : v))
+export const decodeState = (text) =>
+  JSON.parse(text, (key, v) => (isTagged(v) ? BigInt(v.$n) : BIGINT_KEYS.has(key) && typeof v === 'string' ? BigInt(v) : v))
+
 /** Statuses after which a game holds no stakes of its own (payout rows do). */
 export const FINAL_STATUSES = new Set(['resolved', 'cancelled', 'void'])
 
@@ -68,12 +78,13 @@ export function openDatabase(path) {
   db.exec('PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000; PRAGMA foreign_keys = ON;')
   db.exec(SCHEMA)
   const q = (sql) => db.prepare(sql)
+  const FINAL_SQL = [...FINAL_STATUSES].map((st) => `'${st}'`).join(', ')
   const s = {
     getMeta: q('SELECT value FROM meta WHERE key = ?'),
     setMeta: q('INSERT INTO meta (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value'),
     getGame: q('SELECT state FROM games WHERE kind = ? AND id = ?'),
     gamesByKind: q('SELECT state FROM games WHERE kind = ? ORDER BY id'),
-    liveGames: q("SELECT state FROM games WHERE status NOT IN ('resolved', 'cancelled', 'void') ORDER BY kind, id"),
+    liveGames: q(`SELECT state FROM games WHERE status NOT IN (${FINAL_SQL}) ORDER BY kind, id`),
     allGames: q('SELECT state FROM games ORDER BY kind, id'),
     putGame: q(`INSERT INTO games (kind, id, status, state, updated_at) VALUES (?, ?, ?, ?, ?)
       ON CONFLICT (kind, id) DO UPDATE SET status = excluded.status, state = excluded.state, updated_at = excluded.updated_at`),
@@ -94,6 +105,15 @@ export function openDatabase(path) {
     markDone: q("UPDATE payouts SET status = 'done', done_at = ? WHERE id = ? AND status = 'sent'"),
     markRetry: q("UPDATE payouts SET status = ?, error = ? WHERE id = ? AND status = 'sent'"),
     owedTotal: q("SELECT amount FROM payouts WHERE status IN ('pending', 'sent', 'stuck')"),
+    // Fee ledger: what finished games kept (stakes in minus payouts out, which
+    // is the protocol and creator fees plus rounding dust), plus kept dust
+    // deposits, minus creator credits and earlier sweeps.
+    finalStakesIn: q(`SELECT d.amount FROM deposits d JOIN games g ON g.kind = d.game_kind AND g.id = d.game_id
+      WHERE d.status = 'accepted' AND g.status IN (${FINAL_SQL})`),
+    finalPaidOut: q(`SELECT p.amount FROM payouts p JOIN games g ON g.kind = p.game_kind AND g.id = p.game_id
+      WHERE p.kind NOT IN ('creator', 'sweep') AND g.status IN (${FINAL_SQL})`),
+    keptDeposits: q("SELECT amount FROM deposits WHERE status = 'kept' AND amount IS NOT NULL"),
+    creatorAndSweepPayouts: q("SELECT amount FROM payouts WHERE kind IN ('creator', 'sweep')"),
     getCreator: q('SELECT amount FROM creator_balances WHERE wallet = ?'),
     putCreator: q('INSERT INTO creator_balances (wallet, amount) VALUES (?, ?) ON CONFLICT (wallet) DO UPDATE SET amount = excluded.amount'),
     allCreators: q('SELECT wallet, amount FROM creator_balances'),
@@ -104,6 +124,7 @@ export function openDatabase(path) {
     allNicknames: q('SELECT wallet, nickname FROM nicknames'),
     dropNickname: q('DELETE FROM nicknames WHERE wallet = ?'),
     useMessage: q('INSERT INTO used_messages (signature, wallet, at) VALUES (?, ?, ?)'),
+    pruneMessages: q('DELETE FROM used_messages WHERE at < ?'),
     addKick: q('INSERT INTO duel_kicks (wallet, at) VALUES (?, ?)'),
     kicksSince: q('SELECT COUNT(*) AS n FROM duel_kicks WHERE wallet = ? AND at >= ?'),
   }
@@ -132,6 +153,11 @@ export function openDatabase(path) {
     raw: db,
     transaction,
     close: () => db.close(),
+    /** Deposits that need a manual look (SOL that arrived outside a plain
+     * transfer, or a signature that never became readable). */
+    attentionCount: () => db.prepare("SELECT COUNT(*) AS n FROM deposits WHERE status IN ('unmatched', 'dropped')").get().n,
+    /** Consistent online copy of the whole database (VACUUM INTO). */
+    backup: (target) => db.exec(`VACUUM INTO '${String(target).replaceAll("'", "''")}'`),
 
     nextId(kind) {
       const key = `next_${kind}_id`
@@ -144,13 +170,13 @@ export function openDatabase(path) {
 
     getGame(kind, id) {
       const row = s.getGame.get(kind, id)
-      return row ? fromJson(row.state) : null
+      return row ? decodeState(row.state) : null
     },
-    games: (kind) => s.gamesByKind.all(kind).map((r) => fromJson(r.state)),
-    liveGames: () => s.liveGames.all().map((r) => fromJson(r.state)),
-    allGames: () => s.allGames.all().map((r) => fromJson(r.state)),
+    games: (kind) => s.gamesByKind.all(kind).map((r) => decodeState(r.state)),
+    liveGames: () => s.liveGames.all().map((r) => decodeState(r.state)),
+    allGames: () => s.allGames.all().map((r) => decodeState(r.state)),
     saveGame(game) {
-      s.putGame.run(game.kind, game.id, game.status, toJson(game), now())
+      s.putGame.run(game.kind, game.id, game.status, encodeState(game), now())
     },
 
     getDeposit: (signature) => s.getDeposit.get(signature) ?? null,
@@ -182,6 +208,13 @@ export function openDatabase(path) {
     setCreatorBalance: (wallet, amount) => s.putCreator.run(wallet, amount.toString()),
     creatorBalancesTotal: () => s.allCreators.all().reduce((sum, r) => sum + BigInt(r.amount), 0n),
 
+    /** Fees Prophet has earned and not swept yet (the most a sweep may take). */
+    unsweptFees() {
+      const total = (rows) => rows.reduce((sum, r) => sum + BigInt(r.amount), 0n)
+      return total(s.finalStakesIn.all()) - total(s.finalPaidOut.all()) + total(s.keptDeposits.all())
+        - total(s.creatorAndSweepPayouts.all()) - total(s.allCreators.all())
+    },
+
     nickname: (wallet) => s.getNickname.get(wallet)?.nickname ?? null,
     nicknameOwner: (lower) => s.nicknameOwner.get(lower)?.wallet ?? null,
     setNickname: (wallet, nickname) => s.putNickname.run(wallet, nickname, nickname.toLowerCase(), now()),
@@ -193,5 +226,6 @@ export function openDatabase(path) {
 
     /** Records a signed message; throws on replay (PRIMARY KEY). */
     useMessage: (signature, wallet) => s.useMessage.run(signature, wallet, now()),
+    pruneMessages: (before) => s.pruneMessages.run(before),
   }
 }

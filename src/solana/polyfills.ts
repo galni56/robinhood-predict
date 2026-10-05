@@ -1,4 +1,4 @@
-// web3.js and the Anchor coder expect Node's Buffer. Imported first from
+// web3.js expects Node's Buffer. Imported first from
 // main.tsx so it is defined before any Solana module evaluates.
 import { Buffer } from 'buffer'
 

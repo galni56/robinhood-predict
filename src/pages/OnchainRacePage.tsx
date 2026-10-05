@@ -18,11 +18,10 @@ import {
   type FrozenStakeQuote,
   type StakeInputUnit,
 } from '@/chain/stakeQuote'
-import { raceStakeMemo, stakeInstructions } from '@/chain/gameTx'
-import { depositOutcomeMessage, reportDeposit, useGameServerConfig, useSignedAction } from '@/chain/gameServer'
-import { assetRaceCatalogById } from '@/chain/assetRaceRegistry'
+import { raceStakeMemo } from '@/chain/gameTx'
+import { useSignedAction } from '@/chain/gameServer'
 import { useAssetRace } from '@/chain/useAssetRace'
-import { useAssetRaceClock } from '@/chain/useAssetRaceClock'
+import { useServerNowMs } from '@/chain/serverClock'
 import { useLivePrices } from '@/chain/livePrices'
 import { AssetRaceBettingView } from '@/components/AssetRaceBettingView'
 import { AssetRaceLobbyView } from '@/components/AssetRaceLobbyView'
@@ -32,7 +31,8 @@ import { ClusterBanner } from '@/components/ClusterBanner'
 import { ShareInviteButton } from '@/components/ShareInviteButton'
 
 import { useStakeBalance, useStakeToken } from '@/solana/stakeTokens'
-import { TxUnconfirmedError, useSendInstructions } from '@/solana/tx'
+import { TxUnconfirmedError } from '@/solana/tx'
+import { useStakeTransfer } from '@/solana/stake'
 import { formatUnits, formatCountdown, shortTxError } from '@/lib/format'
 import { formatStakeAmount } from '@/solana/stakeTokens'
 import { CREAM, INK, PINK, SKY, YELLOW } from '@/retro/scene'
@@ -53,9 +53,8 @@ export function OnchainRacePage() {
   const { raceId: routeRaceId } = useParams()
   const raceId = parseRaceId(routeRaceId)
   const { publicKey, connected } = useWallet()
-  const send = useSendInstructions()
+  const stake = useStakeTransfer()
   const act = useSignedAction()
-  const serverConfig = useGameServerConfig()
   const queryClient = useQueryClient()
   const { race, position, payout, settlement, isLoading, error: readError, refetch } = useAssetRace(raceId, publicKey)
   const [selectedAssetIndex, setSelectedAssetIndex] = useState(0)
@@ -67,8 +66,9 @@ export function OnchainRacePage() {
   const [tx, setTx] = useState<TxState>(null)
   const [frozenBetQuote, setFrozenBetQuote] = useState<FrozenStakeQuote | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const raceNowMs = useAssetRaceClock()
-  const live = useLivePrices()
+  const raceNowMs = useServerNowMs()
+  // Prices matter only while stakes can be quoted or the race is moving.
+  const live = useLivePrices({ enabled: race != null && (race.status === ASSET_RACE_STATUS.LOBBY || race.status === ASSET_RACE_STATUS.BETTING || race.status === ASSET_RACE_STATUS.RUNNING) })
   // SOL stakes are entered in USD or SOL at the live rate; SPL stakes in their own units.
   const token = useStakeToken(race?.stakeMint)
   const usdQuoted = token?.native ?? true
@@ -102,8 +102,6 @@ export function OnchainRacePage() {
     setError(null)
     try {
       if (raceId == null || !race || !publicKey || !token) return
-      const gameWallet = serverConfig.data?.gameWallet
-      if (!gameWallet) throw new Error('The game server is not reachable right now')
       let frozen: FrozenStakeQuote | null = null
       if (usdQuoted) {
         if (!live.solUsd) throw new Error('SolUsdQuoteStale')
@@ -123,17 +121,13 @@ export function OnchainRacePage() {
       setFrozenBetQuote(frozen)
       const assetIndex = position?.exists ? position.assetIndex : selectedAssetIndex
       setTx({ label: 'Preparing race bet…' })
-      const instructions = stakeInstructions({ player: publicKey, gameWallet, lamports: betAmount, memo: raceStakeMemo(race.id, assetIndex) })
-      const signature = await send(instructions, {
-        onPhase: (phase) =>
-          setTx({ label: phase === 'signing' ? 'Placing bet…' : 'Waiting for bet confirmation…' }),
-      })
-      setTx({ label: 'Recording your bet…' })
-      const outcome = await reportDeposit(signature).catch(() => null)
+      const outcome = await stake(betAmount, raceStakeMemo(race.id, assetIndex), (phase) =>
+        setTx({ label: phase === 'signing' ? 'Placing bet…' : phase === 'confirming' ? 'Waiting for bet confirmation…' : 'Recording your bet…' }),
+      )
       setTx(null)
       setFrozenBetQuote(null)
       setAmount('')
-      if (outcome) setError(depositOutcomeMessage(outcome))
+      if (outcome) setError(outcome)
       await refetchAll()
     } catch (cause) {
       setTx(null)
@@ -146,12 +140,12 @@ export function OnchainRacePage() {
   }
 
   // Adding a lobby asset is a signed message: no transaction, no fee.
-  async function handleAddAsset(assetId: string) {
+  async function handleAddAsset(symbol: string) {
     setError(null)
     try {
       if (!race || !publicKey) return
-      const symbol = assetRaceCatalogById.get(assetId.toLowerCase())?.symbol
-      if (!symbol) throw new Error('Unknown asset')
+      // PumpSwap coins are not in the static catalog, so the old reverse
+      // lookup from the synthetic asset id always failed for them.
       setTx({ label: 'Signing…' })
       await act({ action: 'add-lobby-asset', race: Number(race.id), asset: symbol })
       setTx(null)

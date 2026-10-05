@@ -1,7 +1,7 @@
 import { useCallback } from 'react'
 import { Transaction, type TransactionError, type TransactionInstruction } from '@solana/web3.js'
 import { useConnection, useWallet } from '@solana/wallet-adapter-react'
-import { GameServerError, gameServerMessage } from '@/chain/gameServer'
+import { GameServerError, GameServerUnavailableError, gameServerMessage } from '@/chain/gameServer'
 
 /** `signing`: the wallet prompt is open. `confirming`: broadcast, waiting for
  * the cluster. Pages use this to show the right label at the right moment. */
@@ -67,6 +67,7 @@ const REJECTED_NAMES = /WalletWindowClosedError|WalletSignTransactionError|Walle
 /** Short, user-facing message for a failed wallet, transaction or game server action. */
 export function solanaTxError(error: unknown): string {
   if (error instanceof GameServerError) return gameServerMessage(error.code)
+  if (error instanceof GameServerUnavailableError) return 'The game server is not responding right now. Nothing was refused - try again in a moment.'
   if (error instanceof TxUnconfirmedError) {
     return `The transaction was submitted and may still confirm. Check your wallet activity before retrying (signature ${error.signature.slice(0, 8)}…).`
   }

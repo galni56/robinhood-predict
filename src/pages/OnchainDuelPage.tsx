@@ -2,9 +2,10 @@ import { useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { useWallet } from '@solana/wallet-adapter-react'
-import { DUEL_RULES, cheerRacer, duelPhaseLabel, duelStake, durationLabel, useDuel, useNowSeconds, usdToLamports, type Duel, type DuelRacer } from '@/chain/duels'
-import { depositOutcomeMessage, reportDeposit, useGameServerConfig, useSignedAction } from '@/chain/gameServer'
-import { stakeInstructions } from '@/chain/gameTx'
+import { quoteUsdCents, usdCentsToLamports, stakeQuoteErrorMessage } from '@/chain/stakeQuote'
+import { DUEL_RULES, cheerRacer, duelPhaseLabel, duelStake, durationLabel, useDuel, type Duel, type DuelRacer } from '@/chain/duels'
+import { useSignedAction } from '@/chain/gameServer'
+import { useServerNowMs } from '@/chain/serverClock'
 import { marketCapUsd, useLivePrices } from '@/chain/livePrices'
 import { useApprovedRaceAssets } from '@/chain/useApprovedRaceAssets'
 import { calculateReturnWad, formatReturnWad, type ApprovedRaceAsset } from '@/chain/assetRaces'
@@ -13,14 +14,14 @@ import { CoinPicker, COIN_BODIES } from '@/components/GamePickers'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
 import { assetIconUrl } from '@/lib/assetIcons'
 import { formatCompactUsd, formatUnits, shortTxError } from '@/lib/format'
-import { useSendInstructions } from '@/solana/tx'
+import { TxUnconfirmedError } from '@/solana/tx'
+import { useStakeTransfer } from '@/solana/stake'
 import { explorerUrl } from '@/solana/config'
 import { CoinFighter } from '@/retro/landingFx'
 import { PxSprite } from '@/retro/Sprite'
-import { CREAM, INK, PINK, ROAD, SKY, YELLOW } from '@/retro/scene'
+import { CREAM, INK, PINK, ROAD, SKY, YELLOW, PIXEL } from '@/retro/scene'
 import { crown } from '@/retro/spriteData'
 
-const PIXEL = "'Press Start 2P', 'Courier New', monospace"
 // Pixel fonts have no emoji; the firework uses the system emoji font.
 const EMOJI = "'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif"
 const STAKE_PRESETS = [100n, 500n, 1_000n, 2_500n, 5_000n]
@@ -107,12 +108,11 @@ export function OnchainDuelPage() {
   const { duel, isLoading, refetch } = useDuel(id)
   const { publicKey, connected } = useWallet()
   const me = publicKey?.toBase58()
-  const send = useSendInstructions()
+  const stake = useStakeTransfer()
   const act = useSignedAction()
-  const config = useGameServerConfig()
-  const live = useLivePrices()
+  const live = useLivePrices({ enabled: duel != null && duel.status !== 'resolved' && duel.status !== 'void' })
   const { assets } = useApprovedRaceAssets()
-  const now = useNowSeconds()
+  const now = useServerNowMs() / 1000
   const queryClient = useQueryClient()
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -141,18 +141,18 @@ export function OnchainDuelPage() {
       await fn()
       await Promise.all([refetch(), queryClient.invalidateQueries({ queryKey: ['game-state'] })])
     } catch (cause) {
-      setError(shortTxError(cause, 'duel'))
+      setError(stakeQuoteErrorMessage(cause) ?? shortTxError(cause, 'duel'))
+      // The transfer may have landed: show the real state, never invite a
+      // second payment.
+      if (cause instanceof TxUnconfirmedError) void Promise.all([refetch(), queryClient.invalidateQueries({ queryKey: ['game-state'] })])
     } finally {
       setBusy(null)
     }
   }
 
   async function transfer(lamports: bigint, seat: number) {
-    const gameWallet = config.data?.gameWallet
-    if (!publicKey || !gameWallet || id == null) throw new Error('The game server is not reachable right now')
-    const signature = await send(stakeInstructions({ player: publicKey, gameWallet, lamports, memo: duelStake(id, seat) }))
-    const outcome = await reportDeposit(signature).catch(() => null)
-    const message = outcome ? depositOutcomeMessage(outcome) : null
+    if (id == null) return
+    const message = await stake(lamports, duelStake(id, seat))
     if (message) setError(message)
   }
 
@@ -165,7 +165,7 @@ export function OnchainDuelPage() {
   const label = { display: 'block', marginBottom: 8, fontFamily: PIXEL, fontSize: 10 } as const
   const choice = (active: boolean) => `rx-btn ${active ? 'rx-btn-yellow' : 'rx-btn-white'}`
   const usd = (cents: bigint) => `$${Number(cents) / 100}`
-  const stakeLamports = live.solUsd ? usdToLamports(stakeCents, live.solUsd) : null
+  const stakeLamports = live.solUsd ? usdCentsToLamports(stakeCents, live.solUsd.priceRaw, live.solUsd.decimals) : null
   const valueOf = (r: DuelRacer, raw: bigint) => {
     const p = live.assets[r.symbol]
     if (duel?.unit === 'cap' && p?.supply) return formatCompactUsd(marketCapUsd({ ...p, raw }) ?? 0)
@@ -260,7 +260,7 @@ export function OnchainDuelPage() {
                 ) : (
                   <>
                     {open && duel.racers.length < DUEL_RULES.maxRacers && myBacking.length === 0 && (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      <fieldset disabled={!!busy} style={{ display: 'flex', flexDirection: 'column', gap: 12, border: 0, margin: 0, padding: 0, minWidth: 0 }}>
                         <span style={label}>{duel.racers.length === 0 ? 'START THIS LOBBY WITH YOUR COIN' : 'JOIN WITH YOUR COIN'}</span>
                         <CoinPicker assets={pickable} selected={coin ? [coin.assetId] : []} onToggle={(a) => setCoin(coin?.assetId === a.assetId ? null : a)} max={1} />
                         {duel.racers.length === 0 && (
@@ -286,19 +286,19 @@ export function OnchainDuelPage() {
                         >
                           {busy === 'join' ? 'SIGNING…' : coin ? `ENTER WITH ${coin.symbol}` : 'PICK A COIN'}
                         </button>
-                      </div>
+                      </fieldset>
                     )}
                     {open && duel.racers.some((r) => r.paid) && (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      <fieldset disabled={!!busy} style={{ display: 'flex', flexDirection: 'column', gap: 10, border: 0, margin: 0, padding: 0, minWidth: 0 }}>
                         <span style={label}>BACK A RACER · UP TO $100</span>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>{duel.racers.filter((r) => r.paid && (myBacking.length === 0 || myBacking[0].seat === r.seat)).map((r) => <button key={r.seat} type="button" onClick={() => setBackSeat(r.seat)} className={choice(backSeat === r.seat)} style={{ padding: '8px 12px', fontWeight: 700 }}>{r.symbol}</button>)}</div>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>{BACK_PRESETS.map((c) => <button key={String(c)} type="button" onClick={() => setBackCents(c)} className={choice(backCents === c)} style={{ padding: '8px 12px', fontWeight: 700 }}>{usd(c)}</button>)}</div>
-                        <button type="button" disabled={!backSeat || !live.solUsd || !!busy} onClick={() => run('back', () => transfer(usdToLamports(backCents, live.solUsd!), backSeat!))} className="rx-btn rx-btn-pink w-full" style={{ minHeight: 52, fontFamily: PIXEL, fontSize: 11 }}>
+                        <button type="button" disabled={!backSeat || !live.solUsd || !!busy} onClick={() => run('back', () => transfer(quoteUsdCents(backCents, live.solUsd!), backSeat!))} className="rx-btn rx-btn-pink w-full" style={{ minHeight: 52, fontFamily: PIXEL, fontSize: 11 }}>
                           {busy === 'back' ? 'SENDING…' : backSeat ? `BACK ${duel.racers.find((r) => r.seat === backSeat)?.symbol} WITH ${usd(backCents)}` : 'PICK A RACER'}
                         </button>
                         {myBacking.length > 0 && <p style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>You backed {duel.racers.find((r) => r.seat === myBacking[0].seat)?.symbol} with {sol(myBacking.reduce((s, b) => s + b.amount, 0n))}.</p>}
                         <p style={{ margin: 0, fontSize: 13, opacity: 0.7 }}>If your racer wins you get your money back plus 70% of what was bet on the others (pro rata), minus 2% of the win. Racers cannot back.</p>
-                      </div>
+                      </fieldset>
                     )}
                     {!open && <p style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>{duel.status === 'running' ? <>The race is on! Cheer for your coin <span style={{ fontFamily: EMOJI }}>🎆</span></> : 'Starting…'}</p>}
                   </>

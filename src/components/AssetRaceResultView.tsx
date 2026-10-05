@@ -41,7 +41,8 @@ export function AssetRaceResultView({
   tokenLabel: string
 }) {
   // Memes also show market cap (price x supply); supply comes with live prices.
-  const live = useLivePrices()
+  // Only market-cap races need live supply for the result caps.
+  const live = useLivePrices({ enabled: race.unit === 'cap' })
   const capOf = (symbol: string, price: bigint, decimals: number) => {
     const supply = race.unit === 'cap' ? live.assets[symbol]?.supply : undefined
     return supply ? formatCompactUsd(Number(formatUnits(price, decimals)) * (Number(supply.raw) / 10 ** supply.decimals)) : null
@@ -78,7 +79,7 @@ export function AssetRaceResultView({
 
   return (
     <div className="space-y-5">
-      <div className={`relative overflow-hidden rounded-none border p-6 ${resolved ? 'race-result-enter border-[#ffd23f]/40 bg-gradient-to-b from-[#3D2A2B] to-[#221c40]' : 'border-[#ffd23f]/25 bg-[#ffd23f]/5'}`}>
+      <div className={`relative overflow-hidden rounded-none border p-6 ${resolved ? 'race-result-enter rx-raised border-0 bg-[#FFD23F] text-[#1B1340]' : 'border-[#ffd23f]/25 bg-[#ffd23f]/5'}`}>
         {resolved && (
           <span aria-hidden="true" className={`absolute right-6 top-5 grid h-12 w-12 rotate-6 place-items-center rounded-none bg-[#fbf3e2] text-[#191330] shadow-lg ${won ? 'animate-bounce motion-reduce:animate-none' : ''}`}>
             <TrophyIcon className="h-6 w-6" />

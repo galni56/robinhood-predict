@@ -6,10 +6,9 @@ import { LAUNCH_LIMITS, LAUNCH_RPC_URL, LAUNCH_WS_URL, createTokenInstructions, 
 import { WalletOptionsList } from '@/components/WalletOptionsList'
 import { shortTxError } from '@/lib/format'
 import { CoinFighter, DriftingCloud, Sun } from '@/retro/landingFx'
-import { CREAM, INK, PINK, SKY, YELLOW } from '@/retro/scene'
+import { CREAM, INK, PINK, SKY, YELLOW, PIXEL } from '@/retro/scene'
 import { coinPinkGrin } from '@/retro/spriteData'
 
-const PIXEL = "'Press Start 2P', 'Courier New', monospace"
 const bytes = (value: string) => new TextEncoder().encode(value).length
 
 type Step = 'idle' | 'uploading' | 'signing' | 'confirming'

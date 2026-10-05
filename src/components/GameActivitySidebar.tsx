@@ -44,7 +44,7 @@ export function GameActivitySidebar({
                       ))}
                     </span>
                     <AddressLabel address={stats.wallet} link={false} className="min-w-0 truncate font-mono text-xs" />
-                    <span title={`${formatSol(net)} SOL`} className={`whitespace-nowrap text-right font-mono text-[0.7rem] tabular-nums ${net >= 0n ? accentText : 'text-rose-400'}`}>{net >= 0n ? '+' : ''}{formatCompactSol(net)}</span>
+                    <span title={`${formatSol(net)} SOL`} className={`whitespace-nowrap text-right font-mono text-[0.7rem] tabular-nums ${net >= 0n ? accentText : 'text-[#C2245A]'}`}>{net >= 0n ? '+' : ''}{formatCompactSol(net)}</span>
                   </a>
                 })}
         </div>
@@ -66,13 +66,13 @@ export function GameActivitySidebar({
                     <div className="flex min-w-0 items-center justify-between gap-2">
                       <div className="flex min-w-0 items-center gap-1.5">
                         <TokenLogo ticker={bet.symbol ?? undefined} className="h-6 w-6 rounded-none" />
-                        <div className="min-w-0 truncate font-bold text-white/75">{bet.symbol ?? `${kind} #${bet.gameId ?? '?'}`}</div>
+                        <div className="min-w-0 truncate font-bold text-[#1B1340]/75">{bet.symbol ?? `${kind} #${bet.gameId ?? '?'}`}</div>
                       </div>
-                      <div title={formatStakeExact(amount, token)} className="shrink-0 whitespace-nowrap text-right font-mono text-white/70 tabular-nums">{formatStakeAmount(amount, token)}</div>
+                      <div title={formatStakeExact(amount, token)} className="shrink-0 whitespace-nowrap text-right font-mono text-[#1B1340]/70 tabular-nums">{formatStakeAmount(amount, token)}</div>
                     </div>
                     <div className="mt-1.5 grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-2 border-t border-[#1B1340]/12 pt-1.5">
-                      <AddressLabel address={bet.wallet!} className="min-w-0 truncate font-mono text-[#1B1340]/55 hover:text-white" />
-                      <a href={explorerUrl('tx', bet.signature)} target="_blank" rel="noreferrer" className="whitespace-nowrap font-mono text-[#1B1340]/55 hover:text-white">{shortHash(bet.signature)}</a>
+                      <AddressLabel address={bet.wallet!} className="min-w-0 truncate font-mono text-[#1B1340]/55 hover:text-[#1B1340]" />
+                      <a href={explorerUrl('tx', bet.signature)} target="_blank" rel="noreferrer" className="whitespace-nowrap font-mono text-[#1B1340]/55 hover:text-[#1B1340]">{shortHash(bet.signature)}</a>
                     </div>
                   </div>
                 })}

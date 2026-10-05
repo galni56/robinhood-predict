@@ -22,7 +22,8 @@ export function AssetRaceLobbyView({
   nowMs: number
   isConnected: boolean
   hasAddedAsset: boolean
-  onAddAsset: (assetId: string) => void
+  /** Receives the asset symbol - the game server keys assets by symbol. */
+  onAddAsset: (symbol: string) => void
   txLabel: string | null
   error: string | null
 }) {
@@ -79,7 +80,7 @@ export function AssetRaceLobbyView({
             </div>
           ))}
           {Array.from({ length: Math.max(0, 2 - race.assets.length) }, (_, index) => (
-            <div key={`empty-${index}`} className="grid place-items-center rounded-none border border-dashed border-white/15 px-3 py-3 text-sm font-medium text-white/25">Open slot</div>
+            <div key={`empty-${index}`} className="grid place-items-center rounded-none border border-dashed border-[#1B1340]/15 px-3 py-3 text-sm font-medium text-[#1B1340]/55">Open slot</div>
           ))}
         </div>
       </div>
@@ -130,13 +131,13 @@ export function AssetRaceLobbyView({
                         type="button"
                         onClick={() => setPendingAsset(null)}
                         disabled={!!txLabel}
-                        className="flex-1 rounded-full border border-white/15 px-4 py-2.5 text-xs font-bold text-white/65 hover:border-white/30 disabled:opacity-40 sm:flex-none"
+                        className="flex-1 rounded-full border border-[#1B1340]/15 px-4 py-2.5 text-xs font-bold text-[#1B1340]/65 hover:border-[#1B1340]/30 disabled:opacity-40 sm:flex-none"
                       >
                         Cancel
                       </button>
                       <button
                         type="button"
-                        onClick={() => onAddAsset(pendingAsset.assetId)}
+                        onClick={() => onAddAsset(pendingAsset.symbol)}
                         disabled={!!txLabel}
                         className="flex-1 rounded-full bg-gradient-to-r from-[#ffd23f] to-[#f7b928] px-4 py-2.5 text-xs font-bold text-[#191330] disabled:opacity-40 sm:flex-none"
                       >

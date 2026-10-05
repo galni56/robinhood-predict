@@ -10,13 +10,13 @@ import { ProphetWalletName, prophetWalletStore } from '@/solana/prophetWallet'
 import { EXTERNAL_WALLETS_ENABLED } from '@/solana/SolanaProvider'
 import { formatStakeAmount, useStakeBalance } from '@/solana/stakeTokens'
 import { explorerUrl } from '@/solana/config'
+import { PIXEL } from '@/retro/scene'
 
 // Lazy: the nickname modal is only needed when someone opens it.
 const SetNicknameModal = lazy(() => import('@/components/SetNicknameModal').then((m) => ({ default: m.SetNicknameModal })))
 
 type ModalKind = 'backup' | 'deposit' | 'withdraw' | 'import' | 'nickname' | null
 
-const PIXEL = "'Press Start 2P', 'Courier New', monospace"
 const itemClass = 'block w-full px-3 py-2 text-left font-bold text-[#1B1340]/80 hover:bg-[#FFD23F] hover:text-[#1B1340]'
 
 /** The account entry point. With the platform wallet (default) it is a

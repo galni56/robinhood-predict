@@ -8,11 +8,11 @@ import { useStakeBalance } from '@/solana/stakeTokens'
 import { useSendInstructions } from '@/solana/tx'
 import { LAMPORTS_PER_SOL } from '@/solana/config'
 import { formatUnits, shortTxError } from '@/lib/format'
+import { PIXEL } from '@/retro/scene'
 
 // Personal-account modals for the platform wallet, in the mock's style:
 // backup (forced once after creation), deposit, withdraw, import.
 
-const PIXEL = "'Press Start 2P', 'Courier New', monospace"
 const INK = '#1B1340'
 const CREAM = '#FFF6DF'
 // Leaves room for the withdrawal's own network fee.

@@ -12,21 +12,12 @@ import {
   type FrozenStakeQuote,
   type StakeInputUnit,
 } from '@/chain/stakeQuote'
-import { arenaStakeMemo, stakeInstructions } from '@/chain/gameTx'
-import { depositOutcomeMessage, reportDeposit, useGameServerConfig, useSignedAction } from '@/chain/gameServer'
-import { useAssetRaceClock } from '@/chain/useAssetRaceClock'
+import { arenaStakeMemo } from '@/chain/gameTx'
+import { useSignedAction } from '@/chain/gameServer'
+import { useServerNowMs } from '@/chain/serverClock'
 import { useLivePrices } from '@/chain/livePrices'
 import { usePriceArena } from '@/chain/usePriceArena'
-import {
-  PRICE_ARENA_CANCEL_REASON,
-  PRICE_ARENA_MAX_PARTICIPANTS,
-  PRICE_ARENA_PHASE,
-  arenaDurationLabel,
-  arenaPhase,
-  arenaPhaseLabel,
-  modeForArenaCategory,
-  type PriceArenaEntry,
-} from '@/chain/priceArena'
+import { PRICE_ARENA_STATUS, PRICE_ARENA_CANCEL_REASON, PRICE_ARENA_MAX_PARTICIPANTS, PRICE_ARENA_PHASE, arenaDurationLabel, arenaPhase, arenaPhaseLabel, modeForArenaCategory, type PriceArenaEntry } from '@/chain/priceArena'
 import { AddressLabel } from '@/components/AddressLabel'
 import { ClusterBanner } from '@/components/ClusterBanner'
 import { ShareInviteButton } from '@/components/ShareInviteButton'
@@ -34,7 +25,8 @@ import { StakeAmountInput } from '@/components/StakeAmountInput'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
 import { formatStakeAmount, formatStakeExact, useStakeBalance, useStakeToken, type StakeToken } from '@/solana/stakeTokens'
 import { explorerUrl } from '@/solana/config'
-import { TxUnconfirmedError, useSendInstructions } from '@/solana/tx'
+import { TxUnconfirmedError } from '@/solana/tx'
+import { useStakeTransfer } from '@/solana/stake'
 import { formatCompactUsd, formatCountdown, formatUnits, formatUsdPrice, parseUnits, shortTxError } from '@/lib/format'
 import { FightStage } from '@/retro/arena'
 import { CREAM, INK } from '@/retro/scene'
@@ -130,9 +122,8 @@ function ArenaBoard({ rows, referencePrice, decimals, resolved, winnerCount, tok
 export function OnchainArenaPage() {
   const arenaId = parseId(useParams().arenaId)
   const { publicKey, connected } = useWallet()
-  const send = useSendInstructions()
+  const stake = useStakeTransfer()
   const act = useSignedAction()
-  const serverConfig = useGameServerConfig()
   const { arena, entries, walletEntry, payout, minStake, maxStake, isLoading, error: readError, refetch } = usePriceArena(arenaId, publicKey)
   const queryClient = useQueryClient()
   const [prediction, setPrediction] = useState('')
@@ -141,8 +132,9 @@ export function OnchainArenaPage() {
   const [frozenEntryQuote, setFrozenEntryQuote] = useState<FrozenStakeQuote | null>(null)
   const [txLabel, setTxLabel] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const nowMs = useAssetRaceClock()
-  const live = useLivePrices()
+  const nowMs = useServerNowMs()
+  // A settled arena needs no live price.
+  const live = useLivePrices({ enabled: arena != null && arena.status === PRICE_ARENA_STATUS.OPEN })
   // SOL stakes are entered in USD or SOL at the live rate; SPL stakes in their own units.
   const token = useStakeToken(arena?.stakeMint)
   const usdQuoted = token?.native ?? true
@@ -238,17 +230,12 @@ export function OnchainArenaPage() {
         await refetchAfterTx()
         return
       }
-      const gameWallet = serverConfig.data?.gameWallet
-      if (!gameWallet) throw new Error('The game server is not reachable right now')
       setTxLabel(walletEntry ? 'Preparing arena update…' : 'Preparing arena entry…')
-      const instructions = stakeInstructions({ player: publicKey, gameWallet, lamports: additional, memo: arenaStakeMemo(arena.id, predicted) })
-      const signature = await send(instructions, {
-        onPhase: (phase) => setTxLabel(phase === 'signing' ? 'Sending…' : 'Waiting for confirmation…'),
-      })
-      setTxLabel('Recording your entry…')
-      const outcome = await reportDeposit(signature).catch(() => null)
+      const outcome = await stake(additional, arenaStakeMemo(arena.id, predicted), (phase) =>
+        setTxLabel(phase === 'signing' ? 'Sending…' : phase === 'confirming' ? 'Waiting for confirmation…' : 'Recording your entry…'),
+      )
       setPrediction(''); setAmount(''); setTxLabel(null); setFrozenEntryQuote(null)
-      if (outcome) setError(depositOutcomeMessage(outcome))
+      if (outcome) setError(outcome)
       await refetchAfterTx()
     } catch (cause) {
       setTxLabel(null)
@@ -273,7 +260,7 @@ export function OnchainArenaPage() {
     <div className="mx-auto max-w-[1200px] px-4 py-8">
       <ClusterBanner className="mb-5" />
       <Link to={`/onchain/arenas${arena ? `?mode=${modeForArenaCategory(arena.category)}` : ''}`} style={{ color: CREAM, fontSize: 20, fontWeight: 600 }}>← All arenas</Link>
-      {isLoading ? <p className="py-20 text-center text-white/40">Loading arena…</p> : readError ? <div className="mt-6 rounded-none border border-rose-500/25 bg-rose-500/10 p-5 text-rose-300">Could not read this arena.</div> : !arena ? <p className="py-20 text-center text-white/40">Arena not found.</p> : <>
+      {isLoading ? <p className="py-20 text-center text-[#FFF6DF]/80">Loading arena…</p> : readError ? <div className="mt-6 rounded-none border rx-raised bg-[#FFF6DF] p-5 text-[#C2245A]">Could not read this arena.</div> : !arena ? <p className="py-20 text-center text-[#FFF6DF]/80">Arena not found.</p> : <>
         <div className="mt-6 flex flex-wrap items-center justify-between gap-4">
           <h1 style={{ margin: 0, fontFamily: PIXEL, fontSize: 'clamp(18px, 2vw, 28px)', fontWeight: 400, lineHeight: 1.3, textShadow: `4px 4px 0 ${INK}` }}>
             ARENA · FIGHT #{arena.id.toString()}
@@ -297,22 +284,22 @@ export function OnchainArenaPage() {
           <span>{phase === PRICE_ARENA_PHASE.RESOLVED ? (supply ? 'Final cap' : 'Final price') : (supply ? 'Live cap' : 'Live price')} <span style={{ fontFamily: PIXEL, fontSize: 14 }}>{displayValue(referencePrice, arena.priceDecimals, supply)}</span></span>
         </div>
 
-        {!token ? <p className="py-10 text-center text-sm text-white/40">Loading stake currency…</p> : phase === PRICE_ARENA_PHASE.LOBBY ? <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_0.8fr]">
+        {!token ? <p className="py-10 text-center text-sm text-[#FFF6DF]/80">Loading stake currency…</p> : phase === PRICE_ARENA_PHASE.LOBBY ? <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_0.8fr]">
           <section className="rx-raised min-w-0" style={{ background: CREAM, color: INK, padding: 24 }}><h2 style={{ margin: 0, fontFamily: PIXEL, fontSize: 14, fontWeight: 400, lineHeight: 1.4 }}>LOBBY STAKES</h2><p className="mt-2" style={{ fontSize: 18, fontWeight: 500, opacity: 0.7 }}>Predictions stay hidden here until the game starts. They travel in the stake transaction's public memo, so this is a display courtesy, not secrecy.</p><div className="mt-4 space-y-2">{entries.map((entry) => <div key={entry.player} className="rx-plate flex min-w-0 items-center justify-between gap-3 px-4 py-3" style={{ background: '#FFFFFF' }}><AddressLabel address={entry.player} className="min-w-0 font-bold" /><span title={fmtExact(entry.stake)} className="shrink-0 whitespace-nowrap font-mono">{fmt(entry.stake)} · prediction hidden</span></div>)}{entries.length === 0 && <p className="py-8" style={{ fontSize: 18, fontWeight: 500, opacity: 0.6 }}>Be the first player.</p>}</div></section>
           <section className="rx-raised" style={{ background: CREAM, color: INK, padding: 24 }}>
             <h2 style={{ margin: 0, fontFamily: PIXEL, fontSize: 14, fontWeight: 400, lineHeight: 1.4 }}>{walletEntry ? 'UPDATE YOUR ENTRY' : 'YOUR CALL'}</h2>
-            {walletEntry && <p title={fmtExact(walletEntry.stake)} className="mt-2 text-sm text-white/50">Your current stake is {fmt(walletEntry.stake)}. Leave price empty to keep it. Money cannot be withdrawn before settlement.</p>}
+            {walletEntry && <p title={fmtExact(walletEntry.stake)} className="mt-2 text-sm text-[#1B1340]/55">Your current stake is {fmt(walletEntry.stake)}. Leave price empty to keep it. Money cannot be withdrawn before settlement.</p>}
             {supplyTokens && (
               <div className="mt-5" style={{ display: 'flex', gap: 4 }}>
                 {(['cap', 'price'] as const).map((choice) => (
-                  <button key={choice} type="button" onClick={() => { setUnitChoice(choice); setPrediction('') }} className={`rx-btn ${unit === choice ? 'rx-btn-yellow' : 'rx-btn-white'}`} style={{ padding: '8px 14px', fontSize: 14, fontWeight: 700 }}>
+                  <button key={choice} type="button" disabled={!!txLabel} onClick={() => { setUnitChoice(choice); setPrediction('') }} className={`rx-btn ${unit === choice ? 'rx-btn-yellow' : 'rx-btn-white'}`} style={{ padding: '8px 14px', fontSize: 14, fontWeight: 700 }}>
                     {choice === 'cap' ? 'Market cap' : 'Price'}
                   </button>
                 ))}
               </div>
             )}
             <label className="mt-4 block">
-              <span className="mb-1.5 block text-sm text-white/50">{walletEntry ? `New ${unit === 'cap' ? 'market cap' : 'price'} · optional` : unit === 'cap' ? 'Final market cap · USD (e.g. 4.2M)' : 'Predicted final price · USD'}</span>
+              <span className="mb-1.5 block text-sm text-[#1B1340]/55">{walletEntry ? `New ${unit === 'cap' ? 'market cap' : 'price'} · optional` : unit === 'cap' ? 'Final market cap · USD (e.g. 4.2M)' : 'Predicted final price · USD'}</span>
               <input value={prediction} onChange={(event) => setPrediction(event.target.value)} inputMode="decimal" placeholder={walletEntry ? 'Keep current prediction' : unit === 'cap' ? `now ${displayValue(livePrice, arena.priceDecimals, supplyTokens)}` : '0.00'} className="rx-input" style={{ width: 'calc(100% - 8px)', height: 56, padding: '0 16px', fontFamily: PIXEL, fontSize: 20 }} />
             </label>
             <div className="mt-4">
@@ -334,7 +321,7 @@ export function OnchainArenaPage() {
                 token={token}
               />
             </div>
-            <p className="mt-2 text-xs text-white/45">
+            <p className="mt-2 text-xs text-[#1B1340]/55">
               {violation
                 ? stakeGuardrailMessage(violation)
                 : displayedEntryAmount > 0n
@@ -347,8 +334,8 @@ export function OnchainArenaPage() {
                       ? `Enter a stake worth $1–$50 in ${stakeInputUnit}.`
                       : 'SOL/USD rate unavailable'}
             </p>
-            {balance.data != null && <p title={fmtExact(balance.data)} className="mt-1 text-xs text-white/30">Wallet balance: {fmt(balance.data)}</p>}
-            {error && <p className="mt-3 text-sm text-rose-400">{error}</p>}
+            {balance.data != null && <p title={fmtExact(balance.data)} className="mt-1 text-xs text-[#1B1340]/55">Wallet balance: {fmt(balance.data)}</p>}
+            {error && <p className="mt-3 text-sm text-[#C2245A]">{error}</p>}
             {!connected
               ? <div className="mt-5"><WalletOptionsList tone="arena" /></div>
               : <button
@@ -360,7 +347,7 @@ export function OnchainArenaPage() {
                   {txLabel ?? (walletEntry ? 'UPDATE ENTRY' : 'STEP INTO THE RING')}
                 </button>}
           </section>
-        </div> : phase === PRICE_ARENA_PHASE.CANCELLED ? <div className="rx-raised mt-6" style={{ background: CREAM, color: INK, padding: 24 }}><h2 style={{ margin: 0, fontFamily: PIXEL, fontSize: 16 }}>ARENA CANCELLED</h2><p className="mt-2 text-sm text-white/55">{cancelReasonText(arena.cancelReason)} Every player gets a full refund, sent to their wallet automatically.</p>{walletEntry && (payoutNote ?? <div className="mt-5 text-center text-sm font-bold" style={{ color: '#B8860B' }}>Preparing your refund…</div>)}{error && <p className="mt-3 text-sm text-rose-400">{error}</p>}</div> : <section className="rx-raised mt-7" style={{ background: CREAM, color: INK, padding: 24 }}><div className="mb-4 flex items-end justify-between"><div><h2 style={{ margin: 0, fontFamily: PIXEL, fontSize: 14, fontWeight: 400, lineHeight: 1.4 }}>{phase === PRICE_ARENA_PHASE.RUNNING ? underfilled ? 'NOT ENOUGH PLAYERS' : awaitingSettlement ? 'SETTLEMENT PENDING' : 'LIVE LEADERBOARD' : 'FINAL STANDINGS'}</h2><p className="mt-2" style={{ fontSize: 18, fontWeight: 500, opacity: 0.7 }}>{phase === PRICE_ARENA_PHASE.RUNNING ? underfilled ? 'Fewer than two players joined. This arena is being cancelled and every stake goes back to its wallet.' : awaitingSettlement ? 'The round is closed. The game server is fixing the signed deadline price and the final ranking.' : 'Positions update with the display price; settlement uses the signed pool price at the deadline.' : `Closest ${arena.winnerCount} player${arena.winnerCount === 1 ? '' : 's'} won.`}</p></div>{phase === PRICE_ARENA_PHASE.RUNNING && !awaitingSettlement && live.disconnected && <span className="text-xs font-bold text-[#B8860B]">Live feed reconnecting…</span>}</div><ArenaBoard rows={entries} referencePrice={referencePrice} decimals={arena.priceDecimals} resolved={phase === PRICE_ARENA_PHASE.RESOLVED} winnerCount={arena.winnerCount} token={token} supply={supply} />{phase === PRICE_ARENA_PHASE.RESOLVED && walletEntry && walletEntry.payout > 0n ? (payoutNote ?? <div className="mt-5 text-center text-sm font-bold" style={{ color: '#B8860B' }}>Preparing your payout…</div>) : null}{error && <p className="mt-3 text-sm text-rose-400">{error}</p>}</section>}
+        </div> : phase === PRICE_ARENA_PHASE.CANCELLED ? <div className="rx-raised mt-6" style={{ background: CREAM, color: INK, padding: 24 }}><h2 style={{ margin: 0, fontFamily: PIXEL, fontSize: 16 }}>ARENA CANCELLED</h2><p className="mt-2 text-sm text-[#1B1340]/55">{cancelReasonText(arena.cancelReason)} Every player gets a full refund, sent to their wallet automatically.</p>{walletEntry && (payoutNote ?? <div className="mt-5 text-center text-sm font-bold" style={{ color: '#B8860B' }}>Preparing your refund…</div>)}{error && <p className="mt-3 text-sm text-[#C2245A]">{error}</p>}</div> : <section className="rx-raised mt-7" style={{ background: CREAM, color: INK, padding: 24 }}><div className="mb-4 flex items-end justify-between"><div><h2 style={{ margin: 0, fontFamily: PIXEL, fontSize: 14, fontWeight: 400, lineHeight: 1.4 }}>{phase === PRICE_ARENA_PHASE.RUNNING ? underfilled ? 'NOT ENOUGH PLAYERS' : awaitingSettlement ? 'SETTLEMENT PENDING' : 'LIVE LEADERBOARD' : 'FINAL STANDINGS'}</h2><p className="mt-2" style={{ fontSize: 18, fontWeight: 500, opacity: 0.7 }}>{phase === PRICE_ARENA_PHASE.RUNNING ? underfilled ? 'Fewer than two players joined. This arena is being cancelled and every stake goes back to its wallet.' : awaitingSettlement ? 'The round is closed. The game server is fixing the signed deadline price and the final ranking.' : 'Positions update with the display price; settlement uses the signed pool price at the deadline.' : `Closest ${arena.winnerCount} player${arena.winnerCount === 1 ? '' : 's'} won.`}</p></div>{phase === PRICE_ARENA_PHASE.RUNNING && !awaitingSettlement && live.disconnected && <span className="text-xs font-bold text-[#B8860B]">Live feed reconnecting…</span>}</div><ArenaBoard rows={entries} referencePrice={referencePrice} decimals={arena.priceDecimals} resolved={phase === PRICE_ARENA_PHASE.RESOLVED} winnerCount={arena.winnerCount} token={token} supply={supply} />{phase === PRICE_ARENA_PHASE.RESOLVED && walletEntry && walletEntry.payout > 0n ? (payoutNote ?? <div className="mt-5 text-center text-sm font-bold" style={{ color: '#B8860B' }}>Preparing your payout…</div>) : null}{error && <p className="mt-3 text-sm text-[#C2245A]">{error}</p>}</section>}
       </>}
     </div>
     </div>

@@ -3,6 +3,7 @@ import { WalletReadyState, type WalletName } from '@solana/wallet-adapter-base'
 import { useWallet } from '@solana/wallet-adapter-react'
 import { ProphetWalletName, prophetWalletStore } from '@/solana/prophetWallet'
 import { EXTERNAL_WALLETS_ENABLED } from '@/solana/SolanaProvider'
+import { PIXEL } from '@/retro/scene'
 
 const MOBILE_BREAKPOINT_PX = 500
 
@@ -34,7 +35,6 @@ function useIsNarrowViewport(maxWidthPx: number) {
 
 /** Shared "pick a wallet" list, used in ConnectWalletButton's dropdown and
  * inline wherever a page asks for a wallet before showing its content. */
-const PIXEL = "'Press Start 2P', 'Courier New', monospace"
 
 /** Platform-wallet entry: one bevelled button that creates (or logs into)
  * the personal account, plus a restore link for players with a saved key. */
@@ -105,9 +105,9 @@ function ExternalWalletOptions({ onConnect, tone = 'market' }: {
       ? 'hover:border-[#6bcbf4]/50 hover:bg-[#6bcbf4]/10'
       : 'hover:border-[#ff4f8b]/50 hover:bg-[#ff4f8b]/10'
   const actionTextClass = tone === 'race'
-    ? 'text-[#ffd23f]'
+    ? 'text-[#B8860B]'
     : tone === 'arena'
-      ? 'text-[#6bcbf4]'
+      ? 'text-[#1F7FD1]'
       : 'text-[#ff4f8b]'
 
   return (
@@ -149,7 +149,7 @@ function ExternalWalletOptions({ onConnect, tone = 'market' }: {
           </button>
         )
       })}
-      <p className="text-[11px] text-white/30 pt-1">
+      <p className="text-[11px] text-[#1B1340]/55 pt-1">
         Browsing is open to everyone - a wallet is only needed to actually play.
       </p>
     </div>

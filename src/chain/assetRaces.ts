@@ -25,8 +25,6 @@ export const ASSET_RACE_ORIGIN = { PLATFORM: 0, COMMUNITY: 1 } as const
 export const STAKE_DECIMALS = SOL_DECIMALS
 export const RETURN_SCALE = 10n ** 18n
 export const BP_DENOMINATOR = 10_000n
-export const ASSET_RACE_TOKEN_LABEL = 'SOL'
-
 export interface ApprovedRaceAsset {
   assetId: string
   enabled: boolean
@@ -229,11 +227,6 @@ export function assetRaceCategoryLabel(category: number) {
   return 'STOCK'
 }
 
-export function categoryForRaceMode(mode: AssetRaceMode) {
-  if (mode === 'memes') return ASSET_RACE_CATEGORY.MEME
-  if (mode === 'crypto') return ASSET_RACE_CATEGORY.CRYPTO
-  return ASSET_RACE_CATEGORY.STOCK
-}
 
 export function raceModeForCategory(category: number): AssetRaceMode {
   if (category === ASSET_RACE_CATEGORY.MEME) return 'memes'

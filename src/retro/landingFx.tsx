@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import { PxSprite } from '@/retro/Sprite'
 import { cloud, coinPurple, crown, type PxSpriteData } from '@/retro/spriteData'
-import { CREAM, INK, PINK, ROAD, YELLOW } from '@/retro/scene'
+import { CREAM, INK, PINK, ROAD, YELLOW, PIXEL } from '@/retro/scene'
 
 // Animated pieces for the landing and the leaderboard, in the mock's pixel
 // style: a race that actually runs, a sky with a sun and drifting clouds,
@@ -9,7 +9,6 @@ import { CREAM, INK, PINK, ROAD, YELLOW } from '@/retro/scene'
 // arena scene (one coin, many price calls). Keyframes live in index.css
 // (rx-fx-*); everything stops under prefers-reduced-motion.
 
-const PIXEL = "'Press Start 2P', 'Courier New', monospace"
 
 // ------------------------------------------------------------------ sky
 

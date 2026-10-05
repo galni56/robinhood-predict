@@ -86,7 +86,6 @@ export function useAssetRace(raceId: bigint | null, wallet?: PublicKey | null) {
     /** The wallet's payout or refund in any state (queued, sending, done). */
     payout,
     settlement,
-    liveDisconnected: showLive && live.disconnected,
     isLoading: raceQuery.isLoading,
     error: raceQuery.error,
     refetch: async () => { await raceQuery.refetch() },

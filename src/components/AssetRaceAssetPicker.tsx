@@ -42,7 +42,7 @@ export function AssetRaceAssetPicker({
         value={query}
         onChange={(event) => setQuery(event.target.value)}
         placeholder={meme ? 'Search approved meme assets…' : crypto ? 'Search crypto assets…' : 'Search Stock Tokens…'}
-        className="w-full rounded-none border border-white/10 bg-white/5 px-3.5 py-2.5 text-sm font-medium outline-none transition-colors focus:border-[#ffd23f]/60"
+        className="w-full rounded-none border border-[#1B1340]/10 bg-[#1B1340]/5 px-3.5 py-2.5 text-sm font-medium outline-none transition-colors focus:border-[#ffd23f]/60"
       />
       <div className={`grid grid-cols-1 gap-2 overflow-y-auto pr-1 sm:grid-cols-2 ${compact ? 'max-h-52' : 'max-h-80'}`}>
         {matches.map((asset) => {
@@ -55,7 +55,7 @@ export function AssetRaceAssetPicker({
               className={`min-w-0 overflow-hidden rounded-none border transition-all ${
                 highlighted
                   ? 'border-[#ffd23f]/60 bg-[#ffd23f]/10'
-                  : 'border-white/5 bg-white/5 hover:border-[#ffd23f]/40'
+                  : 'border-[#1B1340]/5 bg-[#1B1340]/5 hover:border-[#ffd23f]/40'
               }`}
             >
               <button
@@ -67,14 +67,14 @@ export function AssetRaceAssetPicker({
                 <TokenLogo ticker={asset.symbol} logoUrl={asset.logoUrl} className="h-9 w-9 rounded-none" />
                 <span className="min-w-0 flex-1">
                   <span className="block font-bold">{asset.symbol}</span>
-                  <span className="block truncate text-xs text-white/40">{asset.name}</span>
+                  <span className="block truncate text-xs text-[#1B1340]/55">{asset.name}</span>
                 </span>
                 <span className="text-right">
-                  <span className="block text-xs font-bold text-[#ffd23f]">
+                  <span className="block text-xs font-bold text-[#B8860B]">
                     {alreadySelected ? 'Added' : highlighted ? 'Selected' : 'Approved'}
                   </span>
                   {live.assets[asset.symbol] && (
-                    <span className="mt-0.5 block font-mono text-[11px] text-white/45">
+                    <span className="mt-0.5 block font-mono text-[11px] text-[#1B1340]/55">
                       {marketCapUsd(live.assets[asset.symbol]) != null
                         ? `MC ${formatCompactUsd(marketCapUsd(live.assets[asset.symbol])!)}`
                         : formatUsdPrice(Number(formatUnits(live.assets[asset.symbol].raw, live.assets[asset.symbol].decimals)))}
@@ -86,13 +86,13 @@ export function AssetRaceAssetPicker({
                 href={asset.priceUrl}
                 symbol={asset.symbol}
                 tone="race"
-                className="w-full rounded-none border-t border-white/10 px-3 py-2"
+                className="w-full rounded-none border-t border-[#1B1340]/10 px-3 py-2"
               />
             </div>
           )
         })}
       </div>
-      {matches.length === 0 && <p className="py-5 text-center text-sm text-white/35">No approved assets match that search.</p>}
+      {matches.length === 0 && <p className="py-5 text-center text-sm text-[#1B1340]/55">No approved assets match that search.</p>}
     </div>
   )
 }

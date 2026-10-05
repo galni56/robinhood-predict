@@ -1,10 +1,11 @@
-import { Link } from 'react-router-dom'
+import { useEffect } from 'react'
+import { Link, useSearchParams } from 'react-router-dom'
 import { PumpSwapCoins } from '@/components/PumpSwapCoins'
 import { useHistory } from '@/chain/history'
 import { AddressLabel } from '@/components/AddressLabel'
 import { PxSprite } from '@/retro/Sprite'
 import { coinBlue, coinBlueGrin, coinOrangeGrin, coinPinkGrin, coinPurple, coinPurpleGrin, logoCoin } from '@/retro/spriteData'
-import { Cloud, CREAM, GrassStrip, Hills, INK, NIGHT, PINK, RoadLane, SKY, Stars, YELLOW } from '@/retro/scene'
+import { Cloud, CREAM, GrassStrip, Hills, INK, NIGHT, PINK, RoadLane, SKY, Stars, YELLOW, PIXEL } from '@/retro/scene'
 import { AnimatedRace, ArenaCallsScene, DriftingCloud, PixelDivider, Podium, Sun } from '@/retro/landingFx'
 import { assetRaceCatalog } from '@/chain/assetRaceRegistry'
 import pumpswapSnapshot from '@/chain/pumpswapSnapshot.json'
@@ -14,7 +15,6 @@ import { formatCompactSol } from '@/lib/format'
 // wired to the app's routes. Every size, color and animation step comes
 // from the mock.
 
-const PIXEL = "'Press Start 2P', 'Courier New', monospace"
 
 const STEPS = [
   ['Create an account', 'One click, no extension. Top it up with some SOL to stake.'],
@@ -56,6 +56,11 @@ function TopPlayers() {
 }
 
 export function OnchainLandingPage() {
+  // The navbar's "How to play" lands here with ?section=how.
+  const [params] = useSearchParams()
+  useEffect(() => {
+    if (params.get('section') === 'how') document.getElementById('how')?.scrollIntoView({ behavior: 'smooth' })
+  }, [params])
   return (
     <div style={{ fontFamily: "'Pixelify Sans', 'Courier New', monospace", color: INK, background: SKY, overflow: 'hidden' }}>
       {/* ------------------------------------------------------- hero */}
@@ -90,12 +95,15 @@ export function OnchainLandingPage() {
           <Link to="/onchain/races" className="rx-btn rx-btn-yellow" style={{ minHeight: 64, padding: '0 40px', fontFamily: PIXEL, fontSize: 20 }}>
             PLAY
           </Link>
-          <a
-            href="#how"
-            style={{ display: 'inline-flex', alignItems: 'center', minHeight: 44, padding: '0 8px', fontSize: 22, fontWeight: 700, textDecoration: 'underline', textUnderlineOffset: 6 }}
+          {/* A button, not href="#how": under HashRouter that hash would
+              replace the route and land on NotFound. */}
+          <button
+            type="button"
+            onClick={() => document.getElementById('how')?.scrollIntoView({ behavior: 'smooth' })}
+            style={{ display: 'inline-flex', alignItems: 'center', minHeight: 44, padding: '0 8px', fontSize: 22, fontWeight: 700, textDecoration: 'underline', textUnderlineOffset: 6, background: 'none', border: 0, cursor: 'pointer', color: 'inherit', fontFamily: 'inherit' }}
           >
             How it works
-          </a>
+          </button>
         </div>
 
         {/* Hills, grass and the four-lane road. */}

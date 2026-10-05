@@ -4,7 +4,7 @@
 // server restarts mid-payout.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { generateKeyPairSync, sign } from 'node:crypto'
+import { generateKeyPairSync, randomBytes, sign } from 'node:crypto'
 import { openDatabase } from './db.mjs'
 import { createEngine } from './engine.mjs'
 import { base58 } from './chain.mjs'
@@ -14,7 +14,7 @@ const SOL = 1_000_000_000n
 const GAME = 'GameWa11et1111111111111111111111111111111111'
 const COLD = 'Co1dWa11et111111111111111111111111111111111'
 const ASSETS = ['SOL', 'BTC', 'ETH'].map((symbol) => ({ symbol, category: 'crypto', priceSource: `pool-${symbol}`, priceDecimals: 8, enabled: true }))
-const quiet = { log() {}, warn() {} }
+const quiet = { log() {}, warn() {}, error() {} }
 
 function fakeChain() {
   let n = 0
@@ -25,7 +25,7 @@ function fakeChain() {
   const landed = new Set()
   const record = (signature, tx) => {
     txs.set(signature, { slot: ++n, blockTime: 0, failed: false, inbound: [], outbound: [], memos: [], innerInbound: [], balanceDelta: 0n, ...tx })
-    order.unshift({ signature })
+    order.unshift({ signature, slot: n })
   }
   const chain = {
     address: GAME,
@@ -38,12 +38,24 @@ function fakeChain() {
       balance += lamports
       return signature
     },
+    /** One transaction carrying several inbound transfers (no memo). */
+    depositRaw(inbound, blockTime = 1) {
+      const signature = `dep-${n + 1}`
+      const total = inbound.reduce((sum, t) => sum + t.lamports, 0n)
+      record(signature, { blockTime, inbound, memos: [], balanceDelta: total })
+      balance += total
+      return signature
+    },
     advanceBlocks(k) {
       height += k
     },
     balance: async () => balance,
     blockHeight: async () => height,
-    readTransaction: async (signature) => txs.get(signature) ?? null,
+    /** Signatures listed by the address scan but never readable. */
+    unreadable: new Set(),
+    readTransaction: async (signature) => (chain.unreadable.has(signature) ? null : txs.get(signature) ?? null),
+    finalizedSlot: async () => n + chain.finalizedLead,
+    finalizedLead: 0,
     async signatures(before) {
       const from = before ? order.findIndex((x) => x.signature === before) + 1 : 0
       return order.slice(from, from + 1000)
@@ -63,7 +75,13 @@ function fakeChain() {
       record(signature, { outbound: [{ to, lamports: BigInt(lamports) }] })
       return signature
     },
-    statuses: async (signatures) => signatures.map((x) => (landed.has(x) ? { confirmationStatus: 'confirmed', err: null } : null)),
+    /** Simulates a lagging / history-less RPC node: status lookups miss. */
+    statusesBlind: false,
+    /** Commitment the fake cluster reports for landed transactions. */
+    commitment: 'finalized',
+    statuses: async (signatures) => signatures.map((x) => (!chain.statusesBlind && landed.has(x) ? { confirmationStatus: chain.commitment, err: null } : null)),
+    finalizedBlockHeight: async () => height,
+    finalizedTransaction: async (signature) => (landed.has(signature) ? { err: null } : null),
   }
   return chain
 }
@@ -82,11 +100,11 @@ function fakePrices(table) {
   }
 }
 
-function setup(priceTable, { clockStart = 10_000, dbPath = ':memory:', db } = {}) {
+function setup(priceTable, { clockStart = 10_000, dbPath = ':memory:', db, adoptWallet = false } = {}) {
   const clock = { t: clockStart }
   const chain = fakeChain()
   const database = db ?? openDatabase(dbPath)
-  const engine = createEngine({ db: database, chain, prices: fakePrices(priceTable), assets: ASSETS, cluster: 'localnet', coldWallet: COLD, clock: () => clock.t, log: quiet, options: { sweepEverySeconds: 0, sweepMin: SOL / 100n } })
+  const engine = createEngine({ db: database, chain, prices: fakePrices(priceTable), assets: ASSETS, cluster: 'localnet', coldWallet: COLD, adoptWallet, clock: () => clock.t, log: quiet, options: { sweepEverySeconds: 0, sweepMin: SOL / 100n, settleDelay: 6 } })
   return { clock, chain, db: database, engine }
 }
 
@@ -117,8 +135,9 @@ test('race: stakes become bets, bad deposits are refunded, winners are paid once
   let state = db.getGame('race', race.id)
   assert.equal(state.totalPool, (6n * SOL) / 10n)
   assert.equal(state.positions.length, 3)
-  assert.equal(paidTo(chain, 'dave'), SOL / 10n, 'late bet refunded')
-  assert.equal(paidTo(chain, 'erin'), SOL / 10n, 'memo-less transfer refunded')
+  // Refunds carry their own network fee (5000 lamports).
+  assert.equal(paidTo(chain, 'dave'), SOL / 10n - 5_000n, 'late bet refunded')
+  assert.equal(paidTo(chain, 'erin'), SOL / 10n - 5_000n, 'memo-less transfer refunded')
   assert.equal(paidTo(chain, 'frank'), 0n, 'dust is kept')
   assert.equal(paidTo(chain, COLD), 0n, 'funding is not refunded')
 
@@ -139,14 +158,16 @@ test('race: stakes become bets, bad deposits are refunded, winners are paid once
   // losing pool 0.5 SOL, fee 2% -> alice gets 0.1 + 0.49
   assert.equal(paidTo(chain, 'alice'), (59n * SOL) / 100n)
   assert.equal(paidTo(chain, 'bob'), 0n)
-  assert.equal(db.payouts('pending').length + db.payouts('sent').length, 0)
+  assert.equal([...db.payouts('pending'), ...db.payouts('sent')].filter((p) => p.kind !== 'sweep').length, 0)
 
-  // Nothing left owed; the fee is surplus and goes to the cold wallet.
+  // Nothing left owed. Only the earned fee (2% of the 0.5 SOL losing pool)
+  // and the kept dust go to the cold wallet; the owner's unexplained 0.05
+  // SOL funding stays in the game wallet.
   clock.t += 10
   await engine.tick()
   await engine.tick()
   assert.equal(engine.liabilities(), 0n)
-  assert.ok(paidTo(chain, COLD) > 0n)
+  assert.equal(paidTo(chain, COLD), SOL / 100n + 1_000n)
 })
 
 test('payouts: a lost send is rebuilt after expiry; a restart never pays twice', async () => {
@@ -214,7 +235,7 @@ function wallet() {
   return {
     address,
     signed(clock, fields) {
-      const message = `Prophet\n${JSON.stringify({ ...fields, wallet: address, cluster: 'localnet', issuedAt: clock.t })}`
+      const message = `Prophet\n${JSON.stringify({ domain: 'prophetmarkets.fun', nonce: randomBytes(16).toString('hex'), ...fields, wallet: address, cluster: 'localnet', issuedAt: clock.t })}`
       return { message, signature: sign(null, Buffer.from(message), privateKey).toString('base64') }
     },
   }
@@ -229,6 +250,11 @@ test('arena: signed creation, entries by transfer, prediction change, creator pa
   const replay = creator.signed(clock, { action: 'create-arena', title: 'Again', asset: 'SOL', duration: 60 })
   engine.act(replay)
   assert.throws(() => engine.act(replay), /MessageReused/)
+  // The same signature in a different base64 spelling is still a replay.
+  const bytes = Buffer.from(replay.signature, 'base64')
+  for (const respelled of [bytes.toString('base64url'), bytes.toString('base64').replace(/=+$/, ''), ` ${replay.signature}`]) {
+    assert.throws(() => engine.act({ ...replay, signature: respelled }), /MessageReused|BadSignature/)
+  }
   assert.throws(() => engine.act({ ...creator.signed(clock, { action: 'create-arena', title: 'x', asset: 'SOL', duration: 60 }), signature: replay.signature }), /BadSignature/)
 
   const players = ['p1', 'p2', 'p3', 'p4']
@@ -258,12 +284,19 @@ test('arena: signed creation, entries by transfer, prediction change, creator pa
 })
 
 test('first start records the wallet history instead of refunding it', async () => {
-  const { chain, db, engine } = setup({})
+  const { chain, db, engine } = setup({}, { adoptWallet: true })
   chain.deposit('someone', SOL, null, 1)
   await engine.init()
   await engine.tick()
   assert.equal(chain.paid.length, 0)
   assert.equal(db.getDeposit('dep-1').status, 'preexisting')
+})
+
+test('a new database next to a wallet with history refuses to start unless adopted', async () => {
+  const { chain, engine } = setup({})
+  chain.deposit('someone', SOL, null, 1)
+  await assert.rejects(engine.init(), /ADOPT_WALLET=1/)
+  assert.equal(chain.paid.length, 0)
 })
 
 test('duel: empty lobbies, signed joins, stakes and backing by transfer, ready, payouts', async () => {
@@ -333,4 +366,108 @@ test('duel: start and finish on boundary prices, the winner and his backers are 
   assert.equal(paidTo(chain, 'fan'), (27n * SOL) / 100n - ((7n * SOL) / 100n) / 50n)
   assert.equal(paidTo(chain, vasya.address) + paidTo(chain, 'other'), 0n)
   assert.equal(db.payouts('pending').length + db.payouts('sent').length, 0)
+})
+
+test('payouts: a landed payout the status lookup misses is never sent twice', async () => {
+  const t0 = 10_000
+  const prices = { [t0 + 60]: { 'pool-SOL': 100n, 'pool-BTC': 100n }, [t0 + 120]: { 'pool-SOL': 100n, 'pool-BTC': 120n } }
+  const { clock, chain, db, engine } = setup(prices)
+  await engine.init()
+  const race = engine.createPlatform({ title: 'Duel', category: 'crypto', symbols: ['SOL', 'BTC'], bettingStartTime: t0, bettingEndTime: t0 + 60, raceDuration: 60 })
+  chain.deposit('alice', SOL / 10n, raceMemo(race.id, 0), t0 + 1)
+  chain.deposit('bob', SOL / 10n, raceMemo(race.id, 1), t0 + 2)
+  await engine.tick()
+  clock.t = t0 + 70
+  await engine.tick()
+  clock.t = t0 + 125
+
+  // The payout lands, but this RPC node never reports it (lagging replica,
+  // or a restart after the status cache rolled over).
+  chain.statusesBlind = true
+  await engine.tick() // resolves and sends; the transfer lands
+  assert.equal(paidTo(chain, 'bob') > 0n, true)
+  chain.advanceBlocks(151) // blockhash expired, status still "unseen"
+  await engine.tick()
+  await engine.tick()
+  assert.equal(chain.paid.filter((p) => p.to === 'bob').length, 1, 'bob must be paid exactly once')
+  assert.equal(db.payouts('done').length, 1)
+})
+
+test('payouts: a confirmed-but-not-final payout is not marked done', async () => {
+  const t0 = 10_000
+  const prices = { [t0 + 60]: { 'pool-SOL': 100n, 'pool-BTC': 100n }, [t0 + 120]: { 'pool-SOL': 100n, 'pool-BTC': 120n } }
+  const { clock, chain, db, engine } = setup(prices)
+  await engine.init()
+  const race = engine.createPlatform({ title: 'Duel', category: 'crypto', symbols: ['SOL', 'BTC'], bettingStartTime: t0, bettingEndTime: t0 + 60, raceDuration: 60 })
+  chain.deposit('alice', SOL / 10n, raceMemo(race.id, 0), t0 + 1)
+  chain.deposit('bob', SOL / 10n, raceMemo(race.id, 1), t0 + 2)
+  await engine.tick()
+  clock.t = t0 + 80
+  await engine.tick()
+  clock.t = t0 + 140
+  chain.commitment = 'confirmed'
+  await engine.tick()
+  await engine.tick()
+  assert.equal(db.payouts('done').length, 0, 'confirmed is not final')
+  assert.equal(db.payouts('sent').length, 1)
+  chain.commitment = 'finalized'
+  await engine.tick()
+  assert.equal(db.payouts('done').length, 1)
+  assert.equal(chain.paid.filter((p) => p.to === 'bob').length, 1)
+})
+
+test('refunds: many transfers in one transaction cost one refund, fee included', async () => {
+  const { chain, engine } = setup({})
+  await engine.init()
+  chain.deposit(COLD, SOL, null, 1) // owner funding: rent and fee reserve
+  // One tx, ten 0.002 SOL transfers from the same sender, no memo.
+  const inbound = Array.from({ length: 10 }, () => ({ from: 'spammer', lamports: SOL / 500n, signed: true }))
+  chain.depositRaw(inbound)
+  await engine.tick()
+  await engine.tick()
+  const refunds = chain.paid.filter((p) => p.to === 'spammer')
+  assert.equal(refunds.length, 1, 'one refund for the whole transaction')
+  assert.equal(refunds[0].lamports, (SOL / 500n) * 10n - 5_000n)
+})
+
+test('signed actions are bound to the allowed domain', async () => {
+  const { chain, db } = setup({})
+  const clock = { t: 10_000 }
+  const engine = createEngine({ db, chain, prices: fakePrices({}), assets: ASSETS, cluster: 'localnet', signingDomains: ['prophetmarkets.fun'], clock: () => clock.t, log: quiet })
+  await engine.init()
+  const w = wallet()
+  engine.act(w.signed(clock, { action: 'set-nickname', nickname: 'ok' }))
+  const phished = w.signed(clock, { action: 'set-nickname', nickname: 'x', domain: 'prophetrnarkets.fun' })
+  assert.throws(() => engine.act(phished), /WrongDomain/)
+})
+
+test('scan: a never-readable signature is dropped instead of freezing games', async () => {
+  const t0 = 10_000
+  const { clock, chain, db, engine } = setup({})
+  await engine.init()
+  chain.deposit(COLD, SOL, null, 1)
+  const race = engine.createPlatform({ title: 'Stuck', category: 'crypto', symbols: ['SOL', 'BTC'], bettingStartTime: t0, bettingEndTime: t0 + 60, raceDuration: 60 })
+  const ghost = chain.deposit('ghost', SOL / 10n, raceMemo(race.id, 0), t0 + 1)
+  chain.unreadable.add(ghost)
+  await engine.tick()
+  assert.equal(engine.lastScan.pending, 1)
+  // Far past finalization the ghost is given up on and nothing stays pending.
+  chain.finalizedLead = 10_000
+  await engine.tick()
+  assert.equal(engine.lastScan.pending, 0)
+  assert.equal(db.getDeposit(ghost).status, 'dropped')
+})
+
+test('race: an expired start window cancels even while the scan is stuck', async () => {
+  const t0 = 10_000
+  const { clock, chain, db, engine } = setup({})
+  await engine.init()
+  chain.deposit(COLD, SOL, null, 1)
+  const race = engine.createPlatform({ title: 'Stuck', category: 'crypto', symbols: ['SOL', 'BTC'], bettingStartTime: t0, bettingEndTime: t0 + 60, raceDuration: 60 })
+  chain.deposit('alice', SOL / 10n, raceMemo(race.id, 0), t0 + 1)
+  chain.unreadable.add(chain.deposit('ghost', SOL / 10n, raceMemo(race.id, 1), t0 + 2))
+  await engine.tick()
+  clock.t = t0 + 60 + 301 // past bettingEndTime + startGrace, ghost still pending
+  await engine.tick()
+  assert.equal(db.getGame('race', race.id).status, 'cancelled')
 })

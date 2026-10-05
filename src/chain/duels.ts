@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { getJson, useGameState, type ServerPayout } from '@/chain/gameServer'
+import { convertRows, getJson, useGameState, type ServerPayout } from '@/chain/gameServer'
 import { GAME_SERVER_URL } from '@/solana/services'
 
 // Coin duels (scripts/solana/game-server/duel.mjs): every racer brings one
@@ -156,7 +156,7 @@ const OFFLINE_LOBBIES: Duel[] = Array.from({ length: 10 }, (_, i) => ({
 export function useDuels() {
   const state = useGameState()
   const served = (state.data as { duels?: ServerDuel[] } | undefined)?.duels
-  const duels = useMemo(() => (served ?? []).map(duelFromServer).sort((a, b) => b.id - a.id), [served])
+  const duels = useMemo(() => convertRows(served, duelFromServer, 'duel').sort((a, b) => b.id - a.id), [served])
   const offline = !served && !state.isLoading
   return { duels: offline ? OFFLINE_LOBBIES : duels, offline, isLoading: state.isLoading && GAME_SERVER_URL != null, error: state.error }
 }
@@ -175,24 +175,15 @@ export function useDuel(id: number | null) {
   return { duel: query.data, isLoading: query.isLoading, error: query.error, refetch: query.refetch }
 }
 
-/** Wall-clock seconds, ticking twice a second (duel timers are server time). */
-export function useNowSeconds() {
-  const [now, setNow] = useState(() => Date.now() / 1000)
-  useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now() / 1000), 500)
-    return () => clearInterval(timer)
-  }, [])
-  return now
-}
-
-/** A free cheer for a racer. */
+/** A free cheer. Best effort: offline, rate limited or refused all just
+ * return null - a cheer is never worth an error on screen. */
 export async function cheerRacer(duelId: number, seat: number) {
   if (GAME_SERVER_URL == null) return null
-  const response = await fetch(`${GAME_SERVER_URL}/cheer`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ duel: duelId, seat }) })
-  return response.ok ? ((await response.json()) as { cheers: number }).cheers : null
+  try {
+    const response = await fetch(`${GAME_SERVER_URL}/cheer`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ duel: duelId, seat }) })
+    return response.ok ? ((await response.json()) as { cheers: number }).cheers : null
+  } catch {
+    return null
+  }
 }
 
-/** USD cents at a SOL/USD quote, as lamports. */
-export function usdToLamports(cents: bigint, sol: { priceRaw: bigint; decimals: number }) {
-  return (cents * 1_000_000_000n * 10n ** BigInt(sol.decimals)) / (sol.priceRaw * 100n)
-}

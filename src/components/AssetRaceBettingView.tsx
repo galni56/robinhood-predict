@@ -66,7 +66,7 @@ export function AssetRaceBettingView({
 }) {
   const meme = race.category === ASSET_RACE_CATEGORY.MEME
   const crypto = race.category === ASSET_RACE_CATEGORY.CRYPTO
-  const accentText = 'text-[#ffd23f]'
+  const accentText = 'text-[#B8860B]'
   const selected = race.assets[selectedAssetIndex]
   const existingStake = position?.exists ? position.stake : 0n
   const estimate = selected
@@ -109,9 +109,9 @@ export function AssetRaceBettingView({
               >
                 <button
                   type="button"
-                  disabled={unavailable}
+                  disabled={unavailable || !!txLabel}
                   onClick={() => setSelectedAssetIndex(asset.assetIndex)}
-                  className="w-full p-4 text-left disabled:cursor-not-allowed disabled:opacity-35"
+                  className={`w-full p-4 text-left disabled:cursor-not-allowed ${unavailable ? 'opacity-35' : ''}`}
                 >
                   <div className="flex items-center justify-between">
                     <span className="flex items-center gap-3" style={{ fontFamily: PIXEL, fontSize: 14 }}><PxSprite data={coinSkin(asset.symbol, asset.assetIndex).sprite} width={40} height={43} />{asset.symbol}</span>
@@ -166,7 +166,7 @@ export function AssetRaceBettingView({
           {position?.exists && (
             <p style={{ margin: 0, fontSize: 17, fontWeight: 500, opacity: 0.8 }}>
               Your pick is locked to <b className={accentText}>{race.assets[position.assetIndex]?.symbol}</b> with a current stake of{' '}
-              <b className="font-mono text-white/80">
+              <b className="font-mono text-[#1B1340]/80">
                 {formatStakeRaw(existingStake, tokenDecimals)} {tokenLabel}
               </b>
               . You can top up this asset only.
