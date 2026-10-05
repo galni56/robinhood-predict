@@ -233,6 +233,11 @@ test('arena: signed creation, entries by transfer, prediction change, creator pa
   const replay = creator.signed(clock, { action: 'create-arena', title: 'Again', asset: 'SOL', duration: 60 })
   engine.act(replay)
   assert.throws(() => engine.act(replay), /MessageReused/)
+  // The same signature in a different base64 spelling is still a replay.
+  const bytes = Buffer.from(replay.signature, 'base64')
+  for (const respelled of [bytes.toString('base64url'), bytes.toString('base64').replace(/=+$/, ''), ` ${replay.signature}`]) {
+    assert.throws(() => engine.act({ ...replay, signature: respelled }), /MessageReused|BadSignature/)
+  }
   assert.throws(() => engine.act({ ...creator.signed(clock, { action: 'create-arena', title: 'x', asset: 'SOL', duration: 60 }), signature: replay.signature }), /BadSignature/)
 
   const players = ['p1', 'p2', 'p3', 'p4']

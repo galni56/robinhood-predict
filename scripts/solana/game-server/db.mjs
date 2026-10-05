@@ -104,6 +104,7 @@ export function openDatabase(path) {
     allNicknames: q('SELECT wallet, nickname FROM nicknames'),
     dropNickname: q('DELETE FROM nicknames WHERE wallet = ?'),
     useMessage: q('INSERT INTO used_messages (signature, wallet, at) VALUES (?, ?, ?)'),
+    pruneMessages: q('DELETE FROM used_messages WHERE at < ?'),
     addKick: q('INSERT INTO duel_kicks (wallet, at) VALUES (?, ?)'),
     kicksSince: q('SELECT COUNT(*) AS n FROM duel_kicks WHERE wallet = ? AND at >= ?'),
   }
@@ -193,5 +194,6 @@ export function openDatabase(path) {
 
     /** Records a signed message; throws on replay (PRIMARY KEY). */
     useMessage: (signature, wallet) => s.useMessage.run(signature, wallet, now()),
+    pruneMessages: (before) => s.pruneMessages.run(before),
   }
 }

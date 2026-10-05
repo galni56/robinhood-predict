@@ -18,7 +18,7 @@
 // - Top-ups of the game wallet itself (fee money) come from the cold wallet
 //   or the admin, or carry the memo `prophet:fund`; they are never refunded.
 
-import { createPublicKey, verify } from 'node:crypto'
+import { createPublicKey, verify, createHash } from 'node:crypto'
 import {
   ARENA,
   COMMUNITY_POLICY,
@@ -569,6 +569,8 @@ export function createEngine({ db, chain, prices, assets, cluster, coldWallet = 
         }
       }
       await stage('payouts', processPayouts)
+      // Older than twice the message lifetime: any replay is rejected as expired.
+      await stage('replay-guard', async () => db.pruneMessages(t - 2 * opts.messageMaxAge))
       await stage('sweep', () => maybeSweep(t))
     } finally {
       running = false
@@ -610,8 +612,12 @@ export function createEngine({ db, chain, prices, assets, cluster, coldWallet = 
     if (typeof signature !== 'string' || !verifyWalletSignature(wallet, message, signature)) throw new RuleError('BadSignature')
     const t = now()
     return db.transaction(() => {
+      // Keyed on the signed message itself, not the signature string: base64
+      // decoding is lenient (padding, url-safe alphabet, whitespace), so one
+      // signature has many spellings and keying on the text let a replay
+      // through within the message lifetime.
       try {
-        db.useMessage(signature, wallet)
+        db.useMessage(`msg:${createHash('sha256').update(message).digest('hex')}`, wallet)
       } catch {
         throw new RuleError('MessageReused')
       }
