@@ -294,6 +294,16 @@ const server = createServer(async (req, res) => {
 // The PumpSwap meme catalog: refreshed every PUMPSWAP_REFRESH_MINUTES and
 // written for the price service, which starts tracking new pools on the fly.
 const PUMPSWAP_MINUTES = Number(process.env.PUMPSWAP_REFRESH_MINUTES ?? 15)
+// Read on every refresh: adding a coin to the file (and git pull) removes it
+// within one refresh, no restart needed.
+function readBlocklist() {
+  try {
+    const list = readJson(new URL('config/pumpswap-blocklist.json', ROOT))
+    return { mints: new Set(list.mints ?? []), symbols: new Set((list.symbols ?? []).map((s) => String(s).toUpperCase())) }
+  } catch {
+    return { mints: new Set(), symbols: new Set() }
+  }
+}
 async function refreshPumpSwap() {
   try {
     const previous = readExtra()
@@ -302,7 +312,7 @@ async function refreshPumpSwap() {
     // Coins launched from our site have ordinary mint addresses: confirm them by their pump.fun curve.
     const others = [...new Set(pools.map((p) => p.mint).filter((m) => m && !m.endsWith('pump')))]
     const pumpMints = others.length ? await pumpFunMints(chain.connection, others, PublicKey).catch(() => new Set()) : new Set()
-    const extra = selectPumpSwapAssets(pools, { takenSymbols, previous, keepSymbols: engine.liveSymbols(), pumpMints })
+    const extra = selectPumpSwapAssets(pools, { takenSymbols, previous, keepSymbols: engine.liveSymbols(), pumpMints, blocked: readBlocklist() })
     mkdirSync(dirname(EXTRA_ASSETS), { recursive: true })
     writeFileSync(`${EXTRA_ASSETS}.tmp`, JSON.stringify({ updatedAt: new Date().toISOString(), source: 'pumpswap', assets: extra }, null, 1))
     renameSync(`${EXTRA_ASSETS}.tmp`, EXTRA_ASSETS)

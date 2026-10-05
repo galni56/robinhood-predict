@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import type { CSSProperties } from 'react'
 import { ConnectWalletButton } from '@/components/ConnectWalletButton'
+import { TokenCa } from '@/components/TokenCa'
 import { PxSprite } from '@/retro/Sprite'
 import { logoCoin } from '@/retro/spriteData'
 import { CREAM, INK, PINK, PIXEL } from '@/retro/scene'
@@ -57,11 +58,13 @@ export function RealNavbar() {
         fontFamily: "'Pixelify Sans', 'Courier New', monospace",
       }}
     >
-      <NavLink to="/" style={{ display: 'inline-flex', alignItems: 'center', gap: 12, minHeight: 44, fontFamily: PIXEL, fontSize: 14, color: INK, textDecoration: 'none' }}>
-        <PxSprite data={logoCoin} width={32} height={34} />
-        <span>PROPHET</span>
-
-      </NavLink>
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px 16px' }}>
+        <NavLink to="/" style={{ display: 'inline-flex', alignItems: 'center', gap: 12, minHeight: 44, fontFamily: PIXEL, fontSize: 14, color: INK, textDecoration: 'none' }}>
+          <PxSprite data={logoCoin} width={32} height={34} />
+          <span>PROPHET</span>
+        </NavLink>
+        <TokenCa compact />
+      </div>
 
       <nav className="rx-navbar-links" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '4px 32px', fontSize: 22, fontWeight: 600 }}>
         {LINKS.map((link) => (

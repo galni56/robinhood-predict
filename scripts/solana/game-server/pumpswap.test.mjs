@@ -32,6 +32,14 @@ test('pumpswap filter keeps price decimals and coins of running games', () => {
   assert.ok(out.some((a) => a.symbol === 'GONE'), 'a coin in a running game stays')
 })
 
+test('pumpswap filter drops blocklisted mints and symbols', () => {
+  const now = Date.parse('2026-10-05T12:00:00Z')
+  const pools = [pool('IOF', 'Iofpump', 300_000, 20), pool('BOIF', 'Boifpump', 100_000, 20), pool('GOOD', 'Goodpump', 50_000, 20)]
+  const blocked = { mints: new Set(['Iofpump']), symbols: new Set(['BOIF']) }
+  const out = selectPumpSwapAssets(pools, { takenSymbols: new Set(), now, blocked })
+  assert.deepEqual(out.map((a) => a.symbol), ['GOOD'])
+})
+
 test('price decimals give about six significant digits', () => {
   assert.equal(priceDecimalsFor(0.0137), 8)
   assert.equal(priceDecimalsFor(0.00000123), 12)
