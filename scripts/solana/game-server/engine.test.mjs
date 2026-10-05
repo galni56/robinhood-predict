@@ -14,7 +14,7 @@ const SOL = 1_000_000_000n
 const GAME = 'GameWa11et1111111111111111111111111111111111'
 const COLD = 'Co1dWa11et111111111111111111111111111111111'
 const ASSETS = ['SOL', 'BTC', 'ETH'].map((symbol) => ({ symbol, category: 'crypto', priceSource: `pool-${symbol}`, priceDecimals: 8, enabled: true }))
-const quiet = { log() {}, warn() {} }
+const quiet = { log() {}, warn() {}, error() {} }
 
 function fakeChain() {
   let n = 0
@@ -25,7 +25,7 @@ function fakeChain() {
   const landed = new Set()
   const record = (signature, tx) => {
     txs.set(signature, { slot: ++n, blockTime: 0, failed: false, inbound: [], outbound: [], memos: [], innerInbound: [], balanceDelta: 0n, ...tx })
-    order.unshift({ signature })
+    order.unshift({ signature, slot: n })
   }
   const chain = {
     address: GAME,
@@ -51,7 +51,11 @@ function fakeChain() {
     },
     balance: async () => balance,
     blockHeight: async () => height,
-    readTransaction: async (signature) => txs.get(signature) ?? null,
+    /** Signatures listed by the address scan but never readable. */
+    unreadable: new Set(),
+    readTransaction: async (signature) => (chain.unreadable.has(signature) ? null : txs.get(signature) ?? null),
+    finalizedSlot: async () => n + chain.finalizedLead,
+    finalizedLead: 0,
     async signatures(before) {
       const from = before ? order.findIndex((x) => x.signature === before) + 1 : 0
       return order.slice(from, from + 1000)
@@ -433,4 +437,35 @@ test('signed actions are bound to the allowed domain', async () => {
   engine.act(w.signed(clock, { action: 'set-nickname', nickname: 'ok' }))
   const phished = w.signed(clock, { action: 'set-nickname', nickname: 'x', domain: 'prophetrnarkets.fun' })
   assert.throws(() => engine.act(phished), /WrongDomain/)
+})
+
+test('scan: a never-readable signature is dropped instead of freezing games', async () => {
+  const t0 = 10_000
+  const { clock, chain, db, engine } = setup({})
+  await engine.init()
+  chain.deposit(COLD, SOL, null, 1)
+  const race = engine.createPlatform({ title: 'Stuck', category: 'crypto', symbols: ['SOL', 'BTC'], bettingStartTime: t0, bettingEndTime: t0 + 60, raceDuration: 60 })
+  const ghost = chain.deposit('ghost', SOL / 10n, raceMemo(race.id, 0), t0 + 1)
+  chain.unreadable.add(ghost)
+  await engine.tick()
+  assert.equal(engine.lastScan.pending, 1)
+  // Far past finalization the ghost is given up on and nothing stays pending.
+  chain.finalizedLead = 10_000
+  await engine.tick()
+  assert.equal(engine.lastScan.pending, 0)
+  assert.equal(db.getDeposit(ghost).status, 'dropped')
+})
+
+test('race: an expired start window cancels even while the scan is stuck', async () => {
+  const t0 = 10_000
+  const { clock, chain, db, engine } = setup({})
+  await engine.init()
+  chain.deposit(COLD, SOL, null, 1)
+  const race = engine.createPlatform({ title: 'Stuck', category: 'crypto', symbols: ['SOL', 'BTC'], bettingStartTime: t0, bettingEndTime: t0 + 60, raceDuration: 60 })
+  chain.deposit('alice', SOL / 10n, raceMemo(race.id, 0), t0 + 1)
+  chain.unreadable.add(chain.deposit('ghost', SOL / 10n, raceMemo(race.id, 1), t0 + 2))
+  await engine.tick()
+  clock.t = t0 + 60 + 301 // past bettingEndTime + startGrace, ghost still pending
+  await engine.tick()
+  assert.equal(db.getGame('race', race.id).status, 'cancelled')
 })

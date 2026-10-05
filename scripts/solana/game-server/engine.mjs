@@ -72,6 +72,9 @@ export const DEFAULTS = {
   maxPayoutAttempts: 6,
   rebroadcastEverySeconds: 8,
   arenaLobbyDuration: ARENA.lobbyDuration,
+  /** A listed signature still unreadable this many slots below the
+   * finalized slot is marked dropped instead of blocking settlement. */
+  unreadableAfterSlots: 300,
   /** Spectators may back one duel racer with up to this much (USD cents). */
   duelBackCapUsdCents: 10_000,
 }
@@ -281,10 +284,20 @@ export function createEngine({ db, chain, prices, assets, cluster, coldWallet = 
       before = signatures[signatures.length - 1].signature
     }
     let pending = 0
-    for (const { signature } of fresh.reverse()) {
+    // A signature listed long ago that still cannot be read (dropped fork,
+    // unsupported version) would stay pending forever and freeze every
+    // game's settlement; past this many finalized slots it is given up on.
+    const finalized = chain.finalizedSlot ? await chain.finalizedSlot().catch(() => 0) : 0
+    for (const { signature, slot } of fresh.reverse()) {
       try {
         const result = await ingest(signature)
-        if (result.status === 'pending') pending++
+        if (result.status !== 'pending') continue
+        if (finalized > 0 && slot != null && slot < finalized - opts.unreadableAfterSlots) {
+          db.putDeposit({ signature, slot, status: 'dropped', reason: 'NeverReadable' })
+          log.error(`deposit ${signature}: unreadable ${finalized - slot} slots after finalization; marked dropped - check by hand`)
+          continue
+        }
+        pending++
       } catch (error) {
         // A 429/timeout on one transaction: count it as pending (games keep
         // waiting for it) and keep ingesting the rest.
@@ -365,7 +378,13 @@ export function createEngine({ db, chain, prices, assets, cluster, coldWallet = 
       return
     }
     if (race.status === 'betting') {
-      if (!settledPast(race.bettingEndTime, t)) return
+      if (!settledPast(race.bettingEndTime, t)) {
+        // A stuck scan must not freeze stakes: once the start window has
+        // expired the race cancels and refunds anyway (late-ingested stakes
+        // on a cancelled race are refunded as they arrive).
+        if (t >= race.bettingEndTime + race.startGrace) mutate('race', id, (r) => raceTimers(r, t))
+        return
+      }
       if (!raceNeedsStart(race, t) || raceActiveCount(race) < race.minActiveContenders) {
         // Past the start window, or too few backed assets: cancel and refund.
         mutate('race', id, (r) => raceTimers(r, t) ?? startRace(r, { prices: {}, prevSlot: 0, prevBlockTime: 0 }, t))

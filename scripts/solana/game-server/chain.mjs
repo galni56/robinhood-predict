@@ -166,6 +166,7 @@ export function createChain({ rpcUrl, wallet, priorityMicroLamports = 0 }) {
     balance: async () => BigInt(await connection.getBalance(address, 'confirmed')),
     blockHeight: () => connection.getBlockHeight('confirmed'),
     finalizedBlockHeight: () => connection.getBlockHeight('finalized'),
+    finalizedSlot: () => connection.getSlot('finalized'),
     /** The transaction as finalized history knows it, or null. Unlike a
      * signature-status lookup, this does not depend on the node's recent
      * status cache, so a null here really means "never landed". */

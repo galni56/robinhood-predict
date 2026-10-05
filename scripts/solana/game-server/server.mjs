@@ -85,6 +85,8 @@ function loadWallet() {
   return Keypair.fromSecretKey(Uint8Array.from(readJson(path)))
 }
 
+// On mainnet the hot wallet must have somewhere to sweep surplus to.
+if (CLUSTER === 'mainnet' && !process.env.COLD_WALLET) throw new Error('COLD_WALLET is required on mainnet')
 for (const [name, value] of [['COLD_WALLET', process.env.COLD_WALLET], ['ADMIN_WALLET', process.env.ADMIN_WALLET]]) {
   if (value && !isAddress(value)) throw new Error(`${name} is not a valid address`)
 }
