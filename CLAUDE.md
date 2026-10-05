@@ -38,12 +38,12 @@ branch has handled real money yet. No external security audit.
 
 | Piece | Status |
 |---|---|
-| Game server | Deposits, Price Arena, Coin Duels, payout outbox (done only at finalized, never twice), fee sweep to the cold wallet, domain-bound signed actions, backups, PumpSwap auto-add, last-known data for the site. 44 tests; race e2e on localnet exact to the lamport. |
+| Game server | Deposits, Price Arena, Coin Duels, payout outbox (done only at finalized, never twice), fee sweep to the cold wallet, domain-bound signed actions, backups, PumpSwap auto-add, last-known data for the site. 44 tests; race and duel e2e on localnet exact to the lamport. |
 | Price service | Raydium AMM v4 / CPMM / CLMM, Orca, Meteora DLMM, PumpSwap decoders; signed attestations. 9 tests. |
 | Catalog | 11 crypto (BTC, SOL, ETH, HYPE, ZEC, PUMP, NEAR, DOGE, BNB, SUI, XRP; the last four below the $500k pool floor by owner decision), 10 memes, + PumpSwap. No stocks. |
-| Frontend | Duels, arenas, PumpSwap table, launchpad, portfolio/leaderboard/archive, Prophet wallet, hero race; phone layout. Never show "devnet" wording. |
-| VPS | Services installed at `/opt/prophet-solana`, **stopped and disabled** until the live test. |
-| Not done | Duel e2e on a validator, own domain (browser-held keys must not live on `github.io`), live $1 test, owner's first launch, EVM wind-down. |
+| Frontend | Duels, arenas, PumpSwap table, launchpad, portfolio/leaderboard/archive, Prophet wallet (password-encrypted key), hero race; phone layout. Pages builds mainnet when the repo variable `SOLANA_LIVE` is `true`. Never show "devnet" wording. |
+| VPS | Services installed at `/opt/prophet-solana` (price service 8793, game server 8792), **stopped and disabled** until the live test. |
+| Not done | Own domain (browser-held keys should not live on `github.io`), live $1 test, owner's first launch, review leftovers, EVM wind-down. |
 
 ### Product color system
 

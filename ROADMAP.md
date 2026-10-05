@@ -2,44 +2,45 @@
 
 Prophet is moving from Robinhood Chain (EVM) to Solana. The EVM product (Prediction Markets, Asset Races,
 Price Arena with native-ETH stakes) remains live from `main` until it is wound down; its history is in git.
-This file tracks the Solana build. Detailed decisions: [`docs/SOLANA_MIGRATION.md`](./docs/SOLANA_MIGRATION.md).
+This file tracks the Solana build. Decisions: [`docs/SOLANA_MIGRATION.md`](./docs/SOLANA_MIGRATION.md).
 Change log: [`docs/SOLANA_CHANGELOG.md`](./docs/SOLANA_CHANGELOG.md). Status and how to run everything:
 [`docs/HANDOFF.md`](./docs/HANDOFF.md).
 
 ## Done
 
-1. **Programs** — `prophet_games` (Asset Race + Price Arena, max 10 arena players, single-transaction resolve),
-   `nickname_registry`; Ed25519-signed DEX-pool price attestations; SOL and SPL/Token-2022 stakes;
-   38 LiteSVM tests.
-2. **Asset catalog** — scanned from live Jupiter and DexScreener data; owner approved 26 assets (see 6).
-3. **Frontend F1–F2** — Prediction Market and the mock demo removed; Phantom and Solflare wallets;
-   Anchor clients; nicknames on Solana.
-4. **Local stand** — local validator with all programs, admin setup and seeded sample games.
-5. **EVM cleanup (repo)** — Solidity contracts, EVM scripts and EVM docs removed.
-6. **Asset catalog approved** — 26 assets (3 crypto, 10 memes, 13 stocks).
-7. **Price service + keeper** — subscription-based exact pool state, signed attestations; full race and
-   arena lifecycle passes end-to-end on localnet with live mainnet prices.
-8. **Programs merged and size-optimized** — one `prophet_games` program; deploy rent ≈ 4.2 SOL.
-9. **Indexer** — one `/history` snapshot for lists, activity, portfolio, leaderboard and archive.
-10. **Frontend on Solana** (no redesign yet) — races and arenas read and write the program; USD/SOL stake
-    input; portfolio, leaderboard and archive; wagmi/viem and the EVM read layer removed.
+1. **Zero-cost model** — no program of our own: memo-tagged SOL stakes to a game wallet, one game server runs
+   the games and pays out automatically (payout outbox, finalized-only, never twice; fee sweep to a cold
+   wallet). The earlier Anchor programs, keeper and indexer were removed (deploy rent ~4.2 SOL).
+2. **Price service** — subscription-based pool state from Raydium (AMM v4, CPMM, CLMM), Orca, Meteora and
+   PumpSwap; Ed25519-signed boundary prices the game server verifies.
+3. **Catalog** — 11 crypto coins and 10 memes approved by the owner; stocks removed; up to 30 PumpSwap coins
+   added automatically every 15 minutes.
+4. **Coin Duels** — the new races: lobbies, own coin per racer, ready check, kick tax, spectator backing,
+   cheers. Full lifecycle passes on a local validator, every payout exact to the lamport.
+5. **Price Arena** — price or market cap, chosen by the creator.
+6. **Launchpad** — create a pump.fun token from the site.
+7. **Prophet wallet** — account in the browser, password-encrypted key, forced backup, top up, withdraw,
+   restore. Player keys never reach the server.
+8. **VPS** — services, nginx paths (game server, price service, RPC and websocket proxies with per-visitor
+   limits, IPFS, last-known data), keys created on the VPS. Services stopped until the live test.
+9. **Site** — landing with the hero race, PumpSwap table, duels, arenas, launch; phone layout; GitHub Pages
+   build switches to mainnet with one repository variable (`SOLANA_LIVE`).
 
 ## Next
 
-1. **Local click-through** of the new frontend on the local stand (burner wallet), screenshots, fixes.
-2. **Devnet** — deploy and rehearse the full lifecycle; owner checks with Phantom.
-3. **VPS** — Solana RPC proxy, services for price service, keeper and indexer.
-4. **Bots, remaining** — scheduled platform race creation; SPL-stake games in the UI.
-5. **Remove the localnet test wallet** before launch.
+1. **Own domain** for the site (browser-held keys should not share the `github.io` origin).
+2. **Live test** — start the services, set `SOLANA_LIVE=true`, one $1 duel between two wallets; the owner's
+   first launchpad token.
+3. **Review leftovers** (`docs/GAME_SERVER_REVIEW_BACKLOG.md`): price sanity check before signing (owner picks
+   the threshold), a global cap on open lobbies, a stored deposit-scan cursor, RPC failover and alerts.
 
-## Before mainnet (owner)
+## Before real volume (owner)
 
-- Fresh admin key (the development key was exposed) and a separate mainnet oracle key.
-- ~4.2 SOL for program rent (refundable deposit, also the whole amount needed on the key for the deploy); decision on an external audit.
 - Wind down the EVM product, then merge to `main` (VPS keepers run from `main`).
+- Decide on an external audit and the legal side of holding stakes during games.
 
 ## Later
 
-- New frontend design.
-- Prophet SPL token as a stake currency; buyback and burn.
-- Commit/reveal for Price Arena predictions (today they are public onchain, hidden only in the UI).
+- Launch races: coins launched in one lobby, the first to graduate to PumpSwap wins; "will it graduate in
+  24 h" bets.
+- $PROPHET on pump.fun; buyback and burn through pump.fun / PumpSwap.

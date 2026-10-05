@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useWallet } from '@solana/wallet-adapter-react'
-import { ProphetWalletName, prophetWalletStore } from '@/solana/prophetWallet'
+import { prophetWalletStore } from '@/solana/prophetWallet'
+import { usePlatformLogin } from '@/components/WalletAccountModals'
 import { useSignedAction } from '@/chain/gameServer'
 import { DUEL_RULES, duelPhaseLabel, durationLabel, useDuels, type Duel } from '@/chain/duels'
 import { useLivePrices } from '@/chain/livePrices'
@@ -54,7 +55,8 @@ function LobbyCard({ duel }: { duel: Duel }) {
 /** Coin duels: ten empty lobbies always wait; anyone can open another. */
 export function OnchainDuelsListPage() {
   const { duels, isLoading, offline } = useDuels()
-  const { connected, select } = useWallet()
+  const { connected } = useWallet()
+  const login = usePlatformLogin()
   const act = useSignedAction()
   const navigate = useNavigate()
   const [error, setError] = useState<string | null>(null)
@@ -82,7 +84,7 @@ export function OnchainDuelsListPage() {
   return (
     <div style={{ position: 'relative', minHeight: '100%', background: SKY, color: INK, fontFamily: "'Pixelify Sans', 'Courier New', monospace", overflow: 'hidden' }}>
       <DriftingCloud width={120} top={50} duration={80} delay={15} />
-      <div className="mx-auto max-w-[1200px] px-4 py-8" style={{ position: 'relative' }}>
+      <div className="mx-auto max-w-[1200px] px-4 py-8" style={{ position: 'relative', zIndex: 1 }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16 }}>
           <div>
             <h1 style={{ margin: 0, fontFamily: PIXEL, fontSize: 'clamp(18px, 2.6vw, 32px)', fontWeight: 400, lineHeight: 1.4, textShadow: `4px 4px 0 ${YELLOW}` }}>COIN DUELS</h1>
@@ -92,8 +94,9 @@ export function OnchainDuelsListPage() {
           </div>
           {connected
             ? <button type="button" onClick={createLobby} disabled={pending} className="rx-btn rx-btn-yellow" style={{ padding: '14px 20px', fontFamily: PIXEL, fontSize: 12 }}>{pending ? 'SIGNING…' : '+ NEW LOBBY'}</button>
-            : <button type="button" onClick={() => select(ProphetWalletName)} className="rx-btn rx-btn-pink" style={{ padding: '14px 20px', fontFamily: PIXEL, fontSize: 12 }}>{prophetWalletStore.hasWallet() ? 'LOG IN TO PLAY' : 'CREATE ACCOUNT'}</button>}
+            : <button type="button" onClick={login.start} className="rx-btn rx-btn-pink" style={{ padding: '14px 20px', fontFamily: PIXEL, fontSize: 12 }}>{prophetWalletStore.hasWallet() ? 'LOG IN TO PLAY' : 'CREATE ACCOUNT'}</button>}
         </div>
+        {login.modal}
         {error && <p style={{ color: '#C2245A', fontWeight: 700 }}>{error}</p>}
         {offline && <p className="rx-plate" style={{ display: 'inline-block', marginTop: 16, background: CREAM, padding: '8px 12px', fontWeight: 700 }}>The game server is taking a break - lobbies open again shortly.</p>}
 

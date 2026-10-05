@@ -5,7 +5,7 @@ import { AddressAvatar } from '@/components/AddressAvatar'
 import { AddressLabel } from '@/components/AddressLabel'
 import { LocalnetAirdropButton } from '@/components/LocalnetAirdropButton'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
-import { BackupModal, DepositModal, ImportModal, WithdrawModal } from '@/components/WalletAccountModals'
+import { BackupModal, DepositModal, ImportModal, SetPasswordModal, WithdrawModal, usePlatformLogin } from '@/components/WalletAccountModals'
 import { ProphetWalletName, prophetWalletStore } from '@/solana/prophetWallet'
 import { EXTERNAL_WALLETS_ENABLED } from '@/solana/SolanaProvider'
 import { formatStakeAmount, useStakeBalance } from '@/solana/stakeTokens'
@@ -15,7 +15,7 @@ import { PIXEL } from '@/retro/scene'
 // Lazy: the nickname modal is only needed when someone opens it.
 const SetNicknameModal = lazy(() => import('@/components/SetNicknameModal').then((m) => ({ default: m.SetNicknameModal })))
 
-type ModalKind = 'backup' | 'deposit' | 'withdraw' | 'import' | 'nickname' | null
+type ModalKind = 'password' | 'backup' | 'deposit' | 'withdraw' | 'import' | 'nickname' | null
 
 const itemClass = 'block w-full px-3 py-2 text-left font-bold text-[#1B1340]/80 hover:bg-[#FFD23F] hover:text-[#1B1340]'
 
@@ -23,7 +23,8 @@ const itemClass = 'block w-full px-3 py-2 text-left font-bold text-[#1B1340]/80 
  * personal account: create, top up, withdraw, back up and restore - no
  * extension, no external connect prompt. */
 export function ConnectWalletButton() {
-  const { publicKey, connected, disconnect, select, wallet } = useWallet()
+  const { publicKey, connected, disconnect, wallet } = useWallet()
+  const login = usePlatformLogin()
   const [open, setOpen] = useState(false)
   const [copied, setCopied] = useState(false)
   const [modal, setModal] = useState<ModalKind>(null)
@@ -35,8 +36,10 @@ export function ConnectWalletButton() {
 
   // A fresh platform account must be backed up before anything else: losing
   // the browser without the key loses the funds.
+  // Accounts from before passwords get one first (their key is still in clear).
   useEffect(() => {
-    if (connected && platform && !prophetWalletStore.isBackedUp()) setModal('backup')
+    if (connected && platform && prophetWalletStore.needsPassword()) setModal('password')
+    else if (connected && platform && !prophetWalletStore.isBackedUp()) setModal('backup')
   }, [connected, platform])
 
   useEffect(() => {
@@ -62,6 +65,9 @@ export function ConnectWalletButton() {
 
   const modals = (
     <>
+      {modal === 'password' && (
+        <SetPasswordModal onClose={() => setModal(prophetWalletStore.isBackedUp() ? null : 'backup')} />
+      )}
       {modal === 'backup' && (
         <BackupModal
           forced={!backedUp}
@@ -146,7 +152,7 @@ export function ConnectWalletButton() {
       <button
         onClick={() => {
           // Returning players go straight in; new ones choose create/restore.
-          if (!EXTERNAL_WALLETS_ENABLED && hasAccount) select(ProphetWalletName)
+          if (!EXTERNAL_WALLETS_ENABLED && hasAccount) login.start()
           else setOpen((v) => !v)
         }}
         className="rx-btn rx-btn-pink"
@@ -156,10 +162,11 @@ export function ConnectWalletButton() {
       </button>
       {open && (
         <div className="rx-plate absolute right-0 top-16 z-30 w-72 bg-[#FFF6DF] p-3">
-          <WalletOptionsList onConnect={() => setOpen(false)} onRestore={() => openModal('import')} />
+          <WalletOptionsList login={login} onConnect={() => setOpen(false)} onRestore={() => { setOpen(false); login.restore() }} />
         </div>
       )}
       {modals}
+      {login.modal}
     </div>
   )
 }

@@ -8,6 +8,30 @@ base64 re-spelling, duel USD backing without a fresh quote, PumpSwap lobby add,
 dead code and CSS, contrast leftovers, broken "How it works" links. What
 remains, by risk:
 
+
+## Status, checked against the code (2026-10-05)
+
+Fixed on `architecture-refactor` and verified in the code: 1 (oracle signature, program tag, boundary time and
+sources checked in `prices.mjs`; `ORACLE_PUBKEY` required off localnet; `ALLOWED_PROGRAM_IDS` set on the VPS),
+2 (payouts done only at finalized; settlement waits `settleDelay` and a clean scan), 3 (refunds merged per sender
+per transaction and carry their own network fee), 4 (domain + nonce; replay keyed on the message hash),
+6 (sweep from earned fees, `COLD_WALLET` required on mainnet), 8 (tagged amount encoding), 10/11 mostly
+(engine split into deposits/payouts; one stake hook; server clock). Also: rightmost `X-Forwarded-For` /
+`X-Real-IP`, expiring rate-limit buckets, unreadable signatures dropped after finalization, SIGTERM shutdown,
+key file permission check, real `/health`, hourly backups. Duel lifecycle e2e on a local validator passes
+(`e2e-duel-localnet.mjs`).
+
+Still open:
+- **No price sanity check before signing** (from `SOLANA_REVIEW_BACKLOG.md` #1-2): the price service signs the
+  spot price at the boundary block without comparing it to the pool's recent prices. Matters more now that
+  DOGE, BNB, SUI and XRP use thin pools. Needs an owner decision on the threshold (the duel then voids).
+- **No global cap on open lobbies**: creation is limited per wallet only; many wallets can flood `/state`.
+- **Deposit scan reads at most 20 signature pages** per pass with no stored cursor: after a long outage with
+  heavy traffic older deposits could be missed (they are not lost on chain, but not applied or refunded).
+- **One RPC for the game cluster** (`SOLANA_RPC_URL`, no failover) and no alerting for stuck payouts,
+  insolvency or deposits needing attention (the numbers are in `/health`).
+- Ops: the VPS price service now listens on 8793 (8790 is the EVM share-preview's port, used by nginx `/share/`).
+
 ## Money / security (before real funds)
 1. **Settlement prices are trusted without verifying the oracle signature**
    (`game-server/prices.mjs`, consumed in `engine.mjs` boundary handling). Pin

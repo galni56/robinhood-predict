@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { useWallet } from '@solana/wallet-adapter-react'
 import { PublicKey, SystemProgram } from '@solana/web3.js'
-import { ProphetWalletName, prophetWalletStore } from '@/solana/prophetWallet'
+import { MIN_PASSWORD_LENGTH, ProphetWalletName, prophetWalletStore } from '@/solana/prophetWallet'
 import { useStakeBalance } from '@/solana/stakeTokens'
 import { useSendInstructions } from '@/solana/tx'
 import { LAMPORTS_PER_SOL } from '@/solana/config'
@@ -117,6 +117,141 @@ export function BackupModal({ onClose, forced = false }: { onClose: () => void; 
   )
 }
 
+const passwordInputStyle = { width: 'calc(100% - 8px)', height: 52, padding: '0 14px', fontFamily: 'monospace', fontSize: 15 }
+
+const PASSWORD_ERRORS: Record<string, string> = {
+  WrongPassword: 'Wrong password.',
+  PasswordTooShort: `Use at least ${MIN_PASSWORD_LENGTH} characters.`,
+  InvalidKey: 'That does not look like a valid secret key.',
+}
+const passwordError = (cause: unknown) => PASSWORD_ERRORS[cause instanceof Error ? cause.message : ''] ?? 'Something went wrong. Try again.'
+
+/** Password + confirmation, for a new password. */
+function NewPassword({ onSubmit, label, busyLabel }: { onSubmit: (password: string) => Promise<void>; label: string; busyLabel: string }) {
+  const [password, setPassword] = useState('')
+  const [repeat, setRepeat] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  async function submit() {
+    setError(null)
+    if (password.length < MIN_PASSWORD_LENGTH) return setError(`Use at least ${MIN_PASSWORD_LENGTH} characters.`)
+    if (password !== repeat) return setError('The passwords do not match.')
+    setBusy(true)
+    try {
+      await onSubmit(password)
+    } catch (cause) {
+      setError(passwordError(cause))
+      setBusy(false)
+    }
+  }
+  return (
+    <form className="flex flex-col gap-3" onSubmit={(event) => { event.preventDefault(); void submit() }}>
+      <label className="flex flex-col gap-2">
+        <span style={{ fontFamily: PIXEL, fontSize: 10 }}>PASSWORD</span>
+        <input className="rx-input" type="password" autoComplete="new-password" style={passwordInputStyle} value={password} onChange={(event) => setPassword(event.target.value)} />
+      </label>
+      <label className="flex flex-col gap-2">
+        <span style={{ fontFamily: PIXEL, fontSize: 10 }}>REPEAT PASSWORD</span>
+        <input className="rx-input" type="password" autoComplete="new-password" style={passwordInputStyle} value={repeat} onChange={(event) => setRepeat(event.target.value)} />
+      </label>
+      {error && <p style={{ margin: 0, color: '#C2245A', fontWeight: 700 }}>{error}</p>}
+      <button type="submit" disabled={busy} className="rx-btn rx-btn-yellow" style={{ minHeight: 56, fontFamily: PIXEL, fontSize: 13 }}>
+        {busy ? busyLabel : label}
+      </button>
+    </form>
+  )
+}
+
+/** A new account: the key is created in this browser, encrypted with the password. */
+export function CreateAccountModal({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
+  return (
+    <Modal title="CREATE ACCOUNT" onClose={onClose}>
+      <p style={{ margin: 0 }}>
+        Pick a password. It locks your account on this device - nobody, Prophet included, can open it without the password.
+      </p>
+      <p style={{ margin: 0, fontSize: 15, opacity: 0.7 }}>
+        We cannot reset it. If you forget it, restore the account with the secret key you save in the next step.
+      </p>
+      <NewPassword label="CREATE ACCOUNT" busyLabel="CREATING…" onSubmit={async (password) => { await prophetWalletStore.create(password); onDone() }} />
+    </Modal>
+  )
+}
+
+/** A returning player: decrypts the saved key for this visit. */
+export function UnlockModal({ onClose, onDone, onRestore }: { onClose: () => void; onDone: () => void; onRestore: () => void }) {
+  const [password, setPassword] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  async function submit() {
+    setError(null)
+    setBusy(true)
+    try {
+      await prophetWalletStore.unlock(password)
+      onDone()
+    } catch (cause) {
+      setError(passwordError(cause))
+      setBusy(false)
+    }
+  }
+  return (
+    <Modal title="LOG IN" onClose={onClose}>
+      <form className="flex flex-col gap-3" onSubmit={(event) => { event.preventDefault(); void submit() }}>
+        <label className="flex flex-col gap-2">
+          <span style={{ fontFamily: PIXEL, fontSize: 10 }}>PASSWORD</span>
+          <input className="rx-input" type="password" autoComplete="current-password" autoFocus style={passwordInputStyle} value={password} onChange={(event) => setPassword(event.target.value)} />
+        </label>
+        {error && <p style={{ margin: 0, color: '#C2245A', fontWeight: 700 }}>{error}</p>}
+        <button type="submit" disabled={busy || !password} className="rx-btn rx-btn-yellow" style={{ minHeight: 56, fontFamily: PIXEL, fontSize: 13 }}>
+          {busy ? 'UNLOCKING…' : 'LOG IN'}
+        </button>
+      </form>
+      <button type="button" onClick={onRestore} style={{ background: 'none', border: 0, cursor: 'pointer', fontSize: 16, fontWeight: 700, color: INK, textDecoration: 'underline', textUnderlineOffset: 4 }}>
+        Forgot the password? Restore with your secret key
+      </button>
+    </Modal>
+  )
+}
+
+/** Accounts created before passwords: the key is still stored in clear. */
+export function SetPasswordModal({ onClose }: { onClose: () => void }) {
+  return (
+    <Modal title="SET A PASSWORD" onClose={onClose} locked>
+      <p style={{ margin: 0 }}>
+        Your account now gets a password. It encrypts the key stored in this browser, so a copy of the browser data alone cannot open it.
+      </p>
+      <NewPassword label="SAVE PASSWORD" busyLabel="SAVING…" onSubmit={async (password) => { await prophetWalletStore.setPassword(password); onClose() }} />
+    </Modal>
+  )
+}
+
+/**
+ * Logging in to the platform wallet: a new player creates an account with a
+ * password, a returning one unlocks it; then the adapter connects. Returns
+ * `start` for the button and the modal to render.
+ */
+export function usePlatformLogin() {
+  const { wallet, select, connect } = useWallet()
+  const [step, setStep] = useState<'create' | 'unlock' | 'restore' | null>(null)
+  const enter = () => {
+    setStep(null)
+    // Already selected (autoConnect skipped a locked account): connect directly.
+    if (wallet?.adapter.name === ProphetWalletName) void connect().catch(() => {})
+    else select(ProphetWalletName)
+  }
+  const start = () => {
+    if (prophetWalletStore.canConnect()) return enter()
+    setStep(prophetWalletStore.hasWallet() ? 'unlock' : 'create')
+  }
+  const close = () => setStep(null)
+  const modal = step === 'create' ? <CreateAccountModal onClose={close} onDone={enter} />
+    : step === 'unlock' ? <UnlockModal onClose={close} onDone={enter} onRestore={() => setStep('restore')} />
+      : step === 'restore' ? <ImportModal onClose={close} onDone={enter} />
+        : null
+  return { start, restore: () => setStep('restore'), modal }
+}
+
+export type PlatformLogin = ReturnType<typeof usePlatformLogin>
+
 export function DepositModal({ onClose }: { onClose: () => void }) {
   const { publicKey } = useWallet()
   if (!publicKey) return null
@@ -198,40 +333,46 @@ export function WithdrawModal({ onClose }: { onClose: () => void }) {
   )
 }
 
-/** Restores an account from a backed-up secret key (replaces the one in
- * this browser - the UI asks for a backup of the current one first). */
-export function ImportModal({ onClose }: { onClose: () => void }) {
-  const { select } = useWallet()
+/** Restores an account from a backed-up secret key with a new password
+ * (replaces the one in this browser - the UI asks for a backup of the
+ * current one first). */
+export function ImportModal({ onClose, onDone }: { onClose: () => void; onDone?: () => void }) {
+  const { connected, select } = useWallet()
   const [secret, setSecret] = useState('')
-  const [error, setError] = useState<string | null>(null)
   const hasCurrent = prophetWalletStore.hasWallet()
+  // A key the player forgot the password of may be restored without its backup flag.
+  const blocked = connected && hasCurrent && !prophetWalletStore.isBackedUp()
   return (
     <Modal title="RESTORE ACCOUNT" onClose={onClose}>
-      <p style={{ margin: 0 }}>Paste the secret key you saved. It replaces the account in this browser.</p>
-      {hasCurrent && !prophetWalletStore.isBackedUp() && (
+      <p style={{ margin: 0 }}>Paste the secret key you saved and pick a new password. It replaces the account in this browser.</p>
+      {blocked && (
         <p style={{ margin: 0, color: '#C2245A', fontWeight: 700 }}>Back up your current key first - it will be removed from this browser.</p>
       )}
-      <input className="rx-input" style={{ width: 'calc(100% - 8px)', height: 52, padding: '0 14px', fontFamily: 'monospace', fontSize: 14 }} value={secret} onChange={(event) => setSecret(event.target.value)} placeholder="Secret key" />
-      {error && <p style={{ margin: 0, color: '#C2245A', fontWeight: 700 }}>{error}</p>}
-      <button
-        type="button"
-        disabled={!secret.trim() || (hasCurrent && !prophetWalletStore.isBackedUp())}
-        className="rx-btn rx-btn-yellow"
-        style={{ minHeight: 56, fontFamily: PIXEL, fontSize: 13 }}
-        onClick={async () => {
-          try {
-            prophetWalletStore.importSecret(secret)
-            select(ProphetWalletName)
-            // autoConnect restores the selected wallet on load; a reload is
-            // the simplest way to swap the in-memory key everywhere at once.
-            window.location.reload()
-          } catch {
-            setError('That does not look like a valid secret key.')
-          }
-        }}
-      >
-        RESTORE
-      </button>
+      <input className="rx-input" type="password" autoComplete="off" style={{ width: 'calc(100% - 8px)', height: 52, padding: '0 14px', fontFamily: 'monospace', fontSize: 14 }} value={secret} onChange={(event) => setSecret(event.target.value)} placeholder="Secret key" />
+      {!blocked && (
+        <NewPassword
+          label="RESTORE"
+          busyLabel="RESTORING…"
+          onSubmit={async (password) => {
+            try {
+              await prophetWalletStore.importSecret(secret, password)
+            } catch (cause) {
+              throw cause instanceof Error && cause.message === 'PasswordTooShort' ? cause : new Error('InvalidKey')
+            }
+            if (connected) {
+              // Swapping the key of a connected session: a reload is the
+              // simplest way to replace it everywhere (log in again after).
+              select(ProphetWalletName)
+              window.location.reload()
+            } else if (onDone) {
+              onDone()
+            } else {
+              select(ProphetWalletName)
+              onClose()
+            }
+          }}
+        />
+      )}
     </Modal>
   )
 }

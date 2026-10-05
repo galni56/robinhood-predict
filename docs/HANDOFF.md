@@ -42,10 +42,10 @@ mainnet DEX pools ──subscribe──> price service ──signed boundary pri
 | Piece | State | Verified by |
 |---|---|---|
 | Game server (`scripts/solana/game-server/`) | Done: deposits by memo with idempotent ingest and automatic refunds of invalid stakes (dust < 0.001 SOL kept); Price Arena, Coin Duels (Asset Race code kept for old links); payout outbox paid only at finalized, never twice; sweep of earned fees only; signed actions bound to the site domain with a nonce; SQLite with hourly backups; PumpSwap auto-add every 15 min (≤30 coins); last-known data written for the site | 44 tests (`node --test scripts/solana/game-server/*.test.mjs`), localnet e2e for races, exact payouts |
-| Coin Duels | Done (server + site): 10 empty lobbies always open, 2–6 racers with unique coins, same stake $1–$50, pay within 2 min, ready check (timer starts at the first READY, +15 s "preparing" once), kick tax 10%/20% (doubled after 10 kicks/week) split Prophet/remaining racers, spectator backing ≤$100, 30/70 split of the losing backers' pool, 2% fee on winnings, ties refund, free cheers | Server tests with exact payouts; pages rendered against a mock server. **Not yet run on a validator with real transfers** |
+| Coin Duels | Done (server + site): 10 empty lobbies always open, 2–6 racers with unique coins, same stake $1–$50, pay within 2 min, ready check (timer starts at the first READY, +15 s "preparing" once), kick tax 10%/20% (doubled after 10 kicks/week) split Prophet/remaining racers, spectator backing ≤$100, 30/70 split of the losing backers' pool, 2% fee on winnings, ties refund, free cheers | Server tests with exact payouts; `e2e-duel-localnet.mjs` on a local validator with live prices (kick, tax, self-back refund, 30/70 split, every wallet exact to the lamport); pages checked at 390 px |
 | Price service (`scripts/solana/price-service/`) | Done: Raydium AMM v4 / CPMM / CLMM, Orca Whirlpool, Meteora DLMM, PumpSwap decoders; chunked reads, ≤250 subscriptions; signed attestations | 9 tests, `check-prices.mjs` vs Jupiter (all within ~0.6%) |
 | Asset catalog | 11 crypto (BTC, SOL, ETH, HYPE, ZEC, PUMP, NEAR, DOGE, BNB, SUI, XRP — the last four below the $500k floor by owner decision, `thinPoolsAccepted`), 10 memes, + PumpSwap coins. xStocks removed; ADA rejected (no real Cardano on Solana) | Scan + owner approval |
-| Frontend | Races tab = Coin Duels; Price Arena (price or market cap, chosen by the creator); PumpSwap table; Launchpad; portfolio, leaderboard, archive from the game server; Prophet wallet (create, forced backup, top up, withdraw, export/import); hero race on the landing; works on phones | Screenshots (desktop and 390 px frame), `npm run build` |
+| Frontend | Races tab = Coin Duels; Price Arena (price or market cap, chosen by the creator); PumpSwap table; Launchpad; portfolio, leaderboard, archive from the game server; Prophet wallet (password-encrypted key in the browser, create, unlock per visit, forced backup, top up, withdraw, restore); hero race on the landing; works on phones | Screenshots (desktop and 390 px frame), `npm run build` |
 | Launchpad | pump.fun `create_v2` (Token-2022) signed by the player; IPFS upload through the VPS (pump.fun blocks many browsers) | Simulation on the live pump.fun program. **Owner's first real launch pending** |
 | GitHub Pages | https://galni56.github.io/robinhood-predict/ from `solana-migration`, services `off`: shows last known data | `.github/workflows/deploy.yml` |
 | VPS services | Installed, **stopped and disabled** until the live test (see below) | Ran live for a check: prices, 30 PumpSwap coins, last-data serving |
@@ -61,8 +61,8 @@ documented in `CLAUDE.md` on `main` — do not touch it.
 | Node 24 | `/opt/node24` |
 | Environment (RPC keys entered by the owner; never print it) | `/etc/prophet/prophet.env` |
 | Keys (created on the VPS, never printed) | `/root/prophet-keys/game-wallet.json`, `oracle.json` |
-| systemd | `prophet-price-service`, `prophet-game-server` (stopped, disabled) |
-| nginx | `/etc/nginx/snippets/prophet-solana.conf`: `/api/solana/{game-server,price-service,rpc,ws,last,ipfs}`; keys in `prophet-solana-keys.conf` |
+| systemd | `prophet-price-service` (port 8793; 8790 belongs to the EVM share-preview), `prophet-game-server` (8792); stopped, disabled |
+| nginx | `/etc/nginx/snippets/prophet-solana.conf`: `/api/solana/{game-server,price-service,rpc,ws,last,ipfs}`; keys in `prophet-solana-keys.conf`; per-visitor limits (RPC 20 req/s, 5 websockets) in `conf.d/prophet-solana-limits.conf` |
 | Last-known data for the site | `/var/www/prophet-last` |
 
 RPC: Alchemy (paid) for HTTP; Helius for websocket subscriptions only (Alchemy has no `accountSubscribe`).
@@ -97,17 +97,20 @@ http://localhost:5173/robinhood-predict/ (HashRouter: routes after `#`). The dev
 
 ## Next steps, in order
 
-1. **Duel end-to-end on the local validator** with the Prophet wallet: join, pay, ready, finish, payouts and a
-   kick, checked to the lamport. Then check the duel pages at phone width.
-2. **Own domain for the site** (e.g. a subdomain of prophetmarkets.fun on the VPS). The Prophet wallet keeps
-   keys in `localStorage`; on `galni56.github.io` every Pages site of that account shares the origin and could
-   read them. Optional: encrypt the stored key with a player password.
-3. **Live test (owner present):** start the two services, build the site for `mainnet-beta` with the VPS
-   proxy paths, one $1 duel between two wallets, the owner's first launchpad token.
-4. Remaining review items in `GAME_SERVER_REVIEW_BACKLOG.md` (most money items were fixed on
-   `architecture-refactor`; re-check the list against the code before relying on it).
-5. **EVM wind-down (owner):** stop new games on `main`, let open ones settle, keep claims reachable, then merge.
-6. Ideas: launch races (pump.fun coins launched in a lobby, first to graduate to PumpSwap wins), "will it
+1. **Own domain for the site** (e.g. a subdomain of prophetmarkets.fun on the VPS). The Prophet wallet keeps
+   its (password-encrypted) key in `localStorage`; on `galni56.github.io` every Pages site of that account
+   shares the origin. Add the new host to `SIGNING_DOMAINS`.
+2. **Live test (owner present):**
+   1. `systemctl start prophet-price-service prophet-game-server` on the VPS; check
+      `https://prophetmarkets.fun/api/solana/game-server/health`.
+   2. GitHub → Settings → Secrets and variables → Actions → Variables: `SOLANA_LIVE` = `true`, then
+      Actions → Deploy to GitHub Pages → Run workflow. The build then uses mainnet and the VPS paths.
+   3. One $1 duel between two wallets; the owner's first launchpad token.
+   4. To go back to the preview: `SOLANA_LIVE` = `false`, re-run the workflow, stop the services.
+3. Remaining review items (`GAME_SERVER_REVIEW_BACKLOG.md`, "Still open"): price sanity check before
+   signing, a global cap on open lobbies, a stored deposit-scan cursor, RPC failover and alerts.
+4. **EVM wind-down (owner):** stop new games on `main`, let open ones settle, keep claims reachable, then merge.
+5. Ideas: launch races (pump.fun coins launched in a lobby, first to graduate to PumpSwap wins), "will it
    graduate in 24 h" bets.
 
 ## Known gotchas

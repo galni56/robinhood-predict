@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { WalletReadyState, type WalletName } from '@solana/wallet-adapter-base'
 import { useWallet } from '@solana/wallet-adapter-react'
-import { ProphetWalletName, prophetWalletStore } from '@/solana/prophetWallet'
+import { prophetWalletStore } from '@/solana/prophetWallet'
+import { usePlatformLogin, type PlatformLogin } from '@/components/WalletAccountModals'
 import { EXTERNAL_WALLETS_ENABLED } from '@/solana/SolanaProvider'
 import { PIXEL } from '@/retro/scene'
 
@@ -38,8 +39,11 @@ function useIsNarrowViewport(maxWidthPx: number) {
 
 /** Platform-wallet entry: one bevelled button that creates (or logs into)
  * the personal account, plus a restore link for players with a saved key. */
-function PlatformAccountEntry({ onConnect, onRestore }: { onConnect?: () => void; onRestore?: () => void }) {
-  const { select } = useWallet()
+function PlatformAccountEntry({ onConnect, onRestore, login: outer }: { onConnect?: () => void; onRestore?: () => void; login?: PlatformLogin }) {
+  // A caller whose list can unmount (a dropdown) passes its own login so the
+  // password modal survives the list closing.
+  const own = usePlatformLogin()
+  const login = outer ?? own
   const hasAccount = prophetWalletStore.hasWallet()
   return (
     <div className="flex flex-col items-stretch gap-2 text-[#1B1340]">
@@ -48,7 +52,7 @@ function PlatformAccountEntry({ onConnect, onRestore }: { onConnect?: () => void
         className="rx-btn rx-btn-pink"
         style={{ minHeight: 56, fontFamily: PIXEL, fontSize: 12 }}
         onClick={() => {
-          select(ProphetWalletName)
+          login.start()
           onConnect?.()
         }}
       >
@@ -59,25 +63,25 @@ function PlatformAccountEntry({ onConnect, onRestore }: { onConnect?: () => void
           Free, instant, no extension needed.
         </p>
       )}
-      {onRestore && (
-        <button
+      <button
           type="button"
-          onClick={onRestore}
+          onClick={onRestore ?? login.restore}
           style={{ background: 'none', border: 0, cursor: 'pointer', fontSize: 16, fontWeight: 700, color: '#1B1340', textDecoration: 'underline', textUnderlineOffset: 4 }}
         >
           I have a secret key
         </button>
-      )}
+      {!outer && login.modal}
     </div>
   )
 }
 
-export function WalletOptionsList({ onConnect, onRestore, tone = 'market' }: {
+export function WalletOptionsList({ onConnect, onRestore, login, tone = 'market' }: {
   onConnect?: () => void
   onRestore?: () => void
+  login?: PlatformLogin
   tone?: 'market' | 'race' | 'arena'
 }) {
-  if (!EXTERNAL_WALLETS_ENABLED) return <PlatformAccountEntry onConnect={onConnect} onRestore={onRestore} />
+  if (!EXTERNAL_WALLETS_ENABLED) return <PlatformAccountEntry onConnect={onConnect} onRestore={onRestore} login={login} />
   return <ExternalWalletOptions onConnect={onConnect} tone={tone} />
 }
 
