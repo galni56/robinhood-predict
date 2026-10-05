@@ -1,85 +1,85 @@
 # Prophet on Solana
 
-Onchain prediction games on Solana:
+Prediction games on Solana, paid in SOL:
 
-- **Asset Race** — back the asset with the highest percentage return between two price snapshots.
-- **Price Arena** — up to ten players predict an asset's final price; the closest half wins.
+- **Coin Duels** (the "Races" tab) — 2–6 racers each bring their own coin and the same stake ($1–$50); the coin
+  with the highest percentage return over 1 min–1 h wins the pot. Spectators back a racer (up to $100) and share
+  in the win; free cheers.
+- **Price Arena** — up to ten players predict an asset's final price (or market cap); the closest half wins.
+- **Launchpad** — create a token on pump.fun (`create_v2`) from the site; the player's wallet signs and pays.
 
-Stakes are in SOL (and, later, approved SPL tokens). Asset prices are in USD, read from reviewed DEX pools
-and signed by the price service. Parimutuel payouts: players compete against players, with a 2% fee on the
-losing pool split between the game's creator and Prophet.
+There is **no program of our own**. Players stake by sending SOL to the **game wallet** with a `prophet:` memo;
+the game server applies stakes, runs every game and pays winners, refunds and fees automatically from that
+wallet (custodial while a game runs). Prices are USD spot prices from reviewed Solana DEX pools, signed by the
+price service (Ed25519) and verified by the game server against the pinned oracle key. Fee: 2% of the
+winnings (the losing side's money), never of returned stakes; in arenas half of it goes to the creator.
 
-> **Status:** migration from the earlier Robinhood Chain (EVM) product is in progress on branch
-> `solana-migration`. Nothing here is deployed to mainnet. There is no external security audit.
-> New to the project: start with [`docs/HANDOFF.md`](./docs/HANDOFF.md). Plan:
-> [`docs/SOLANA_MIGRATION.md`](./docs/SOLANA_MIGRATION.md). What changed and why:
+Players sign in with the **Prophet wallet** — a Solana keypair created and kept in the player's browser
+(non-custodial: the key never leaves the device and the server never sees it), with a forced key backup.
+Phantom/Solflare can be turned back on with `VITE_EXTERNAL_WALLETS=true`.
+
+> **Status:** branch `solana-migration`, not live with real money yet. No external security audit.
+> `main` is still the earlier Robinhood Chain (EVM) product, live at prophetmarkets.fun — do not merge
+> before it is wound down. New to the project: [`docs/HANDOFF.md`](./docs/HANDOFF.md). History (in Russian):
 > [`docs/SOLANA_CHANGELOG.md`](./docs/SOLANA_CHANGELOG.md).
 
 ## Layout
 
 | Path | What |
 |---|---|
-| `solana/` | Anchor workspace: programs `prophet_games` (Asset Race + Price Arena) and `nickname_registry`; shared crates `pool_attestation`, `stake_funds`. See [`solana/README.md`](./solana/README.md). |
-| `src/` | React 19 + TypeScript + Vite frontend. `src/solana/` holds cluster config, IDL clients, PDAs, wallet and transaction helpers. |
-| `config/solana-assets.json` | Asset registry (mints, pools, price precision) shared by frontend, admin scripts and price service. Owner approval required per asset. |
-| `scripts/solana/` | Local validator and admin setup/seed scripts. |
-| `scripts/solana-catalog-*.mjs`, `scripts/solana-assets-config.mjs` | Asset catalog scan, proposal and registry generation. |
-| `docs/` | Migration plan, changelog, asset catalog for review. |
+| `scripts/solana/game-server/` | Game server: deposits (memo transfers → stakes), games (race, arena, duel), payouts outbox, sweep, HTTP API, SQLite. |
+| `scripts/solana/price-service/` | Reads every approved mainnet pool by account subscription, keeps slot-stamped prices, signs boundary attestations, serves display prices. |
+| `scripts/solana/localnet.sh` | Plain local validator (WSL) for end-to-end runs. |
+| `src/` | React 19 + TypeScript + Vite frontend (HashRouter). `src/chain/` is the data layer (game server client, duels, arenas, live prices, stake transfers, pump.fun launch); `src/solana/` holds cluster config, wallet (`prophetWallet.ts`), service URLs. |
+| `config/solana-assets.json` | Asset registry (mints, pools, price precision), generated; owner approval in `config/solana-catalog-approved.json`. |
+| `scripts/solana-catalog-*.mjs`, `scripts/solana-assets-config.mjs` | Catalog scan → proposal → registry. |
+| `docs/` | Handoff, changelog, asset catalog, review backlogs. |
 
-`src/chain/` is the game data layer: Solana account view models, read hooks, transaction builders
-(`gameTx.ts`), live prices and the indexer snapshot.
+The catalog: 11 crypto coins (BTC, SOL, ETH, HYPE, ZEC, PUMP, NEAR, DOGE, BNB, SUI, XRP) and 10 memes, plus up
+to 30 PumpSwap coins the game server adds automatically every 15 minutes. xStocks were removed.
 
 ## Running locally
 
-Frontend:
+Frontend (Windows or WSL):
 
 ```bash
 npm install
-npm run dev          # http://localhost:5173/robinhood-predict/
-npm run build
+npm run dev          # http://localhost:5173/robinhood-predict/  (proxies /price-service, /game-server)
+npm run build        # what CI runs
 ```
 
-Programs and a local validator run inside WSL (Ubuntu). From the repo inside WSL:
+Services (Node 24; the validator runs in WSL):
 
 ```bash
-export CARGO_TARGET_DIR=$HOME/prophet-target
-(cd solana && anchor build && cargo test --workspace)
-bash scripts/solana/localnet.sh --background
-node scripts/solana/admin.mjs setup
-node scripts/solana/admin.mjs seed
+bash scripts/solana/localnet.sh --background                     # plain validator, :8899
+SOLANA_MAINNET_RPC_URLS=<rpc> SOLANA_MAINNET_WS_URLS=<ws> \
+  ORACLE_KEYPAIR=<file> node scripts/solana/price-service/service.mjs          # :8790
+GAME_WALLET_KEYPAIR=ephemeral node scripts/solana/game-server/server.mjs      # :8792, localnet
+node scripts/solana/game-server/e2e-localnet.mjs                  # full race lifecycle, checked to the lamport
+node --test scripts/solana/game-server/*.test.mjs scripts/solana/price-service/*.test.mjs   # unit tests
+node scripts/solana/price-service/check-prices.mjs                # decoded pool prices vs Jupiter, read-only
 ```
 
-Point the frontend at the local validator with `VITE_SOLANA_CLUSTER=localnet`.
-
-### Price service and keeper
-
-The price service (`scripts/solana/price-service/`) reads every approved pool on **mainnet** in one account
-read per tick, keeps a rolling buffer of slot-stamped USD prices and signs boundary attestations. The keeper
-(`scripts/solana/keeper.mjs`) watches games on the game cluster and calls the timer transitions with those
-attestations. Both are read-only on mainnet; only the keeper sends transactions, on the game cluster.
-
-```bash
-node scripts/solana/price-service/check-prices.mjs        # decoded pool prices vs Jupiter, read-only
-ORACLE_KEYPAIR=~/.config/solana/id.json node scripts/solana/price-service/service.mjs   # :8790
-node scripts/solana/keeper.mjs                              # localnet by default
-node scripts/solana/e2e-localnet.mjs [--arena]              # full lifecycle check on localnet
-```
-
-Set `SOLANA_MAINNET_RPC_URLS` to one or more endpoints, comma-separated in order of preference (free ones work: the
-service holds subscriptions, so its traffic does not grow with visitors). It probes each endpoint, fails over
-when the feed goes silent or calls keep failing, and marks every switch or websocket drop as a gap it never
-signs prices in. The public endpoint alone drops its websocket now and then; add a second free-tier endpoint.
-On localnet the oracle key is the admin key; devnet and mainnet need a separate oracle key per cluster.
+Prices always come from **mainnet** pools (read-only), whatever cluster the games run on. The public mainnet
+RPC rate-limits; use a paid one (Alchemy for HTTP; Alchemy has no `accountSubscribe`, so websockets use Helius).
 
 ## Environment
 
-| Variable | Default | Purpose |
-|---|---|---|
-| `VITE_SOLANA_CLUSTER` | `devnet` | `localnet`, `devnet` or `mainnet-beta` |
-| `VITE_SOLANA_RPC_URL` | cluster default | RPC endpoint; a relative path (VPS proxy) is resolved against the page origin |
-| `VITE_GAMES_PROGRAM_ID`, `VITE_NICKNAME_PROGRAM_ID` | development IDs | Program addresses for the cluster (required for a mainnet build) |
-| `VITE_PRICE_SERVICE_URL` | `/price-service` | Price service base URL (dev server proxies to `127.0.0.1:8790`) |
-| `VITE_INDEXER_URL` | `/indexer` | History indexer base URL (dev server proxies to `127.0.0.1:8791`) |
-| `VITE_BASE_PATH` | `/robinhood-predict/` | `/` when served from a domain root |
+Frontend (build time):
 
-Never commit keypairs or API keys. Program keypairs live in the WSL target directory, outside the repo.
+| Variable | Purpose |
+|---|---|
+| `VITE_SOLANA_CLUSTER` | `localnet`, `devnet` or `mainnet-beta` |
+| `VITE_SOLANA_RPC_URL`, `VITE_SOLANA_WS_URL` | RPC endpoints; a relative path (VPS proxy) resolves against the page origin |
+| `VITE_GAME_SERVER_URL`, `VITE_PRICE_SERVICE_URL` | Service base URLs; `off` = show last known data only |
+| `VITE_LAST_DATA_URL` | Last-known data (PumpSwap list) shown while services are off |
+| `VITE_LAUNCH_RPC_URL`, `VITE_LAUNCH_WS_URL`, `VITE_LAUNCH_IPFS_URL` | Launchpad: mainnet RPC and the pump.fun IPFS proxy |
+| `VITE_EXTERNAL_WALLETS` | `true` shows Phantom/Solflare next to the Prophet wallet |
+| `VITE_BASE_PATH` | `/robinhood-predict/` by default; `/` when served from a domain root |
+
+Game server and price service: see the header comments of `scripts/solana/game-server/server.mjs` and
+`scripts/solana/price-service/service.mjs`. On mainnet the game server refuses to start without
+`ORACLE_PUBKEY`, `SIGNING_DOMAINS` and `COLD_WALLET`, and refuses an empty database next to a wallet that
+already has history (unless `ADOPT_WALLET=1` on a genuinely first start).
+
+Never commit keypairs or API keys.

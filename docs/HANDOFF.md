@@ -1,132 +1,122 @@
 # Developer handoff — Prophet on Solana
 
-State as of 2026-10-03, branch `solana-migration`. Git history and the code are the source of truth;
-this file is the starting point. Detailed step-by-step history (in Russian), including how each piece
-differs from the EVM product: [`SOLANA_CHANGELOG.md`](./SOLANA_CHANGELOG.md).
+State as of 2026-10-05, branch `solana-migration`. Git history and the code are the source of truth; this
+file is the starting point. Step-by-step history (in Russian), including how each piece differs from the EVM
+product: [`SOLANA_CHANGELOG.md`](./SOLANA_CHANGELOG.md).
 
 ## Read first
 
 1. [`CLAUDE.md`](../CLAUDE.md): project map and **operating rules** (keys, mainnet, branches).
 2. This file: status, how to run everything, what is next.
-3. [`README.md`](../README.md) (layout, env vars), [`solana/README.md`](../solana/README.md) (programs,
-   attestation format), [`SOLANA_MIGRATION.md`](./SOLANA_MIGRATION.md) (decisions).
+3. [`README.md`](../README.md): layout, local run, environment.
+4. [`GAME_SERVER_REVIEW_BACKLOG.md`](./GAME_SERVER_REVIEW_BACKLOG.md): architecture review of the game server.
+
+## The model in one paragraph
+
+No program of our own (the earlier Anchor programs were removed: deploying them cost ~4.2 SOL and the owner
+wants the product to run at zero cost). Players stake by sending SOL to the **game wallet** with a `prophet:`
+memo. The **game server** reads those transfers, applies them to games, runs the timers, takes boundary prices
+from the **price service** (Ed25519-signed, verified against `ORACLE_PUBKEY`) and pays winners, refunds and
+creator fees from the game wallet through a payout outbox. Prophet's fees are swept to the owner's **cold
+wallet**. Players hold their own keys in the **Prophet wallet** (a keypair kept in the browser).
+
+```
+mainnet DEX pools ──subscribe──> price service ──signed boundary prices──> game server ──payouts──> players
+                                     │ display prices, SOL/USD                 ▲   │ /state, /games, /history
+                                     ▼                                         │   ▼
+                                  frontend ──── memo SOL transfer to the game wallet (Prophet wallet signs)
+```
 
 ## Rules that protect real money
 
-- **`main` is the live EVM product with real user funds** (prophetmarkets.fun; the VPS builds the site
-  and runs the EVM keepers from `main`). Do not merge `solana-migration` into `main` until the owner has
-  wound the EVM product down.
-- Never commit keypairs, seed phrases or API keys. Program keypairs live in `$HOME/prophet-target`
-  (outside the repo).
-- The WSL dev key `D5Svp…L4R` (`~/.config/solana/id.json`) is **exposed**: localnet/devnet only. Mainnet
-  needs a fresh owner key and a separate oracle key per cluster.
-- `scripts/solana/admin.mjs` refuses mainnet by design. Every mainnet transaction is owner-approved.
+- **`main` is the live EVM product with real user funds** (prophetmarkets.fun; the VPS builds that site and
+  runs its keepers from `main`). Do not merge `solana-migration` into `main` until the owner has wound the
+  EVM product down.
+- Never handle or print private keys, seed phrases or API keys (see `CLAUDE.md`). Never commit them.
+- The WSL dev key `D5Svp…L4R` is **exposed**: localnet/devnet only.
+- Every mainnet transaction is owner-approved. The game server refuses mainnet without `ORACLE_PUBKEY`,
+  `SIGNING_DOMAINS` and `COLD_WALLET`, and refuses an empty database next to a wallet that has history.
 
 ## Status
 
 | Piece | State | Verified by |
 |---|---|---|
-| Programs: `prophet_games` (Asset Race + Price Arena), `nickname_registry`, crates `pool_attestation`, `stake_funds` | Done. SOL and SPL/Token-2022 stakes (mints with risky Token-2022 extensions are rejected). Race operator role for scheduled platform races. Keeper payouts: winnings, refunds and losing-position rent go to the player without a claim (funds can only reach the player). Internal review done; no external audit. | 44 LiteSVM tests |
-| Asset catalog | 26 assets approved by the owner (3 crypto, 10 memes, 13 xStocks), `config/solana-assets.json` | Scan + owner review |
-| Price service (`scripts/solana/price-service/`) | Done: reads reviewed mainnet pools by account subscription, signs Ed25519 boundary attestations, serves display prices | Localnet end-to-end with live mainnet prices |
-| Keeper (`scripts/solana/keeper.mjs`) | Timer transitions and automatic payouts, for SOL and SPL stakes (`AUTO_PAYOUT=0` turns payouts off) | Same end-to-end run, UI click-through |
-| Race scheduler (`scripts/solana/race-scheduler.mjs`) | Done, **off by owner decision** (`"enabled": false` in `config/platform-races.json`): each race costs ~0.009 SOL of unrefunded rent | Localnet run (created 3 races) |
-| Indexer (`scripts/solana/indexer.mjs`) | Done: one `/history` snapshot (games with raw account data, activity, wallet stats, leaderboards) | Localnet run |
-| Frontend | Fully on Solana (wagmi/viem removed): races, arenas, create pages, portfolio, leaderboard, archive; SOL and SPL stake currencies; meme market cap | Clicked through on the local stand with burner wallets (race, arena, community race, SPL arena entries), phone width checked. SPL claim through the UI not yet watched end to end |
-| GitHub Pages | Live at https://galni56.github.io/robinhood-predict/ — Solana preview from `solana-migration` (devnet, no price service/indexer: view only) | Workflow `.github/workflows/deploy.yml`; 7 pages checked, no console errors |
-| Devnet, VPS services, mainnet | Not started | — |
-| Redesign, $PROPHET token (pump.fun), buyback/burn | Later | — |
+| Game server (`scripts/solana/game-server/`) | Done: deposits by memo with idempotent ingest and automatic refunds of invalid stakes (dust < 0.001 SOL kept); Price Arena, Coin Duels (Asset Race code kept for old links); payout outbox paid only at finalized, never twice; sweep of earned fees only; signed actions bound to the site domain with a nonce; SQLite with hourly backups; PumpSwap auto-add every 15 min (≤30 coins); last-known data written for the site | 44 tests (`node --test scripts/solana/game-server/*.test.mjs`), localnet e2e for races, exact payouts |
+| Coin Duels | Done (server + site): 10 empty lobbies always open, 2–6 racers with unique coins, same stake $1–$50, pay within 2 min, ready check (timer starts at the first READY, +15 s "preparing" once), kick tax 10%/20% (doubled after 10 kicks/week) split Prophet/remaining racers, spectator backing ≤$100, 30/70 split of the losing backers' pool, 2% fee on winnings, ties refund, free cheers | Server tests with exact payouts; pages rendered against a mock server. **Not yet run on a validator with real transfers** |
+| Price service (`scripts/solana/price-service/`) | Done: Raydium AMM v4 / CPMM / CLMM, Orca Whirlpool, Meteora DLMM, PumpSwap decoders; chunked reads, ≤250 subscriptions; signed attestations | 9 tests, `check-prices.mjs` vs Jupiter (all within ~0.6%) |
+| Asset catalog | 11 crypto (BTC, SOL, ETH, HYPE, ZEC, PUMP, NEAR, DOGE, BNB, SUI, XRP — the last four below the $500k floor by owner decision, `thinPoolsAccepted`), 10 memes, + PumpSwap coins. xStocks removed; ADA rejected (no real Cardano on Solana) | Scan + owner approval |
+| Frontend | Races tab = Coin Duels; Price Arena (price or market cap, chosen by the creator); PumpSwap table; Launchpad; portfolio, leaderboard, archive from the game server; Prophet wallet (create, forced backup, top up, withdraw, export/import); hero race on the landing; works on phones | Screenshots (desktop and 390 px frame), `npm run build` |
+| Launchpad | pump.fun `create_v2` (Token-2022) signed by the player; IPFS upload through the VPS (pump.fun blocks many browsers) | Simulation on the live pump.fun program. **Owner's first real launch pending** |
+| GitHub Pages | https://galni56.github.io/robinhood-predict/ from `solana-migration`, services `off`: shows last known data | `.github/workflows/deploy.yml` |
+| VPS services | Installed, **stopped and disabled** until the live test (see below) | Ran live for a check: prices, 30 PumpSwap coins, last-data serving |
 
-## How the pieces fit
+## VPS (Solana side)
 
-```
-mainnet DEX pools ──read──> price service ──/attestation──> keeper ──start/resolve tx──> prophet_games
-                                 │  /prices (display, SOL/USD)                         (game cluster)
-                                 ▼                                                       ▲      │
-                              frontend ───────────── wallet-signed player tx ────────────┘      │
-                                 ▲                                                              │
-                                 └──── /history snapshot ──── indexer <── program tx + accounts ┘
-```
+`ssh -i ~/.ssh/id_ed25519 -p 22022 root@104.207.90.56` (port 22022). The EVM product on the same host is
+documented in `CLAUDE.md` on `main` — do not touch it.
 
-Settlement prices exist only as signed attestations verified on-chain (Ed25519 precompile instruction
-right before `start_race` / `resolve_race` / `resolve_arena`, bound to the program ID). The frontend's
-`/prices` numbers are display only.
+| What | Where |
+|---|---|
+| Code (pulled from `solana-migration`) | `/opt/prophet-solana` |
+| Node 24 | `/opt/node24` |
+| Environment (RPC keys entered by the owner; never print it) | `/etc/prophet/prophet.env` |
+| Keys (created on the VPS, never printed) | `/root/prophet-keys/game-wallet.json`, `oracle.json` |
+| systemd | `prophet-price-service`, `prophet-game-server` (stopped, disabled) |
+| nginx | `/etc/nginx/snippets/prophet-solana.conf`: `/api/solana/{game-server,price-service,rpc,ws,last,ipfs}`; keys in `prophet-solana-keys.conf` |
+| Last-known data for the site | `/var/www/prophet-last` |
+
+RPC: Alchemy (paid) for HTTP; Helius for websocket subscriptions only (Alchemy has no `accountSubscribe`).
 
 ## Code map
 
 | Path | What |
 |---|---|
-| `solana/programs/prophet_games/src/lib.rs` | Every instruction, entry point |
-| `…/instructions/{admin,race_create,race,arena}.rs`, `state.rs`, `constants.rs` | Logic, accounts, limits |
-| `scripts/solana/localnet.sh`, `admin.mjs` | Local validator; `setup` (config, assets, SOL stake mint, policy) and `seed` (sample games) |
-| `scripts/solana/keeper.mjs`, `indexer.mjs`, `e2e-localnet.mjs`, `price-service/` | Off-chain services and the lifecycle check |
-| `src/solana/` | Cluster config and program IDs, Anchor clients, PDAs, tx sending, service URLs, nicknames, IDL |
-| `src/chain/assetRaces.ts`, `priceArena.ts` | View models built from program accounts |
-| `src/chain/use*.ts` | Read hooks (lists from the indexer with a direct-read fallback; detail pages read accounts) |
-| `src/chain/gameTx.ts` | Every player instruction: bet, claim, refund, close position, lobby, create, arena entry, creator fees |
-| `src/chain/livePrices.ts`, `stakeQuote.ts`, `history.ts` | Price service feed, USD↔SOL stake quote ($1–$50), indexer snapshot |
+| `game-server/server.mjs` | HTTP API, config/env checks, PumpSwap refresh, backups, last-data writer |
+| `game-server/engine.mjs` | Game state machines and signed actions; `deposits.mjs` (scan, apply, refund), `payouts.mjs` (outbox, solvency, sweep) |
+| `game-server/rules.mjs`, `duel.mjs` | Pure game rules: races, arenas, memos; duels |
+| `game-server/chain.mjs`, `db.mjs`, `prices.mjs`, `views.mjs`, `pumpswap.mjs` | RPC, SQLite, oracle-checked prices, history/leaderboards, PumpSwap selection |
+| `game-server/admin.mjs`, `e2e-localnet.mjs` | Owner tools (payout queue, retry); race lifecycle check |
+| `price-service/service.mjs`, `pools.mjs` | Collector and signer; pool decoders |
+| `src/chain/gameServer.ts`, `duels.ts`, `priceArena.ts`, `livePrices.ts`, `pumpLaunch.ts` | Data layer |
+| `src/solana/prophetWallet.ts`, `components/WalletAccountModals.tsx` | Prophet wallet |
+| `src/pages/OnchainDuel*.tsx`, `OnchainArena*.tsx`, `OnchainLaunchPage.tsx`, `OnchainPumpSwapPage.tsx` | Pages |
 
-## Run the full local stand
-
-Toolchain in WSL Ubuntu: Rust, Solana CLI 3.1, Anchor 1.1.2, Node. Run each service in its own WSL
-terminal from the repo root (`/mnt/c/…/robinhood-predict`):
+## Run the local stand
 
 ```bash
-export CARGO_TARGET_DIR=$HOME/prophet-target
-(cd solana && anchor build && cargo test --workspace)    # after program changes
-bash scripts/solana/localnet.sh --background             # validator, programs deployed
-node scripts/solana/admin.mjs setup                      # oracle = admin key on localnet
-node scripts/solana/admin.mjs seed                       # optional sample races/arenas
-ORACLE_KEYPAIR=~/.config/solana/id.json SOLANA_MAINNET_RPC_URLS=<rpc1>,<rpc2> \
-  node scripts/solana/price-service/service.mjs          # :8790
-node scripts/solana/keeper.mjs
-node scripts/solana/indexer.mjs                          # :8791
-node scripts/solana/e2e-localnet.mjs --arena             # optional: full lifecycle self-check
+bash scripts/solana/localnet.sh --background          # WSL: plain validator, :8899
+SOLANA_MAINNET_RPC_URLS=<rpc> SOLANA_MAINNET_WS_URLS=<ws> ORACLE_KEYPAIR=<file> \
+  node scripts/solana/price-service/service.mjs        # :8790
+GAME_WALLET_KEYPAIR=ephemeral node scripts/solana/game-server/server.mjs   # :8792
+node scripts/solana/game-server/e2e-localnet.mjs        # optional: race lifecycle, exact payouts
 ```
 
-Frontend: put `VITE_SOLANA_CLUSTER=localnet` in `.env.local`, then `npm install` and `npm run dev` →
+Frontend: `VITE_SOLANA_CLUSTER=localnet` in `.env.local`, then `npm run dev` →
 http://localhost:5173/robinhood-predict/ (HashRouter: routes after `#`). The dev server proxies
-`/price-service` and `/indexer` to the local services. On localnet the wallet list has a **Burner
-Wallet** (throwaway in-memory key, new one per reload); its menu has **Get 2 test SOL**.
-
-The public mainnet RPC rate-limits (429) the price service; use a paid RPC (Helius/Triton), key kept
-in your environment, never in the repo.
+`/price-service` and `/game-server`.
 
 ## Next steps, in order
 
-1. **Owner decisions:** (a) add an admin "revoke oracle key" so open games stop trusting a compromised
-   key (they then void/cancel and refund) — today every game keeps the key it was created with;
-   (b) whether to add closing of finished games so their ~0.009 SOL rent returns to the creator.
-2. **Devnet.** `admin.mjs` and `keeper.mjs` take the program ID from the IDL; add a `GAMES_PROGRAM_ID`
-   override like the indexer has if devnet uses other IDs. Deploy, use a separate devnet oracle key
-   (`ORACLE_PUBKEY` for `admin.mjs setup`), run the services, owner checks with Phantom.
-3. **VPS.** nginx locations for `/price-service`, `/indexer` and a cached Solana RPC proxy (HTTP and
-   WebSocket); systemd units for the price service, keeper and indexer; a paid RPC key per service.
-   Build with `VITE_SOLANA_CLUSTER`, `VITE_SOLANA_RPC_URL`, `VITE_GAMES_PROGRAM_ID`,
-   `VITE_NICKNAME_PROGRAM_ID` (a mainnet build fails without them).
-4. **Remove the localnet test wallet** before launch: `src/solana/SolanaProvider.tsx`,
-   `src/components/LocalnetAirdropButton.tsx`, package `@solana/wallet-adapter-unsafe-burner`.
-5. **Missing features:** history beyond the indexer's last 500 activity rows; watch an SPL-staked game's
-   claim through the UI end to end; `config/stake-tokens.json` entry for $PROPHET once it exists.
-6. **Mainnet (owner):** fresh owner key, separate oracle key, audit decision, ~4.2 SOL program rent (a refundable deposit; that is all the key needs, plus ~0.01 SOL of fees),
-   EVM wind-down, then merge to `main`.
-7. Later: redesign; $PROPHET on pump.fun as a stake mint; buyback/burn via pump.fun / PumpSwap.
+1. **Duel end-to-end on the local validator** with the Prophet wallet: join, pay, ready, finish, payouts and a
+   kick, checked to the lamport. Then check the duel pages at phone width.
+2. **Own domain for the site** (e.g. a subdomain of prophetmarkets.fun on the VPS). The Prophet wallet keeps
+   keys in `localStorage`; on `galni56.github.io` every Pages site of that account shares the origin and could
+   read them. Optional: encrypt the stored key with a player password.
+3. **Live test (owner present):** start the two services, build the site for `mainnet-beta` with the VPS
+   proxy paths, one $1 duel between two wallets, the owner's first launchpad token.
+4. Remaining review items in `GAME_SERVER_REVIEW_BACKLOG.md` (most money items were fixed on
+   `architecture-refactor`; re-check the list against the code before relying on it).
+5. **EVM wind-down (owner):** stop new games on `main`, let open ones settle, keep claims reachable, then merge.
+6. Ideas: launch races (pump.fun coins launched in a lobby, first to graduate to PumpSwap wins), "will it
+   graduate in 24 h" bets.
 
 ## Known gotchas
 
-- Price Arena predictions are public on-chain; the UI only hides them during the lobby.
-- Detail pages poll their account every 4 s per visitor; before real traffic, serve RPC through the
-  caching VPS proxy or switch to account subscriptions.
-- A claimed or refunded race position closes its account; the race page finds the past claim in the
-  indexer activity feed.
-- WSL: DNS is pinned in `/etc/resolv.conf`; run WSL work from script files when calling from Git Bash
-  (`MSYS_NO_PATHCONV=1 wsl.exe -d Ubuntu -- bash <file>`); `wsl --shutdown` frees its RAM.
+- Solana now has version-1 transactions; web3.js 1.x cannot decode them. Our own transfers are legacy/v0.
+- GeckoTerminal (PumpSwap list) allows ~30 requests/min; the refresher retries on 429.
+- nginx needs large proxy buffers for the pump.fun IPFS upload ("upstream sent too big header").
+- Behind nginx the game server takes the client IP from `X-Forwarded-For` only for loopback connections.
+- WSL: DNS pinned in `/etc/resolv.conf`; run WSL work from script files when calling from Git Bash.
 - Git Bash: `git commit -m` breaks on apostrophes; use `git commit -F <file>`.
-- GitHub Pages needs two repo settings (done once by the owner): Settings → Pages → Source = GitHub
-  Actions, and Settings → Environments → github-pages → deployment branch `solana-migration`. A repo that
-  was ever private loses the Pages setting. CI uses Node 24: npm 10 rejects the npm 11 lockfile.
-- Local stand helpers: `admin.mjs quick-race` (2 min betting + 1 min race), `test-token`, `fund-token`.
-- Heavy WSL builds while the dev server runs can drop Vite's HMR socket and reload the page; the burner
-  wallet then gets a new key. Do not rebuild programs during a burner click-through.
-- `AGENTS.md` dates from the earlier EVM setup (agent names, branch, invariants in EVM terms); the
-  owner should review it before agents rely on it.
+- Headless Chrome will not render below ~500 px; check phones through an iframe page.
+- `AGENTS.md` dates from the earlier EVM setup; the owner should review it before agents rely on it.
