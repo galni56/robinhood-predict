@@ -40,7 +40,7 @@ import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { Keypair, PublicKey } from '@solana/web3.js'
+import { Connection, Keypair, PublicKey } from '@solana/web3.js'
 import { openDatabase } from './db.mjs'
 import { createChain, isAddress } from './chain.mjs'
 import { catalogAssets, createEngine } from './engine.mjs'
@@ -52,7 +52,16 @@ import { toJson } from './db.mjs'
 
 const ROOT = new URL('../../../', import.meta.url)
 const RPC = process.env.SOLANA_RPC_URL ?? 'http://127.0.0.1:8899'
-const CLUSTER = /127\.0\.0\.1|localhost/.test(RPC) ? 'localnet' : /devnet/.test(RPC) ? 'devnet' : 'mainnet'
+// The cluster comes from the genesis hash, never from the URL: a tunnel or
+// local proxy to mainnet must not count as "localnet" (that would allow a
+// throwaway game wallet to take real stakes), and signed messages bind to
+// this label.
+const GENESIS = {
+  '5eykt4UsFv8P8NJdTREpY1vzqKqZKvdpKuc147dw2N9d': 'mainnet',
+  EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG: 'devnet',
+  '4uhcVJyU9pJkvQyS88uRDiswHXSCkY3zQawwpjk2NsNY': 'testnet',
+}
+const CLUSTER = GENESIS[await new Connection(RPC, 'confirmed').getGenesisHash()] ?? 'localnet'
 const PORT = Number(process.env.GAME_SERVER_PORT ?? 8792)
 const HOST = process.env.GAME_SERVER_HOST ?? '127.0.0.1'
 const TICK_MS = Number(process.env.TICK_MS ?? 3_000)
@@ -99,6 +108,7 @@ const engine = createEngine({
   cluster: CLUSTER,
   coldWallet: process.env.COLD_WALLET || null,
   admin: process.env.ADMIN_WALLET || null,
+  adoptWallet: process.env.ADOPT_WALLET === '1',
   // A short arena lobby makes the local stand quick to click through.
   options: CLUSTER === 'localnet' && process.env.ARENA_LOBBY_SECONDS ? { arenaLobbyDuration: Number(process.env.ARENA_LOBBY_SECONDS) } : {},
 })
@@ -171,7 +181,7 @@ async function readBody(req) {
 
 const games = () => db.allGames()
 
-createServer(async (req, res) => {
+const server = createServer(async (req, res) => {
   const url = new URL(req.url, 'http://localhost')
   const path = url.pathname.replace(/\/+$/, '') || '/'
   try {
@@ -240,8 +250,6 @@ createServer(async (req, res) => {
     console.warn(`${req.method} ${path}: ${error.message}`)
     return send(req, res, 500, { error: 'ServerError' })
   }
-}).listen(PORT, HOST, () => {
-  console.log(`game server on ${HOST}:${PORT} · ${CLUSTER} · game wallet ${chain.address} · ${assets.length} assets · db ${DB_PATH}`)
 })
 
 // The PumpSwap meme catalog: refreshed every PUMPSWAP_REFRESH_MINUTES and
@@ -295,6 +303,12 @@ setInterval(writeLastData, 5 * 60_000)
 
 await engine.init()
 await refreshSolvency()
+// Listening starts only after init: before it, a POSTed historical signature
+// could be applied as a fresh stake (and refunded) ahead of the history
+// reconciliation that marks it pre-existing.
+server.listen(PORT, HOST, () => {
+  console.log(`game server on ${HOST}:${PORT} · ${CLUSTER} · game wallet ${chain.address} · ${assets.length} assets · db ${DB_PATH}`)
+})
 let ticks = 0
 setInterval(async () => {
   try {

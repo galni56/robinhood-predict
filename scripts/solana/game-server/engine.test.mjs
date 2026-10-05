@@ -86,11 +86,11 @@ function fakePrices(table) {
   }
 }
 
-function setup(priceTable, { clockStart = 10_000, dbPath = ':memory:', db } = {}) {
+function setup(priceTable, { clockStart = 10_000, dbPath = ':memory:', db, adoptWallet = false } = {}) {
   const clock = { t: clockStart }
   const chain = fakeChain()
   const database = db ?? openDatabase(dbPath)
-  const engine = createEngine({ db: database, chain, prices: fakePrices(priceTable), assets: ASSETS, cluster: 'localnet', coldWallet: COLD, clock: () => clock.t, log: quiet, options: { sweepEverySeconds: 0, sweepMin: SOL / 100n } })
+  const engine = createEngine({ db: database, chain, prices: fakePrices(priceTable), assets: ASSETS, cluster: 'localnet', coldWallet: COLD, adoptWallet, clock: () => clock.t, log: quiet, options: { sweepEverySeconds: 0, sweepMin: SOL / 100n } })
   return { clock, chain, db: database, engine }
 }
 
@@ -262,12 +262,19 @@ test('arena: signed creation, entries by transfer, prediction change, creator pa
 })
 
 test('first start records the wallet history instead of refunding it', async () => {
-  const { chain, db, engine } = setup({})
+  const { chain, db, engine } = setup({}, { adoptWallet: true })
   chain.deposit('someone', SOL, null, 1)
   await engine.init()
   await engine.tick()
   assert.equal(chain.paid.length, 0)
   assert.equal(db.getDeposit('dep-1').status, 'preexisting')
+})
+
+test('a new database next to a wallet with history refuses to start unless adopted', async () => {
+  const { chain, engine } = setup({})
+  chain.deposit('someone', SOL, null, 1)
+  await assert.rejects(engine.init(), /ADOPT_WALLET=1/)
+  assert.equal(chain.paid.length, 0)
 })
 
 test('duel: empty lobbies, signed joins, stakes and backing by transfer, ready, payouts', async () => {

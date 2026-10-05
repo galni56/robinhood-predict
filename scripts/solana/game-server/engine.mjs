@@ -115,7 +115,7 @@ export function catalogAssets(catalog) {
  * @param {string} [o.admin] wallet credited as creator of platform races
  * @param {() => number} [o.clock] unix seconds
  */
-export function createEngine({ db, chain, prices, assets, cluster, coldWallet = null, admin = null, clock, log = console, options = {} }) {
+export function createEngine({ db, chain, prices, assets, cluster, coldWallet = null, admin = null, adoptWallet = false, clock, log = console, options = {} }) {
   const opts = { ...DEFAULTS, ...options }
   const now = clock ?? (() => Math.floor(Date.now() / 1000))
   // Replaced when the PumpSwap catalog refreshes (setAssets).
@@ -225,6 +225,18 @@ export function createEngine({ db, chain, prices, assets, cluster, coldWallet = 
     if (owner && owner !== chain.address) throw new Error(`this database belongs to game wallet ${owner}, not ${chain.address}`)
     if (!owner) db.setMeta('game_wallet', chain.address)
     if (db.getMeta('initialized')) return
+    // A brand-new database next to a wallet that already has history is
+    // either the first deploy or a LOST database. In the second case every
+    // live stake would be forgotten as "pre-existing" and the whole balance
+    // would look like surplus to sweep. Make the operator say which it is.
+    const firstPage = await chain.signatures(undefined)
+    if (firstPage.length > 0 && !adoptWallet) {
+      throw new Error(
+        `game wallet ${chain.address} already has ${firstPage.length >= 1000 ? '1000+' : firstPage.length} transaction(s) but this database is new. ` +
+          'If this is a fresh wallet that was only funded, restart with ADOPT_WALLET=1. If a database was lost, restore it from backup instead - ' +
+          'adopting would forget every live stake.',
+      )
+    }
     let before
     let count = 0
     for (;;) {
@@ -466,6 +478,9 @@ export function createEngine({ db, chain, prices, assets, cluster, coldWallet = 
 
   async function maybeSweep(t) {
     if (!coldWallet || t - lastSweepCheck < opts.sweepEverySeconds) return
+    // The wallet balance already includes stakes the scanner has not applied
+    // yet; counting them as surplus would sweep money we owe.
+    if (lastScan.pending > 0 || now() - lastScan.at > opts.sweepEverySeconds + 60) return
     lastSweepCheck = t
     const { surplus } = await solvency()
     const amount = surplus - opts.reserve
@@ -729,7 +744,8 @@ export function createEngine({ db, chain, prices, assets, cluster, coldWallet = 
     },
     /** Symbols of assets used by games that are not final yet. */
     liveSymbols() {
-      return new Set(db.liveGames().flatMap((g) => (g.kind === 'race' ? g.assets.map((a) => a.symbol) : [g.symbol])))
+      // Duels keep their coins in racers[], races in assets[], arenas in symbol.
+      return new Set(db.liveGames().flatMap((g) => (g.kind === 'race' ? g.assets.map((a) => a.symbol) : g.kind === 'duel' ? (g.racers ?? []).map((r) => r.symbol) : [g.symbol])))
     },
   }
 }
