@@ -13,7 +13,7 @@ import {
   type StakeInputUnit,
 } from '@/chain/stakeQuote'
 import { arenaStakeMemo, stakeInstructions } from '@/chain/gameTx'
-import { depositOutcomeMessage, reportDeposit, useGameServerConfig, useSignedAction } from '@/chain/gameServer'
+import { reportDepositSafely, useGameServerConfig, useSignedAction } from '@/chain/gameServer'
 import { useAssetRaceClock } from '@/chain/useAssetRaceClock'
 import { useLivePrices } from '@/chain/livePrices'
 import { usePriceArena } from '@/chain/usePriceArena'
@@ -246,9 +246,9 @@ export function OnchainArenaPage() {
         onPhase: (phase) => setTxLabel(phase === 'signing' ? 'Sending…' : 'Waiting for confirmation…'),
       })
       setTxLabel('Recording your entry…')
-      const outcome = await reportDeposit(signature).catch(() => null)
+      const outcome = await reportDepositSafely(signature)
       setPrediction(''); setAmount(''); setTxLabel(null); setFrozenEntryQuote(null)
-      if (outcome) setError(depositOutcomeMessage(outcome))
+      if (outcome) setError(outcome)
       await refetchAfterTx()
     } catch (cause) {
       setTxLabel(null)

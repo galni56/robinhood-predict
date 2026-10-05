@@ -186,9 +186,15 @@ export function useNowSeconds() {
 }
 
 /** A free cheer for a racer. */
+/** A free cheer. Best effort: offline, rate limited or refused all just
+ * return null - a cheer is never worth an error on screen. */
 export async function cheerRacer(duelId: number, seat: number) {
   if (GAME_SERVER_URL == null) return null
-  const response = await fetch(`${GAME_SERVER_URL}/cheer`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ duel: duelId, seat }) })
-  return response.ok ? ((await response.json()) as { cheers: number }).cheers : null
+  try {
+    const response = await fetch(`${GAME_SERVER_URL}/cheer`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ duel: duelId, seat }) })
+    return response.ok ? ((await response.json()) as { cheers: number }).cheers : null
+  } catch {
+    return null
+  }
 }
 

@@ -4,7 +4,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useWallet } from '@solana/wallet-adapter-react'
 import { quoteUsdCents, usdCentsToLamports, stakeQuoteErrorMessage } from '@/chain/stakeQuote'
 import { DUEL_RULES, cheerRacer, duelPhaseLabel, duelStake, durationLabel, useDuel, useNowSeconds, type Duel, type DuelRacer } from '@/chain/duels'
-import { depositOutcomeMessage, reportDeposit, useGameServerConfig, useSignedAction } from '@/chain/gameServer'
+import { reportDepositSafely, useGameServerConfig, useSignedAction } from '@/chain/gameServer'
 import { stakeInstructions } from '@/chain/gameTx'
 import { marketCapUsd, useLivePrices } from '@/chain/livePrices'
 import { useApprovedRaceAssets } from '@/chain/useApprovedRaceAssets'
@@ -155,8 +155,7 @@ export function OnchainDuelPage() {
     const gameWallet = config.data?.gameWallet
     if (!publicKey || !gameWallet || id == null) throw new Error('The game server is not reachable right now')
     const signature = await send(stakeInstructions({ player: publicKey, gameWallet, lamports, memo: duelStake(id, seat) }))
-    const outcome = await reportDeposit(signature).catch(() => null)
-    const message = outcome ? depositOutcomeMessage(outcome) : null
+    const message = await reportDepositSafely(signature)
     if (message) setError(message)
   }
 

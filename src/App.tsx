@@ -1,10 +1,11 @@
 import { Suspense, lazy } from 'react'
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { DisclaimerBanner } from '@/components/DisclaimerBanner'
 import { Footer } from '@/components/Footer'
 import { OnchainLayout } from '@/components/OnchainLayout'
 import { PageSkeleton } from '@/components/PageSkeleton'
 import { RealNavbar } from '@/components/RealNavbar'
+import { RouteErrorBoundary } from '@/components/RouteErrorBoundary'
 
 // Every page is its own lazy chunk: the initial download carries only the
 // app shell (navbar, providers, this router) and the first visited page.
@@ -26,12 +27,14 @@ const OnchainArenaPage = lazy(() => import('@/pages/OnchainArenaPage').then((m) 
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage').then((m) => ({ default: m.NotFoundPage })))
 
 export default function App() {
+  const location = useLocation()
   return (
     <div className="min-h-screen flex flex-col">
       <DisclaimerBanner />
       <RealNavbar />
 
       <main className="flex-1">
+        <RouteErrorBoundary key={location.pathname}>
         <Suspense fallback={<PageSkeleton />}>
           <Routes>
             <Route path="/" element={<OnchainLandingPage />} />
@@ -57,6 +60,7 @@ export default function App() {
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
         </Suspense>
+        </RouteErrorBoundary>
       </main>
 
       <Footer />

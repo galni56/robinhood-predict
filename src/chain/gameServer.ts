@@ -164,6 +164,7 @@ export interface ServerWallet {
 }
 
 /** A refusal from the game server, with its rule code (e.g. StakeBelowMinimum). */
+/** The server answered and refused (a rule code in `error`). */
 export class GameServerError extends Error {
   readonly code: string
 
@@ -174,26 +175,53 @@ export class GameServerError extends Error {
   }
 }
 
+/** The server could not be reached or answered without a rule code (proxy
+ * 502/504 page, timeout, offline). Never a refusal - the action may still
+ * be fine, so the UI must not say it was rejected. */
+export class GameServerUnavailableError extends Error {
+  readonly status: number | null
+
+  constructor(status: number | null) {
+    super(status == null ? 'Game server unreachable' : `Game server unavailable (${status})`)
+    this.name = 'GameServerUnavailableError'
+    this.status = status
+  }
+}
+
+async function request(path: string, init?: RequestInit): Promise<{ response: Response; body: unknown }> {
+  let response: Response
+  try {
+    response = await fetch(serverUrl(path), init)
+  } catch {
+    throw new GameServerUnavailableError(null)
+  }
+  const body = await response.json().catch(() => null)
+  return { response, body }
+}
+
+function failure(response: Response, body: unknown): Error {
+  const code = (body as { error?: unknown } | null)?.error
+  return typeof code === 'string' ? new GameServerError(code) : new GameServerUnavailableError(response.status)
+}
+
 function serverUrl(path: string) {
   if (GAME_SERVER_URL == null) throw new Error('The game server is not configured for this build')
   return `${GAME_SERVER_URL}${path}`
 }
 
 export async function getJson<T>(path: string): Promise<T> {
-  const response = await fetch(serverUrl(path))
-  const body = await response.json().catch(() => ({}))
-  if (!response.ok) throw new GameServerError((body as { error?: string }).error ?? `HTTP${response.status}`)
+  const { response, body } = await request(path)
+  if (!response.ok) throw failure(response, body)
   return body as T
 }
 
 async function postJson<T>(path: string, payload: unknown): Promise<{ status: number; body: T }> {
-  const response = await fetch(serverUrl(path), {
+  const { response, body } = await request(path, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(payload),
   })
-  const body = await response.json().catch(() => ({}))
-  if (!response.ok && response.status !== 202) throw new GameServerError((body as { error?: string }).error ?? `HTTP${response.status}`)
+  if (!response.ok && response.status !== 202) throw failure(response, body)
   return { status: response.status, body: body as T }
 }
 
@@ -242,7 +270,11 @@ export function usePumpSwapAssets() {
   const needFallback = live.length === 0 && !config.isLoading
   const last = useQuery({
     queryKey: ['pumpswap-last'],
-    queryFn: async () => (await (await fetch(`${LAST_DATA_URL}/pumpswap.json`)).json()) as PumpSwapSnapshot,
+    queryFn: async () => {
+      const response = await fetch(`${LAST_DATA_URL}/pumpswap.json`)
+      if (!response.ok) throw new GameServerUnavailableError(response.status)
+      return (await response.json()) as PumpSwapSnapshot
+    },
     enabled: needFallback && LAST_DATA_URL != null,
     staleTime: 60_000,
     retry: 1,
@@ -344,6 +376,18 @@ const FRIENDLY: Record<string, string> = {
 
 export function gameServerMessage(code: string) {
   return FRIENDLY[code] ?? `Refused: ${code}`
+}
+
+/** Reports a landed stake transfer. If the server cannot be reached, the
+ * transfer is still on-chain and the server's own scan applies it - say
+ * that instead of staying silent. */
+export async function reportDepositSafely(signature: string): Promise<string | null> {
+  try {
+    return depositOutcomeMessage(await reportDeposit(signature))
+  } catch (cause) {
+    if (cause instanceof GameServerError) return gameServerMessage(cause.code)
+    return `Your SOL was sent (${signature.slice(0, 8)}…). The game server is slow to confirm it - it will be applied automatically within a minute.`
+  }
 }
 
 /** Why a stake came back, for the message under the bet form. */

@@ -19,7 +19,7 @@ import {
   type StakeInputUnit,
 } from '@/chain/stakeQuote'
 import { raceStakeMemo, stakeInstructions } from '@/chain/gameTx'
-import { depositOutcomeMessage, reportDeposit, useGameServerConfig, useSignedAction } from '@/chain/gameServer'
+import { reportDepositSafely, useGameServerConfig, useSignedAction } from '@/chain/gameServer'
 import { useAssetRace } from '@/chain/useAssetRace'
 import { useAssetRaceClock } from '@/chain/useAssetRaceClock'
 import { useLivePrices } from '@/chain/livePrices'
@@ -128,11 +128,11 @@ export function OnchainRacePage() {
           setTx({ label: phase === 'signing' ? 'Placing bet…' : 'Waiting for bet confirmation…' }),
       })
       setTx({ label: 'Recording your bet…' })
-      const outcome = await reportDeposit(signature).catch(() => null)
+      const outcome = await reportDepositSafely(signature)
       setTx(null)
       setFrozenBetQuote(null)
       setAmount('')
-      if (outcome) setError(depositOutcomeMessage(outcome))
+      if (outcome) setError(outcome)
       await refetchAll()
     } catch (cause) {
       setTx(null)
