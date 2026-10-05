@@ -60,6 +60,16 @@ export const toJson = (value) => JSON.stringify(value, (_, v) => (typeof v === '
 export const fromJson = (text) =>
   JSON.parse(text, (key, v) => (BIGINT_KEYS.has(key) && typeof v === 'string' ? BigInt(v) : v))
 
+// Stored game state tags every BigInt ({"$n":"123"}) so it comes back as a
+// BigInt whatever its field is called: reviving by field name alone turned
+// any new amount field missing from BIGINT_KEYS into a string, and string +
+// or < on money fails silently. Rows written before tagging still revive
+// through BIGINT_KEYS.
+const isTagged = (v) => v !== null && typeof v === 'object' && !Array.isArray(v) && typeof v.$n === 'string' && Object.keys(v).length === 1
+export const encodeState = (value) => JSON.stringify(value, (_, v) => (typeof v === 'bigint' ? { $n: v.toString() } : v))
+export const decodeState = (text) =>
+  JSON.parse(text, (key, v) => (isTagged(v) ? BigInt(v.$n) : BIGINT_KEYS.has(key) && typeof v === 'string' ? BigInt(v) : v))
+
 /** Statuses after which a game holds no stakes of its own (payout rows do). */
 export const FINAL_STATUSES = new Set(['resolved', 'cancelled', 'void'])
 
@@ -145,13 +155,13 @@ export function openDatabase(path) {
 
     getGame(kind, id) {
       const row = s.getGame.get(kind, id)
-      return row ? fromJson(row.state) : null
+      return row ? decodeState(row.state) : null
     },
-    games: (kind) => s.gamesByKind.all(kind).map((r) => fromJson(r.state)),
-    liveGames: () => s.liveGames.all().map((r) => fromJson(r.state)),
-    allGames: () => s.allGames.all().map((r) => fromJson(r.state)),
+    games: (kind) => s.gamesByKind.all(kind).map((r) => decodeState(r.state)),
+    liveGames: () => s.liveGames.all().map((r) => decodeState(r.state)),
+    allGames: () => s.allGames.all().map((r) => decodeState(r.state)),
     saveGame(game) {
-      s.putGame.run(game.kind, game.id, game.status, toJson(game), now())
+      s.putGame.run(game.kind, game.id, game.status, encodeState(game), now())
     },
 
     getDeposit: (signature) => s.getDeposit.get(signature) ?? null,
