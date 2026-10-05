@@ -78,7 +78,7 @@ export function OnchainLeaderboardPage() {
                     <div className="flex min-w-0 items-center gap-2.5">
                       <AddressAvatar address={row.wallet} size={26} />
                       <div className="min-w-0">
-                        <AddressLabel address={row.wallet} className="block truncate font-bold text-white/85 hover:text-[#1B1340]" />
+                        <AddressLabel address={row.wallet} className="block truncate font-bold text-[#1B1340]/85 hover:text-[#1B1340]" />
                         <div className="flex items-center gap-1.5 text-[11px] text-[#1B1340]/55">
                           {row.games != null && <span>{row.games} game{row.games === 1 ? '' : 's'} · {row.wins ?? 0} win{row.wins === 1 ? '' : 's'}</span>}
                           {row.symbols?.map((symbol) => <TokenLogo key={symbol} ticker={symbol} className="h-4 w-4 rounded" />)}

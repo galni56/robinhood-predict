@@ -15,7 +15,7 @@ const LINKS = [
   { to: '/onchain/arenas', label: 'Arena' },
   { to: '/onchain/pumpswap', label: 'PumpSwap' },
   { to: '/onchain/launch', label: 'Launch' },
-  { to: '/#how', label: 'How to play' },
+  { to: '/?section=how', label: 'How to play' },
 ]
 
 const MORE = [

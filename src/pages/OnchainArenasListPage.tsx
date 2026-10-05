@@ -124,7 +124,7 @@ export function OnchainArenasListPage() {
         <div className="max-w-2xl">
           <p className="px-font text-[9px] text-[#ff4f8b]">Price Arena · closest price wins</p>
           <h1 className="mt-3" style={{ margin: 0, fontFamily: "'Press Start 2P', monospace", fontSize: 'clamp(18px, 2vw, 26px)', fontWeight: 400, lineHeight: 1.4, textShadow: '4px 4px 0 #1B1340' }}>Name the final price</h1>
-          <p className="mt-3 text-sm font-bold leading-relaxed text-[#191330]/60">Predictions stay hidden in the lobby. When the round starts, the board goes live and the closest half shares the losing half’s pool.</p>
+          <p className="mt-3 text-sm font-bold leading-relaxed text-[#FFF6DF]/80">Predictions stay hidden in the lobby. When the round starts, the board goes live and the closest half shares the losing half’s pool.</p>
         </div>
         <Link to={`/onchain/arenas/create${mode === 'memes' ? '' : `?mode=${mode}`}`} className="px-btn px-btn--sm shrink-0 !bg-[#6bcbf4]">+ {mode === 'memes' ? 'meme' : mode === 'crypto' ? 'crypto' : 'stock'} arena</Link>
       </div>
@@ -136,7 +136,7 @@ export function OnchainArenasListPage() {
 
       {terminalFilter && (
         <div className="mt-4 flex justify-end">
-          <Link to="/onchain/archive?mode=arenas" className="px-font text-[9px] text-[#191330]/60 hover:text-[#191330]">
+          <Link to="/onchain/archive?mode=arenas" className="px-font text-[9px] text-[#FFF6DF]/80 hover:text-[#191330]">
             Open complete Arena history →
           </Link>
         </div>
@@ -146,7 +146,7 @@ export function OnchainArenasListPage() {
         <main className="min-h-[32rem] min-w-0 flex-1">
           {isLoading && visible.length === 0 ? <GameListLoadingGrid accent="blue" />
             : error && visible.length === 0 ? <div className="border-[3px] border-[#191330] bg-[#ff4f8b]/15 p-5 text-sm font-bold text-[#c22957] shadow-[4px_4px_0_#191330]">Could not load arenas. Check your connection and refresh.</div>
-              : visible.length === 0 ? <p className="px-font py-20 text-center text-[10px] text-[#191330]/40">No {mode} arenas yet</p>
+              : visible.length === 0 ? <p className="px-font py-20 text-center text-[10px] text-[#FFF6DF]/70">No {mode} arenas yet</p>
                 : <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">{visible.map((arena) => <ArenaCard key={arena.id.toString()} arena={arena} nowMs={nowMs} />)}</div>}
         </main>
         <aside className="sticky top-20 hidden w-72 shrink-0 lg:block">
