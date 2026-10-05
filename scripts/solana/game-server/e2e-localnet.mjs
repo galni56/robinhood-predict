@@ -10,7 +10,7 @@ import { readFileSync } from 'node:fs'
 import { Connection, Keypair, LAMPORTS_PER_SOL, PublicKey, SystemProgram, Transaction, sendAndConfirmTransaction } from '@solana/web3.js'
 import { openDatabase } from './db.mjs'
 import { catalogAssets, createEngine } from './engine.mjs'
-import { memoInstruction } from './chain.mjs'
+import { BASE_FEE, memoInstruction } from './chain.mjs'
 import { raceMemo } from './rules.mjs'
 
 const RPC = process.env.SOLANA_RPC_URL ?? 'http://127.0.0.1:8899'
@@ -85,7 +85,8 @@ check(state.positions.length === 3, 'the scanner found the bet nobody reported')
 for (const a of state.assets) console.log(`  ${a.symbol}: P0 ${a.startPrice} -> P1 ${a.endPrice}, return ${(Number(a.returnValue) / 1e16).toFixed(4)}%`)
 
 const gained = await Promise.all(bettors.map(async (b, i) => (await balance(b.publicKey)) - after[i]))
-check(gained[3] === BigInt(LAMPORTS_PER_SOL / 20), `refund of the bad stake arrived: ${sol(gained[3])} SOL`)
+// A refund carries its own network fee.
+check(gained[3] === BigInt(LAMPORTS_PER_SOL / 20) - BASE_FEE, `refund of the bad stake arrived: ${sol(gained[3])} SOL`)
 if (state.status === 'resolved') {
   const w = state.winningAssetIndex
   const losing = BigInt(state.totalPool) - BigInt(state.winningPool)

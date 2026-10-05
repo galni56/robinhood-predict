@@ -54,7 +54,8 @@ function DuelTrack({ duel, onCheer, bursts }: { duel: Duel; onCheer: (seat: numb
   const max = returns.reduce((a, b) => (b > a ? b : a), returns[0] ?? 0n)
   const min = returns.reduce((a, b) => (b < a ? b : a), returns[0] ?? 0n)
   const span = max - min
-  const position = (ret: bigint) => (!running && !final ? 4 : span === 0n ? 40 : 8 + Number(((ret - min) * 1000n) / span) / 1000 * 74)
+  // 0 = start line, 1 = finish: the leader runs up to the finish line, the rest by their return.
+  const progress = (ret: bigint) => (!running && !final ? 0 : span === 0n ? 0.45 : 0.05 + (Number(((ret - min) * 1000n) / span) / 1000) * 0.95)
   const lanes = Math.max(duel.racers.length, 2)
   return (
     <div className="rx-raised" style={{ position: 'relative', background: ROAD, overflow: 'hidden' }}>
@@ -67,9 +68,10 @@ function DuelTrack({ duel, onCheer, bursts }: { duel: Duel; onCheer: (seat: numb
             {r ? (
               <>
                 <button type="button" onClick={() => onCheer(r.seat)} title="Cheer" className="rx-btn rx-btn-white" style={{ position: 'absolute', left: 6, top: '50%', transform: 'translateY(-50%)', zIndex: 2, padding: '6px 8px', fontSize: 13, fontWeight: 700, margin: 0 }}>
-                  <span style={{ fontFamily: EMOJI }}>🎆</span> {r.cheers}
+                  <span style={{ fontFamily: EMOJI, fontSize: 18, verticalAlign: 'middle' }}>🎆</span> {r.cheers}
                 </button>
-                <div style={{ position: 'absolute', top: 6, left: `calc(70px + ${position(ret)}% * 0.8)`, transition: 'left 1.2s steps(6)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                {/* The coin and its label are shifted back by their own width as they near the finish, so they never leave the track (phones). */}
+                <div style={{ position: 'absolute', top: 6, left: `calc(70px + (100% - 120px) * ${progress(ret)})`, transform: `translateX(${-progress(ret) * 100}%)`, transition: 'left 1.2s steps(6), transform 1.2s steps(6)', display: 'flex', alignItems: 'center', gap: 6 }}>
                   <div style={{ position: 'relative', animation: running ? 'rx-bob 0.4s steps(1) infinite' : undefined }}>
                     {final && duel.winnerSeat === r.seat && <span style={{ position: 'absolute', left: '26%', top: -14 }}><PxSprite data={crown} width={26} height={15} /></span>}
                     {bursts[r.seat] ? <Burst id={bursts[r.seat]} /> : null}
@@ -221,7 +223,7 @@ export function OnchainDuelPage() {
               <div className="rx-raised" style={{ background: CREAM, padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
                 {notice && <p style={{ margin: 0, fontWeight: 700 }}>{notice}</p>}
                 {error && <p style={{ margin: 0, color: '#C2245A', fontWeight: 700 }}>{error}</p>}
-                {!connected ? <WalletOptionsList tone="race" /> : duel.status === 'resolved' || duel.status === 'void' ? (
+                {duel.status === 'resolved' || duel.status === 'void' ? (
                   <div>
                     <span style={label}>{duel.status === 'resolved' ? 'PAYOUTS' : 'REFUNDS'}</span>
                     {duel.status === 'void' && <p style={{ margin: '0 0 8px', fontWeight: 600 }}>No winner this time ({duel.cancelReason === 'topTie' ? 'a tie at the top' : 'no price'}): every stake goes back.</p>}
@@ -232,7 +234,7 @@ export function OnchainDuelPage() {
                       </div>
                     ))}
                   </div>
-                ) : mine ? (
+                ) : !connected ? <WalletOptionsList tone="race" /> : mine ? (
                   !mine.paid ? (
                     <>
                       <span style={label}>PAY YOUR STAKE · {clock(mine.joinedAt + DUEL_RULES.payWindow - now)} LEFT</span>
