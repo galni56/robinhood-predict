@@ -5,27 +5,40 @@ import { AddressAvatar } from '@/components/AddressAvatar'
 import { AddressLabel } from '@/components/AddressLabel'
 import { LocalnetAirdropButton } from '@/components/LocalnetAirdropButton'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
-
-// Lazy: the nickname modal pulls the Anchor program clients (both IDLs);
-// loading that belongs to the moment someone opens the modal, not to the
-// always-mounted navbar.
-const SetNicknameModal = lazy(() => import('@/components/SetNicknameModal').then((m) => ({ default: m.SetNicknameModal })))
+import { BackupModal, DepositModal, ImportModal, WithdrawModal } from '@/components/WalletAccountModals'
+import { ProphetWalletName, prophetWalletStore } from '@/solana/prophetWallet'
+import { EXTERNAL_WALLETS_ENABLED } from '@/solana/SolanaProvider'
+import { formatStakeAmount, useStakeBalance } from '@/solana/stakeTokens'
 import { explorerUrl } from '@/solana/config'
 
-/** Wallet connect entry point (Phantom or Solflare). When connected, shows
- * an address-derived avatar plus the wallet's nickname if it has one, and an
- * account menu (portfolio, nickname, copy address, explorer, disconnect). */
+// Lazy: the nickname modal is only needed when someone opens it.
+const SetNicknameModal = lazy(() => import('@/components/SetNicknameModal').then((m) => ({ default: m.SetNicknameModal })))
+
+type ModalKind = 'backup' | 'deposit' | 'withdraw' | 'import' | 'nickname' | null
+
+const PIXEL = "'Press Start 2P', 'Courier New', monospace"
+const itemClass = 'block w-full px-3 py-2 text-left font-bold text-[#1B1340]/80 hover:bg-[#FFD23F] hover:text-[#1B1340]'
+
+/** The account entry point. With the platform wallet (default) it is a
+ * personal account: create, top up, withdraw, back up and restore - no
+ * extension, no external connect prompt. */
 export function ConnectWalletButton() {
-  const { publicKey, connected, disconnect } = useWallet()
+  const { publicKey, connected, disconnect, select, wallet } = useWallet()
   const [open, setOpen] = useState(false)
   const [copied, setCopied] = useState(false)
-  const [nicknameModalOpen, setNicknameModalOpen] = useState(false)
+  const [modal, setModal] = useState<ModalKind>(null)
   const address = publicKey?.toBase58()
   const menuRef = useRef<HTMLDivElement>(null)
+  const balance = useStakeBalance()
+  const platform = wallet?.adapter.name === ProphetWalletName
+  const [backedUp, setBackedUp] = useState(() => prophetWalletStore.isBackedUp())
 
-  // A document listener rather than a full-screen overlay: the navbar's
-  // backdrop-blur makes it the containing block for fixed children, so an
-  // overlay would only cover the navbar.
+  // A fresh platform account must be backed up before anything else: losing
+  // the browser without the key loses the funds.
+  useEffect(() => {
+    if (connected && platform && !prophetWalletStore.isBackedUp()) setModal('backup')
+  }, [connected, platform])
+
   useEffect(() => {
     if (!open) return
     const onPointerDown = (event: MouseEvent) => {
@@ -42,93 +55,111 @@ export function ConnectWalletButton() {
     }
   }, [open])
 
+  const openModal = (kind: ModalKind) => {
+    setOpen(false)
+    setModal(kind)
+  }
+
+  const modals = (
+    <>
+      {modal === 'backup' && (
+        <BackupModal
+          forced={!backedUp}
+          onClose={() => {
+            setBackedUp(prophetWalletStore.isBackedUp())
+            setModal(null)
+          }}
+        />
+      )}
+      {modal === 'deposit' && <DepositModal onClose={() => setModal(null)} />}
+      {modal === 'withdraw' && <WithdrawModal onClose={() => setModal(null)} />}
+      {modal === 'import' && <ImportModal onClose={() => setModal(null)} />}
+      {modal === 'nickname' && (
+        <Suspense fallback={null}>
+          <SetNicknameModal onClose={() => setModal(null)} />
+        </Suspense>
+      )}
+    </>
+  )
+
   if (connected && address) {
     return (
       <div ref={menuRef} className="relative">
-        <button
-          onClick={() => setOpen((v) => !v)}
-          className="rx-plate flex items-center gap-2 bg-[#FFF6DF] py-1 pl-1.5 pr-3"
-        >
+        <button onClick={() => setOpen((v) => !v)} className="rx-plate relative flex items-center gap-2 bg-[#FFF6DF] py-1 pl-1.5 pr-3">
           <AddressAvatar address={address} size={22} />
-          <AddressLabel address={address} link={false} className="font-mono text-xs font-bold text-[#191330]" />
+          <span className="flex flex-col items-start leading-tight">
+            <AddressLabel address={address} link={false} className="font-mono text-xs font-bold text-[#1B1340]" />
+            <span style={{ fontFamily: PIXEL, fontSize: 9 }}>{balance.data != null ? formatStakeAmount(balance.data) : '…'}</span>
+          </span>
+          {platform && !backedUp && <span aria-label="Back up your key" className="absolute -right-1.5 -top-1.5 h-3 w-3 bg-[#FF5C8A]" />}
         </button>
         {open && (
-          <>
-            <div className="absolute right-0 top-11 z-20 w-56 border-[3px] border-[#191330] bg-[#fbf3e2] py-1 text-sm shadow-[5px_5px_0_#191330]">
-              <NavLink
-                to="/onchain/portfolio"
-                onClick={() => setOpen(false)}
-                className="block px-3 py-2 font-bold text-[#191330]/75 hover:bg-[#ffd23f] hover:text-[#191330]"
-              >
-                Your portfolio
-              </NavLink>
-              <button
-                onClick={() => {
-                  setOpen(false)
-                  setNicknameModalOpen(true)
-                }}
-                className="w-full px-3 py-2 text-left font-bold text-[#191330]/75 hover:bg-[#ffd23f] hover:text-[#191330]"
-              >
-                Set nickname
-              </button>
-              <button
-                onClick={async () => {
-                  await navigator.clipboard.writeText(address)
-                  setCopied(true)
-                  setTimeout(() => setCopied(false), 1500)
-                }}
-                className="w-full px-3 py-2 text-left font-bold text-[#191330]/75 hover:bg-[#ffd23f] hover:text-[#191330]"
-              >
-                {copied ? 'Copied!' : 'Copy address'}
-              </button>
-              <a
-                href={explorerUrl('address', address)}
-                target="_blank"
-                rel="noreferrer"
-                onClick={() => setOpen(false)}
-                className="block px-3 py-2 font-bold text-[#191330]/75 hover:bg-[#ffd23f] hover:text-[#191330]"
-              >
-                View on explorer ↗
-              </a>
-              <LocalnetAirdropButton />
-              <div className="my-1 border-t-2 border-[#191330]/15" />
-              <button
-                onClick={() => {
-                  setOpen(false)
-                  void disconnect()
-                }}
-                className="w-full px-3 py-2 text-left font-bold text-[#e5484d] hover:bg-[#e5484d]/10"
-              >
-                Disconnect
-              </button>
-            </div>
-          </>
+          <div className="rx-plate absolute right-0 top-14 z-30 w-60 bg-[#FFF6DF] py-1 text-[17px]">
+            {platform && (
+              <>
+                <button onClick={() => openModal('deposit')} className={itemClass}>Top up</button>
+                <button onClick={() => openModal('withdraw')} className={itemClass}>Withdraw</button>
+                <button onClick={() => openModal('backup')} className={itemClass}>
+                  Back up key{!backedUp && <span className="ml-2 text-[#C2245A]">!</span>}
+                </button>
+                <div className="my-1 border-t-2 border-[#1B1340]/15" />
+              </>
+            )}
+            <NavLink to="/onchain/portfolio" onClick={() => setOpen(false)} className={itemClass}>Your portfolio</NavLink>
+            <button onClick={() => openModal('nickname')} className={itemClass}>Set nickname</button>
+            <button
+              onClick={async () => {
+                await navigator.clipboard.writeText(address)
+                setCopied(true)
+                setTimeout(() => setCopied(false), 1500)
+              }}
+              className={itemClass}
+            >
+              {copied ? 'Copied!' : 'Copy address'}
+            </button>
+            <a href={explorerUrl('address', address)} target="_blank" rel="noreferrer" onClick={() => setOpen(false)} className={itemClass}>
+              View on explorer ↗
+            </a>
+            <LocalnetAirdropButton />
+            <div className="my-1 border-t-2 border-[#1B1340]/15" />
+            {platform && <button onClick={() => openModal('import')} className={itemClass}>Restore another account</button>}
+            <button
+              onClick={() => {
+                setOpen(false)
+                void disconnect()
+              }}
+              className="block w-full px-3 py-2 text-left font-bold text-[#C2245A] hover:bg-[#C2245A]/10"
+            >
+              {platform ? 'Log out (key stays on this device)' : 'Disconnect'}
+            </button>
+          </div>
         )}
-        {nicknameModalOpen && (
-          <Suspense fallback={null}>
-            <SetNicknameModal onClose={() => setNicknameModalOpen(false)} />
-          </Suspense>
-        )}
+        {modals}
       </div>
     )
   }
 
+  const hasAccount = prophetWalletStore.hasWallet()
+
   return (
     <div ref={menuRef} className="relative">
       <button
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => {
+          // Returning players go straight in; new ones choose create/restore.
+          if (!EXTERNAL_WALLETS_ENABLED && hasAccount) select(ProphetWalletName)
+          else setOpen((v) => !v)
+        }}
         className="rx-btn rx-btn-pink"
         style={{ minHeight: 48, padding: '0 20px', fontFamily: "'Pixelify Sans', 'Courier New', monospace", fontSize: 18, fontWeight: 700 }}
       >
-        Connect<span className="hidden sm:inline"> wallet</span>
+        {hasAccount ? 'Log in' : 'Start playing'}
       </button>
       {open && (
-        <>
-          <div className="absolute right-0 top-12 z-20 w-72 border-[3px] border-[#191330] bg-[#fbf3e2] p-2 shadow-[5px_5px_0_#191330]">
-            <WalletOptionsList onConnect={() => setOpen(false)} />
-          </div>
-        </>
+        <div className="rx-plate absolute right-0 top-16 z-30 w-72 bg-[#FFF6DF] p-3">
+          <WalletOptionsList onConnect={() => setOpen(false)} onRestore={() => openModal('import')} />
+        </div>
       )}
+      {modals}
     </div>
   )
 }
