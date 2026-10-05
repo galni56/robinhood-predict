@@ -1,80 +1,66 @@
 # Project Map
 
-Prophet is being rebuilt on Solana (branch `solana-migration`): two parimutuel
-games, Asset Race and Price Arena, with SOL (and approved SPL) stakes and
-USD prices signed from reviewed DEX pools. The earlier Robinhood Chain (EVM)
-product stays live from `main` until it is wound down; nothing on this branch is
-on mainnet. No external audit. Every mainnet action is real money.
+Prophet is being rebuilt on Solana (branch `solana-migration`): Coin Duels and Price Arena paid in SOL, a
+pump.fun launchpad and an automatic PumpSwap coin list. There is no program of our own: players send SOL with
+a `prophet:` memo to the game wallet, and the game server runs the games and pays out. Prices are USD spot
+prices from reviewed Solana DEX pools, signed by the price service. The earlier Robinhood Chain (EVM) product
+stays live from `main` until it is wound down. No external audit. Every mainnet action is real money.
 
-Rust/Anchor programs in `solana/`, React/TypeScript/Vite frontend in `src/`,
-small Node scripts for tooling. Toolchain (Rust, Solana CLI, Anchor) lives in
-WSL (Ubuntu, user `dev`); build artifacts in `$HOME/prophet-target`.
+Node services in `scripts/solana/`, React/TypeScript/Vite frontend in `src/`. The local validator lives in WSL
+(Ubuntu, user `dev`).
 
-Current code/Git are authoritative. Counts, pending work and validation belong
-in HANDOFF, not this map. Read AGENTS for permissions and startup rules.
+Current code/Git are authoritative. Counts, pending work and validation belong in HANDOFF, not this map. Read
+AGENTS for permissions and startup rules.
 
 ## Areas and entry points
 
 | Area | Principal paths/files |
 | --- | --- |
-| Programs | `solana/programs/prophet_games` (both games), `solana/programs/nickname_registry` |
-| Shared program crates | `solana/crates/pool_attestation` (signed prices), `stake_funds` (SOL/SPL movement, vault checks) |
-| Program tests | `solana/programs/*/tests/` (LiteSVM), unit tests in `src/math.rs` |
+| Game server | `scripts/solana/game-server/server.mjs` (HTTP :8792, env checks), `engine.mjs` (games, signed actions), `deposits.mjs`, `payouts.mjs` |
+| Game rules | `scripts/solana/game-server/rules.mjs` (races, arenas, memos), `duel.mjs` (duels) |
+| Server support | `chain.mjs` (RPC), `db.mjs` (SQLite), `prices.mjs` (oracle-checked prices), `views.mjs` (history), `pumpswap.mjs` |
+| Server tests / tools | `scripts/solana/game-server/*.test.mjs`, `e2e-localnet.mjs`, `admin.mjs` |
+| Price service | `scripts/solana/price-service/service.mjs` (:8790), `pools.mjs` (decoders), `check-prices.mjs` |
 | Frontend bootstrap/routes | `src/main.tsx`, `src/App.tsx` |
-| Solana client layer | `src/solana/` (config, IDL clients, PDAs, wallet provider, tx helpers, nicknames) |
-| Program IDL for the frontend | `src/solana/idl/` (copied from `$HOME/prophet-target/{idl,types}` after `anchor build`) |
-| Game pages | `src/pages/Onchain*.tsx`; game UI in `src/components/AssetRace*.tsx` |
-| Game data layer | `src/chain/` (account view models, read hooks, `gameTx.ts` instruction builders, live prices, stake quote, indexer snapshot) |
-| Off-chain services | `scripts/solana/price-service/` (:8790), `keeper.mjs`, `indexer.mjs` (:8791), `e2e-localnet.mjs` |
-| Asset registry | `config/solana-assets.json` (generated; owner approves per asset) |
+| Solana client layer | `src/solana/` (cluster config, service URLs, wallet provider, `prophetWallet.ts`) |
+| Game data layer | `src/chain/` (`gameServer.ts`, `duels.ts`, `priceArena.ts`, `livePrices.ts`, `pumpLaunch.ts`, stake transfer hook) |
+| Pages | `src/pages/Onchain*.tsx` (duels, arenas, PumpSwap, launch, portfolio, leaderboard, archive, landing) |
+| Asset registry | `config/solana-assets.json` (generated); owner approval `config/solana-catalog-approved.json` |
 | Catalog tooling | `scripts/solana-catalog-scan.mjs`, `solana-catalog-propose.mjs`, `solana-assets-config.mjs` |
-| Local stand / admin | `scripts/solana/localnet.sh`, `scripts/solana/admin.mjs` |
-| Build configuration | `vite.config.ts`, `package.json`, `solana/Anchor.toml`, `solana/Cargo.toml` |
+| Local stand | `scripts/solana/localnet.sh` (plain validator) |
+| Build configuration | `vite.config.ts`, `package.json`, `.github/workflows/deploy.yml` |
 
-## Pricing and settlement pointers
+## Money and settlement pointers
 
-Each asset has one frozen pool (`price_source`) and a USD price precision. The
-price service signs one Ed25519 attestation per boundary time
-covering all needed pools at the last block before T plus its direct child.
-Programs read the message from the Ed25519 precompile instruction immediately
-before `start_race` / `resolve_race` / `resolve_arena`, bound to their own program ID.
-Economics and irreversible snapshots live in the programs.
+A stake is a top-level System transfer to the game wallet with one `prophet:` memo; each transaction signature
+is applied once; invalid stakes are refunded (dust kept). Every outgoing transfer goes through the payout
+outbox: written, signed, stored with its blockhash expiry, then broadcast; done only at finalized; rebuilt only
+once finalized history proves it never landed. Boundary prices come from the price service as Ed25519
+attestations verified against `ORACLE_PUBKEY`. Only earned fees are swept to the cold wallet.
 
 ## Commands
-
-Frontend (repo root, Windows or WSL):
 
 ```sh
 npm run dev
 npm run build                 # tsc -b followed by Vite build
 npm run lint
+node --test scripts/solana/game-server/*.test.mjs scripts/solana/price-service/*.test.mjs
+bash scripts/solana/localnet.sh --background          # inside WSL
+GAME_WALLET_KEYPAIR=ephemeral node scripts/solana/game-server/server.mjs
 ```
-
-Programs (inside WSL, from `solana/`, `CARGO_TARGET_DIR=$HOME/prophet-target`):
-
-```sh
-anchor build
-cargo test --workspace        # needs a prior anchor build (tests load the .so)
-anchor keys sync              # after a new program keypair
-```
-
-Local stand (inside WSL): `bash scripts/solana/localnet.sh --background`, then
-`node scripts/solana/admin.mjs setup` and `seed`. admin.mjs refuses mainnet.
 
 ## Documentation instead of rediscovery
 
 - `CLAUDE.md`: authoritative overview and operating cautions.
-- `docs/HANDOFF.md`: status, full local stand runbook, next steps (for people).
+- `docs/HANDOFF.md`: status, VPS layout, local stand, next steps.
 - `README.md`: layout, local run, environment variables.
-- `ROADMAP.md`: done / next / owner steps.
 - `docs/SOLANA_MIGRATION.md`: decisions and phases.
+- `docs/GAME_SERVER_REVIEW_BACKLOG.md`: game server review.
 - `docs/SOLANA_CHANGELOG.md`: what changed vs the EVM product and why (Russian).
-- `docs/SOLANA_ASSET_CATALOG.md`: reviewed assets (owner approval in `config/solana-catalog-approved.json`).
-- `solana/README.md`: program build/test and attestation format.
+- `docs/SOLANA_ASSET_CATALOG.md`: reviewed assets.
 
 ## Sensitive areas
 
-Payout/liability/fee accounting; vault address checks; attestation parsing and
-boundary rules; signer snapshotting; stake-mint handling; upgrade/admin
-authority; asset/pool bindings and price decimals. Honor AGENTS authorization
-rules; preserve the actual dirty working tree.
+Deposit ingest and refunds; payout outbox and its finality checks; liabilities, fees and sweep; signed-action
+verification (domain, nonce, replay); oracle signature checks and price decimals; duel tax and split math; the
+browser-held Prophet wallet key. Honor AGENTS authorization rules; preserve the actual dirty working tree.
