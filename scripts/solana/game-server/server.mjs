@@ -28,6 +28,8 @@
 //                         its signature (required off localnet)
 //   SIGNING_DOMAINS       hosts whose signed actions are accepted, comma
 //                         separated (required on mainnet)
+//   BACKUP_DIR            hourly VACUUM INTO copies (default <db dir>/backups)
+//   BACKUP_KEEP           how many backups to keep (default 48)
 //   ADOPT_WALLET=1        first start on a wallet that already has history
 //                         (never set it to recover a lost database)
 //   COLD_WALLET           owner's wallet for swept surplus (optional)
@@ -42,7 +44,7 @@
 //                         are off (pumpswap.json); nginx serves it as static
 //                         files (default ./.data/public)
 
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -82,6 +84,12 @@ function loadWallet() {
     if (CLUSTER !== 'localnet') throw new Error('an ephemeral game wallet is for localnet only')
     return Keypair.generate()
   }
+  // The hot key must not be readable by other users on the box.
+  if (process.platform !== 'win32' && (statSync(path).mode & 0o077) !== 0) {
+    const message = `${path} is readable by group/others; run: chmod 600 ${path}`
+    if (CLUSTER !== 'localnet') throw new Error(message)
+    console.warn(message)
+  }
   return Keypair.fromSecretKey(Uint8Array.from(readJson(path)))
 }
 
@@ -105,7 +113,8 @@ if (!ORACLE_PUBKEY) console.warn('ORACLE_PUBKEY unset: boundary prices are NOT s
 // mainnet so signatures phished on look-alike domains are rejected.
 const SIGNING_DOMAINS = process.env.SIGNING_DOMAINS ? process.env.SIGNING_DOMAINS.split(',').map((d) => d.trim()).filter(Boolean) : null
 if (!SIGNING_DOMAINS && CLUSTER === 'mainnet') throw new Error('SIGNING_DOMAINS is required on mainnet (e.g. prophetmarkets.fun)')
-const prices = createPriceClient(process.env.PRICE_SERVICE_URL ?? 'http://127.0.0.1:8790', chain.address, ORACLE_PUBKEY)
+const PRICE_SERVICE_URL = process.env.PRICE_SERVICE_URL ?? 'http://127.0.0.1:8790'
+const prices = createPriceClient(PRICE_SERVICE_URL, chain.address, ORACLE_PUBKEY)
 const baseCatalog = readJson(new URL('config/solana-assets.json', ROOT))
 const EXTRA_ASSETS = resolve(process.env.EXTRA_ASSETS ?? fileURLToPath(new URL('.data/pumpswap-assets.json', ROOT)))
 const readExtra = () => {
@@ -214,8 +223,10 @@ const server = createServer(async (req, res) => {
       if (path === '/health') {
         const pending = db.payouts('pending').length + db.payouts('sent').length
         const stuck = db.payouts('stuck').length
-        const healthy = solvency?.solvent !== false && stuck === 0 && Date.now() / 1000 - engine.lastScan.at < 60
-        return send(req, res, healthy ? 200 : 503, { cluster: CLUSTER, gameWallet: chain.address, lastScan: engine.lastScan, payouts: { pending, stuck }, solvency })
+        const attention = db.attentionCount()
+        const priceService = await fetch(`${PRICE_SERVICE_URL}/health`, { signal: AbortSignal.timeout(3_000) }).then((r) => r.ok).catch(() => false)
+        const healthy = solvency?.solvent !== false && stuck === 0 && priceService && Date.now() / 1000 - engine.lastScan.at < 60
+        return send(req, res, healthy ? 200 : 503, { cluster: CLUSTER, gameWallet: chain.address, lastScan: engine.lastScan, payouts: { pending, stuck }, deposits: { needAttention: attention }, priceService, solvency })
       }
       if (path === '/config') return send(req, res, 200, cached('config', () => engine.config()))
       if (path === '/state') {
@@ -337,8 +348,31 @@ await refreshSolvency()
 server.listen(PORT, HOST, () => {
   console.log(`game server on ${HOST}:${PORT} · ${CLUSTER} · game wallet ${chain.address} · ${assets.length} assets · db ${DB_PATH}`)
 })
+// Hourly online backups of the database (the only record of who staked
+// what); the newest BACKUP_KEEP copies are kept.
+const BACKUP_DIR = resolve(process.env.BACKUP_DIR ?? `${dirname(DB_PATH)}/backups`)
+const BACKUP_KEEP = Number(process.env.BACKUP_KEEP ?? 48)
+function backupDatabase() {
+  try {
+    mkdirSync(BACKUP_DIR, { recursive: true })
+    db.backup(`${BACKUP_DIR}/game-server-${new Date().toISOString().replace(/[:.]/g, '-')}.sqlite`)
+    const files = readdirSync(BACKUP_DIR).filter((f) => f.startsWith('game-server-')).sort()
+    for (const old of files.slice(0, Math.max(0, files.length - BACKUP_KEEP))) rmSync(`${BACKUP_DIR}/${old}`)
+  } catch (error) {
+    console.error(`backup: ${error.message}`)
+  }
+}
+if (DB_PATH !== ':memory:') {
+  backupDatabase()
+  setInterval(backupDatabase, 60 * 60_000).unref()
+}
+
 let ticks = 0
-setInterval(async () => {
+let tickInFlight = null
+const tickTimer = setInterval(async () => {
+  if (tickInFlight) return
+  let done
+  tickInFlight = new Promise((r) => (done = r))
   try {
     await engine.tick()
     try {
@@ -350,5 +384,26 @@ setInterval(async () => {
     invalidate()
   } catch (error) {
     console.warn(`tick: ${error.message}`)
+  } finally {
+    tickInFlight = null
+    done()
   }
 }, TICK_MS)
+
+// Graceful stop (systemd sends SIGTERM): no new ticks or requests, let the
+// tick in flight finish (a payout may be between sign and store), close the
+// database cleanly.
+let stopping = false
+for (const signal of ['SIGTERM', 'SIGINT']) {
+  process.on(signal, async () => {
+    if (stopping) return
+    stopping = true
+    console.log(`${signal}: stopping`)
+    clearInterval(tickTimer)
+    server.close()
+    await tickInFlight
+    db.close()
+    process.exit(0)
+  })
+}
+process.on('unhandledRejection', (error) => console.error(`unhandled rejection: ${error?.stack ?? error}`))

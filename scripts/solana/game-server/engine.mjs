@@ -589,6 +589,9 @@ export function createEngine({ db, chain, prices, assets, cluster, coldWallet = 
     }
     try {
       await stage('scan', scanDeposits)
+      // Payouts run before game advancement: boundary price fetches can take
+      // seconds each, and they must never hold up winners being paid.
+      await stage('payouts', processPayouts)
       const t = now()
       if (prices?.solUsd) solUsd = await prices.solUsd().catch(() => solUsd)
       await stage('lobbies', async () => fillDuelLobbies(t))
@@ -601,6 +604,7 @@ export function createEngine({ db, chain, prices, assets, cluster, coldWallet = 
           log.warn(`${game.kind} #${game.id}: ${error.message}`)
         }
       }
+      // Second pass: settlements queued by this tick go out right away.
       await stage('payouts', processPayouts)
       // Older than twice the message lifetime: any replay is rejected as expired.
       await stage('replay-guard', async () => db.pruneMessages(t - 2 * opts.messageMaxAge))

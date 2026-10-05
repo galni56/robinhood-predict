@@ -143,6 +143,11 @@ export function openDatabase(path) {
     raw: db,
     transaction,
     close: () => db.close(),
+    /** Deposits that need a manual look (SOL that arrived outside a plain
+     * transfer, or a signature that never became readable). */
+    attentionCount: () => db.prepare("SELECT COUNT(*) AS n FROM deposits WHERE status IN ('unmatched', 'dropped')").get().n,
+    /** Consistent online copy of the whole database (VACUUM INTO). */
+    backup: (target) => db.exec(`VACUUM INTO '${String(target).replaceAll("'", "''")}'`),
 
     nextId(kind) {
       const key = `next_${kind}_id`
