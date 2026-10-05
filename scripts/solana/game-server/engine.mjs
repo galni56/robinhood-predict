@@ -145,6 +145,9 @@ export function createEngine({ db, chain, prices, assets, cluster, coldWallet = 
     if (known) return describeDeposit(known)
     const tx = await chain.readTransaction(signature)
     if (!tx) return { signature, status: 'pending' }
+    // /deposit accepts any signature: never store rows for transactions that
+    // did not touch the game wallet (the table would grow with spam).
+    if (tx.touchesWallet === false) return { signature, status: 'ignored', reason: 'NotForGameWallet' }
     return db.transaction(() => {
       const raced = db.getDeposit(signature)
       if (raced) return describeDeposit(raced)

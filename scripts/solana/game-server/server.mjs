@@ -156,6 +156,11 @@ async function refreshSolvency() {
 
 // A few writes per minute per address is plenty for a player.
 const buckets = new Map()
+// Full buckets carry no information; drop them so the map cannot grow forever.
+setInterval(() => {
+  const cutoff = Date.now() - 120_000
+  for (const [key, bucket] of buckets) if (bucket.at < cutoff) buckets.delete(key)
+}, 60_000).unref()
 /** `perMinute` writes a minute per key (an address, or cheer:<address>). */
 function allowWrite(ip, perMinute = 30) {
   const now = Date.now()
@@ -236,11 +241,15 @@ const server = createServer(async (req, res) => {
       return send(req, res, 404, { error: 'NotFound' })
     }
     if (req.method === 'POST') {
-      // Behind nginx every request comes from 127.0.0.1; the visitor is in X-Forwarded-For.
+      // Behind nginx every request comes from 127.0.0.1. The visitor is
+      // X-Real-IP, or the RIGHTMOST X-Forwarded-For hop (the one nginx
+      // appended) - the leftmost entries are whatever the client sent.
       const remote = req.socket.remoteAddress ?? ''
-      const ip = /^(::ffff:)?127\.0\.0\.1$|^::1$/.test(remote) ? String(req.headers['x-forwarded-for'] ?? remote).split(',')[0].trim() : remote
+      const proxied = /^(::ffff:)?127\.0\.0\.1$|^::1$/.test(remote)
+      const forwarded = String(req.headers['x-forwarded-for'] ?? '').split(',').map((h) => h.trim()).filter(Boolean)
+      const ip = proxied ? String(req.headers['x-real-ip'] ?? forwarded.at(-1) ?? remote).trim() : remote
       if (path === '/cheer') {
-        if (!allowWrite(`cheer:${ip}`, 300)) return send(req, res, 429, { error: 'TooManyRequests' })
+        if (!allowWrite(`cheer:${ip}`, 60)) return send(req, res, 429, { error: 'TooManyRequests' })
         const body = await readBody(req)
         const cheers = engine.cheer(Number(body.duel), Number(body.seat))
         invalidate()

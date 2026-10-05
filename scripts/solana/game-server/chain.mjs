@@ -119,6 +119,8 @@ export function createChain({ rpcUrl, wallet, priorityMicroLamports = 0 }) {
     return {
       slot: tx.slot,
       blockTime: tx.blockTime,
+      /** False for transactions that never involved the game wallet. */
+      touchesWallet: index >= 0,
       failed: tx.meta?.err != null,
       feePayer: keys[0]?.pubkey.toBase58(),
       inbound,
