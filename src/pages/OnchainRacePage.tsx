@@ -18,8 +18,8 @@ import {
   type FrozenStakeQuote,
   type StakeInputUnit,
 } from '@/chain/stakeQuote'
-import { raceStakeMemo, stakeInstructions } from '@/chain/gameTx'
-import { reportDepositSafely, useGameServerConfig, useSignedAction } from '@/chain/gameServer'
+import { raceStakeMemo } from '@/chain/gameTx'
+import { useSignedAction } from '@/chain/gameServer'
 import { useAssetRace } from '@/chain/useAssetRace'
 import { useAssetRaceClock } from '@/chain/useAssetRaceClock'
 import { useLivePrices } from '@/chain/livePrices'
@@ -31,7 +31,8 @@ import { ClusterBanner } from '@/components/ClusterBanner'
 import { ShareInviteButton } from '@/components/ShareInviteButton'
 
 import { useStakeBalance, useStakeToken } from '@/solana/stakeTokens'
-import { TxUnconfirmedError, useSendInstructions } from '@/solana/tx'
+import { TxUnconfirmedError } from '@/solana/tx'
+import { useStakeTransfer } from '@/solana/stake'
 import { formatUnits, formatCountdown, shortTxError } from '@/lib/format'
 import { formatStakeAmount } from '@/solana/stakeTokens'
 import { CREAM, INK, PINK, SKY, YELLOW } from '@/retro/scene'
@@ -52,9 +53,8 @@ export function OnchainRacePage() {
   const { raceId: routeRaceId } = useParams()
   const raceId = parseRaceId(routeRaceId)
   const { publicKey, connected } = useWallet()
-  const send = useSendInstructions()
+  const stake = useStakeTransfer()
   const act = useSignedAction()
-  const serverConfig = useGameServerConfig()
   const queryClient = useQueryClient()
   const { race, position, payout, settlement, isLoading, error: readError, refetch } = useAssetRace(raceId, publicKey)
   const [selectedAssetIndex, setSelectedAssetIndex] = useState(0)
@@ -102,8 +102,6 @@ export function OnchainRacePage() {
     setError(null)
     try {
       if (raceId == null || !race || !publicKey || !token) return
-      const gameWallet = serverConfig.data?.gameWallet
-      if (!gameWallet) throw new Error('The game server is not reachable right now')
       let frozen: FrozenStakeQuote | null = null
       if (usdQuoted) {
         if (!live.solUsd) throw new Error('SolUsdQuoteStale')
@@ -123,13 +121,9 @@ export function OnchainRacePage() {
       setFrozenBetQuote(frozen)
       const assetIndex = position?.exists ? position.assetIndex : selectedAssetIndex
       setTx({ label: 'Preparing race bet…' })
-      const instructions = stakeInstructions({ player: publicKey, gameWallet, lamports: betAmount, memo: raceStakeMemo(race.id, assetIndex) })
-      const signature = await send(instructions, {
-        onPhase: (phase) =>
-          setTx({ label: phase === 'signing' ? 'Placing bet…' : 'Waiting for bet confirmation…' }),
-      })
-      setTx({ label: 'Recording your bet…' })
-      const outcome = await reportDepositSafely(signature)
+      const outcome = await stake(betAmount, raceStakeMemo(race.id, assetIndex), (phase) =>
+        setTx({ label: phase === 'signing' ? 'Placing bet…' : phase === 'confirming' ? 'Waiting for bet confirmation…' : 'Recording your bet…' }),
+      )
       setTx(null)
       setFrozenBetQuote(null)
       setAmount('')

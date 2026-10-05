@@ -12,8 +12,8 @@ import {
   type FrozenStakeQuote,
   type StakeInputUnit,
 } from '@/chain/stakeQuote'
-import { arenaStakeMemo, stakeInstructions } from '@/chain/gameTx'
-import { reportDepositSafely, useGameServerConfig, useSignedAction } from '@/chain/gameServer'
+import { arenaStakeMemo } from '@/chain/gameTx'
+import { useSignedAction } from '@/chain/gameServer'
 import { useAssetRaceClock } from '@/chain/useAssetRaceClock'
 import { useLivePrices } from '@/chain/livePrices'
 import { usePriceArena } from '@/chain/usePriceArena'
@@ -25,7 +25,8 @@ import { StakeAmountInput } from '@/components/StakeAmountInput'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
 import { formatStakeAmount, formatStakeExact, useStakeBalance, useStakeToken, type StakeToken } from '@/solana/stakeTokens'
 import { explorerUrl } from '@/solana/config'
-import { TxUnconfirmedError, useSendInstructions } from '@/solana/tx'
+import { TxUnconfirmedError } from '@/solana/tx'
+import { useStakeTransfer } from '@/solana/stake'
 import { formatCompactUsd, formatCountdown, formatUnits, formatUsdPrice, parseUnits, shortTxError } from '@/lib/format'
 import { FightStage } from '@/retro/arena'
 import { CREAM, INK } from '@/retro/scene'
@@ -121,9 +122,8 @@ function ArenaBoard({ rows, referencePrice, decimals, resolved, winnerCount, tok
 export function OnchainArenaPage() {
   const arenaId = parseId(useParams().arenaId)
   const { publicKey, connected } = useWallet()
-  const send = useSendInstructions()
+  const stake = useStakeTransfer()
   const act = useSignedAction()
-  const serverConfig = useGameServerConfig()
   const { arena, entries, walletEntry, payout, minStake, maxStake, isLoading, error: readError, refetch } = usePriceArena(arenaId, publicKey)
   const queryClient = useQueryClient()
   const [prediction, setPrediction] = useState('')
@@ -230,15 +230,10 @@ export function OnchainArenaPage() {
         await refetchAfterTx()
         return
       }
-      const gameWallet = serverConfig.data?.gameWallet
-      if (!gameWallet) throw new Error('The game server is not reachable right now')
       setTxLabel(walletEntry ? 'Preparing arena update…' : 'Preparing arena entry…')
-      const instructions = stakeInstructions({ player: publicKey, gameWallet, lamports: additional, memo: arenaStakeMemo(arena.id, predicted) })
-      const signature = await send(instructions, {
-        onPhase: (phase) => setTxLabel(phase === 'signing' ? 'Sending…' : 'Waiting for confirmation…'),
-      })
-      setTxLabel('Recording your entry…')
-      const outcome = await reportDepositSafely(signature)
+      const outcome = await stake(additional, arenaStakeMemo(arena.id, predicted), (phase) =>
+        setTxLabel(phase === 'signing' ? 'Sending…' : phase === 'confirming' ? 'Waiting for confirmation…' : 'Recording your entry…'),
+      )
       setPrediction(''); setAmount(''); setTxLabel(null); setFrozenEntryQuote(null)
       if (outcome) setError(outcome)
       await refetchAfterTx()

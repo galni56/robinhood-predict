@@ -4,8 +4,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useWallet } from '@solana/wallet-adapter-react'
 import { quoteUsdCents, usdCentsToLamports, stakeQuoteErrorMessage } from '@/chain/stakeQuote'
 import { DUEL_RULES, cheerRacer, duelPhaseLabel, duelStake, durationLabel, useDuel, useNowSeconds, type Duel, type DuelRacer } from '@/chain/duels'
-import { reportDepositSafely, useGameServerConfig, useSignedAction } from '@/chain/gameServer'
-import { stakeInstructions } from '@/chain/gameTx'
+import { useSignedAction } from '@/chain/gameServer'
 import { marketCapUsd, useLivePrices } from '@/chain/livePrices'
 import { useApprovedRaceAssets } from '@/chain/useApprovedRaceAssets'
 import { calculateReturnWad, formatReturnWad, type ApprovedRaceAsset } from '@/chain/assetRaces'
@@ -14,7 +13,8 @@ import { CoinPicker, COIN_BODIES } from '@/components/GamePickers'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
 import { assetIconUrl } from '@/lib/assetIcons'
 import { formatCompactUsd, formatUnits, shortTxError } from '@/lib/format'
-import { useSendInstructions, TxUnconfirmedError } from '@/solana/tx'
+import { TxUnconfirmedError } from '@/solana/tx'
+import { useStakeTransfer } from '@/solana/stake'
 import { explorerUrl } from '@/solana/config'
 import { CoinFighter } from '@/retro/landingFx'
 import { PxSprite } from '@/retro/Sprite'
@@ -107,9 +107,8 @@ export function OnchainDuelPage() {
   const { duel, isLoading, refetch } = useDuel(id)
   const { publicKey, connected } = useWallet()
   const me = publicKey?.toBase58()
-  const send = useSendInstructions()
+  const stake = useStakeTransfer()
   const act = useSignedAction()
-  const config = useGameServerConfig()
   const live = useLivePrices({ enabled: duel != null && duel.status !== 'resolved' && duel.status !== 'void' })
   const { assets } = useApprovedRaceAssets()
   const now = useNowSeconds()
@@ -151,10 +150,8 @@ export function OnchainDuelPage() {
   }
 
   async function transfer(lamports: bigint, seat: number) {
-    const gameWallet = config.data?.gameWallet
-    if (!publicKey || !gameWallet || id == null) throw new Error('The game server is not reachable right now')
-    const signature = await send(stakeInstructions({ player: publicKey, gameWallet, lamports, memo: duelStake(id, seat) }))
-    const message = await reportDepositSafely(signature)
+    if (id == null) return
+    const message = await stake(lamports, duelStake(id, seat))
     if (message) setError(message)
   }
 
