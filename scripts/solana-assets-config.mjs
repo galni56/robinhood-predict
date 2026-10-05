@@ -19,8 +19,10 @@ const proposal = JSON.parse(readFileSync('docs/solana-catalog/proposed.json', 'u
 const approval = JSON.parse(readFileSync('config/solana-catalog-approved.json', 'utf8'))
 const approvedSymbols = new Set(Object.values(approval.symbols).flat())
 // Display/on-chain symbol where it differs from the Jupiter symbol.
-const SYMBOL_OVERRIDES = { cbBTC: 'BTC' }
-const NAME_OVERRIDES = { SOL: 'Solana', BTC: 'Bitcoin (cbBTC)' }
+const SYMBOL_OVERRIDES = { cbBTC: 'BTC', wXRP: 'XRP', wNEAR: 'NEAR' }
+const NAME_OVERRIDES = { SOL: 'Solana', BTC: 'Bitcoin (cbBTC)', NEAR: 'NEAR (wrapped)', HYPE: 'Hyperliquid', ZEC: 'Zcash', PUMP: 'Pump.fun' }
+// Scan pool kind -> price collector kind (scripts/solana/price-service/pools.mjs).
+const POOL_KINDS = { 'pumpswap standard': 'pumpswap' }
 
 async function tokenMeta(mint) {
   const res = await fetch(`https://lite-api.jup.ag/tokens/v2/search?query=${mint}`)
@@ -46,7 +48,7 @@ for (const p of proposal.proposed) {
     // digits so a percentage move stays measurable.
     priceDecimals: (p.priceUsdAtScan ?? 1) < 0.01 ? 12 : 8,
     pool: p.pool,
-    poolKind: p.poolKind,
+    poolKind: POOL_KINDS[p.poolKind] ?? p.poolKind,
     quote: p.quote,
     liquidityUsdAtScan: p.liquidityUsd,
     icon: meta.icon ?? null,

@@ -7,6 +7,8 @@
 //
 // Kinds:
 //   raydium standard  Raydium AMM v4   reserves = vault balances - pending PnL
+//   raydium CPMM      Raydium CP-Swap  reserves = vault balances - protocol, fund
+//                     and creator fees (vaults 72/104, mints 168/200, fees 341..)
 //   raydium CLMM      Raydium CLMM     sqrt_price_x64
 //   orca wp           Orca Whirlpool   sqrt_price (Q64.64)
 //   meteora DLMM      Meteora DLMM     (1 + bin_step / 10^4) ^ active_id
@@ -32,6 +34,7 @@ export const mintDecimals = (data) => data[44]
 /** Layout facts per kind: where the two mints are, and (for AMM v4) the vaults. */
 export const LAYOUTS = {
   'raydium standard': { mint0: 400, mint1: 432, vault0: 336, vault1: 368, pnl0: 192, pnl1: 200 },
+  'raydium CPMM': { mint0: 168, mint1: 200, vault0: 72, vault1: 104, fees0: [341, 357, 397], fees1: [349, 365, 405] },
   'raydium CLMM': { mint0: 73, mint1: 105, decimals0: 233, decimals1: 234, sqrtPrice: 253 },
   'orca wp': { mint0: 101, mint1: 181, sqrtPrice: 65 },
   'meteora DLMM': { mint0: 88, mint1: 120, activeId: 76, binStep: 80 },
@@ -43,7 +46,7 @@ export function poolDependencies(kind, data) {
   const layout = LAYOUTS[kind]
   if (!layout) throw new Error(`unsupported pool kind: ${kind}`)
   const mints = [key(data, layout.mint0), key(data, layout.mint1)]
-  const vaults = kind === 'raydium standard' || kind === 'pumpswap' ? [key(data, layout.vault0), key(data, layout.vault1)] : []
+  const vaults = layout.vault0 != null ? [key(data, layout.vault0), key(data, layout.vault1)] : []
   return { mints, vaults }
 }
 
@@ -86,6 +89,15 @@ function token1PerToken0(kind, data, mints, decimals, vaultData) {
     const vaults = poolDependencies(kind, data).vaults
     const reserve0 = tokenAmount(vaultData[vaults[0]])
     const reserve1 = tokenAmount(vaultData[vaults[1]])
+    if (reserve0 <= 0n || reserve1 <= 0n) throw new Error('empty reserves')
+    return { num: reserve1 * pow10(d0), den: reserve0 * pow10(d1) }
+  }
+  if (kind === 'raydium CPMM') {
+    // Vaults also hold fees owed to the protocol, fund and pool creator.
+    const vaults = poolDependencies(kind, data).vaults
+    const owed = (offsets) => offsets.reduce((sum, at) => sum + u64(data, at), 0n)
+    const reserve0 = tokenAmount(vaultData[vaults[0]]) - owed(layout.fees0)
+    const reserve1 = tokenAmount(vaultData[vaults[1]]) - owed(layout.fees1)
     if (reserve0 <= 0n || reserve1 <= 0n) throw new Error('empty reserves')
     return { num: reserve1 * pow10(d0), den: reserve0 * pow10(d1) }
   }

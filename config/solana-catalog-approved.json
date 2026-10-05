@@ -1,15 +1,53 @@
 {
   "$comment": "Owner-approved assets. Only symbols listed here get approved: true in config/solana-assets.json. Edit only on the owner's instruction.",
   "approvedBy": "owner",
-  "approvedAt": "2026-10-03",
+  "approvedAt": "2026-10-05",
   "symbols": {
-    "CRYPTO": ["BTC", "SOL", "ETH"],
-    "MEME": ["TRUMP", "PENGU", "WIF", "FARTCOIN", "PONKE", "PNUT", "PIPPIN", "BOME", "POPCAT", "MEW"],
-    "STOCK": ["NVDAx", "TSLAx", "AAPLx", "METAx", "MSTRx", "AMZNx", "MSFTx", "GOOGLx", "COINx", "HOODx", "CRCLx", "SPYx", "QQQx"]
+    "CRYPTO": [
+      "BTC",
+      "SOL",
+      "ETH",
+      "HYPE",
+      "ZEC",
+      "PUMP",
+      "NEAR"
+    ],
+    "MEME": [
+      "TRUMP",
+      "PENGU",
+      "WIF",
+      "FARTCOIN",
+      "PONKE",
+      "PNUT",
+      "PIPPIN",
+      "BOME",
+      "POPCAT",
+      "MEW"
+    ],
+    "STOCK": [
+      "NVDAx",
+      "TSLAx",
+      "AAPLx",
+      "METAx",
+      "MSTRx",
+      "AMZNx",
+      "MSFTx",
+      "GOOGLx",
+      "COINx",
+      "HOODx",
+      "CRCLx",
+      "SPYx",
+      "QQQx"
+    ]
   },
   "rejected": {
     "BONK": "best decodable pool $412k, below the $500k meme floor",
     "AI16Z": "best pool $49k; price can be moved cheaply at a boundary",
-    "SLERF": "no supported USDC/SOL pool"
+    "SLERF": "no supported USDC/SOL pool",
+    "XRP": "wXRP best pool $40k, below the $500k floor",
+    "ADA": "best pool $83k",
+    "SUI": "best pool $102k",
+    "BNB": "best pool $164k",
+    "DOGE": "best USDC pool $341k, below the $500k floor"
   }
 }

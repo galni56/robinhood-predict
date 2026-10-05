@@ -23,7 +23,7 @@ const SUPPORTED_DEXES = new Set(['raydium', 'orca', 'meteora', 'pumpswap'])
 // Owner-approved list (config/solana-catalog-approved.json). Jupiter symbols:
 // Bitcoin is scanned as cbBTC and shown as BTC.
 const CANDIDATES = {
-  crypto: ['SOL', 'cbBTC', 'ETH'],
+  crypto: ['SOL', 'cbBTC', 'ETH', 'wXRP', 'ADA', 'SUI', 'BNB', 'DOGE', 'HYPE', 'wNEAR', 'ZEC', 'PUMP'],
   meme: ['TRUMP', 'PENGU', '$WIF', 'FARTCOIN', 'PONKE', 'PNUT', 'PIPPIN', 'BOME', 'POPCAT', 'MEW'],
   stock: ['NVDAx', 'TSLAx', 'AAPLx', 'METAx', 'MSTRx', 'AMZNx', 'MSFTx', 'GOOGLx', 'COINx', 'HOODx', 'CRCLx', 'SPYx', 'QQQx'],
 }
