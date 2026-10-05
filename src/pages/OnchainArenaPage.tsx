@@ -14,7 +14,7 @@ import {
 } from '@/chain/stakeQuote'
 import { arenaStakeMemo } from '@/chain/gameTx'
 import { useSignedAction } from '@/chain/gameServer'
-import { useAssetRaceClock } from '@/chain/useAssetRaceClock'
+import { useServerNowMs } from '@/chain/serverClock'
 import { useLivePrices } from '@/chain/livePrices'
 import { usePriceArena } from '@/chain/usePriceArena'
 import { PRICE_ARENA_STATUS, PRICE_ARENA_CANCEL_REASON, PRICE_ARENA_MAX_PARTICIPANTS, PRICE_ARENA_PHASE, arenaDurationLabel, arenaPhase, arenaPhaseLabel, modeForArenaCategory, type PriceArenaEntry } from '@/chain/priceArena'
@@ -132,7 +132,7 @@ export function OnchainArenaPage() {
   const [frozenEntryQuote, setFrozenEntryQuote] = useState<FrozenStakeQuote | null>(null)
   const [txLabel, setTxLabel] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const nowMs = useAssetRaceClock()
+  const nowMs = useServerNowMs()
   // A settled arena needs no live price.
   const live = useLivePrices({ enabled: arena != null && arena.status === PRICE_ARENA_STATUS.OPEN })
   // SOL stakes are entered in USD or SOL at the live rate; SPL stakes in their own units.

@@ -5,7 +5,7 @@ import type { RacePayout } from '@/chain/assetRaces'
 import { assetRaceStatusLabel } from '@/chain/assetRaces'
 import { arenaPhaseLabel, arenaPhase } from '@/chain/priceArena'
 import { useHistory, type HistoryActivity } from '@/chain/history'
-import { useAssetRaceClock } from '@/chain/useAssetRaceClock'
+import { useServerNowMs } from '@/chain/serverClock'
 import { useWalletGames, type WalletArenaEntry, type WalletGameOutcome, type WalletRacePosition } from '@/chain/useWalletGames'
 import { ClusterBanner } from '@/components/ClusterBanner'
 import { TokenLogo } from '@/components/TokenLogo'
@@ -66,7 +66,7 @@ export function OnchainPortfolioPage() {
   const { publicKey, connected } = useWallet()
   const history = useHistory()
   const tokenOf = useStakeTokenLookup()
-  const nowMs = useAssetRaceClock()
+  const nowMs = useServerNowMs()
   const { racePositions, arenaEntries, creatorEarnings, isLoading, error } = useWalletGames(publicKey)
   const me = publicKey?.toBase58()
   const stats = me ? history.data?.wallets[me] : undefined

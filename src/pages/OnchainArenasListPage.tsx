@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { useAssetRaceClock } from '@/chain/useAssetRaceClock'
+import { useServerNowMs } from '@/chain/serverClock'
 import { isPlayedCancellation, isVisibleInAll } from '@/chain/gameVisibility'
 import { CRYPTO_ASSETS_ENABLED } from '@/chain/features'
 import { usePriceArenas } from '@/chain/usePriceArenas'
@@ -105,7 +105,7 @@ export function OnchainArenasListPage() {
       : PRICE_ARENA_CATEGORY.STOCK
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>('ALL')
   const terminalFilter = filter === 'FINISHED' || filter === 'CANCELLED'
-  const nowMs = useAssetRaceClock()
+  const nowMs = useServerNowMs()
   // Lobby vs live depends on the clock, not only on account data.
   const arenas = decoded.map((arena) => ({ ...arena, phase: arenaPhase(arena.status, arena.startsAt, nowMs / 1000) }))
   const visible = arenas.filter((arena) => arena.category === category && (

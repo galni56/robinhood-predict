@@ -3,8 +3,9 @@ import { Link, useParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { useWallet } from '@solana/wallet-adapter-react'
 import { quoteUsdCents, usdCentsToLamports, stakeQuoteErrorMessage } from '@/chain/stakeQuote'
-import { DUEL_RULES, cheerRacer, duelPhaseLabel, duelStake, durationLabel, useDuel, useNowSeconds, type Duel, type DuelRacer } from '@/chain/duels'
+import { DUEL_RULES, cheerRacer, duelPhaseLabel, duelStake, durationLabel, useDuel, type Duel, type DuelRacer } from '@/chain/duels'
 import { useSignedAction } from '@/chain/gameServer'
+import { useServerNowMs } from '@/chain/serverClock'
 import { marketCapUsd, useLivePrices } from '@/chain/livePrices'
 import { useApprovedRaceAssets } from '@/chain/useApprovedRaceAssets'
 import { calculateReturnWad, formatReturnWad, type ApprovedRaceAsset } from '@/chain/assetRaces'
@@ -111,7 +112,7 @@ export function OnchainDuelPage() {
   const act = useSignedAction()
   const live = useLivePrices({ enabled: duel != null && duel.status !== 'resolved' && duel.status !== 'void' })
   const { assets } = useApprovedRaceAssets()
-  const now = useNowSeconds()
+  const now = useServerNowMs() / 1000
   const queryClient = useQueryClient()
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)

@@ -21,7 +21,7 @@ import {
 import { raceStakeMemo } from '@/chain/gameTx'
 import { useSignedAction } from '@/chain/gameServer'
 import { useAssetRace } from '@/chain/useAssetRace'
-import { useAssetRaceClock } from '@/chain/useAssetRaceClock'
+import { useServerNowMs } from '@/chain/serverClock'
 import { useLivePrices } from '@/chain/livePrices'
 import { AssetRaceBettingView } from '@/components/AssetRaceBettingView'
 import { AssetRaceLobbyView } from '@/components/AssetRaceLobbyView'
@@ -66,7 +66,7 @@ export function OnchainRacePage() {
   const [tx, setTx] = useState<TxState>(null)
   const [frozenBetQuote, setFrozenBetQuote] = useState<FrozenStakeQuote | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const raceNowMs = useAssetRaceClock()
+  const raceNowMs = useServerNowMs()
   // Prices matter only while stakes can be quoted or the race is moving.
   const live = useLivePrices({ enabled: race != null && (race.status === ASSET_RACE_STATUS.LOBBY || race.status === ASSET_RACE_STATUS.BETTING || race.status === ASSET_RACE_STATUS.RUNNING) })
   // SOL stakes are entered in USD or SOL at the live rate; SPL stakes in their own units.

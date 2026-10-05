@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { convertRows, getJson, useGameState, type ServerPayout } from '@/chain/gameServer'
 import { GAME_SERVER_URL } from '@/solana/services'
@@ -175,17 +175,6 @@ export function useDuel(id: number | null) {
   return { duel: query.data, isLoading: query.isLoading, error: query.error, refetch: query.refetch }
 }
 
-/** Wall-clock seconds, ticking twice a second (duel timers are server time). */
-export function useNowSeconds() {
-  const [now, setNow] = useState(() => Date.now() / 1000)
-  useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now() / 1000), 500)
-    return () => clearInterval(timer)
-  }, [])
-  return now
-}
-
-/** A free cheer for a racer. */
 /** A free cheer. Best effort: offline, rate limited or refused all just
  * return null - a cheer is never worth an error on screen. */
 export async function cheerRacer(duelId: number, seat: number) {
