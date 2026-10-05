@@ -1,148 +1,174 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { zeroAddress } from 'viem'
-import { waitForTransactionReceipt } from 'wagmi/actions'
-import { useAccount, useReadContracts, useSwitchChain, useWriteContract } from 'wagmi'
-import { assetRaceChain, wagmiConfig } from '@/chain/config'
-import { CRYPTO_ASSETS_ENABLED } from '@/chain/features'
-import {
-  PRICE_ARENA_ADDRESS,
-  PRICE_ARENA_ASSETS,
-  PRICE_ARENA_DURATIONS,
-  arenaDurationLabel,
-  categoryForArenaMode,
-  priceArenaAbi,
-  type PriceArenaMode,
-} from '@/chain/priceArena'
-import { CompactAssetSelector } from '@/components/CompactAssetSelector'
+import { useQueryClient } from '@tanstack/react-query'
+import { useWallet } from '@solana/wallet-adapter-react'
+import type { ApprovedRaceAsset } from '@/chain/assetRaces'
+import { PRICE_ARENA_DURATIONS, PRICE_ARENA_MAX_PARTICIPANTS, arenaDurationLabel, categoryForArenaMode, type PriceArenaMode } from '@/chain/priceArena'
+import { useSignedAction } from '@/chain/gameServer'
+import { useLivePrices, marketCapUsd } from '@/chain/livePrices'
+import { useApprovedRaceAssets } from '@/chain/useApprovedRaceAssets'
+import { ClusterBanner } from '@/components/ClusterBanner'
 import { FilterChips, GAME_MODE_CHIP_OPTIONS } from '@/components/FilterChips'
+import { CoinPicker, COIN_BODIES, HowItWorksStrip } from '@/components/GamePickers'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
-import { GameLifecycleGuide } from '@/components/GameLifecycleGuide'
-import { GameModeMotion } from '@/components/GameModeMotion'
-import { shortTxError } from '@/lib/format'
+import { assetIconUrl } from '@/lib/assetIcons'
+import { formatCompactUsd, formatUnits, shortTxError } from '@/lib/format'
+import { CoinFighter } from '@/retro/landingFx'
+import { CREAM, INK, NIGHT, PINK, Stars, YELLOW, PIXEL } from '@/retro/scene'
+import { coinBlueGrin, coinOrangeGrin, coinPinkGrin, logoCoin } from '@/retro/spriteData'
+
+const ARENA_BLUE = '#6BCBF4'
+
+/** The ring: the chosen coin in the middle, sample calls floating around it. */
+function ArenaPreview({ coin, unit }: { coin?: ApprovedRaceAsset; unit: 'cap' | 'price' }) {
+  const live = useLivePrices()
+  const price = coin ? live.assets[coin.symbol] : undefined
+  const now = price ? (unit === 'cap' ? marketCapUsd(price) : Number(formatUnits(price.raw, price.decimals))) : undefined
+  const fmt = (v: number) => (unit === 'cap' ? formatCompactUsd(v) : `$${Number(v.toPrecision(4))}`)
+  const calls = now ? [0.93, 1.06, 0.98, 1.12, 1.01].map((k) => fmt(now * k)) : ['?', '?', '?', '?', '?']
+  const spots = [[6, 16], [70, 12], [4, 58], [72, 56], [30, 30]]
+  return (
+    <div className="rx-raised" style={{ position: 'relative', height: 340, background: NIGHT, overflow: 'hidden' }}>
+      <Stars stars={[['8%', 24, 4, 1.3], ['21%', 58, 8, 1.9], ['37%', 18, 4, 1.1], ['63%', 30, 8, 1.7], ['78%', 62, 4, 1.4], ['91%', 22, 4, 2.1]]} />
+      <div style={{ position: 'absolute', top: 12, left: 14, right: 14, display: 'flex', justifyContent: 'space-between', fontFamily: PIXEL, fontSize: 10, color: CREAM }}>
+        <span>FIGHT PREVIEW</span>
+        <span style={{ color: coin ? '#8BE89A' : YELLOW, animation: coin ? undefined : 'rx-blink 0.8s steps(1) infinite' }}>{coin ? 'READY' : 'PICK A COIN'}</span>
+      </div>
+      {calls.map((call, i) => (
+        <span key={i} className="rx-plate rx-fx-float" style={{ position: 'absolute', left: `${spots[i][0]}%`, top: `${spots[i][1] + 10}%`, fontFamily: PIXEL, fontSize: 10, background: i === 1 ? YELLOW : CREAM, color: INK, padding: '7px 8px', animationDelay: `${i * 0.4}s` }}>
+          {call}
+        </span>
+      ))}
+      <div style={{ position: 'absolute', left: 0, right: 0, bottom: 52, display: 'flex', justifyContent: 'center' }}>
+        <div style={{ position: 'relative', animation: 'rx-bob 0.6s steps(1) infinite' }}>
+          <span className="rx-plate" style={{ position: 'absolute', left: '50%', top: -36, transform: 'translateX(-50%)', fontFamily: PIXEL, fontSize: 11, background: PINK, color: INK, padding: '6px 8px', whiteSpace: 'nowrap' }}>
+            {coin ? `${coin.symbol} ${unit === 'cap' ? 'CAP' : 'PRICE'} ?` : '???'}
+          </span>
+          {coin
+            ? <CoinFighter body={COIN_BODIES[1]} logoUrl={coin.logoUrl ?? assetIconUrl(coin.symbol)} symbol={coin.symbol} size={96} />
+            : <span style={{ display: 'inline-flex', width: 96, height: 102, alignItems: 'center', justifyContent: 'center', border: `4px dashed rgba(255,246,223,0.4)`, color: CREAM, fontFamily: PIXEL, fontSize: 24 }}>?</span>}
+        </div>
+      </div>
+      <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 40, background: '#C2245A', backgroundImage: 'repeating-linear-gradient(90deg, rgba(27, 19, 64, 0.4) 0 4px, transparent 4px 56px)', borderTop: `4px solid ${INK}` }} />
+    </div>
+  )
+}
 
 export function OnchainCreateArenaPage() {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const [params, setParams] = useSearchParams()
-  const requestedMode = params.get('mode')
-  const mode: PriceArenaMode = requestedMode === 'memes' || (CRYPTO_ASSETS_ENABLED && requestedMode === 'crypto')
-    ? requestedMode
-    : 'stocks'
+  const mode: PriceArenaMode = params.get('mode') === 'crypto' ? 'crypto' : 'memes'
   const category = categoryForArenaMode(mode)
-  const catalog = useMemo(() => PRICE_ARENA_ASSETS.filter((asset) => asset.category === category), [category])
-  const readAddress = PRICE_ARENA_ADDRESS ?? zeroAddress
-  const configQueries = useReadContracts({
-    contracts: catalog.map((asset) => ({ address: readAddress, chainId: assetRaceChain.id, abi: priceArenaAbi, functionName: 'approvedAssets', args: [asset.assetId] }) as const),
-    query: { enabled: !!PRICE_ARENA_ADDRESS },
-  })
-  const assets = catalog.filter((_, index) => configQueries.data?.[index]?.status === 'success' && configQueries.data[index].result[4])
+  const approved = useApprovedRaceAssets()
+  const assets = approved.assets.filter((asset) => asset.category === category)
   const [title, setTitle] = useState('')
   const [assetId, setAssetId] = useState('')
   const [duration, setDuration] = useState<bigint>(300n)
+  // How players call the final number; memes default to market cap.
+  const [unitChoice, setUnitChoice] = useState<'cap' | 'price' | null>(null)
+  const unit = unitChoice ?? (mode === 'memes' ? 'cap' : 'price')
   const [txLabel, setTxLabel] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const { address, isConnected, chainId } = useAccount()
-  const { switchChain, isPending: isSwitching } = useSwitchChain()
-  const { writeContractAsync } = useWriteContract()
-  const selected = assets.find((asset) => asset.assetId === assetId) ?? assets[0]
+  const { publicKey, connected } = useWallet()
+  const act = useSignedAction()
+  const selected = assets.find((asset) => asset.assetId === assetId)
   const titleBytes = new TextEncoder().encode(title.trim()).length
   const valid = !!selected && titleBytes > 0 && titleBytes <= 64
+  const maxWinners = Math.floor(PRICE_ARENA_MAX_PARTICIPANTS / 2)
 
   function selectMode(next: PriceArenaMode) {
     setAssetId('')
-    setParams(next === 'stocks' ? {} : { mode: next })
+    setParams(next === 'memes' ? {} : { mode: next })
   }
 
   async function create() {
-    if (!PRICE_ARENA_ADDRESS || !selected || !valid) return
+    if (!publicKey || !selected || !valid) return
     setError(null)
     try {
-      setTxLabel('Confirm arena creation…')
-      const hash = await writeContractAsync({ address: PRICE_ARENA_ADDRESS, chainId: assetRaceChain.id, abi: priceArenaAbi, functionName: 'createArena', args: [selected.assetId, category, duration, title.trim()] })
-      setTxLabel('Waiting for confirmation…')
-      await waitForTransactionReceipt(wagmiConfig, { hash, chainId: assetRaceChain.id })
-      navigate(`/onchain/arenas${mode === 'stocks' ? '' : `?mode=${mode}`}`)
+      // A signed message, not a transaction: creating an arena is free.
+      setTxLabel('Signing…')
+      const created = await act<{ id: number }>({ action: 'create-arena', title: title.trim(), asset: selected.symbol, duration: Number(duration), unit })
+      await queryClient.invalidateQueries({ queryKey: ['game-state'] })
+      navigate(`/onchain/arenas/${created.id}`)
     } catch (cause) {
       setTxLabel(null)
       setError(shortTxError(cause, 'create-arena'))
     }
   }
 
+  const label = { display: 'block', marginBottom: 8, fontFamily: PIXEL, fontSize: 11 } as const
+  const choice = (active: boolean) => `rx-btn ${active ? 'rx-btn-yellow' : 'rx-btn-white'}`
+
   return (
-    <div className="mx-auto max-w-[1280px] px-4 py-5 lg:min-h-[calc(100dvh-104px)]">
-      <Link to={`/onchain/arenas${mode === 'stocks' ? '' : `?mode=${mode}`}`} className="text-sm text-white/40 hover:text-white">← All arenas</Link>
-      <div className="mt-4 grid min-w-0 items-stretch gap-6 lg:min-h-[calc(100dvh-180px)] lg:grid-cols-[440px_1fr] xl:gap-8">
-        <div className="flex min-w-0 flex-col">
-          <p className="text-sm font-bold text-[#B7CEFF]">Create Price Arena</p>
-          <h1 className="mt-1 font-display text-3xl font-bold sm:text-4xl">Set the stage.</h1>
-          <div className="mt-3 flex gap-1.5">
-            <FilterChips size="sm" options={GAME_MODE_CHIP_OPTIONS} value={mode} onChange={selectMode} />
+    <div style={{ minHeight: '100%', background: '#4B37B0', color: INK, fontFamily: "'Pixelify Sans', 'Courier New', monospace" }}>
+      <div className="mx-auto max-w-[1200px] px-4 py-6">
+        <ClusterBanner className="mb-4" />
+        <Link to={`/onchain/arenas${mode === 'memes' ? '' : `?mode=${mode}`}`} style={{ color: CREAM, fontSize: 16, fontWeight: 700 }}>← All arenas</Link>
+
+        <div style={{ marginTop: 12, display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16 }}>
+          <h1 style={{ margin: 0, color: CREAM, fontFamily: PIXEL, fontSize: 'clamp(18px, 2.4vw, 30px)', fontWeight: 400, lineHeight: 1.4, textShadow: `4px 4px 0 ${INK}` }}>
+            SET UP THE FIGHT
+          </h1>
+          <FilterChips size="sm" options={GAME_MODE_CHIP_OPTIONS} value={mode} onChange={selectMode} />
+        </div>
+
+        <div style={{ marginTop: 24, display: 'grid', gap: 24, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 420px), 1fr))', alignItems: 'start' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <ArenaPreview coin={selected} unit={unit} />
+            <p style={{ margin: 0, color: CREAM, fontSize: 16, fontWeight: 600 }}>
+              One coin, up to {PRICE_ARENA_MAX_PARTICIPANTS} players. Everyone calls its final {unit === 'cap' ? 'market cap' : 'price'}; the closest half split the bank. Creating is free - your wallet just signs.
+            </p>
           </div>
 
-          <div className="mt-4 flex-1">
-            <GameLifecycleGuide
-              className="lg:h-full"
-              tone="arena"
-              eyebrow={`${arenaDurationLabel(duration)} arena · full lifecycle`}
-              title="From forecast to final ranking"
-              intro="Creating an arena costs gas but does not enter a forecast. The 10-minute lobby begins when the creation transaction confirms; the selected game duration follows it."
-              stages={[
-                {
-                  title: 'Players enter forecasts',
-                  timing: 'Lobby · 10 min',
-                  body: `Between 2 and 20 wallets submit an exact final price and enter $1-$50 in USD or ETH. ${mode === 'memes' ? 'Meme prices are forecast in ETH.' : mode === 'crypto' ? 'BTC and ETH prices are forecast in USDG.' : 'Tokenized-stock prices are forecast in the displayed dollar quote.'} The wallet sends native ETH directly. During the lobby, a player may change the prediction and add stake, but cannot reduce or withdraw it.`,
-                },
-                {
-                  title: 'Forecasts stay off the board',
-                  timing: 'During the lobby',
-                  body: 'Predictions are hidden from the arena leaderboard and public arena getter until the lobby closes, reducing copycat play. Like every blockchain transaction, submitted calldata can still be inspected onchain.',
-                },
-                {
-                  title: 'The game runs',
-                  timing: arenaDurationLabel(duration),
-                  body: 'The lobby closes automatically: no new players, prediction changes or top-ups are accepted. Forecasts become visible and the game counts down to its fixed deadline without a separate start transaction.',
-                },
-                {
-                  title: 'The deadline price ranks everyone',
-                  timing: 'At the fixed finish',
-                  body: 'Settlement uses the last valid onchain price strictly before the deadline. The closest floor(player count ÷ 2) forecasts win - one winner with 2–3 players and up to 10 with 20. Equal errors are ordered by the earlier most-recent prediction update, then wallet address.',
-                },
-                {
-                  title: 'Claim or receive a refund',
-                  timing: 'After settlement',
-                  body: 'Winners recover principal plus an accuracy-and-stake-weighted share of the losing pool; the 2% fee applies only to that losing-pool profit. Fewer than two players or an invalid deadline price cancels the arena and unlocks full refunds.',
-                },
-              ]}
-              note={`Selected schedule: 10-minute lobby, then a ${arenaDurationLabel(duration)} game. The closest forecast can receive up to 3× the accuracy weight used to divide the losing pool.`}
-            />
+          <div className="rx-raised" style={{ background: CREAM, padding: 20, display: 'flex', flexDirection: 'column', gap: 18 }}>
+            <div>
+              <label style={label} htmlFor="arena-title">ARENA TITLE</label>
+              <input id="arena-title" value={title} maxLength={64} onChange={(event) => setTitle(event.target.value)} placeholder={mode === 'crypto' ? 'SOL closing shot' : 'Meme cap showdown'} className="rx-input w-full px-3.5 font-medium" style={{ height: 52 }} />
+            </div>
+
+            <div>
+              <span style={label}>PLAYERS CALL THE FINAL</span>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                {(['cap', 'price'] as const).map((c) => (
+                  <button key={c} type="button" onClick={() => setUnitChoice(c)} className={choice(unit === c)} style={{ padding: '10px 16px', fontSize: 15, fontWeight: 700 }}>{c === 'cap' ? 'Market cap' : 'Price'}</button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <span style={label}>FIGHT LENGTH</span>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                {PRICE_ARENA_DURATIONS.map((seconds) => (
+                  <button key={seconds.toString()} type="button" onClick={() => setDuration(seconds)} className={choice(duration === seconds)} style={{ padding: '10px 16px', fontSize: 15, fontWeight: 700 }}>{arenaDurationLabel(seconds)}</button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <span style={label}>COIN</span>
+              <CoinPicker assets={assets} selected={selected ? [selected.assetId] : []} onToggle={(asset) => setAssetId(asset.assetId === assetId ? '' : asset.assetId)} max={1} accent={ARENA_BLUE} />
+            </div>
+
+            {error && <p style={{ margin: 0, color: '#C2245A', fontWeight: 600 }}>{error}</p>}
+            {!connected ? <WalletOptionsList tone="arena" /> : (
+              <button onClick={create} disabled={!publicKey || !valid || !!txLabel} className="rx-btn rx-btn-pink w-full" style={{ minHeight: 60, fontFamily: PIXEL, fontSize: 13 }}>
+                {txLabel ?? (!selected ? 'PICK A COIN' : titleBytes === 0 ? 'NAME YOUR ARENA' : 'OPEN THE LOBBY')}
+              </button>
+            )}
           </div>
         </div>
 
-      {!PRICE_ARENA_ADDRESS ? <div className="h-full rounded-2xl border border-amber-400/25 bg-amber-400/10 p-5 text-amber-100">Deploy and configure Price Arena before creating games.</div> : (
-        <div className="flex h-full min-w-0 flex-col gap-4 rounded-3xl border border-white/5 bg-[#241b2f] p-5 sm:p-6">
-          <label className="block"><span className="mb-2 block text-sm font-bold text-white/60">Arena title</span><input value={title} onChange={(event) => setTitle(event.target.value)} maxLength={64} placeholder={mode === 'memes' ? 'Meme price showdown' : mode === 'crypto' ? 'BTC closing shot' : 'NVDA closing shot'} className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 outline-none focus:border-[#7A9FF0]/50" /><span className="mt-1 block text-right text-xs text-white/30">{titleBytes} / 64 bytes</span></label>
-          <div>
-            <div className="mb-2 text-sm font-bold text-white/60">Asset</div>
-            {assets.length > 0 ? (
-              <CompactAssetSelector
-                assets={assets.map((asset) => ({
-                  id: asset.assetId,
-                  symbol: asset.symbol,
-                  name: asset.name,
-                  priceUrl: asset.priceUrl,
-                }))}
-                selectedIds={selected ? [selected.assetId] : []}
-                onSelect={setAssetId}
-                tone="arena"
-              />
-            ) : <p className="py-5 text-sm text-white/40">Loading configured assets…</p>}
-          </div>
-          <div><div className="mb-2 text-sm font-bold text-white/60">Game duration</div><div className="grid grid-cols-2 gap-2 sm:grid-cols-4">{PRICE_ARENA_DURATIONS.map((seconds) => <button key={seconds.toString()} onClick={() => setDuration(seconds)} className={`rounded-xl border px-3 py-3 text-sm font-bold ${duration === seconds ? 'border-[#7A9FF0] bg-[#7A9FF0]/15 text-[#B7CEFF]' : 'border-white/5 bg-white/[0.03] text-white/50'}`}>{arenaDurationLabel(seconds)}</button>)}</div></div>
-          {error && <p className="text-sm text-rose-400">{error}</p>}
-          {!isConnected ? <WalletOptionsList tone="arena" /> : chainId !== assetRaceChain.id ? <button onClick={() => switchChain({ chainId: assetRaceChain.id })} disabled={isSwitching} className="w-full rounded-xl bg-[#7A9FF0] py-3 font-bold text-[#152447] hover:bg-[#8EB1F8]">Switch to {assetRaceChain.name}</button> : <button onClick={create} disabled={!address || !valid || !!txLabel} className="w-full rounded-xl bg-gradient-to-r from-[#8EB1F8] to-[#7A9FF0] py-3 font-bold text-[#152447] disabled:opacity-40">{txLabel ?? 'Create Price Arena'}</button>}
-          <GameModeMotion mode="arena" assets={selected ? [{ symbol: selected.symbol }] : []} className="mt-auto" />
-        </div>
-      )}
+        <h2 style={{ margin: '48px 0 24px', color: CREAM, fontFamily: PIXEL, fontSize: 16, fontWeight: 400 }}>HOW A FIGHT GOES</h2>
+        <HowItWorksStrip
+          accent={ARENA_BLUE}
+          steps={[
+            { sprite: logoCoin, title: 'Lobby', timing: '10 MIN', body: `2-${PRICE_ARENA_MAX_PARTICIPANTS} players call the final ${unit === 'cap' ? 'cap' : 'price'} and stake $1-$50.` },
+            { sprite: coinOrangeGrin, title: 'Calls hidden', timing: 'DURING LOBBY', body: 'Nobody sees the other calls until the lobby closes.' },
+            { sprite: coinPinkGrin, title: 'The fight', timing: arenaDurationLabel(duration).toUpperCase(), body: 'The live board shows who is closest right now.' },
+            { sprite: coinBlueGrin, title: 'Paid out', timing: 'AUTOMATIC', body: `The closest ${maxWinners > 1 ? 'half' : 'call'} split the bank, up to 3x for a near hit.` },
+          ]}
+        />
       </div>
     </div>
   )

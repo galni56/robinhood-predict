@@ -12,13 +12,12 @@ function scrollToSection(e: MouseEvent, id: string) {
 const SECTIONS = [
   { id: 'overview', label: '1. Overview' },
   { id: 'shared', label: '2. Shared foundations' },
-  { id: 'markets', label: '3. Prediction Markets' },
-  { id: 'market-payouts', label: '4. Market payouts' },
-  { id: 'races', label: '5. Asset Races' },
-  { id: 'race-payouts', label: '6. Race settlement' },
-  { id: 'arena', label: '7. Price Arena' },
-  { id: 'arena-payouts', label: '8. Arena ranking' },
-  { id: 'prices', label: '9. Prices & keepers' },
+  { id: 'races', label: '3. Asset Races' },
+  { id: 'race-payouts', label: '4. Race settlement' },
+  { id: 'arena', label: '5. Price Arena' },
+  { id: 'arena-payouts', label: '6. Arena ranking' },
+  { id: 'prices', label: '7. Prices & automation' },
+  { id: 'trust', label: '8. Trust & administration' },
 ] as const
 
 export function WhitepaperPage() {
@@ -26,13 +25,13 @@ export function WhitepaperPage() {
     <div className="mx-auto grid max-w-6xl grid-cols-1 gap-10 px-4 py-10 lg:grid-cols-[200px_1fr]">
       <aside className="hidden lg:block">
         <div className="sticky top-20 space-y-1 text-sm">
-          <p className="mb-2 text-xs font-bold uppercase tracking-wider text-white/40">Contents</p>
+          <p className="mb-2 text-xs font-bold uppercase tracking-wider text-[#1B1340]/55">Contents</p>
           {SECTIONS.map((section) => (
             <a
               key={section.id}
               href={`#${section.id}`}
               onClick={(event) => scrollToSection(event, section.id)}
-              className="block py-1 text-white/50 transition-colors hover:text-white"
+              className="block py-1 text-[#1B1340]/60 transition-colors hover:text-[#1B1340]"
             >
               {section.label}
             </a>
@@ -42,15 +41,14 @@ export function WhitepaperPage() {
 
       <article className="min-w-0 space-y-12">
         <div>
-          <p className="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-[#8B7CF7]/80">Whitepaper</p>
+          <p className="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-[#C2245A]/80">Whitepaper</p>
           <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">
-            Prophet: three onchain prediction games for tokenized assets
+            Prophet: onchain prediction games on Solana
           </h1>
-          <p className="mt-3 text-sm text-white/40">
-            Version 2.0 · Robinhood Chain mainnet. This document describes the live native-ETH product across
-            Prediction Markets, Asset Races and Price Arena. This document is not legal, financial or investment
-            advice. See the{' '}
-            <Link to="/terms" className="text-[#8B7CF7] hover:underline">
+          <p className="mt-3 text-sm text-[#1B1340]/55">
+            Draft · Solana. Prophet has not received an external security audit. This document is not legal,
+            financial or investment advice. See the{' '}
+            <Link to="/terms" className="text-[#C2245A] hover:underline">
               Terms of Service
             </Link>
             .
@@ -59,271 +57,165 @@ export function WhitepaperPage() {
 
         <Section id="overview" title="1. Overview">
           <p>
-            Prophet offers three independent games built around prices on Robinhood Chain. <strong>Prediction
-            Markets</strong> ask whether a tokenized stock will finish above or below a target. <strong>Asset
-            Races</strong> compare the percentage performance of several assets over the same interval. <strong>Price
-            Arena</strong> asks players to predict one asset&apos;s exact finishing price, then rewards the closest half
-            of the field.
+            Prophet runs two independent games on Solana around the prices of stocks, memes and crypto assets.
+            <strong> Asset Races</strong> compare the percentage performance of several assets over the same interval.
+            <strong> Price Arena</strong> asks players to predict one asset&apos;s finishing price, then rewards the closest
+            half of the field.
           </p>
-          <div className="grid gap-3 sm:grid-cols-3">
-            <ModeCard title="Markets" accent="text-[#B3A7FA]" link="/onchain">
-              Pick YES or NO on a target price. Earlier correct calls receive more payout weight.
-            </ModeCard>
-            <ModeCard title="Races" accent="text-[#F2A65A]" link="/onchain/races">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <ModeCard title="Races" accent="text-[#B8860B]" link="/onchain/races">
               Back one of 2–6 assets. The highest percentage return wins the race.
             </ModeCard>
-            <ModeCard title="Arena" accent="text-[#B7CEFF]" link="/onchain/arenas">
-              Enter an exact price prediction. The closest 50% share the losing half&apos;s stakes.
+            <ModeCard title="Arena" accent="text-[#1F7FD1]" link="/onchain/arenas">
+              Enter a price prediction. The closest half share the losing half&apos;s stakes.
             </ModeCard>
           </div>
           <p>
-            Each mode has its own Solidity contract, lifecycle and accounting. Funds and game state are not shared
-            between the three modes. A failure or cancellation in one game cannot change another game&apos;s result.
+            Each game is its own Solana program with its own accounts. Every race or arena holds its stakes in its
+            own account, so a failure or cancellation in one game cannot change another game&apos;s funds or result.
           </p>
         </Section>
 
         <Section id="shared" title="2. Shared foundations">
           <ul className="list-disc space-y-1 pl-5">
-            <li><strong>Network:</strong> all real games run on Robinhood Chain mainnet.</li>
-            <li><strong>Wager currency:</strong> stakes, pools, payouts and refunds use native ETH. The interface accepts USD or ETH input for the live $1–$50 range and freezes the exact wei value; there is no ERC-20 approval, WETH wrapping or swap.</li>
+            <li><strong>Network:</strong> Solana.</li>
             <li>
-              <strong>Reviewed assets:</strong> Prediction Markets, Asset Races and Price Arena all support 10
-              approved tokenized stocks, 13 Memes, Bitcoin and Ethereum. Stocks, Memes and Crypto remain separate
-              categories. Meme targets use ETH quotes; Stock and Crypto targets use USDG quotes.
+              <strong>Stake currency:</strong> stakes, pools, payouts and refunds use SOL. The programs can also accept
+              admin-approved SPL tokens, each with its own stake limits; a game keeps the currency it was created with.
+              The interface accepts USD or SOL input and shows both before the wallet opens.
             </li>
             <li>
-              <strong>Non-custodial:</strong> Prophet never receives a wallet&apos;s private key. Entries,
-              claims and refunds are signed by the player in MetaMask.
+              <strong>Reviewed assets:</strong> stocks (tokenized via xStocks), memes and crypto, each bound to one
+              reviewed DEX pool with a minimum liquidity at review time. Categories never mix within a game.
             </li>
             <li>
-              <strong>Parimutuel economics:</strong> players compete against one another rather than a bookmaker.
-              The available payout comes from stakes already locked in that game.
+              <strong>Prices in USD:</strong> asset prices are quoted in USD, from pools paired with USDC or converted
+              through SOL/USDC at the same block. Price quotes are units, not the stake currency.
             </li>
             <li>
-              <strong>Claims and refunds:</strong> after an onchain result or cancellation, eligible players claim
-              their payout or refund from the relevant contract.
+              <strong>Non-custodial:</strong> Prophet never receives a wallet&apos;s private key. Entries, claims and
+              refunds are signed by the player in Phantom, Solflare or another Solana wallet.
+            </li>
+            <li>
+              <strong>Parimutuel economics:</strong> players compete against one another rather than a bookmaker. The
+              payout comes from stakes already locked in that game.
             </li>
           </ul>
         </Section>
 
-        <Section id="markets" title="3. Prediction Markets · YES or NO">
+        <Section id="races" title="3. Asset Races · highest return wins">
           <p>
-            A market asks: <em>Will this asset be at or above the target price at the deadline?</em> A YES position
-            wins when the final price is greater than or equal to the target; otherwise NO wins. Touching the target
-            at any earlier moment does not count - the only price that determines the outcome is the scheduled
-            deadline price.
+            A Race compares <strong>2–6 assets from one category</strong>. Players back one asset, and the winner is
+            the asset with the highest percentage return between the common start and end snapshots - not the asset
+            with the highest price.
           </p>
-          <p>The current market lifecycle is:</p>
           <ol className="list-decimal space-y-2 pl-5">
             <li>
-              Any wallet creates a market for one of 10 approved tokenized stocks, 13 Memes, Bitcoin or Ethereum,
-              chooses a positive target and selects a deadline. Stocks and Crypto use reviewed USDG pools; Memes
-              use reviewed ETH pools. These quote assets are price units, not wager currencies. The interface offers
-              30 minutes, 1 hour, 24 hours and 7 days. Thirty minutes is the onchain minimum.
+              Prophet creates featured races; any wallet can create a community race by choosing a category, a title
+              and an approved duration, optionally with initial assets.
             </li>
             <li>
-              Players enter the live equivalent of $1–$50 in USD or ETH and stake the displayed native ETH amount on YES or NO. A wallet may place one bet per side. It is
-              possible to hold both a YES and a NO position, but neither position can be increased after its first bet.
+              Community races open with a lobby. No betting occurs yet. Each wallet may add one approved asset, up to
+              six. Fewer than two assets at lobby close cancels the race.
             </li>
             <li>
-              Settlement requires non-empty YES and NO pools and at least two distinct wallet addresses. One wallet
-              funding both sides still counts as one participant, so the market cancels with full refunds.
+              Betting then opens. A wallet backs one asset and may top up that same asset up to the per-wallet limit;
+              the selection cannot be changed.
             </li>
             <li>
-              Betting closes after the first two-thirds of the market&apos;s lifetime. The final third accepts no new
-              bets and exists only for the price outcome to develop.
+              At the betting cutoff, only assets with bets become active. If fewer than the required number are active,
+              the race cancels and every stake is refundable.
             </li>
             <li>
-              After the deadline, the keeper submits the historical pool observation for the last Robinhood block
-              strictly before that deadline. Calling resolution later cannot substitute a newer price.
-            </li>
-            <li>Winning wallets claim; a cancelled market lets every participant reclaim their original stake.</li>
-          </ol>
-          <p>
-            Creation is permissionless, but asset approval is not: a market can only use a pool identity reviewed and
-            registered by the protocol. The target ranges shown during creation are interface guidance, not an onchain
-            target-distance rule. The owner may seed a new market up to the deployment-configured native ETH cap.
-          </p>
-        </Section>
-
-        <Section id="market-payouts" title="4. Market weighting, payouts and cancellation">
-          <p>
-            A winning bet earns its principal back plus a share of the losing pool. The share is based on
-            <strong> weighted stake</strong>, which rewards taking risk earlier. Weight falls linearly from
-            <strong> 2.00×</strong> when the market opens to <strong>0.50×</strong> immediately before betting closes.
-            Weight changes only the distribution of profit; it never changes principal.
-          </p>
-          <Formula>
-            payout = stake + (weighted stake ÷ total weighted winning stake) × losing pool × 98%
-          </Formula>
-          <p>
-            The 2% fee applies only to each winner&apos;s share of the losing pool. Exactly 1% of the losing pool is
-            credited to the immutable market creator and 1% goes to Prophet. It is not charged on returned
-            principal or refunds. Integer division can leave a small amount of rounding dust in the contract.
-          </p>
-          <p>
-            If either YES or NO has no stake at the deadline, the market is cancelled: there is no genuine opposing
-            pool, so all existing positions are refundable in full. A stale or unusable deadline observation also
-            cancels the market rather than allowing an arbitrary current price to decide it.
-          </p>
-        </Section>
-
-        <Section id="races" title="5. Asset Races · highest return wins">
-          <p>
-            A Race compares <strong>2-6 assets from one category</strong>. Stock races use StockToken/USDG prices,
-            Meme races use MemeToken/ETH prices, and Crypto races use BTC/USDG and ETH/USDG prices. Players back one
-            asset, and the winner is the asset with the highest percentage return between the common start and end
-            snapshots - not the asset with the highest dollar price.
-          </p>
-          <p>The live community-race policy is:</p>
-          <ol className="list-decimal space-y-2 pl-5">
-            <li>
-              The creator chooses Stocks, Memes or Crypto, a title and an approved race duration of 1, 5 or 15
-              minutes. The creator may add initial assets or leave the list open.
-            </li>
-            <li>
-              A 5-minute lobby opens. No betting occurs yet. Each wallet may add one approved asset of the chosen
-              category, up to six candidates total. Fewer than two candidates at lobby close cancels the empty race.
-            </li>
-            <li>
-              Betting then opens for 5 minutes. A wallet enters USD or ETH worth $1–$50, sees both equivalents,
-              and may top up the same selection to the contract&apos;s cumulative wei cap. The selected asset cannot be
-              changed for that race.
-            </li>
-            <li>
-              At betting close, only assets with a non-zero pool become active. At least two active contenders are
-              required; otherwise the race cancels and all stakes are refundable.
-            </li>
-            <li>
-              The start snapshot P0 is fixed at the betting cutoff. After the selected race duration, the end
-              snapshot P1 is fixed at the scheduled finish. The interface may show movement between them, but only
-              the two onchain settlement snapshots decide the result.
+              The start snapshot P0 is the price just before the betting cutoff; the end snapshot P1 is the price just
+              before the scheduled finish. Only these two snapshots decide the result.
             </li>
           </ol>
           <Formula>asset return = (P1 − P0) ÷ P0</Formula>
-          <p>
-            The highest return wins even when every contender fell in price - the least negative return is still the
-            highest. Stocks, Memes and Crypto never mix in the same race, so every grid has one coherent asset
-            universe and reviewed source policy.
-          </p>
+          <p>The highest return wins even when every contender fell in price.</p>
         </Section>
 
-        <Section id="race-payouts" title="6. Race settlement, payouts and voids">
+        <Section id="race-payouts" title="4. Race settlement, payouts and voids">
           <p>
-            Every player who backed the winning asset receives principal plus a stake-proportional share of the
-            losing assets&apos; combined pool. Race bets are not time-weighted.
+            Every player who backed the winning asset receives principal plus a stake-proportional share of the losing
+            assets&apos; combined pool.
           </p>
           <Formula>payout = stake + (stake ÷ winning pool) × losing pool × 98%</Formula>
           <p>
-            The 2% fee comes only from the losing pool. Exactly 1% of the losing pool is credited to the immutable
-            race creator and 1% goes to Prophet. If two or more active assets finish with exactly the same top
-            return, the race is void and every stake is refundable in full - no arbitrary tiebreaker selects an asset.
-            A race also becomes refundable if a valid start or end snapshot cannot be fixed within its onchain grace
-            window.
-          </p>
-          <p>
-            Prophet can label platform-created races as Featured, while wallet-created races are Community races.
-            Both settle with the same return calculation and payout rules.
+            The 2% fee comes only from the losing pool: half is credited to the race creator and half goes to Prophet.
+            If two or more assets finish with exactly the same top return, the race is void and every stake is
+            refundable. A race is also refundable if a valid start or end price cannot be recorded within its grace
+            window. Claiming or refunding closes the position and returns its small account deposit.
           </p>
         </Section>
 
-        <Section id="arena" title="7. Price Arena · closest prediction wins">
+        <Section id="arena" title="5. Price Arena · closest prediction wins">
           <p>
-            Price Arena is a fixed-field forecasting contest for one approved Stock, Meme or Crypto asset. Instead
-            of choosing a direction, every player enters the exact price they expect at the end of the game. Available game
-            durations are <strong>1, 5, 15 and 60 minutes</strong>.
+            Price Arena is a forecasting contest for one approved asset. Instead of choosing a direction, every player
+            enters the price they expect at the end. Durations are <strong>1, 5, 15 and 60 minutes</strong>.
           </p>
           <ol className="list-decimal space-y-2 pl-5">
+            <li>Any wallet creates an Arena. Creation opens a 10-minute lobby; the round begins when the lobby ends.</li>
             <li>
-              Any wallet creates an Arena. Creation opens a fixed 10-minute lobby; the selected game duration begins
-              only after that lobby ends.
+              Between 2 and 10 wallets may enter. During the lobby a player may change the prediction or add stake, but
+              cannot reduce the stake or withdraw.
             </li>
             <li>
-              Between 2 and 20 wallets may enter. The interface accepts a USD or ETH initial stake worth $1–$50 and sends the exact
-              displayed native ETH amount. During the lobby a player may change the predicted price and add more
-              native ETH up to the contract&apos;s cumulative wei cap, but cannot reduce the stake or withdraw.
+              The interface hides predictions during the lobby. This is display privacy, <strong>not cryptographic
+              secrecy</strong>: Solana account data is public.
             </li>
-            <li>
-              The regular interface and contract getter hide predicted prices during the lobby while showing stakes.
-              This is display privacy, <strong>not cryptographic secrecy</strong>: calldata and blockchain storage are
-              public and can be inspected by advanced users.
-            </li>
-            <li>
-              Entry and edits close automatically when the lobby ends; no separate start transaction is required.
-              Predictions then become visible and the game runs for the chosen duration.
-            </li>
-            <li>
-              The final price comes from the last Robinhood block strictly before the Arena deadline. The keeper&apos;s
-              transaction time cannot move that boundary.
-            </li>
+            <li>The final price is the asset&apos;s price just before the deadline.</li>
           </ol>
-          <p>
-            Stock Arenas predict a StockToken/USDG price in USDG. Meme Arenas predict a MemeToken/ETH price in ETH.
-            Crypto Arenas predict BTC/USDG or ETH/USDG in USDG. Those are price quote units only; native ETH is the
-            stake and payout currency in every category.
-          </p>
         </Section>
 
-        <Section id="arena-payouts" title="8. Arena ranking and payout mathematics">
+        <Section id="arena-payouts" title="6. Arena ranking and payout mathematics">
           <p>
-            Every entry is ranked by absolute error. The winning count is <strong>floor(player count ÷ 2)</strong>, so
-            the closest half wins: 2 players produce 1 winner, 3 produce 1 winner, 4 produce 2 winners, and so on.
+            Every entry is ranked by absolute error. The winning count is <strong>floor(player count ÷ 2)</strong>: 2
+            players produce 1 winner, 3 produce 1, 4 produce 2, and so on.
           </p>
           <Formula>error = |predicted price − final price|</Formula>
           <p>
-            Equal error is broken first by the earlier most recent prediction update, then deterministically by wallet
-            address. Adding stake without changing the prediction preserves the original tiebreak priority; changing
-            the prediction resets it to the edit time.
+            On equal error, the player whose current prediction was made earlier ranks higher. Adding stake without
+            changing the prediction keeps that priority; changing the prediction moves the player behind everyone who
+            predicted before.
           </p>
-          <p>
-            Winners recover their principal and divide the losing half&apos;s pool according to both stake and accuracy.
-            The least accurate winner at the cutoff receives a 1× accuracy multiplier; more accurate winners scale up
-            toward 3×.
-          </p>
-          <Formula>
-            score = stake × [1 + 2 × (cutoff error − player error) ÷ cutoff error]
-          </Formula>
+          <Formula>score = stake × [1 + 2 × (cutoff error − player error) ÷ cutoff error]</Formula>
           <Formula>payout = stake + (player score ÷ total winner scores) × losing pool × 98%</Formula>
           <p>
-            If the cutoff error is zero, exact-price winners use a 1× multiplier and stake alone determines their
-            shares. The 2% fee applies only to the losing pool. Exactly 1% of the losing pool is credited to the
-            immutable Arena creator and 1% goes to Prophet; integer rounding dust also remains protocol funds.
-            Fewer than two players or a stale deadline price cancels the Arena and enables full refunds.
+            The least accurate winner receives a 1× multiplier, an exact hit 3×. The 2% fee applies only to the losing
+            pool, half to the Arena creator and half to Prophet. Fewer than two players, a deadline price older than 60
+            seconds, or no resolution within one hour after the deadline cancels the Arena with full refunds.
           </p>
         </Section>
 
-        <Section id="prices" title="9. Live prices, deadline settlement and keepers">
+        <Section id="prices" title="7. Prices, settlement and automation">
           <p>
-            Prices visible in the interface come from the reviewed Robinhood Chain liquidity pools. A shared live
-            service polls those pools every two seconds and distributes one synchronized snapshot to the ticker,
-            cards and game screens. These values are for display and do not themselves settle a game.
+            Prophet&apos;s price service reads every reviewed pool at the last block strictly before a game boundary and
+            signs one message covering all needed assets together with that block and its direct child. The programs
+            accept it only if it carries the game&apos;s oracle signature, is bound to that program, proves the boundary
+            falls between the two blocks, and includes every required asset at the expected precision.
           </p>
           <p>
-            The same service caches one public ETH/USD quote for every stake form, refreshing it no faster than every
-            15 seconds. Players may enter USD or ETH; reciprocal conversion and range checks use fixed-point integer
-            arithmetic, and the exact wei value and quote are frozen when the wallet request is built. Missing or stale
-            quotes block betting. Onchain min/max values are broad fixed ETH safety fuses, not dollar enforcement.
+            This separates <strong>when the outcome is measured</strong> from <strong>when the transaction lands</strong>.
+            A delayed submission can delay finalization but cannot choose a later price. Anyone may submit a valid
+            signed price; Prophet runs the production automation and pays its fees.
           </p>
           <p>
-            Markets, Races and Arena use the shared <code className="text-[#8B7CF7]">SignedPoolRaceOracle</code> for
-            settlement. A keeper watches scheduled boundaries and submits signed proofs containing two adjacent
-            Robinhood blocks. The oracle verifies signatures, parent linkage and timestamps, then selects the last
-            block strictly before the required boundary. The resulting price, timestamp and observation identifier
-            are stored onchain.
-          </p>
-          <p>
-            This design separates <strong>when the outcome is measured</strong> from <strong>when the resolve
-            transaction is mined</strong>. A delayed keeper can delay finalization, but it cannot choose a later price.
-            Keeper actions are permissionless at the contract level where applicable, while Prophet operates the
-            production automation and pays its gas.
-          </p>
-          <p>
-            The three game contracts are non-upgradeable deployments with separate balances and accounting. The owner
-            controls approved asset identities, protocol configuration and accumulated fee withdrawal; new activity
-            can be paused where supported without blocking already-available claims and refunds.
+            Prices shown while a game runs are for display only. One cached SOL/USD quote drives every stake form so the
+            USD and SOL amounts you see match what the wallet sends.
           </p>
         </Section>
 
+        <Section id="trust" title="8. Trust and administration">
+          <p>
+            An admin key approves assets and stake currencies, sets the oracle key for new games, can pause new games
+            and bets, and withdraws protocol fees. It cannot change a running game&apos;s oracle key, assets, fee or rules,
+            cannot cancel an Arena, and the fee is capped at 10% in program code. Pausing never blocks starting,
+            resolving, claims or refunds. Programs are upgradeable by their upgrade authority. There is no external
+            audit; thin pools near a boundary remain a manipulation risk that liquidity floors reduce but do not
+            eliminate.
+          </p>
+        </Section>
       </article>
     </div>
   )
@@ -333,7 +225,7 @@ function Section({ id, title, children }: { id: string; title: string; children:
   return (
     <section id={id} className="scroll-mt-20">
       <h2 className="mb-3 text-xl font-bold">{title}</h2>
-      <div className="space-y-3 text-sm leading-relaxed text-white/60">{children}</div>
+      <div className="space-y-3 text-sm leading-relaxed text-[#1B1340]/70">{children}</div>
     </section>
   )
 }
@@ -352,17 +244,17 @@ function ModeCard({
   return (
     <Link
       to={link}
-      className="rounded-2xl border border-white/10 bg-[#241b2f] p-4 transition-colors hover:border-[#8B7CF7]/40"
+      className="rounded-none border border-[#1B1340]/15 bg-[#FFF6DF] p-4 transition-colors hover:border-[#ff4f8b]/40"
     >
       <span className={`font-display text-lg font-bold ${accent}`}>{title}</span>
-      <span className="mt-1 block text-xs leading-relaxed text-white/45">{children}</span>
+      <span className="mt-1 block text-xs leading-relaxed text-[#1B1340]/55">{children}</span>
     </Link>
   )
 }
 
 function Formula({ children }: { children: ReactNode }) {
   return (
-    <div className="overflow-x-auto rounded-xl border border-[#8B7CF7]/20 bg-[#8B7CF7]/10 px-4 py-3 font-mono text-xs text-[#d7d0ff]">
+    <div className="overflow-x-auto rounded-none border border-[#ff4f8b]/20 bg-[#ff4f8b]/10 px-4 py-3 font-mono text-xs text-[#d7d0ff]">
       {children}
     </div>
   )

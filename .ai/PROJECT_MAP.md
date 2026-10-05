@@ -1,121 +1,66 @@
 # Project Map
 
-Prophet is a prediction-market frontend with real-chain and browser-only demo
-modes. Existing PredictionMarket functionality is live on Robinhood Chain
-mainnet (4663), uses real funds and has no external audit. Asset Race work is
-separate; configured production sources do not imply a deployed race environment.
+Prophet is being rebuilt on Solana (branch `solana-migration`): Coin Duels and Price Arena paid in SOL, a
+pump.fun launchpad and an automatic PumpSwap coin list. There is no program of our own: players send SOL with
+a `prophet:` memo to the game wallet, and the game server runs the games and pays out. Prices are USD spot
+prices from reviewed Solana DEX pools, signed by the price service. The earlier Robinhood Chain (EVM) product
+stays live from `main` until it is wound down. No external audit. Every mainnet action is real money.
 
-React/TypeScript/Vite frontend, wagmi/viem chain access, Foundry contracts.
-There is no general application-backend framework: server-side race functionality
-is implemented as small Node scripts/services. Mock demo state stays in-browser.
+Node services in `scripts/solana/`, React/TypeScript/Vite frontend in `src/`. The local validator lives in WSL
+(Ubuntu, user `dev`).
 
-Current code/Git are authoritative. Counts, pending work and validation belong
-in HANDOFF, not this map. Read AGENTS for permissions and startup rules.
+Current code/Git are authoritative. Counts, pending work and validation belong in HANDOFF, not this map. Read
+AGENTS for permissions and startup rules.
 
 ## Areas and entry points
 
 | Area | Principal paths/files |
 | --- | --- |
+| Game server | `scripts/solana/game-server/server.mjs` (HTTP :8792, env checks), `engine.mjs` (games, signed actions), `deposits.mjs`, `payouts.mjs` |
+| Game rules | `scripts/solana/game-server/rules.mjs` (races, arenas, memos), `duel.mjs` (duels) |
+| Server support | `chain.mjs` (RPC), `db.mjs` (SQLite), `prices.mjs` (oracle-checked prices), `views.mjs` (history), `pumpswap.mjs` |
+| Server tests / tools | `scripts/solana/game-server/*.test.mjs`, `e2e-localnet.mjs`, `admin.mjs` |
+| Price service | `scripts/solana/price-service/service.mjs` (:8790), `pools.mjs` (decoders), `check-prices.mjs` |
 | Frontend bootstrap/routes | `src/main.tsx`, `src/App.tsx` |
-| Real-chain pages | `src/pages/Onchain*.tsx`; races: `OnchainRacesListPage.tsx`, `OnchainRacePage.tsx`, `OnchainCreateRacePage.tsx` |
-| Race UI | `src/components/AssetRaceLeaderboard.tsx`, `AssetRaceLiveView.tsx` |
-| Chain configuration | `src/chain/config.ts`, `src/chain/contracts.ts` |
-| Race reads/writes | `src/chain/assetRaces.ts`, `useAssetRace.ts`, `useApprovedRaceAssets.ts` |
-| Central asset/source registry | `config/asset-race-assets.json`, `src/chain/assetRaceRegistry.ts` |
-| Race lifecycle/economics | `contracts/src/AssetRace.sol` |
-| Existing market/nicknames | `contracts/src/PredictionMarket.sol`, `NicknameRegistry.sol` |
-| Oracle contract interface | `contracts/src/interfaces/IAssetRaceOracle.sol` |
-| Current signed-pool verifier | `contracts/src/oracles/SignedPoolRaceOracle.sol` |
-| Other oracle adapter | `contracts/src/oracles/ChainlinkV3RaceOracle.sol` |
-| Local mock oracle | `contracts/src/mocks/MockRaceOracle.sol` |
-| Shared direct-pool pricing | `scripts/asset-race-pool-price-engine.mjs` |
-| Historical endpoint selection/collection | `scripts/asset-race-pool-endpoints.mjs` |
-| Archive pacing/retry budget | `scripts/asset-race-rpc-budget.mjs` |
-| Lifecycle automation | `scripts/asset-race-keeper.mjs` |
-| LIVE collection/service | `scripts/asset-race-live-prices.mjs`, `asset-race-live-server.mjs` |
-| LIVE frontend/display math | `src/chain/useAssetRaceLiveDisplay.ts`, `assetRaceLiveDisplay.ts` |
-| Registry/runtime market review | `scripts/check-asset-race-registry.mjs`, `check-asset-race-stock-pools.mjs`, `check-asset-race-meme-pools.mjs` |
-| Read-only executable quotes | `scripts/asset-race-pool-quotes.mjs` |
-| Browser-only simulation | `src/store/`, `src/market/`, `src/components/ChainEngine.tsx` |
-| Contract tests | `contracts/test/`, `contracts/test/helpers/` |
-| Script/display tests | `scripts/*.test.mjs` |
-| Local setup | `contracts/local-demo.sh`, `contracts/script/LocalAssetRace.s.sol` |
-| Race local transaction E2E | `scripts/asset-race-stock-e2e.mjs` (Stock and Meme modes) |
-| Race deployment/configuration | `contracts/script/DeployAssetRace.s.sol`, `ConfigureAssetRace.s.sol`, `RotateAssetRaceOracle.s.sol` |
-| Build configuration | `vite.config.ts`, `package.json`, `contracts/foundry.toml` |
+| Solana client layer | `src/solana/` (cluster config, service URLs, wallet provider, `prophetWallet.ts`) |
+| Game data layer | `src/chain/` (`gameServer.ts`, `duels.ts`, `priceArena.ts`, `livePrices.ts`, `pumpLaunch.ts`, stake transfer hook) |
+| Pages | `src/pages/Onchain*.tsx` (duels, arenas, PumpSwap, launch, portfolio, leaderboard, archive, landing) |
+| Asset registry | `config/solana-assets.json` (generated); owner approval `config/solana-catalog-approved.json` |
+| Catalog tooling | `scripts/solana-catalog-scan.mjs`, `solana-catalog-propose.mjs`, `solana-assets-config.mjs` |
+| Local stand | `scripts/solana/localnet.sh` (plain validator) |
+| Build configuration | `vite.config.ts`, `package.json`, `.github/workflows/deploy.yml` |
 
-## Pricing and settlement pointers
+## Money and settlement pointers
 
-Approved race pricing uses frozen DEX sources and signed historical endpoint
-block pairs. The signed-pool adapter authenticates configured signer attestations;
-it is not a general onchain proof of arbitrary historical pool state.
-Stocks quote USDG; Memes use canonical WETH or approved V4 native ETH, normalized
-to ETH_QUOTE. Exact token/PoolKey/quote representation remains source-bound.
-LIVE is provisional display, not a settlement price authority. Consult the pool
-engine, endpoint collector, signed-pool adapter and related tests for changes.
-Economics and irreversible snapshots live in AssetRace; automation lives in keeper.
+A stake is a top-level System transfer to the game wallet with one `prophet:` memo; each transaction signature
+is applied once; invalid stakes are refunded (dust kept). Every outgoing transfer goes through the payout
+outbox: written, signed, stored with its blockhash expiry, then broadcast; done only at finalized; rebuilt only
+once finalized history proves it never landed. Boundary prices come from the price service as Ed25519
+attestations verified against `ORACLE_PUBKEY`. Only earned fees are swept to the cold wallet.
 
-## Existing commands
-
-From repository root (dependencies already installed; installation requires permission):
+## Commands
 
 ```sh
 npm run dev
 npm run build                 # tsc -b followed by Vite build
 npm run lint
-npm run preview
-npm run check:asset-race-registry
-npm run test:asset-race-collector
-npm run test:asset-race-keeper
-npm run test:asset-race-live
+node --test scripts/solana/game-server/*.test.mjs scripts/solana/price-service/*.test.mjs
+bash scripts/solana/localnet.sh --background          # inside WSL
+GAME_WALLET_KEYPAIR=ephemeral node scripts/solana/game-server/server.mjs
 ```
-
-No dedicated npm typecheck or aggregate test script exists. Build includes
-typechecking; run the relevant test commands, not an invented `npm test`.
-
-From `contracts/` (Foundry binaries may require `~/.foundry/bin` on PATH):
-
-```sh
-forge build
-forge test
-forge test --match-contract 'AssetRace.*'
-forge test --match-contract SignedPoolRaceOracleTest
-forge test --match-contract AssetRaceInvariantTest
-```
-
-Configuration-dependent runtime commands (check scope/authorization first):
-
-```sh
-npm run keeper:asset-race
-npm run live:asset-race
-npm run e2e:asset-race-stock
-npm run e2e:asset-race-meme
-npm run check:asset-race-stock-pools
-npm run check:asset-race-meme-pools
-```
-
-Review checker commands are read-only; E2E/tooling may transact on local Anvil.
-Do not infer external-chain authorization from a command's existence. Read the
-runbook/local script before execution; never inspect secret/.env contents.
 
 ## Documentation instead of rediscovery
 
-- `CLAUDE.md`: authoritative product overview and operating cautions.
-- `README.md`: mock/demo architecture only; not a description of real mode.
-- `ROADMAP.md`: product history and explicitly deferred work.
-- `contracts/CLAUDE.md`: contract workflow and legacy deployment detail;
-  its dated status/test counts predate Asset Race work.
-- `docs/ASSET_RACE_PRODUCTION_RUNBOOK.md`: signed-pool deployment/keeper setup,
-  timing, launch checklist and trust/spot-manipulation cautions.
-- `docs/ASSET_RACE_LIVE_DISPLAY.md`: direct-pool LIVE, display anchors/fallback.
-- `docs/ASSET_RACE_STOCK_POOL_REVIEW.md`: Stock identities, pools and evidence.
-- `docs/ASSET_RACE_MEME_POOL_REVIEW.md`: original approved Meme pool evidence.
-- `docs/ASSET_RACE_MEME_CATALOG_EXPANSION.md`: previous expansion review.
-- `docs/ASSET_RACE_TARGETED_MEME_REVIEW.md`: partial native-ETH expansion evidence.
+- `CLAUDE.md`: authoritative overview and operating cautions.
+- `docs/HANDOFF.md`: status, VPS layout, local stand, next steps.
+- `README.md`: layout, local run, environment variables.
+- `docs/SOLANA_MIGRATION.md`: decisions and phases.
+- `docs/GAME_SERVER_REVIEW_BACKLOG.md`: game server review.
+- `docs/SOLANA_CHANGELOG.md`: what changed vs the EVM product and why (Russian).
+- `docs/SOLANA_ASSET_CATALOG.md`: reviewed assets.
 
 ## Sensitive areas
 
-Payout/liability/fee accounting; endpoint lineage/common blocks; signer trust;
-canonical token/pool bindings; decimals/orientation; production enablement;
-claim/refund semantics; deployments and existing live PredictionMarket behavior.
-Honor AGENTS authorization rules; preserve the actual dirty working tree.
+Deposit ingest and refunds; payout outbox and its finality checks; liabilities, fees and sweep; signed-action
+verification (domain, nonce, replay); oracle signature checks and price decimals; duel tax and split math; the
+browser-held Prophet wallet key. Honor AGENTS authorization rules; preserve the actual dirty working tree.

@@ -53,10 +53,11 @@ the task from scratch or rescan the repository by default.
 - Never handle private keys, seed phrases, GitHub tokens, or other secrets.
 - Never read or expose secrets or `.env` contents.
 - Treat every real-mode blockchain interaction as real-mainnet and real-money.
-- Do not broadcast transactions, deploy contracts, or change mainnet
-  configuration unless the user explicitly requests it.
-- Do not modify smart contracts unless the task explicitly requires contract
-  changes.
+- Do not broadcast transactions, start the game server against mainnet (it pays
+  real money automatically), or change mainnet configuration unless the user
+  explicitly requests it.
+- Do not change money rules (stake amounts, fees, splits, taxes, refunds) unless
+  the task explicitly requires it.
 - Never change unrelated files.
 - Stay within `.ai/TASK.md`; the user's explicit current request sets or updates
   scope. A neutral/missing task is not permission to resume pending implementation.
@@ -80,22 +81,24 @@ the task from scratch or rescan the repository by default.
 - Validate progressively: targeted tests, related tests, then broader checks.
   Do not repeatedly run the full suite during small implementation steps.
 
-## Settled Asset Race invariants
+## Settled game-server invariants
 
-- AssetRace is separate from PredictionMarket; do not modify contracts unless
-  the task requires it. Preserve payout economics and liability/fee accounting.
-- Maximum six assets per race; Stock and Meme categories do not mix.
-- Freeze each race's approved asset/oracle/source configuration. Use the central
-  registry; never invent or enable unverified production sources.
-- Signed-pool T0 is betting end; T1 is T0 + duration. Use endpoint block E with
-  E.timestamp < T <= B.timestamp and B the consecutive child of E. All active
-  assets share E independently at P0 and P1; never substitute arbitrary late spot.
-- Preserve final percentage-return scoring: highest return wins, exact top tie
-  voids, all-negative races select least-negative. No peak/average/API settlement.
-- Captured endpoints and terminal states are irreversible. Winner claims and
-  VOID/CANCELLED refunds have no arbitrary expiration.
-- Keeper calls remain permissionless automation, not winner-selection authority.
-  Preserve exact source identity, decimals/orientation and category quote safety.
+- No program of our own. A stake is a top-level SOL transfer to the game wallet
+  with one `prophet:` memo; each transaction signature is applied once; stakes
+  that cannot be applied are refunded, dust under 0.001 SOL is kept.
+- Every outgoing transfer goes through the payout outbox: written, signed,
+  stored with its blockhash expiry, then broadcast. Done only at finalized; a
+  payout is rebuilt only once finalized history proves it never landed. Never
+  add a path that sends SOL outside the outbox.
+- Only earned fees are swept to the cold wallet, never player stakes.
+- Settlement prices are price-service attestations verified against
+  `ORACLE_PUBKEY`; never settle on display prices or unsigned data.
+- Duels: highest percentage return wins, exact top tie refunds; fee 2% of
+  winnings only; captured prices and final states are irreversible.
+- Player keys stay in the player's browser (Prophet wallet); the server never
+  receives or stores them (owner decision, 2026-10-05).
+- Catalog changes need the owner's approval in
+  `config/solana-catalog-approved.json`; never enable an unreviewed pool.
 
 ## Automatic task tracking
 

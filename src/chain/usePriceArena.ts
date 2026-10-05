@@ -1,78 +1,42 @@
-import { zeroAddress, type Address } from 'viem'
-import { useReadContract, useReadContracts } from 'wagmi'
-import { assetRaceChain } from '@/chain/config'
-import { ACTIVE_GAME_POLL_INTERVAL_MS, ACTIVE_GAME_REFRESH_OPTIONS } from '@/chain/gameSnapshots'
-import { PRICE_ARENA_ADDRESS, priceArenaAbi, priceArenaAsset, type PriceArenaData, type PriceArenaEntry } from '@/chain/priceArena'
-import { isCoherentPriceArenaSnapshot } from '@/chain/priceArenaSnapshot'
+import type { PublicKey } from '@solana/web3.js'
+import { useQuery } from '@tanstack/react-query'
+import { getJson, type ServerArena } from '@/chain/gameServer'
+import { GAME_SERVER_URL } from '@/solana/services'
+import { PRICE_ARENA_STATUS, arenaFromServer } from '@/chain/priceArena'
+import { DESIGN_SAMPLES_ENABLED, SAMPLE_ARENAS } from '@/chain/designSamples'
 
-export function usePriceArena(
-  arenaId: bigint | null,
-  wallet?: Address,
-  contractAddress: Address | undefined = PRICE_ARENA_ADDRESS,
-) {
-  const address = contractAddress ?? zeroAddress
-  const enabled = !!contractAddress && arenaId != null
-  const limitsQuery = useReadContracts({
-    contracts: [
-      { address, chainId: assetRaceChain.id, abi: priceArenaAbi, functionName: 'minStakeWei' },
-      { address, chainId: assetRaceChain.id, abi: priceArenaAbi, functionName: 'maxStakeWei' },
-    ],
-    query: { enabled: !!contractAddress },
-  })
-  const arenaQuery = useReadContract({
-    address, chainId: assetRaceChain.id, abi: priceArenaAbi, functionName: 'getArena',
-    args: arenaId == null ? undefined : [arenaId],
-    query: { enabled, refetchInterval: ACTIVE_GAME_POLL_INTERVAL_MS, ...ACTIVE_GAME_REFRESH_OPTIONS },
-  })
-  const phaseQuery = useReadContract({
-    address, chainId: assetRaceChain.id, abi: priceArenaAbi, functionName: 'phase',
-    args: arenaId == null ? undefined : [arenaId],
-    query: { enabled, refetchInterval: ACTIVE_GAME_POLL_INTERVAL_MS, ...ACTIVE_GAME_REFRESH_OPTIONS },
-  })
-  const participantsQuery = useReadContract({
-    address, chainId: assetRaceChain.id, abi: priceArenaAbi, functionName: 'getParticipants',
-    args: arenaId == null ? undefined : [arenaId],
-    query: { enabled, refetchInterval: ACTIVE_GAME_POLL_INTERVAL_MS, ...ACTIVE_GAME_REFRESH_OPTIONS },
-  })
-  const participants = (participantsQuery.data ?? []) as readonly Address[]
-  const entryQueries = useReadContracts({
-    contracts: participants.map((player) => ({ address, chainId: assetRaceChain.id, abi: priceArenaAbi, functionName: 'getEntry', args: [arenaId!, player] }) as const),
-    query: {
-      enabled: enabled && participants.length > 0,
-      refetchInterval: ACTIVE_GAME_POLL_INTERVAL_MS,
-      ...ACTIVE_GAME_REFRESH_OPTIONS,
+/** One arena with every entry, and the connected wallet's entry and payout. */
+export function usePriceArena(arenaId: bigint | null, wallet?: PublicKey | null) {
+  const query = useQuery({
+    queryKey: ['arena', arenaId?.toString()],
+    queryFn: async () => {
+      try {
+        return arenaFromServer(await getJson<ServerArena>(`/games/arena/${arenaId}`))
+      } catch (error) {
+        if (error instanceof Error && error.message === 'GameNotFound') return null
+        throw error
+      }
+    },
+    enabled: arenaId != null && GAME_SERVER_URL != null,
+    refetchInterval: (q) => {
+      const arena = q.state.data
+      return arena && arena.status !== PRICE_ARENA_STATUS.OPEN && arena.payouts.every((p) => p.status === 'done') ? 30_000 : 3_000
     },
   })
-  const walletQuery = useReadContract({
-    address, chainId: assetRaceChain.id, abi: priceArenaAbi, functionName: 'getEntry',
-    args: arenaId != null && wallet ? [arenaId, wallet] : undefined,
-    query: {
-      enabled: enabled && !!wallet,
-      refetchInterval: ACTIVE_GAME_POLL_INTERVAL_MS,
-      ...ACTIVE_GAME_REFRESH_OPTIONS,
-    },
-  })
-  const rawArena = arenaQuery.data as unknown as PriceArenaData | undefined
-  const phase = Number(phaseQuery.data ?? 0)
-  const asset = rawArena ? priceArenaAsset(rawArena.assetId) : undefined
-  const arena = rawArena && isCoherentPriceArenaSnapshot(rawArena, phase, asset?.category)
-    ? { ...rawArena, id: arenaId!, phase, asset }
-    : undefined
-  const entries = participants.flatMap((player, index) => {
-    const result = entryQueries.data?.[index]
-    return result?.status === 'success' ? [{ player, entry: result.result as unknown as PriceArenaEntry }] : []
-  })
-  const minStakeResult = limitsQuery.data?.[0]
-  const maxStakeResult = limitsQuery.data?.[1]
-
+  // Dev-only: sample arenas stand in so detail screens can be designed
+  // without servers (same gate as the list hooks).
+  const sample = DESIGN_SAMPLES_ENABLED && arenaId != null ? SAMPLE_ARENAS.find((item) => item.id === arenaId) : undefined
+  const arena = query.data ?? ((query.isFetched || query.isError || GAME_SERVER_URL == null) ? sample : undefined) ?? undefined
+  const me = wallet?.toBase58()
   return {
     arena,
-    entries,
-    walletEntry: walletQuery.data as unknown as PriceArenaEntry | undefined,
-    minStakeWei: minStakeResult?.status === 'success' ? minStakeResult.result : undefined,
-    maxStakeWei: maxStakeResult?.status === 'success' ? maxStakeResult.result : undefined,
-    isLoading: enabled && (limitsQuery.isLoading || arenaQuery.isLoading || phaseQuery.isLoading || participantsQuery.isLoading || entryQueries.isLoading),
-    error: limitsQuery.error ?? arenaQuery.error ?? phaseQuery.error ?? participantsQuery.error ?? entryQueries.error ?? walletQuery.error,
-    refetch: async () => Promise.all([limitsQuery.refetch(), arenaQuery.refetch(), phaseQuery.refetch(), participantsQuery.refetch(), entryQueries.refetch(), walletQuery.refetch()]),
+    entries: arena?.entries ?? [],
+    walletEntry: me ? arena?.entries.find((entry) => entry.player === me) : undefined,
+    payout: me ? arena?.payouts.find((p) => p.wallet === me && (p.kind === 'win' || p.kind === 'refund')) : undefined,
+    minStake: arena?.minStake,
+    maxStake: arena?.maxStake,
+    isLoading: query.isLoading,
+    error: query.error,
+    refetch: async () => { await query.refetch() },
   }
 }

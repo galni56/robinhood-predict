@@ -1,110 +1,28 @@
 import { useMemo } from 'react'
-import { zeroAddress } from 'viem'
-import { useReadContract, useReadContracts } from 'wagmi'
-import { assetRaceChain } from '@/chain/config'
-import { useStableGameCount, useStableGameSnapshots } from '@/chain/useStableGameSnapshots'
-import {
-  ACTIVE_GAME_POLL_INTERVAL_MS,
-  ACTIVE_GAME_REFRESH_OPTIONS,
-  GAME_SNAPSHOT_MULTICALL_BATCH_SIZE,
-  HISTORICAL_GAME_POLL_INTERVAL_MS,
-  splitProgressiveGameIds,
-} from '@/chain/gameSnapshots'
-import { usePriceArenaHistoryIndex, visibleIdsThroughCount } from '@/chain/gameHistory'
-import {
-  PRICE_ARENA_ADDRESS,
-  priceArenaAbi,
-  priceArenaAsset,
-  type PriceArenaData,
-  type PriceArenaViewModel,
-} from '@/chain/priceArena'
-import { isCoherentPriceArenaSnapshot } from '@/chain/priceArenaSnapshot'
+import { arenaFromServer, type PriceArenaViewModel } from '@/chain/priceArena'
+import { DESIGN_SAMPLES_ENABLED, SAMPLE_ARENAS } from '@/chain/designSamples'
+import { convertRows, useGameState, type ServerArena } from '@/chain/gameServer'
 
-export function usePriceArenas() {
-  const address = PRICE_ARENA_ADDRESS ?? zeroAddress
-  const enabled = !!PRICE_ARENA_ADDRESS
-  const countQuery = useReadContract({
-    address, chainId: assetRaceChain.id, abi: priceArenaAbi, functionName: 'arenaCount',
-    query: { enabled, refetchInterval: ACTIVE_GAME_POLL_INTERVAL_MS, ...ACTIVE_GAME_REFRESH_OPTIONS },
-  })
-  const count = Number(useStableGameCount('price-arena-count', countQuery.data))
-  const historyIndex = usePriceArenaHistoryIndex(enabled)
-  const ids = useMemo(
-    () => historyIndex.data
-      ? visibleIdsThroughCount(historyIndex.data, count)
-      : historyIndex.isError
-        ? Array.from({ length: count }, (_, index) => BigInt(index)).reverse()
-        : [],
-    [count, historyIndex.data, historyIndex.isError],
-  )
-  const { fastIds, historyIds } = useMemo(
-    () => splitProgressiveGameIds(ids, 8, true),
-    [ids],
-  )
-  const readsFor = (queryIds: readonly bigint[]) => queryIds.flatMap((id) => [
-    ({ address, chainId: assetRaceChain.id, abi: priceArenaAbi, functionName: 'getArena', args: [id] }) as const,
-    ({ address, chainId: assetRaceChain.id, abi: priceArenaAbi, functionName: 'phase', args: [id] }) as const,
-  ])
-  const fastQueries = useReadContracts({
-    // Arena data and its derived phase must update together. Keeping both reads
-    // in one multicall removes an extra round trip and avoids mixed old/new rows.
-    contracts: readsFor(fastIds),
-    batchSize: GAME_SNAPSHOT_MULTICALL_BATCH_SIZE,
-    query: {
-      enabled: enabled && fastIds.length > 0,
-      refetchInterval: ACTIVE_GAME_POLL_INTERVAL_MS,
-      ...ACTIVE_GAME_REFRESH_OPTIONS,
-    },
-  })
-  const indexScanComplete = historyIndex.data != null || historyIndex.isError || !enabled
-  const countScanComplete = (countQuery.data != null || countQuery.isError) && indexScanComplete
-  const fastScanComplete = countScanComplete && (
-    fastIds.length === 0 || fastQueries.data != null || fastQueries.isError
-  )
-  const historyQueries = useReadContracts({
-    contracts: readsFor(historyIds),
-    batchSize: GAME_SNAPSHOT_MULTICALL_BATCH_SIZE,
-    query: {
-      enabled: enabled && fastScanComplete && historyIds.length > 0,
-      refetchInterval: HISTORICAL_GAME_POLL_INTERVAL_MS,
-      ...ACTIVE_GAME_REFRESH_OPTIONS,
-    },
-  })
-  const historyScanComplete = fastScanComplete && (
-    historyIds.length === 0 || historyQueries.data != null || historyQueries.isError
-  )
-  const observedArenas = useMemo(() => {
-    const byId = new Map<string, PriceArenaViewModel>()
-    const collect = (queryIds: readonly bigint[], data: typeof fastQueries.data) => {
-      queryIds.forEach((id, index) => {
-        const arenaResult = data?.[index * 2]
-        const phaseResult = data?.[index * 2 + 1]
-        if (arenaResult?.status !== 'success' || phaseResult?.status !== 'success') return
-        const arena = arenaResult.result as unknown as PriceArenaData
-        const phase = Number(phaseResult.result)
-        const asset = priceArenaAsset(arena.assetId)
-        if (!isCoherentPriceArenaSnapshot(arena, phase, asset?.category)) return
-        byId.set(id.toString(), { ...arena, id, phase, asset })
-      })
-    }
-    collect(fastIds, fastQueries.data)
-    collect(historyIds, historyQueries.data)
-    return ids.map((id) => byId.get(id.toString()) ?? null)
-  }, [fastIds, fastQueries.data, historyIds, historyQueries.data, ids])
-  const stableArenas = useStableGameSnapshots(ids, observedArenas, {
-    // v2 intentionally drops Arena rows captured before structural validation.
-    cacheKey: 'price-arenas-v2',
-    idsReady: countQuery.data != null && indexScanComplete,
-  })
-  const arenas = stableArenas.filter((arena) => (
-    isCoherentPriceArenaSnapshot(arena, arena.phase, arena.asset?.category)
-  ))
+const byNewest = (a: { id: bigint }, b: { id: bigint }) => (a.id > b.id ? -1 : a.id < b.id ? 1 : 0)
 
-  return {
-    arenas,
-    isConfigured: enabled,
-    isLoading: enabled && !historyScanComplete,
-    error: countQuery.error ?? historyIndex.error ?? fastQueries.error ?? historyQueries.error,
-    refetch: async () => Promise.all([historyIndex.refetch(), countQuery.refetch(), fastQueries.refetch(), historyQueries.refetch()]),
+const cache = new WeakMap<ServerArena, PriceArenaViewModel>()
+const convert = (arena: ServerArena) => {
+  let model = cache.get(arena)
+  if (!model) {
+    model = arenaFromServer(arena)
+    cache.set(arena, model)
   }
+  return model
+}
+
+/** Every arena, from the game server's shared snapshot. In dev, sample
+ * arenas stand in while there is nothing, so screens can be designed. */
+export function usePriceArenas() {
+  const state = useGameState()
+  const arenas = useMemo(() => convertRows(state.data?.arenas, convert, 'arena').sort(byNewest), [state.data])
+  const rest = { isLoading: state.isLoading, error: state.error, refetch: async () => { await state.refetch() } }
+  if (DESIGN_SAMPLES_ENABLED && arenas.length === 0 && !state.isLoading) {
+    return { arenas: SAMPLE_ARENAS, ...rest, error: null }
+  }
+  return { arenas, ...rest }
 }

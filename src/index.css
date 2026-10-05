@@ -1,8 +1,8 @@
 @import 'tailwindcss';
 
 @theme {
-  --font-sans: 'Nunito', system-ui, 'Segoe UI', Roboto, sans-serif;
-  --font-display: 'Baloo 2', 'Nunito', system-ui, sans-serif;
+  --font-sans: 'Pixelify Sans', 'Nunito', system-ui, sans-serif;
+  --font-display: 'Press Start 2P', 'Courier New', monospace;
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Consolas, monospace;
 
   /* Prophet brand */
@@ -20,10 +20,25 @@
   --color-lav-100: #f2effb;
   --color-lav-200: #e7e1f8;
   --color-lav-300: #d8cff2;
+
+  /* Retro arcade system (Solana redesign) */
+  --font-pixel: 'Press Start 2P', 'Courier New', monospace;
+  --color-paper-50: #fbf3e2;
+  --color-paper-100: #f3e8cf;
+  --color-sky-400: #6bcbf4;
+  --color-sky-300: #8ddaf8;
+  --color-night-900: #221c40;
+  --color-night-700: #453a7e;
+  --color-ink-950: #191330;
+  --color-sun-400: #ffd23f;
+  --color-sun-500: #f7b928;
+  --color-punch-500: #ff4f8b;
+  --color-grass-500: #58c26e;
+  --color-grass-600: #3da158;
 }
 
 :root {
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 html,
@@ -35,22 +50,16 @@ body,
 body {
   margin: 0;
   overflow-x: hidden;
-  /* Static background painted directly on body - see git history: extra
-     compositing layers intermittently left text unpainted. Brand purple
-     (#8b7cf7 / #6a5ae0) + a warm orange kiss, kept subtle under content. */
-  background:
-    radial-gradient(1200px 700px at 12% -10%, rgba(139, 124, 247, 0.16), transparent 60%),
-    radial-gradient(1000px 650px at 105% 0%, rgba(106, 90, 224, 0.18), transparent 55%),
-    radial-gradient(900px 700px at 50% 115%, rgba(242, 166, 90, 0.1), transparent 55%),
-    #17111f;
-  background-attachment: fixed;
-  color: #f4f0fa;
+  /* Retro arcade paper. Painted directly on body - see git history: extra
+     compositing layers intermittently left text unpainted. */
+  background: #fff6df;
+  color: #1b1340;
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
 }
 
 ::selection {
-  background: #8b7cf766;
+  background: #ffd23f99;
 }
 
 h1,
@@ -76,16 +85,6 @@ h3,
   .skeleton-block { animation: none; }
 }
 
-/* thin scrollbar for tables / explorer lists */
-.scrollbar-thin::-webkit-scrollbar {
-  height: 6px;
-  width: 6px;
-}
-.scrollbar-thin::-webkit-scrollbar-thumb {
-  background: #3f3452;
-  border-radius: 999px;
-}
-
 @keyframes race-result-enter {
   from { opacity: 0; transform: translateY(12px) scale(0.985); }
   to { opacity: 1; transform: translateY(0) scale(1); }
@@ -108,518 +107,18 @@ h3,
 .race-confetti i:nth-child(6) { left: 91%; color: #c084fc; animation-delay: 330ms; }
 
 /* mascot idle float on the landing hero */
-@keyframes mascot-float {
-  0%,
-  100% {
-    transform: translateY(0) rotate(-2deg);
-  }
-  50% {
-    transform: translateY(-14px) rotate(2deg);
-  }
-}
+
 /* new rows sliding into live lists */
-@keyframes row-in {
-  from {
-    opacity: 0;
-    transform: translateY(-8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-@keyframes sparkle-pop {
-  0%,
-  100% {
-    transform: scale(1) rotate(0deg);
-    opacity: 0.8;
-  }
-  50% {
-    transform: scale(1.25) rotate(18deg);
-    opacity: 1;
-  }
-}
-
-/* Creation-form product motion. These are deliberately CSS/SVG-only so the
-   forms stay lightweight and the composition can become static for users who
-   prefer reduced motion. */
-.game-mode-motion {
-  position: relative;
-  isolation: isolate;
-  min-height: 180px;
-  max-height: 260px;
-  flex: 1 1 180px;
-  overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  border-radius: 24px;
-  background: rgba(17, 12, 24, 0.38);
-  pointer-events: none;
-}
-
-.game-mode-motion--market {
-  border-color: rgba(139, 124, 247, 0.2);
-  background:
-    radial-gradient(circle at 50% 52%, rgba(139, 124, 247, 0.2), transparent 34%),
-    linear-gradient(145deg, rgba(139, 124, 247, 0.06), rgba(17, 12, 24, 0.46));
-}
-
-.game-mode-motion--race {
-  border-color: rgba(242, 166, 90, 0.2);
-  background:
-    radial-gradient(ellipse at 50% 55%, rgba(242, 166, 90, 0.15), transparent 47%),
-    linear-gradient(145deg, rgba(242, 166, 90, 0.05), rgba(17, 12, 24, 0.46));
-}
-
-.game-mode-motion--arena {
-  border-color: rgba(122, 159, 240, 0.2);
-  background:
-    radial-gradient(circle at 50% 53%, rgba(122, 159, 240, 0.2), transparent 38%),
-    linear-gradient(145deg, rgba(122, 159, 240, 0.06), rgba(17, 12, 24, 0.46));
-}
-
-.game-motion-grid {
-  position: absolute;
-  inset: 0;
-  z-index: -2;
-  opacity: 0.24;
-  background-image:
-    linear-gradient(rgba(255, 255, 255, 0.045) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.045) 1px, transparent 1px);
-  background-size: 30px 30px;
-  mask-image: linear-gradient(to bottom, transparent 0%, black 24%, black 78%, transparent 100%);
-}
-
-.game-motion-glow {
-  position: absolute;
-  z-index: -1;
-  width: 44%;
-  aspect-ratio: 1;
-  left: 28%;
-  top: 6%;
-  border-radius: 999px;
-  filter: blur(42px);
-  opacity: 0.2;
-}
-
-.game-mode-motion--market .game-motion-glow { background: #8b7cf7; animation: motion-glow 5s ease-in-out infinite; }
-.game-mode-motion--race .game-motion-glow { background: #f2a65a; animation: motion-glow 4.4s ease-in-out infinite; }
-.game-mode-motion--arena .game-motion-glow { background: #7a9ff0; animation: motion-glow 5.4s ease-in-out infinite; }
-
-.game-motion-kicker {
-  position: absolute;
-  z-index: 5;
-  top: 13px;
-  left: 15px;
-  font-size: 9px;
-  font-weight: 900;
-  letter-spacing: 0.18em;
-  color: rgba(255, 255, 255, 0.38);
-}
-
-@keyframes motion-glow {
-  0%, 100% { opacity: 0.13; transform: scale(0.88); }
-  50% { opacity: 0.28; transform: scale(1.08); }
-}
-
-/* Prediction Market: YES and NO stay in orbit while the deadline signal keeps
-   travelling through the target line. */
-.market-signal {
-  position: absolute;
-  inset: auto 0 12px;
-  width: 100%;
-  height: 72%;
-  opacity: 0.66;
-}
-
-.market-target-line {
-  fill: none;
-  stroke: rgba(216, 208, 255, 0.22);
-  stroke-width: 2;
-  stroke-dasharray: 7 8;
-}
-
-.market-signal-path {
-  fill: none;
-  stroke: url(#market-signal-gradient);
-  stroke-width: 3;
-  stroke-linecap: round;
-  stroke-dasharray: 180 520;
-  animation: market-signal-flow 7s linear infinite;
-}
-
-@keyframes market-signal-flow {
-  from { stroke-dashoffset: 620; }
-  to { stroke-dashoffset: -80; }
-}
-
-.market-orbit-wrap {
-  position: absolute;
-  width: 150px;
-  height: 150px;
-  left: 50%;
-  top: 51%;
-  transform: translate(-50%, -50%);
-}
-
-.market-orbit-wrap::before,
-.market-orbit-wrap::after {
-  content: '';
-  position: absolute;
-  border-radius: 999px;
-  inset: 10px;
-  border: 1px solid rgba(139, 124, 247, 0.38);
-  transform: rotate(-16deg) scaleY(0.52);
-  box-shadow: 0 0 28px rgba(139, 124, 247, 0.18);
-}
-
-.market-orbit-wrap::after {
-  inset: 25px;
-  border-color: rgba(216, 208, 255, 0.14);
-  transform: rotate(28deg) scaleY(0.7);
-}
-
-.market-orbit {
-  position: absolute;
-  inset: 0;
-  animation: market-orbit-spin 8s linear infinite;
-}
-
-@keyframes market-orbit-spin { to { transform: rotate(360deg); } }
-
-.market-orbit-chip {
-  position: absolute;
-  left: 50%;
-  display: grid;
-  place-items: center;
-  width: 42px;
-  height: 27px;
-  margin-left: -21px;
-  border-radius: 9px;
-  font-size: 10px;
-  font-weight: 1000;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.26);
-}
-
-.market-orbit-chip span { animation: market-orbit-counter 8s linear infinite; }
-.market-orbit-chip--yes { top: 0; color: white; background: #8b7cf7; transform: rotate(-7deg); }
-.market-orbit-chip--no { bottom: 0; color: #3b2416; background: #f2a65a; transform: rotate(7deg); }
-
-@keyframes market-orbit-counter { to { transform: rotate(-360deg); } }
-
-.market-core {
-  position: absolute;
-  z-index: 3;
-  left: 50%;
-  top: 50%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  transform: translate(-50%, -50%);
-  font-size: 9px;
-  font-weight: 900;
-  color: #d8d0ff;
-  animation: market-core-float 3.2s ease-in-out infinite;
-}
-
-.market-core-halo {
-  position: absolute;
-  inset: -11px;
-  z-index: -1;
-  border-radius: 22px;
-  background: rgba(139, 124, 247, 0.16);
-  filter: blur(2px);
-  animation: market-core-pulse 3.2s ease-in-out infinite;
-}
-
-@keyframes market-core-float {
-  0%, 100% { transform: translate(-50%, -48%); }
-  50% { transform: translate(-50%, -56%); }
-}
-
-@keyframes market-core-pulse {
-  0%, 100% { opacity: 0.45; transform: scale(0.88); }
-  50% { opacity: 1; transform: scale(1.08); }
-}
-
-.market-motion-caption,
-.race-motion-caption {
-  position: absolute;
-  z-index: 5;
-  left: 15px;
-  bottom: 12px;
-  font-size: 10px;
-  font-weight: 800;
-  color: rgba(255, 255, 255, 0.38);
-}
-
-/* Asset Race: canvas-driven lane telemetry (RaceTelemetry.tsx draws the
-   trails and finish gate; these styles position the canvas and the DOM
-   logo chips it moves each frame). */
-.race-tele {
-  position: absolute;
-  inset: 0;
-  z-index: 3;
-}
-
-.race-tele-canvas {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-}
-
-.race-tele-chip {
-  position: absolute;
-  top: 0;
-  left: 0;
-  z-index: 4;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  will-change: transform;
-}
-
-/* The brand mascot runs the lane: leaning forward, bobbing with each
-   stride, little legs cycling underneath. The leader sprints visibly
-   harder (--stride drives the body, both legs and their phase offset). */
-.race-chud-wrap {
-  --stride: 0.52s;
-  position: relative;
-  width: 30px;
-  height: 30px;
-  transform-origin: 50% 88%;
-  animation: chud-run var(--stride) ease-in-out infinite;
-}
-
-.race-tele-chip[data-leader='true'] .race-chud-wrap { --stride: 0.36s; }
-
-.race-chud {
-  position: relative;
-  z-index: 1;
-  width: 100%;
-  height: 100%;
-  filter: drop-shadow(0 5px 10px rgba(17, 12, 24, 0.55));
-}
-
-.race-chud-leg {
-  position: absolute;
-  bottom: 0;
-  z-index: 0;
-  width: 9px;
-  height: 5px;
-  border-radius: 999px;
-  background: #5346c9;
-  animation: chud-leg var(--stride) linear infinite;
-}
-
-.race-chud-leg--left { left: 7px; }
-.race-chud-leg--right { right: 7px; animation-delay: calc(var(--stride) / -2); }
-
-@keyframes chud-run {
-  0%, 100% { transform: rotate(8deg) translateY(0) scaleY(1); }
-  50% { transform: rotate(13deg) translateY(-3px) scaleY(0.95); }
-}
-
-@keyframes chud-leg {
-  /* Stance: the planted foot slides backward (0-50%), then lifts and
-     swings forward through the air (50-100%) - a forward run cycle. */
-  0%, 100% { transform: translate(3px, 3px); }
-  50% { transform: translate(-3px, 3px); }
-  65% { transform: translate(-1px, -2px); }
-  85% { transform: translate(2px, -1px); }
-}
-
-/* Each runner plants a pennant naming the asset it carries. */
-.race-flag {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2.5px 7px 2.5px 4px;
-  border: 1px solid rgba(242, 166, 90, 0.26);
-  border-radius: 9px 9px 9px 2px;
-  background: rgba(26, 19, 36, 0.92);
-  box-shadow: 0 5px 14px rgba(17, 12, 24, 0.45);
-  font-size: 10px;
-  font-weight: 900;
-  color: rgba(255, 211, 168, 0.85);
-  transform-origin: 20% 100%;
-  transition: border-color 0.35s ease, box-shadow 0.35s ease;
-}
-
-.race-tele-chip[data-leader='true'] .race-flag {
-  border-color: rgba(242, 166, 90, 0.65);
-  box-shadow: 0 5px 14px rgba(17, 12, 24, 0.45), 0 0 16px rgba(242, 166, 90, 0.28);
-  color: #ffd3a8;
-  animation: flag-wave 0.9s ease-in-out infinite;
-}
-
-@keyframes flag-wave {
-  0%, 100% { transform: rotate(-1.6deg); }
-  50% { transform: rotate(1.8deg); }
-}
-
-.race-flag-pole {
-  width: 1.5px;
-  height: 7px;
-  margin-bottom: -2px;
-  background: linear-gradient(rgba(242, 166, 90, 0.55), rgba(242, 166, 90, 0.2));
-}
-
-.race-tele-delta {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 9.5px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-}
-
-.race-motion-caption-dim { color: rgba(255, 255, 255, 0.22); font-weight: 700; }
-
-/* Price Arena: forecasts are pulled into the selected asset's target rings.
-   One marker glows a little brighter as it reaches the closest band. */
-.arena-target {
-  position: absolute;
-  width: 176px;
-  height: 176px;
-  left: 50%;
-  top: 52%;
-  transform: translate(-50%, -50%);
-}
-
-.arena-ring {
-  position: absolute;
-  border: 1px solid rgba(122, 159, 240, 0.38);
-  border-radius: 999px;
-  animation: arena-ring-breathe 4.6s ease-in-out infinite;
-}
-
-.arena-ring--one { inset: 0; opacity: 0.34; }
-.arena-ring--two { inset: 25px; opacity: 0.5; animation-delay: -1.5s; }
-.arena-ring--three { inset: 50px; opacity: 0.76; animation-delay: -3s; }
-
-@keyframes arena-ring-breathe {
-  0%, 100% { transform: scale(0.92); opacity: 0.25; }
-  50% { transform: scale(1.04); opacity: 0.78; }
-}
-
-.arena-scan {
-  position: absolute;
-  inset: 10px;
-  border-radius: 999px;
-  animation: arena-scan-spin 7s linear infinite;
-}
-
-.arena-scan::before {
-  content: '';
-  position: absolute;
-  width: 50%;
-  height: 1px;
-  left: 50%;
-  top: 50%;
-  transform-origin: left;
-  background: linear-gradient(90deg, rgba(183, 206, 255, 0.8), transparent);
-  box-shadow: 0 0 10px rgba(122, 159, 240, 0.72);
-}
-
-@keyframes arena-scan-spin { to { transform: rotate(360deg); } }
-
-.arena-core {
-  position: absolute;
-  z-index: 4;
-  left: 50%;
-  top: 50%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1px;
-  transform: translate(-50%, -50%);
-  font-size: 9px;
-  font-weight: 900;
-  color: #d7e4ff;
-  filter: drop-shadow(0 0 12px rgba(122, 159, 240, 0.48));
-}
-
-.arena-forecast-dots { position: absolute; inset: 0; }
-.arena-forecast-dot {
-  --start-x: 0px;
-  --start-y: 0px;
-  --end-x: 0px;
-  --end-y: 0px;
-  position: absolute;
-  z-index: 5;
-  left: 50%;
-  top: 50%;
-  width: 8px;
-  height: 8px;
-  margin: -4px;
-  border: 1px solid rgba(232, 240, 255, 0.75);
-  border-radius: 999px;
-  background: #7a9ff0;
-  box-shadow: 0 0 10px rgba(122, 159, 240, 0.76);
-  animation: arena-gravity 6s cubic-bezier(0.42, 0, 0.2, 1) infinite;
-}
-
-.arena-forecast-dot:nth-child(1) { --start-x: -128px; --start-y: -55px; --end-x: -58px; --end-y: -25px; animation-delay: -0.3s; }
-.arena-forecast-dot:nth-child(2) { --start-x: 118px; --start-y: -68px; --end-x: 66px; --end-y: -37px; animation-delay: -1.25s; }
-.arena-forecast-dot:nth-child(3) { --start-x: 138px; --start-y: 46px; --end-x: 47px; --end-y: 16px; animation-delay: -2.2s; }
-.arena-forecast-dot:nth-child(4) { --start-x: -108px; --start-y: 76px; --end-x: -34px; --end-y: 24px; animation-delay: -3.15s; }
-.arena-forecast-dot:nth-child(5) { --start-x: 16px; --start-y: -102px; --end-x: 8px; --end-y: -54px; animation-delay: -4.1s; }
-.arena-forecast-dot:nth-child(6) { --start-x: 54px; --start-y: 104px; --end-x: 23px; --end-y: 45px; animation-delay: -5.05s; }
-
-.arena-forecast-dot--closest {
-  background: #f7f1e3;
-  border-color: white;
-  box-shadow: 0 0 18px rgba(247, 241, 227, 0.95), 0 0 28px rgba(122, 159, 240, 0.86);
-}
-
-@keyframes arena-gravity {
-  0% { opacity: 0; transform: translate(var(--start-x), var(--start-y)) scale(0.45); }
-  15% { opacity: 0.9; }
-  68% { opacity: 1; transform: translate(var(--end-x), var(--end-y)) scale(1); }
-  78% { opacity: 1; transform: translate(var(--end-x), var(--end-y)) scale(1.5); }
-  100% { opacity: 0; transform: translate(var(--end-x), var(--end-y)) scale(0.3); }
-}
-
-.arena-motion-caption {
-  position: absolute;
-  z-index: 6;
-  left: 15px;
-  right: 15px;
-  bottom: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  font-size: 8px;
-  font-weight: 900;
-  letter-spacing: 0.12em;
-  color: rgba(183, 206, 255, 0.45);
-}
-
-.arena-motion-caption b {
-  font-size: 10px;
-  letter-spacing: 0;
-  color: rgba(215, 228, 255, 0.68);
-}
-
-@media (max-width: 640px) {
-  .game-mode-motion { min-height: 170px; max-height: 190px; }
-  .race-tele-chip .race-tele-delta { display: none; }
-  .arena-target { transform: translate(-50%, -50%) scale(0.88); }
-}
 
 @media (prefers-reduced-motion: reduce) {
   .race-result-enter,
-  .race-confetti i,
-  .game-mode-motion *,
-  .game-mode-motion *::before,
-  .game-mode-motion *::after,
-  .roadmap-hero *,
-  .roadmap-marker,
-  .roadmap-spine,
-  .roadmap-flow-arrow,
-  .roadmap-loop-symbol,
-  .roadmap-fee-bar { animation: none !important; }
+.race-confetti i,
+.roadmap-hero *,
+.roadmap-marker,
+.roadmap-spine,
+.roadmap-flow-arrow,
+.roadmap-loop-symbol,
+.roadmap-fee-bar { animation: none !important; }
 }
 
 /* Roadmap: a slow orbital system turns the three live game modes into one
@@ -729,7 +228,6 @@ h3,
 
 .roadmap-orbit-node span { font-size: 8px; font-weight: 900; letter-spacing: 0.14em; opacity: 0.48; }
 .roadmap-orbit-node b { margin-top: 2px; font-family: var(--font-display); font-size: 14px; }
-.roadmap-orbit-node--market { left: 2%; top: 22%; color: #b3a7fa; }
 .roadmap-orbit-node--race { right: 0; top: 18%; color: #f2a65a; animation-delay: -1.5s; }
 .roadmap-orbit-node--arena { bottom: 17%; right: 5%; color: #b7ceff; animation-delay: -3s; }
 
@@ -776,7 +274,6 @@ h3,
 @media (max-width: 640px) {
   .roadmap-orbit-node { min-width: 88px; padding: 7px 9px; }
   .roadmap-orbit-node b { font-size: 12px; }
-  .roadmap-orbit-node--market { left: 0; top: 19%; }
   .roadmap-orbit-node--race { right: 0; top: 17%; }
   .roadmap-orbit-node--arena { bottom: 14%; right: 1%; }
   .roadmap-orbit-particle--three { --roadmap-radius: min(174px, 42vw); }
@@ -792,3 +289,265 @@ h3,
   .roadmap-loop-symbol,
   .roadmap-fee-bar { animation: none !important; }
 }
+
+/* ------------------------------------------------------------------ retro */
+/* Retro arcade building blocks: hard offset shadows, thick ink borders,
+   pixel headline font. Scoped by class so screens migrate one at a time. */
+
+.retro {
+  background: #fff6df;
+  color: #1b1340;
+}
+
+.px-font {
+  font-family: var(--font-pixel);
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  line-height: 1.5;
+}
+
+.px-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-family: var(--font-pixel);
+  font-size: 12px;
+  text-transform: uppercase;
+  padding: 15px 24px 13px;
+  border: 3px solid var(--color-ink-950);
+  background: var(--color-sun-400);
+  color: var(--color-ink-950);
+  box-shadow: 4px 4px 0 var(--color-ink-950);
+  cursor: pointer;
+  transition: transform 0.08s ease, box-shadow 0.08s ease, background 0.12s ease;
+}
+
+.px-btn:hover { transform: translate(-1px, -1px); box-shadow: 5px 5px 0 var(--color-ink-950); background: var(--color-sun-500); }
+.px-btn:active { transform: translate(3px, 3px); box-shadow: 1px 1px 0 var(--color-ink-950); }
+.px-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: 4px 4px 0 var(--color-ink-950); }
+.px-btn--sm { font-size: 10px; padding: 11px 16px 9px; box-shadow: 3px 3px 0 var(--color-ink-950); }
+
+@media (prefers-reduced-motion: reduce) {
+  .px-btn, .px-btn:hover, .px-btn:active { transform: none; }
+}
+
+/* ---------------------------------------------------------- track scene */
+/* Landing night road: lane markings slide left while runners cross the
+   whole strip at different lap times, so the order genuinely changes. */
+
+/* ------------------------------------------------------------- mock kit */
+/* Exact recipes lifted from the approved design mock: pixel-square borders
+   and bevels are box-shadow stacks (no CSS borders), all motion is steps(). */
+
+@keyframes rx-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+@keyframes rx-road {
+  to { background-position: -72px 0; }
+}
+
+@keyframes rx-blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0.35; }
+}
+
+@keyframes rx-drift {
+  from { transform: translateX(0); }
+  to { transform: translateX(48px); }
+}
+
+/* 4-side pixel border (plates, labels, swatches). */
+.rx-plate {
+  box-shadow: -4px 0 0 0 #1b1340, 4px 0 0 0 #1b1340, 0 -4px 0 0 #1b1340, 0 4px 0 0 #1b1340;
+  margin: 4px;
+}
+
+/* Raised card: pixel border + chunky base. */
+.rx-raised {
+  box-shadow:
+    -4px 0 0 0 #1b1340, 4px 0 0 0 #1b1340, 0 -4px 0 0 #1b1340, 0 4px 0 0 #1b1340,
+    -4px 8px 0 0 #1b1340, 4px 8px 0 0 #1b1340, 0 12px 0 0 #1b1340;
+  margin: 4px 4px 12px;
+}
+
+/* Bevelled buttons: border + inner highlight/shade + base. */
+.rx-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  box-sizing: border-box;
+  border: 0;
+  cursor: pointer;
+  color: #1b1340;
+  text-align: center;
+  text-decoration: none;
+  line-height: 1.2;
+  margin: 4px 4px 12px;
+  transition: filter 0.1s steps(2);
+}
+
+.rx-btn:hover { filter: brightness(1.05); color: #1b1340; }
+.rx-btn:active { transform: translateY(4px); }
+.rx-btn:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+
+.rx-btn-yellow {
+  background: #ffd23f;
+  box-shadow:
+    -4px 0 0 0 #1b1340, 4px 0 0 0 #1b1340, 0 -4px 0 0 #1b1340, 0 4px 0 0 #1b1340,
+    inset 4px 4px 0 0 #ffec99, inset -4px -4px 0 0 #e0a100,
+    -4px 8px 0 0 #1b1340, 4px 8px 0 0 #1b1340, 0 12px 0 0 #1b1340;
+}
+
+.rx-btn-pink {
+  background: #ff5c8a;
+  box-shadow:
+    -4px 0 0 0 #1b1340, 4px 0 0 0 #1b1340, 0 -4px 0 0 #1b1340, 0 4px 0 0 #1b1340,
+    inset 4px 4px 0 0 #ffa3bd, inset -4px -4px 0 0 #c2245a,
+    -4px 8px 0 0 #1b1340, 4px 8px 0 0 #1b1340, 0 12px 0 0 #1b1340;
+}
+
+.rx-btn-white {
+  background: #ffffff;
+  box-shadow:
+    -4px 0 0 0 #1b1340, 4px 0 0 0 #1b1340, 0 -4px 0 0 #1b1340, 0 4px 0 0 #1b1340,
+    inset 4px 4px 0 0 #ffffff, inset -4px -4px 0 0 #e6dcc0,
+    -4px 8px 0 0 #1b1340, 4px 8px 0 0 #1b1340, 0 12px 0 0 #1b1340;
+}
+
+.rx-input {
+  box-sizing: border-box;
+  border: 0;
+  outline-offset: 6px;
+  color: #1b1340;
+  background: #ffffff;
+  box-shadow: -4px 0 0 0 #1b1340, 4px 0 0 0 #1b1340, 0 -4px 0 0 #1b1340, 0 4px 0 0 #1b1340, inset 4px 4px 0 0 #e6dcc0;
+  margin: 4px;
+}
+
+/* Road lane dashes + finish checker, exactly as mocked. */
+.rx-road-dashes {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 4px;
+  background-image: repeating-linear-gradient(90deg, #fff6df 0 32px, transparent 32px 72px);
+  opacity: 0.5;
+  animation: rx-road 0.45s steps(9) infinite;
+}
+
+.rx-grass {
+  background: #58d36b;
+  box-shadow: inset 0 4px 0 0 #8be89a;
+}
+
+.rx-font-pixel { font-family: 'Press Start 2P', 'Courier New', monospace; font-weight: 400; }
+
+@media (prefers-reduced-motion: reduce) {
+  [style*='rx-bob'], .rx-road-dashes { animation: none !important; }
+}
+
+/* ---------------------------------------------------- landing motion kit */
+/* Used by src/retro/landingFx.tsx. The race loop: running 0-80%, finish
+   celebration (crown, waving flag, confetti) 80-100%. */
+
+@keyframes rx-fx-spin { to { transform: rotate(360deg); } }
+.rx-fx-spin { animation: rx-fx-spin 24s steps(48) infinite; }
+
+@keyframes rx-fx-cross {
+  from { transform: translateX(-200px); }
+  to { transform: translateX(110vw); }
+}
+.rx-fx-cross { animation: rx-fx-cross 60s linear infinite; }
+
+@keyframes rx-fx-crown {
+  0%, 79% { opacity: 0; transform: translateY(6px); }
+  82%, 100% { opacity: 1; transform: translateY(0); }
+}
+.rx-fx-crown { animation: rx-fx-crown 11s steps(4) infinite; }
+
+@keyframes rx-fx-flag {
+  0%, 79%, 100% { transform: skewY(0deg); }
+  83% { transform: skewY(-12deg); }
+  87% { transform: skewY(8deg); }
+  91% { transform: skewY(-10deg); }
+  95% { transform: skewY(6deg); }
+}
+.rx-fx-flag { transform-origin: left center; animation: rx-fx-flag 11s steps(2) infinite; }
+
+@keyframes rx-fx-confetti {
+  0%, 79% { opacity: 0; transform: translate(0, 0) rotate(0deg); }
+  81% { opacity: 1; }
+  98% { opacity: 1; transform: translate(var(--rx-dx, 16px), 60px) rotate(270deg); }
+  100% { opacity: 0; }
+}
+.rx-fx-confetti { animation: rx-fx-confetti 11s steps(12) infinite; opacity: 0; }
+
+@keyframes rx-fx-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+.rx-fx-float { animation: rx-fx-float 2.4s steps(4) infinite; }
+
+@keyframes rx-fx-shine {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.35); }
+}
+.rx-fx-shine { animation: rx-fx-shine 1.6s steps(4) infinite; }
+
+/* Coin characters hop when their card is hovered. */
+@keyframes rx-hop {
+  0%, 100% { transform: translateY(0); }
+  30% { transform: translateY(-12px); }
+  60% { transform: translateY(-4px); }
+}
+.rx-hop-host:hover .rx-hop, .rx-hop:hover { animation: rx-hop 0.5s steps(5) infinite; }
+
+/* Arcade press: the button sinks onto its base. */
+.rx-btn:active:not(:disabled) {
+  transform: translateY(8px);
+  box-shadow:
+    -4px 0 0 0 #1b1340, 4px 0 0 0 #1b1340, 0 -4px 0 0 #1b1340, 0 4px 0 0 #1b1340,
+    inset 4px 4px 0 0 rgba(0, 0, 0, 0.12);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rx-fx-spin, .rx-fx-cross, .rx-fx-float, .rx-fx-shine, .rx-hop-host:hover .rx-hop, .rx-hop:hover { animation: none !important; }
+}
+
+/* A coin joining the starting grid slides in from the left. */
+@keyframes rx-fx-enter {
+  from { transform: translateX(-60px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+.rx-fx-enter { animation: rx-fx-enter 0.35s steps(5) both; }
+
+/* Fans in the grandstand bounce all race and jump when the winner crosses
+   the line (80-95% of the heat, like the crown and confetti). */
+@keyframes rx-fx-fan-jump {
+  0%, 79%, 100% { translate: 0 0; }
+  82%, 88%, 94% { translate: 0 -8px; }
+  85%, 91%, 97% { translate: 0 0; }
+}
+.rx-fx-fan { animation: rx-bob 0.6s steps(1) infinite, rx-fx-fan-jump var(--rx-heat, 11s) steps(1) 1 both; }
+@media (prefers-reduced-motion: reduce) { .rx-fx-fan { animation: none !important; } }
+
+/* Phones: the sun shrinks into the corner, the nav goes under the logo row
+   in a compact two-line block. */
+@media (max-width: 640px) {
+  .rx-sun { transform: scale(0.5); transform-origin: top right; }
+  .rx-navbar { padding: 12px 16px !important; gap: 8px 12px !important; }
+  .rx-navbar-links { order: 3; width: 100%; font-size: 17px !important; gap: 0 18px !important; }
+  .rx-navbar-links a, .rx-navbar-links button { min-height: 36px !important; }
+}
+
+/* Cheer fireworks: ten pixels fly out from the coin. */
+@keyframes rx-fx-burst {
+  from { transform: rotate(var(--rx-a)) translateX(0); opacity: 1; }
+  to { transform: rotate(var(--rx-a)) translateX(46px); opacity: 0; }
+}
+.rx-fx-burst { animation: rx-fx-burst 0.7s steps(7) forwards; }

@@ -1,0 +1,12 @@
+{
+  "_comment": "PumpSwap coins never offered in games: honeypots, wash-traded volume. Mints are exact; symbols are case-insensitive. Coins already in a running game stay until it ends.",
+  "mints": [
+    "nfjQVkuF5FVLYbgegH3kyLWbV5SaKXHLuumF26xpump",
+    "yKGGjQCLr8rSz1eBCVeKBoxDjRxgJiBqs2Duj47pump"
+  ],
+  "symbols": [
+    "IOF",
+    "SARP",
+    "BOIF"
+  ]
+}

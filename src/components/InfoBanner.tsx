@@ -2,9 +2,9 @@ import type { ReactNode } from 'react'
 
 const TONES = {
   // purple: neutral product information
-  info: 'border-[#8B7CF7]/25 bg-[#8B7CF7]/10 text-[#B3A7FA]',
+  info: 'border-[#ff4f8b]/25 bg-[#ff4f8b]/10 text-[#ff4f8b]',
   // orange: preview/local/caution notes
-  warning: 'border-[#F2A65A]/25 bg-[#F2A65A]/10 text-[#F2A65A]',
+  warning: 'border-[#ffd23f]/25 bg-[#ffd23f]/10 text-[#B8860B]',
 } as const
 
 /** The one page-level notice strip (preview mode, local network, legacy
@@ -19,5 +19,5 @@ export function InfoBanner({
   className?: string
   children: ReactNode
 }) {
-  return <div className={`rounded-2xl border px-4 py-3 text-sm font-medium ${TONES[tone]} ${className}`}>{children}</div>
+  return <div className={`rounded-none border px-4 py-3 text-sm font-medium ${TONES[tone]} ${className}`}>{children}</div>
 }

@@ -1,0 +1,59 @@
+{
+  "$comment": "Owner-approved assets. Only symbols listed here get approved: true in config/solana-assets.json. Edit only on the owner's instruction.",
+  "approvedBy": "owner",
+  "approvedAt": "2026-10-05",
+  "symbols": {
+    "CRYPTO": [
+      "BTC",
+      "SOL",
+      "ETH",
+      "HYPE",
+      "ZEC",
+      "PUMP",
+      "NEAR",
+      "DOGE",
+      "BNB",
+      "SUI",
+      "XRP"
+    ],
+    "MEME": [
+      "TRUMP",
+      "PENGU",
+      "WIF",
+      "FARTCOIN",
+      "PONKE",
+      "PNUT",
+      "PIPPIN",
+      "BOME",
+      "POPCAT",
+      "MEW"
+    ],
+    "STOCK": [
+      "NVDAx",
+      "TSLAx",
+      "AAPLx",
+      "METAx",
+      "MSTRx",
+      "AMZNx",
+      "MSFTx",
+      "GOOGLx",
+      "COINx",
+      "HOODx",
+      "CRCLx",
+      "SPYx",
+      "QQQx"
+    ]
+  },
+  "rejected": {
+    "BONK": "best decodable pool $412k, below the $500k meme floor",
+    "AI16Z": "best pool $49k; price can be moved cheaply at a boundary",
+    "SLERF": "no supported USDC/SOL pool",
+    "ADA": "no Cardano on Solana: the verified \"ADA\" mint is an unrelated pump.fun meme at $0.0003"
+  },
+  "thinPoolsAccepted": {
+    "DOGE": "owner 2026-10-05: best USDC pool $341k",
+    "BNB": "owner 2026-10-05: best pool $164k",
+    "SUI": "owner 2026-10-05: best pool $102k",
+    "XRP": "owner 2026-10-05: wXRP best pool $40k (SOL-quoted)"
+  }
+}

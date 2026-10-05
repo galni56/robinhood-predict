@@ -1,8 +1,22 @@
 name: Deploy to GitHub Pages
 
+# Owner decision (2026-10-03): GitHub Pages shows the Solana preview from
+# branch solana-migration instead of the EVM mirror. The live EVM product keeps
+# running from main on the VPS (prophetmarkets.fun); note that a push to main
+# still runs main's own copy of this workflow and would put the EVM build back.
+#
+# Two modes, switched by the repository variable SOLANA_LIVE (Settings ->
+# Secrets and variables -> Actions -> Variables), no code change needed:
+# - unset / not "true": a preview with the services off; the site shows the
+#   last known data the VPS keeps serving.
+# - "true": the real game on mainnet. Prices, the game server, RPC and
+#   websockets all go through the VPS (prophetmarkets.fun/api/solana/...).
+#   The VPS game server must list this site's host in SIGNING_DOMAINS.
+# Re-run the workflow (Actions -> Deploy to GitHub Pages -> Run workflow)
+# after changing the variable.
 on:
   push:
-    branches: [main]
+    branches: [solana-migration]
   workflow_dispatch:
 
 permissions:
@@ -18,24 +32,21 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      # Production V2 bindings. Vite rejects any address mismatch while
-      # VITE_NATIVE_ETH_RELEASE is true.
-      VITE_NATIVE_ETH_RELEASE: "true"
-      VITE_MARKET_ADDRESS: "0xF62CF5Db594c4b706555584ccEC9Fb9a61541D4a"
-      VITE_DEPLOY_BLOCK: "76951947"
-      VITE_ASSET_RACE_NETWORK: "robinhood-mainnet"
-      VITE_ASSET_RACE_ADDRESS: "0xebA246E4B548b93079Bf4D85faA50fa8b7Ff9c6e"
-      VITE_ASSET_RACE_SIGNED_POOL_ORACLE_ADDRESS: "0x5b0f7e62E0A5fF5C5C02Ad219Afcd086F2618Db7"
-      VITE_PRICE_ARENA_ADDRESS: "0x541be0c7c1011a63465Ff53408e9F76DA870b29f"
-      VITE_ALL_ASSET_TYPES_ENABLED: "true"
-      # GitHub Pages has no same-origin SSE backend.
-      VITE_ASSET_RACE_LIVE_ENABLED: "false"
+      VITE_SOLANA_CLUSTER: ${{ vars.SOLANA_LIVE == 'true' && 'mainnet-beta' || 'devnet' }}
+      VITE_SOLANA_RPC_URL: ${{ vars.SOLANA_LIVE == 'true' && 'https://prophetmarkets.fun/api/solana/rpc' || '' }}
+      VITE_SOLANA_WS_URL: ${{ vars.SOLANA_LIVE == 'true' && 'wss://prophetmarkets.fun/api/solana/ws' || '' }}
+      VITE_PRICE_SERVICE_URL: ${{ vars.SOLANA_LIVE == 'true' && 'https://prophetmarkets.fun/api/solana/price-service' || 'off' }}
+      VITE_GAME_SERVER_URL: ${{ vars.SOLANA_LIVE == 'true' && 'https://prophetmarkets.fun/api/solana/game-server' || 'off' }}
+      VITE_LAST_DATA_URL: "https://prophetmarkets.fun/api/solana/last"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # Node 24 ships npm 11, which wrote package-lock.json; npm 10 reads its peer entries as out of sync.
+          node-version: 24
           cache: npm
+      # npm 12 rejects this lockfile (optional wasm/native deps); npm 11 wrote it.
+      - run: npm install -g npm@11
       - run: npm ci
       - run: npm run build
       - uses: actions/upload-pages-artifact@v3

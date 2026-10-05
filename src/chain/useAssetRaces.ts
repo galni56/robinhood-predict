@@ -1,121 +1,30 @@
 import { useMemo } from 'react'
-import { zeroAddress } from 'viem'
-import { useReadContract, useReadContracts } from 'wagmi'
-import { assetRaceChain } from '@/chain/config'
-import { useStableGameCount, useStableGameSnapshots } from '@/chain/useStableGameSnapshots'
-import {
-  ACTIVE_GAME_POLL_INTERVAL_MS,
-  ACTIVE_GAME_REFRESH_OPTIONS,
-  GAME_SNAPSHOT_MULTICALL_BATCH_SIZE,
-  HISTORICAL_GAME_POLL_INTERVAL_MS,
-  splitProgressiveGameIds,
-} from '@/chain/gameSnapshots'
-import { useAssetRaceHistoryIndex, visibleIdsThroughCount } from '@/chain/gameHistory'
-import {
-  ASSET_RACE_ADDRESS,
-  ETH_DECIMALS,
-  assetRaceAbi,
-  buildPreviewRaces,
-  normalizeRaceAssets,
-  type AssetRaceAsset,
-  type AssetRaceData,
-  type AssetRaceViewModel,
-} from '@/chain/assetRaces'
+import { raceFromServer, type AssetRaceViewModel } from '@/chain/assetRaces'
+import { DESIGN_SAMPLES_ENABLED, SAMPLE_RACES } from '@/chain/designSamples'
+import { convertRows, useGameState, type ServerRace } from '@/chain/gameServer'
 
+const byNewest = (a: { id: bigint }, b: { id: bigint }) => (a.id > b.id ? -1 : a.id < b.id ? 1 : 0)
+
+// react-query's structural sharing keeps an unchanged race the same object
+// across polls, so each one is converted once.
+const cache = new WeakMap<ServerRace, AssetRaceViewModel>()
+const convert = (race: ServerRace) => {
+  let model = cache.get(race)
+  if (!model) {
+    model = raceFromServer(race)
+    cache.set(race, model)
+  }
+  return model
+}
+
+/** Every race, from the game server's shared snapshot. In dev, sample races
+ * stand in while there is nothing, so screens can be designed without servers. */
 export function useAssetRaces() {
-  const isPreview = !ASSET_RACE_ADDRESS
-  const previewRaces = useMemo(() => buildPreviewRaces(), [])
-  const readAddress = ASSET_RACE_ADDRESS ?? zeroAddress
-
-  const countQuery = useReadContract({
-    address: readAddress,
-    chainId: assetRaceChain.id,
-    abi: assetRaceAbi,
-    functionName: 'raceCount',
-    query: { enabled: !isPreview, refetchInterval: ACTIVE_GAME_POLL_INTERVAL_MS, ...ACTIVE_GAME_REFRESH_OPTIONS },
-  })
-
-  const count = Number(useStableGameCount('asset-race-count', countQuery.data))
-  const historyIndex = useAssetRaceHistoryIndex(!isPreview)
-  const ids = useMemo(
-    () => historyIndex.data
-      ? visibleIdsThroughCount(historyIndex.data, count)
-      : historyIndex.isError
-        ? Array.from({ length: count }, (_, index) => BigInt(index)).reverse()
-        : [],
-    [count, historyIndex.data, historyIndex.isError],
-  )
-
-  const { fastIds, historyIds } = useMemo(
-    () => splitProgressiveGameIds(ids, 12, true),
-    [ids],
-  )
-  const readsFor = (queryIds: readonly bigint[]) => queryIds.flatMap((id) => [
-    ({ address: readAddress, chainId: assetRaceChain.id, abi: assetRaceAbi, functionName: 'getRace', args: [id] }) as const,
-    ({ address: readAddress, chainId: assetRaceChain.id, abi: assetRaceAbi, functionName: 'getRaceAssets', args: [id] }) as const,
-  ])
-  const fastQueries = useReadContracts({
-    // One ordered multicall keeps each race and its asset grid on the same
-    // refresh cycle and halves the HTTP round trips used by the old split reads.
-    contracts: readsFor(fastIds),
-    batchSize: GAME_SNAPSHOT_MULTICALL_BATCH_SIZE,
-    query: {
-      enabled: !isPreview && fastIds.length > 0,
-      refetchInterval: ACTIVE_GAME_POLL_INTERVAL_MS,
-      ...ACTIVE_GAME_REFRESH_OPTIONS,
-    },
-  })
-  const indexScanComplete = isPreview || historyIndex.data != null || historyIndex.isError
-  const countScanComplete = (countQuery.data != null || countQuery.isError) && indexScanComplete
-  const fastScanComplete = countScanComplete && (
-    fastIds.length === 0 || fastQueries.data != null || fastQueries.isError
-  )
-  const historyQueries = useReadContracts({
-    contracts: readsFor(historyIds),
-    batchSize: GAME_SNAPSHOT_MULTICALL_BATCH_SIZE,
-    query: {
-      enabled: !isPreview && fastScanComplete && historyIds.length > 0,
-      refetchInterval: HISTORICAL_GAME_POLL_INTERVAL_MS,
-      ...ACTIVE_GAME_REFRESH_OPTIONS,
-    },
-  })
-  const historyScanComplete = fastScanComplete && (
-    historyIds.length === 0 || historyQueries.data != null || historyQueries.isError
-  )
-
-  const observedRaces = useMemo(() => {
-    const byId = new Map<string, AssetRaceViewModel>()
-    const collect = (queryIds: readonly bigint[], data: typeof fastQueries.data) => {
-      queryIds.forEach((id, index) => {
-        const raceResult = data?.[index * 2]
-        const assetsResult = data?.[index * 2 + 1]
-        if (raceResult?.status !== 'success' || assetsResult?.status !== 'success') return
-        const race = raceResult.result as AssetRaceData
-        const assets = normalizeRaceAssets(assetsResult.result as readonly Omit<AssetRaceAsset, 'assetIndex' | 'symbol' | 'feedAddress'>[])
-        byId.set(id.toString(), { ...race, id, assets, source: 'onchain' })
-      })
-    }
-    collect(fastIds, fastQueries.data)
-    collect(historyIds, historyQueries.data)
-    return ids.map((id) => byId.get(id.toString()) ?? null)
-  }, [fastIds, fastQueries.data, historyIds, historyQueries.data, ids])
-  const onchainRaces = useStableGameSnapshots(ids, observedRaces, {
-    cacheKey: 'asset-races',
-    idsReady: isPreview || (countQuery.data != null && indexScanComplete),
-  })
-
-  async function refetch() {
-    await Promise.all([historyIndex.refetch(), countQuery.refetch(), fastQueries.refetch(), historyQueries.refetch()])
+  const state = useGameState()
+  const races = useMemo(() => convertRows(state.data?.races, convert, 'race').sort(byNewest), [state.data])
+  const rest = { isLoading: state.isLoading, error: state.error, refetch: async () => { await state.refetch() } }
+  if (DESIGN_SAMPLES_ENABLED && races.length === 0 && !state.isLoading) {
+    return { races: SAMPLE_RACES, ...rest, error: null }
   }
-
-  return {
-    races: isPreview ? previewRaces : onchainRaces,
-    isPreview,
-    configuredAddress: ASSET_RACE_ADDRESS,
-    tokenDecimals: ETH_DECIMALS,
-    totalRaceCount: isPreview ? previewRaces.length : count,
-    isLoading: !isPreview && !historyScanComplete,
-    error: countQuery.error ?? historyIndex.error ?? fastQueries.error ?? historyQueries.error,
-    refetch,
-  }
+  return { races, ...rest }
 }

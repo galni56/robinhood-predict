@@ -1,89 +1,64 @@
 import { useMemo } from 'react'
-import { zeroAddress, type Address, type Hex } from 'viem'
-import { useReadContract, useReadContracts } from 'wagmi'
-import { ASSET_RACE_ADDRESS, assetRaceAbi, symbolForRaceAsset, type ApprovedRaceAsset } from '@/chain/assetRaces'
-import { assetRaceChain, assetRaceNetworkKey, isLocalAssetRace } from '@/chain/config'
-import { approvedAssetMatchesCatalog, assetRaceCatalogById, priceSourceUrlForCatalogAsset } from '@/chain/assetRaceRegistry'
-import { useRobinhoodAssets } from '@/chain/robinhoodApi'
+import { assetIdHexForSymbol, assetRaceCatalog, assetRaceCatalogByPool } from '@/chain/assetRaceRegistry'
+import { categoryCode, type ApprovedRaceAsset } from '@/chain/assetRaces'
+import { useGameServerConfig, usePumpSwapAssets, type ServerAsset } from '@/chain/gameServer'
 
+const CATEGORY_NAMES = ['STOCK', 'MEME', 'CRYPTO'] as const
+/** Community race durations of the game server (rules.mjs), for when it is off. */
+const DEFAULT_RACE_DURATIONS = [300n, 900n, 3_600n]
+
+function pumpSwapAsset(asset: ServerAsset): ApprovedRaceAsset {
+  return {
+    assetId: assetIdHexForSymbol(asset.symbol),
+    enabled: true,
+    category: categoryCode(asset.category),
+    priceSource: asset.priceSource,
+    expectedDecimals: asset.priceDecimals,
+    symbol: asset.symbol,
+    name: asset.name,
+    logoUrl: asset.logoUrl ?? undefined,
+    priceUrl: asset.priceUrl ?? undefined,
+  }
+}
+
+/** Assets both games accept (memes and crypto; stocks are off): from the game
+ * server, matched against the reviewed catalog, plus the PumpSwap coins.
+ * While the server is off, the catalog and the last known PumpSwap list
+ * stand in, so pickers are never empty. */
 export function useApprovedRaceAssets() {
-  const address = ASSET_RACE_ADDRESS ?? zeroAddress
-  const enabled = !!ASSET_RACE_ADDRESS
-  const catalog = useRobinhoodAssets(!isLocalAssetRace)
-  const idsQuery = useReadContract({
-    address,
-    chainId: assetRaceChain.id,
-    abi: assetRaceAbi,
-    functionName: 'getApprovedAssetIds',
-    query: { enabled, refetchInterval: 15_000 },
-  })
-  const durationsQuery = useReadContract({
-    address,
-    chainId: assetRaceChain.id,
-    abi: assetRaceAbi,
-    functionName: 'getApprovedRaceDurations',
-    query: { enabled, refetchInterval: 15_000 },
-  })
-
-  const ids = useMemo(() => (idsQuery.data ?? []) as readonly Hex[], [idsQuery.data])
-  const registryQueries = useReadContracts({
-    contracts: ids.map((assetId) => ({
-      address,
-      chainId: assetRaceChain.id,
-      abi: assetRaceAbi,
-      functionName: 'approvedAssets',
-      args: [assetId],
-    }) as const),
-    query: { enabled: enabled && ids.length > 0, refetchInterval: 15_000 },
-  })
+  const config = useGameServerConfig()
+  const pumpswap = usePumpSwapAssets()
 
   const assets = useMemo(() => {
-    const metadata = new Map((catalog.data ?? []).map((item) => [item.tokenSymbol.toUpperCase(), item]))
-    return ids.flatMap((assetId, index): ApprovedRaceAsset[] => {
-      const result = registryQueries.data?.[index]
-      if (result?.status !== 'success') return []
-      const [registered, assetEnabled, category, oracle, oracleId, expectedDecimals, maxPriceAge, maxEndpointLag] = result.result
-      if (!registered || !assetEnabled) return []
-      const catalogAsset = assetRaceCatalogById.get(assetId.toLowerCase())
-      if (!catalogAsset || !approvedAssetMatchesCatalog({
-        asset: catalogAsset,
-        network: assetRaceNetworkKey,
-        category,
-        oracle: oracle as Address,
-        oracleId,
-        expectedDecimals,
-        maxPriceAge,
-        maxEndpointLag,
-      })) return []
-      const symbol = symbolForRaceAsset(assetId, oracleId, index)
-      const item = metadata.get(symbol)
-      return [{
-        assetId,
-        registered,
-        enabled: assetEnabled,
-        category,
-        oracle: oracle as Address,
-        oracleId,
-        expectedDecimals,
-        maxPriceAge,
-        maxEndpointLag,
-        symbol,
-        name: catalogAsset.displayName ?? item?.tokenName.replace(/\s*•\s*Robinhood Token$/i, '') ?? symbol,
-        logoUrl: item?.logoUrl,
-        priceUrl: priceSourceUrlForCatalogAsset(catalogAsset),
-      }]
+    const fromServer = (config.data?.assets ?? []).flatMap((asset): ApprovedRaceAsset[] => {
+      if (asset.source === 'pumpswap') return [pumpSwapAsset(asset)]
+      const catalog = assetRaceCatalogByPool.get(asset.priceSource)
+      const category = categoryCode(asset.category)
+      if (!catalog?.enabled || CATEGORY_NAMES[category] !== catalog.category || catalog.priceDecimals !== asset.priceDecimals) return []
+      return [{ assetId: catalog.assetId, enabled: true, category, priceSource: asset.priceSource, expectedDecimals: asset.priceDecimals, symbol: catalog.symbol, name: catalog.displayName, logoUrl: catalog.logoUrl, priceUrl: catalog.priceUrl }]
     })
-  }, [catalog.data, ids, registryQueries.data])
+    const list = fromServer.length > 0 ? fromServer : [
+      ...assetRaceCatalog.filter((a) => a.enabled && a.category !== 'STOCK').map((catalog): ApprovedRaceAsset => ({
+        assetId: catalog.assetId, enabled: true, category: categoryCode(catalog.category), priceSource: catalog.pool, expectedDecimals: catalog.priceDecimals,
+        symbol: catalog.symbol, name: catalog.displayName, logoUrl: catalog.logoUrl, priceUrl: catalog.priceUrl,
+      })),
+      ...pumpswap.assets.map(pumpSwapAsset),
+    ]
+    return list.filter((a) => CATEGORY_NAMES[a.category] !== 'STOCK').sort((a, b) => a.symbol.localeCompare(b.symbol))
+  }, [config.data, pumpswap.assets])
 
-  async function refetch() {
-    await Promise.all([idsQuery.refetch(), durationsQuery.refetch(), registryQueries.refetch()])
-  }
+  const durations = useMemo(() => {
+    const server = config.data?.race.communityDurations
+    return server?.length ? server.map(BigInt) : DEFAULT_RACE_DURATIONS
+  }, [config.data])
 
   return {
     assets,
-    durations: (durationsQuery.data ?? []) as readonly bigint[],
-    isLoading: idsQuery.isLoading || durationsQuery.isLoading || registryQueries.isLoading,
-    error: idsQuery.error ?? durationsQuery.error ?? registryQueries.error,
-    refetch,
+    durations,
+    stake: config.data ? { min: BigInt(config.data.stake.min), max: BigInt(config.data.stake.max) } : undefined,
+    gameWallet: config.data?.gameWallet,
+    isLoading: config.isLoading && assets.length === 0,
+    error: null,
+    refetch: async () => { await config.refetch() },
   }
 }

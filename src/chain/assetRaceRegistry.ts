@@ -1,151 +1,67 @@
-import { getAddress, isAddress, keccak256, padHex, stringToBytes, stringToHex, type Address, type Hex } from 'viem'
-import registryJson from '../../config/asset-race-assets.json'
-import { uniswapRobinhoodPoolUrl } from '@/chain/priceSourceLinks'
+import registryJson from '../../config/solana-assets.json'
+import { SOLANA_CLUSTER } from '@/solana/config'
 
-export type AssetRaceNetworkKey = 'local' | 'robinhood-testnet' | 'robinhood-mainnet'
+// Reviewed asset catalog for both games, from config/solana-assets.json (owner
+// approval recorded in config/solana-catalog-approved.json). Mainnet builds
+// show approved assets only; devnet/localnet show the whole reviewed list.
+
 export type AssetRaceCategoryName = 'STOCK' | 'MEME' | 'CRYPTO'
-export type AssetRaceOracleType = 'CHAINLINK_V3' | 'SIGNED_POOL_BLOCK_PAIR' | 'DEX_V2_SPOT' | 'DEX_V3_SPOT' | 'MOCK_LOCAL'
 
-interface OracleConfig {
-  type: AssetRaceOracleType
-  identifier?: string
-  feedAddress?: string
-  expectedDecimals: number
-  validationProfile: string
-  provenance?: string
-}
-
-interface NetworkAssetConfig {
-  enabled: boolean
-  oracle: OracleConfig | null
-  blocker?: string
+interface RegistryAsset {
+  symbol: string
+  name: string
+  category: AssetRaceCategoryName
+  mint: string
+  tokenDecimals: number
+  priceDecimals: number
+  pool: string
+  poolKind: string
+  quote: string
+  icon: string | null
+  priceUrl: string
+  approved: boolean
 }
 
 export interface AssetRaceCatalogAsset {
+  /** On-chain asset id: the UTF-8 symbol zero-padded to 32 bytes, as 0x-hex. */
   assetId: string
   symbol: string
   displayName: string
   category: AssetRaceCategoryName
-  canonicalTokenAddress: string | null
-  maxRecommendedRaceExposureUsd?: number | null // Advisory only; not a consensus stake/payout cap.
-  raceExposureReviewStatus?: 'PENDING_CURRENT_EXECUTABLE_DEPTH' | 'REVIEWED'
-  marketSource?: {
-    type: 'UNISWAP_V3' | 'UNISWAP_V4'
-    poolIdentifier: string
-  }
-  liveDisplay?: {
-    type: 'DEXSCREENER_STOCK_TOKEN'
-    profile: 'DEXSCREENER_STOCK_TOKEN_V1'
-    pairAddress: string
-    baseTokenAddress: string
-    quoteTokenAddress: string
-    orientation: 'BASE_STOCK_QUOTE_USDG'
-  }
-  productionStatus?: 'A' | 'B' | 'C'
-  networks: Record<AssetRaceNetworkKey, NetworkAssetConfig>
+  mint: string
+  /** Reviewed pool the price service reads; the on-chain `price_source`. */
+  pool: string
+  poolKind: string
+  priceDecimals: number
+  logoUrl?: string
+  priceUrl: string
+  enabled: boolean
 }
 
-interface ValidationProfile {
-  maxPriceAgeSeconds: number
-  maxEndpointLagSeconds: number
+export function assetIdHexForSymbol(symbol: string) {
+  const bytes = new TextEncoder().encode(symbol)
+  const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
+  return `0x${hex.padEnd(64, '0')}`
 }
 
-interface AssetRaceRegistry {
-  assets: AssetRaceCatalogAsset[]
-  networks: Record<AssetRaceNetworkKey, { chainId: number; allowedOracleTypes: AssetRaceOracleType[] }>
-  validationProfiles: Record<string, ValidationProfile>
-  liveDisplayProfiles: Record<string, {
-    provider: 'DEXSCREENER'
-    chainId: string
-    quoteTokenAddress: string
-    priceField: 'priceNative'
-    pollIntervalMs: number
-    staleAfterMs: number
-  }>
-}
+export const assetRaceCatalog: AssetRaceCatalogAsset[] = (registryJson.assets as RegistryAsset[]).map((a) => ({
+  assetId: assetIdHexForSymbol(a.symbol),
+  symbol: a.symbol,
+  displayName: a.name,
+  category: a.category,
+  mint: a.mint,
+  pool: a.pool,
+  poolKind: a.poolKind,
+  priceDecimals: a.priceDecimals,
+  logoUrl: a.icon ?? undefined,
+  priceUrl: a.priceUrl,
+  enabled: SOLANA_CLUSTER === 'mainnet-beta' ? a.approved : true,
+}))
 
-export const assetRaceRegistry = registryJson as unknown as AssetRaceRegistry
-export const assetRaceCatalog = assetRaceRegistry.assets
-export const assetRaceMemeQuote = { ...registryJson.marketQuoteUniverses.MEME, symbol: 'ETH' }
-export const assetRaceCryptoQuote = registryJson.marketQuoteUniverses.CRYPTO
-export const assetRaceCatalogById = new Map(
-  assetRaceCatalog.map((asset) => [stringToHex(asset.assetId, { size: 32 }).toLowerCase(), asset]),
-)
-
-export function priceSourceUrlForCatalogAsset(asset?: AssetRaceCatalogAsset): string | undefined {
-  if (!asset) return undefined
-  const network = asset.networks['robinhood-mainnet']
-  const poolIdentifier = asset.marketSource?.poolIdentifier
-  if (
-    !network.enabled
-    || network.oracle?.type !== 'SIGNED_POOL_BLOCK_PAIR'
-  ) return undefined
-  return uniswapRobinhoodPoolUrl(poolIdentifier)
-}
+export const assetRaceCatalogById = new Map(assetRaceCatalog.map((asset) => [asset.assetId.toLowerCase(), asset]))
+export const assetRaceCatalogByPool = new Map(assetRaceCatalog.map((asset) => [asset.pool, asset]))
 
 export function priceSourceUrlForAssetId(assetId?: string): string | undefined {
-  return assetId ? priceSourceUrlForCatalogAsset(assetRaceCatalogById.get(assetId.toLowerCase())) : undefined
+  return assetId ? assetRaceCatalogById.get(assetId.toLowerCase())?.priceUrl : undefined
 }
 
-export function priceSourceUrlForSymbol(symbol?: string): string | undefined {
-  if (!symbol) return undefined
-  return priceSourceUrlForCatalogAsset(
-    assetRaceCatalog.find((asset) => asset.symbol.toLowerCase() === symbol.toLowerCase()),
-  )
-}
-
-export function configuredChainlinkRaceOracle(): Address | undefined {
-  const value = import.meta.env.VITE_ASSET_RACE_CHAINLINK_ORACLE_ADDRESS?.trim()
-  return value && isAddress(value) ? getAddress(value) : undefined
-}
-
-export function configuredSignedPoolRaceOracle(): Address | undefined {
-  const value = import.meta.env.VITE_ASSET_RACE_SIGNED_POOL_ORACLE_ADDRESS?.trim()
-  return value && isAddress(value) ? getAddress(value) : undefined
-}
-
-export function oracleIdForCatalogAsset(asset: AssetRaceCatalogAsset, network: AssetRaceNetworkKey): Hex | undefined {
-  const oracle = asset.networks[network].oracle
-  if (!oracle) return undefined
-  if (oracle.type === 'MOCK_LOCAL' && oracle.identifier) return keccak256(stringToBytes(oracle.identifier))
-  if (oracle.type === 'SIGNED_POOL_BLOCK_PAIR' && /^0x[0-9a-fA-F]{64}$/.test(oracle.identifier ?? '')) {
-    return oracle.identifier as Hex
-  }
-  if (oracle.type === 'CHAINLINK_V3' && oracle.feedAddress && isAddress(oracle.feedAddress)) {
-    return padHex(getAddress(oracle.feedAddress), { size: 32 })
-  }
-  return undefined
-}
-
-export function approvedAssetMatchesCatalog(args: {
-  asset: AssetRaceCatalogAsset
-  network: AssetRaceNetworkKey
-  category: number
-  oracle: Address
-  oracleId: Hex
-  expectedDecimals: number
-  maxPriceAge: bigint
-  maxEndpointLag: bigint
-}): boolean {
-  const { asset, network, category, oracle, oracleId, expectedDecimals, maxPriceAge, maxEndpointLag } = args
-  const networkConfig = asset.networks[network]
-  const source = networkConfig.oracle
-  if (!networkConfig.enabled || !source) return false
-  const catalogCategory = asset.category === 'MEME' ? 1 : asset.category === 'CRYPTO' ? 2 : 0
-  if (category !== catalogCategory) return false
-  if (!assetRaceRegistry.networks[network].allowedOracleTypes.includes(source.type)) return false
-  if (expectedDecimals !== source.expectedDecimals) return false
-  const profile = assetRaceRegistry.validationProfiles[source.validationProfile]
-  if (!profile || maxPriceAge !== BigInt(profile.maxPriceAgeSeconds)) return false
-  if (maxEndpointLag !== BigInt(profile.maxEndpointLagSeconds)) return false
-  if (oracleIdForCatalogAsset(asset, network)?.toLowerCase() !== oracleId.toLowerCase()) return false
-
-  if (network === 'local') return source.type === 'MOCK_LOCAL'
-  if (source.type === 'SIGNED_POOL_BLOCK_PAIR') {
-    const adapter = configuredSignedPoolRaceOracle()
-    return !!adapter && adapter.toLowerCase() === oracle.toLowerCase()
-  }
-  if (source.type !== 'CHAINLINK_V3') return false
-  const adapter = configuredChainlinkRaceOracle()
-  return !!adapter && adapter.toLowerCase() === oracle.toLowerCase()
-}

@@ -1,205 +1,93 @@
-import { useEffect, useMemo, useState } from 'react'
-import { zeroAddress, type Address } from 'viem'
-import { useReadContract, useReadContracts } from 'wagmi'
-import { aggregatorV3Abi } from '@/chain/contracts'
-import { assetRaceChain, isLocalAssetRace } from '@/chain/config'
-import { useFeedSnapshot } from '@/chain/feedCache'
-import { ACTIVE_GAME_POLL_INTERVAL_MS, ACTIVE_GAME_REFRESH_OPTIONS } from '@/chain/gameSnapshots'
-import { useAssetRaceLiveDisplay } from '@/chain/useAssetRaceLiveDisplay'
+import { useMemo } from 'react'
+import type { PublicKey } from '@solana/web3.js'
+import { useQuery } from '@tanstack/react-query'
+import { marketCapUsd, useLivePrices } from '@/chain/livePrices'
+import { getJson, type ServerRace } from '@/chain/gameServer'
+import { GAME_SERVER_URL } from '@/solana/services'
+import { DESIGN_SAMPLES_ENABLED, SAMPLE_RACES } from '@/chain/designSamples'
 import {
-  ASSET_RACE_ADDRESS,
-  ASSET_RACE_CATEGORY,
   ASSET_RACE_STATUS,
-  RETURN_SCALE,
-  assetRaceAbi,
-  buildPreviewRaces,
-  mockRaceOracleAbi,
-  normalizeRaceAssets,
+  payoutFor,
+  positionFor,
+  raceFromServer,
   type AssetRaceAsset,
-  type AssetRaceData,
-  type AssetRacePosition,
   type AssetRaceViewModel,
+  type RacePayout,
 } from '@/chain/assetRaces'
 
-const PREVIEW_RETURN_PATTERNS = [
-  [48_200_000_000_000_000n, 31_100_000_000_000_000n, 7_300_000_000_000_000n, -10_400_000_000_000_000n],
-  [42_500_000_000_000_000n, 45_100_000_000_000_000n, 9_800_000_000_000_000n, -8_200_000_000_000_000n],
-  [51_400_000_000_000_000n, 44_700_000_000_000_000n, 12_100_000_000_000_000n, -12_600_000_000_000_000n],
-  [46_900_000_000_000_000n, 39_300_000_000_000_000n, 15_400_000_000_000_000n, -6_700_000_000_000_000n],
-] as const
+const ACTIVE_POLL_MS = 3_000
 
-function snapshotEntryFor(
-  snapshot: Record<string, { decimals: number; answer: string; updatedAt: string }> | undefined,
-  feed: Address | undefined,
-) {
-  if (!snapshot || !feed) return undefined
-  const key = Object.keys(snapshot).find((candidate) => candidate.toLowerCase() === feed.toLowerCase())
-  return key ? snapshot[key] : undefined
+export interface RaceSettlement {
+  type: 'claim' | 'refund'
+  amount: bigint
+  signature: string
 }
 
-export function useAssetRace(
-  raceId: bigint | null,
-  walletAddress?: Address,
-  contractAddress: Address | undefined = ASSET_RACE_ADDRESS,
-) {
-  const isPreview = !contractAddress
-  const readAddress = contractAddress ?? zeroAddress
-  const previews = useMemo(() => buildPreviewRaces(), [])
-  const [previewTick, setPreviewTick] = useState(0)
-
-  const raceQuery = useReadContract({
-    address: readAddress,
-    chainId: assetRaceChain.id,
-    abi: assetRaceAbi,
-    functionName: 'getRace',
-    args: raceId == null ? undefined : [raceId],
-    query: {
-      enabled: !isPreview && raceId != null,
-      refetchInterval: ACTIVE_GAME_POLL_INTERVAL_MS,
-      ...ACTIVE_GAME_REFRESH_OPTIONS,
+/** One race, the connected wallet's position and payout, and display prices
+ * while it runs. The game server pays winners and refunds on its own. */
+export function useAssetRace(raceId: bigint | null, wallet?: PublicKey | null) {
+  const raceQuery = useQuery({
+    queryKey: ['race', raceId?.toString()],
+    queryFn: async () => {
+      try {
+        return raceFromServer(await getJson<ServerRace>(`/games/race/${raceId}`))
+      } catch (error) {
+        if (error instanceof Error && error.message === 'GameNotFound') return null
+        throw error
+      }
+    },
+    enabled: raceId != null && GAME_SERVER_URL != null,
+    refetchInterval: (query) => {
+      const race = query.state.data
+      const terminal = race && (race.status === ASSET_RACE_STATUS.RESOLVED || race.status === ASSET_RACE_STATUS.CANCELLED || race.status === ASSET_RACE_STATUS.VOID)
+      // Keep polling a finished race until every payout has landed.
+      return terminal && race.payouts.every((p) => p.status === 'done') ? 30_000 : ACTIVE_POLL_MS
     },
   })
 
-  const assetsQuery = useReadContract({
-    address: readAddress,
-    chainId: assetRaceChain.id,
-    abi: assetRaceAbi,
-    functionName: 'getRaceAssets',
-    args: raceId == null ? undefined : [raceId],
-    query: {
-      enabled: !isPreview && raceId != null,
-      refetchInterval: ACTIVE_GAME_POLL_INTERVAL_MS,
-      ...ACTIVE_GAME_REFRESH_OPTIONS,
-    },
-  })
+  // Dev-only: sample races stand in so detail screens can be designed
+  // without servers (same gate as the list hooks).
+  const sample = DESIGN_SAMPLES_ENABLED && raceId != null ? SAMPLE_RACES.find((item) => item.id === raceId) : undefined
+  const base = raceQuery.data ?? (raceQuery.isFetched || raceQuery.isError || GAME_SERVER_URL == null ? sample : undefined) ?? undefined
+  const showLive = base?.status === ASSET_RACE_STATUS.RUNNING || base?.status === ASSET_RACE_STATUS.BETTING
+  const live = useLivePrices({ enabled: showLive })
 
-  const positionQuery = useReadContract({
-    address: readAddress,
-    chainId: assetRaceChain.id,
-    abi: assetRaceAbi,
-    functionName: 'getPosition',
-    args: raceId != null && walletAddress ? [raceId, walletAddress] : undefined,
-    query: {
-      enabled: !isPreview && raceId != null && !!walletAddress,
-      refetchInterval: ACTIVE_GAME_POLL_INTERVAL_MS,
-      ...ACTIVE_GAME_REFRESH_OPTIONS,
-    },
-  })
-
-  const normalizedAssets = useMemo(() => {
-    if (!assetsQuery.data) return []
-    return normalizeRaceAssets(
-      assetsQuery.data as readonly Omit<AssetRaceAsset, 'assetIndex' | 'symbol' | 'feedAddress'>[],
-    )
-  }, [assetsQuery.data])
-  const raceData = raceQuery.data as AssetRaceData | undefined
-  const poolRaceRunning = !isPreview && !isLocalAssetRace
-    && (raceData?.category === ASSET_RACE_CATEGORY.STOCK
-      || raceData?.category === ASSET_RACE_CATEGORY.MEME
-      || raceData?.category === ASSET_RACE_CATEGORY.CRYPTO)
-    && raceData.status === ASSET_RACE_STATUS.RUNNING
-  const liveDisplay = useAssetRaceLiveDisplay({ enabled: poolRaceRunning })
-
-  const feedSnapshot = useFeedSnapshot(!isPreview && !isLocalAssetRace)
-  const feedReads = useReadContracts({
-    contracts: normalizedAssets.map((asset) => ({
-      address: asset.feedAddress ?? zeroAddress,
-      chainId: assetRaceChain.id,
-      abi: aggregatorV3Abi,
-      functionName: 'latestRoundData',
-    }) as const),
-    query: {
-      enabled:
-        !isPreview && !isLocalAssetRace &&
-        normalizedAssets.some((asset) => asset.feedAddress && !snapshotEntryFor(feedSnapshot.data, asset.feedAddress)),
-      refetchInterval: 2_000,
-    },
-  })
-
-  const localOracleReads = useReadContracts({
-    contracts: normalizedAssets.map((asset) => ({
-      address: asset.oracle,
-      chainId: assetRaceChain.id,
-      abi: mockRaceOracleAbi,
-      functionName: 'latestObservation',
-      args: [asset.oracleId],
-    }) as const),
-    query: {
-      enabled: !isPreview && isLocalAssetRace && normalizedAssets.length > 0,
-      refetchInterval: 1_000,
-    },
-  })
-
-  const onchainAssets = normalizedAssets.map((asset, index): AssetRaceAsset => {
-    const snapshot = snapshotEntryFor(feedSnapshot.data, asset.feedAddress)
-    const direct = feedReads.data?.[index]
-    const round = direct?.status === 'success' ? direct.result : undefined
-    const local = localOracleReads.data?.[index]
-    const observation = local?.status === 'success' ? local.result : undefined
-    const dexPrice = liveDisplay.assets[asset.symbol]
-    const usePoolDisplay = poolRaceRunning && dexPrice && !dexPrice.stale
-      && dexPrice.oracleId.toLowerCase() === asset.oracleId.toLowerCase()
+  const race = useMemo<AssetRaceViewModel | undefined>(() => {
+    if (!base) return undefined
     return {
-      ...asset,
-      livePrice: observation?.price
-        ?? (usePoolDisplay ? BigInt(dexPrice.priceRaw) : undefined)
-        ?? (!poolRaceRunning ? (snapshot ? BigInt(snapshot.answer) : round?.[1]) : undefined),
-      liveDecimals: observation?.decimals
-        ?? (usePoolDisplay ? dexPrice.decimals : undefined)
-        ?? (!poolRaceRunning ? snapshot?.decimals : undefined)
-        ?? asset.expectedDecimals,
-      liveUpdatedAt: observation?.updatedAt
-        ?? (usePoolDisplay ? BigInt(dexPrice.blockTimestamp) : undefined)
-        ?? (!poolRaceRunning ? (snapshot ? BigInt(snapshot.updatedAt) : round?.[3]) : undefined),
-      liveProvider: observation
-        ? 'ORACLE'
-        : usePoolDisplay
-          ? 'ROBINHOOD_POOL_RPC'
-          : undefined,
-      liveStale: poolRaceRunning && !usePoolDisplay,
-    }
-  })
-
-  const previewRace = raceId == null ? undefined : previews.find((race) => race.id === raceId)
-  useEffect(() => {
-    if (!isPreview || previewRace?.status !== ASSET_RACE_STATUS.RUNNING) return
-    const timer = window.setInterval(() => setPreviewTick((tick) => tick + 1), 1_800)
-    return () => window.clearInterval(timer)
-  }, [isPreview, previewRace?.status])
-
-  const animatedPreview = useMemo(() => {
-    if (!previewRace || previewRace.status !== ASSET_RACE_STATUS.RUNNING) return previewRace
-    const pattern = PREVIEW_RETURN_PATTERNS[previewTick % PREVIEW_RETURN_PATTERNS.length]
-    return {
-      ...previewRace,
-      assets: previewRace.assets.map((asset, index) => {
-        const returnValue = pattern[index] ?? 0n
+      ...base,
+      assets: base.assets.map((asset): AssetRaceAsset => {
+        const price = showLive ? live.assets[asset.symbol] : undefined
+        // A display price is only comparable to the start price at the same precision.
+        const usable = price && price.decimals === asset.expectedDecimals
         return {
           ...asset,
-          livePrice: asset.startPrice + (asset.startPrice * returnValue) / RETURN_SCALE,
-          liveUpdatedAt: previewRace.raceEndTime - 300n + BigInt(previewTick) * 2n,
+          livePrice: usable ? price.raw : undefined,
+          liveDecimals: usable ? price.decimals : asset.expectedDecimals,
+          liveProvider: usable ? 'PRICE_SERVICE' : undefined,
+          liveStale: showLive && !usable,
+          liveMarketCapUsd: usable ? marketCapUsd(price) : undefined,
         }
       }),
     }
-  }, [previewRace, previewTick])
+  }, [base, live.assets, showLive])
 
-  const race: AssetRaceViewModel | undefined = isPreview
-    ? animatedPreview
-    : raceData && raceId != null
-      ? { ...raceData, id: raceId, assets: onchainAssets, source: 'onchain' }
+  const me = wallet?.toBase58()
+  const payout: RacePayout | undefined = base ? payoutFor(base, me) : undefined
+  const settlement = useMemo<RaceSettlement | undefined>(() => (
+    payout?.status === 'done' && payout.signature
+      ? { type: payout.kind === 'win' ? 'claim' : 'refund', amount: payout.amount, signature: payout.signature }
       : undefined
-
-  async function refetch() {
-    await Promise.all([raceQuery.refetch(), assetsQuery.refetch(), positionQuery.refetch(), feedReads.refetch(), localOracleReads.refetch()])
-  }
+  ), [payout])
 
   return {
     race,
-    position: isPreview ? race?.previewPosition : (positionQuery.data as AssetRacePosition | undefined),
-    isPreview,
-    isLoading: !isPreview && (raceQuery.isLoading || assetsQuery.isLoading),
-    error: raceQuery.error ?? assetsQuery.error ?? positionQuery.error,
-    feedSnapshotError: feedSnapshot.error,
-    refetch,
+    position: base ? positionFor(base, me) : undefined,
+    /** The wallet's payout or refund in any state (queued, sending, done). */
+    payout,
+    settlement,
+    isLoading: raceQuery.isLoading,
+    error: raceQuery.error,
+    refetch: async () => { await raceQuery.refetch() },
   }
 }

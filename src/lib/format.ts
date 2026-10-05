@@ -1,32 +1,40 @@
-import { formatEther } from 'viem'
+import { SOL_DECIMALS } from '@/solana/config'
+import { solanaTxError } from '@/solana/tx'
 
-export function formatUsd(value: number, digits = 2): string {
-  return value.toLocaleString('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: digits,
-    maximumFractionDigits: digits,
-  })
+/** Exact decimal string of a raw integer amount (`formatUnits(1500000000n, 9)` → "1.5"). */
+export function formatUnits(raw: bigint, decimals: number): string {
+  const negative = raw < 0n
+  const value = negative ? -raw : raw
+  const base = 10n ** BigInt(decimals)
+  const whole = value / base
+  const fraction = decimals > 0 ? (value % base).toString().padStart(decimals, '0').replace(/0+$/, '') : ''
+  return `${negative ? '-' : ''}${whole}${fraction ? `.${fraction}` : ''}`
 }
 
-export type AssetPriceQuote = 'USDG' | 'ETH'
-
-/** Formats an oracle price without losing the useful precision of ETH-quoted
- * meme assets. Stock and crypto pools settle against USDG; meme pools settle
- * against native ETH/WETH. */
-export function formatAssetPrice(value: number, quote: AssetPriceQuote): string {
-  if (quote === 'USDG') return formatUsd(value)
-  const magnitude = Math.abs(value)
-  const maximumFractionDigits = magnitude >= 1 ? 6 : magnitude >= 0.001 ? 8 : 12
-  return `${value.toLocaleString('en-US', {
-    minimumFractionDigits: Math.min(2, maximumFractionDigits),
-    maximumFractionDigits,
-  })} ETH`
+/** Parses a decimal string into a raw integer amount; throws on bad input or excess precision. */
+export function parseUnits(value: string, decimals: number): bigint {
+  const trimmed = value.trim().replace(',', '.')
+  const normalized = trimmed.startsWith('.') ? `0${trimmed}` : trimmed
+  const match = /^(\d+)(?:\.(\d*))?$/.exec(normalized)
+  if (!match) throw new Error('Enter a number')
+  const fraction = match[2] ?? ''
+  if (fraction.length > decimals) throw new Error(`At most ${decimals} decimal places`)
+  return BigInt(match[1]) * 10n ** BigInt(decimals) + BigInt(fraction.padEnd(decimals, '0') || '0')
 }
 
-/** Compact ETH for dense UI while preserving useful precision for tiny bets. */
-export function formatCompactEth(value: bigint, fractionalSignificantDigits = 4): string {
-  const exact = formatEther(value)
+/** Exact SOL amount from lamports, without a unit. */
+export function formatSol(lamports: bigint): string {
+  return formatUnits(lamports, SOL_DECIMALS)
+}
+
+/** Compact SOL for dense UI while preserving useful precision for small stakes. */
+export function formatCompactSol(lamports: bigint, fractionalSignificantDigits = 4): string {
+  return formatCompactUnits(lamports, SOL_DECIMALS, 'SOL', fractionalSignificantDigits)
+}
+
+/** Compact amount of any token, keeping `fractionalSignificantDigits` after the first significant digit. */
+export function formatCompactUnits(raw: bigint, decimals: number, symbol: string, fractionalSignificantDigits = 4): string {
+  const exact = formatUnits(raw, decimals)
   const negative = exact.startsWith('-')
   const unsigned = negative ? exact.slice(1) : exact
   const [whole, fraction = ''] = unsigned.split('.')
@@ -37,11 +45,21 @@ export function formatCompactEth(value: bigint, fractionalSignificantDigits = 4)
       ? 0
       : firstSignificant + fractionalSignificantDigits
   const compactFraction = fraction.slice(0, fractionLength).replace(/0+$/, '')
-  return `${negative ? '-' : ''}${whole}${compactFraction ? `.${compactFraction}` : ''} ETH`
+  return `${negative ? '-' : ''}${whole}${compactFraction ? `.${compactFraction}` : ''} ${symbol}`
 }
 
-export function formatPct(value: number, digits = 1): string {
-  return `${(value * 100).toFixed(digits)}%`
+/** "$1.23B" style USD for market caps and other large display values. */
+export function formatCompactUsd(value: number): string {
+  const abs = Math.abs(value)
+  const [scaled, suffix]: [number, string] = abs >= 1e12 ? [value / 1e12, 'T'] : abs >= 1e9 ? [value / 1e9, 'B'] : abs >= 1e6 ? [value / 1e6, 'M'] : abs >= 1e3 ? [value / 1e3, 'K'] : [value, '']
+  return `$${scaled.toLocaleString('en-US', { maximumFractionDigits: Math.abs(scaled) >= 100 ? 0 : 2 })}${suffix}`
+}
+
+/** USD price with enough digits for sub-cent meme tokens. */
+export function formatUsdPrice(value: number): string {
+  const magnitude = Math.abs(value)
+  const maximumFractionDigits = magnitude >= 100 ? 2 : magnitude >= 1 ? 4 : magnitude >= 0.001 ? 6 : 10
+  return `$${value.toLocaleString('en-US', { minimumFractionDigits: Math.min(2, maximumFractionDigits), maximumFractionDigits })}`
 }
 
 export function timeAgo(ts: number): string {
@@ -57,90 +75,12 @@ export function timeAgo(ts: number): string {
   return `${d}d ago`
 }
 
-// Wallet/RPC errors (viem's `.message`) dump the full call - args, sender,
-// docs link, library version - which is noise to a non-technical user.
-// Show just: the wallet-rejected case, a decoded revert reason if one's
-// present, or a short generic fallback. Never the raw multi-line dump.
-const REVERT_MESSAGES: Record<string, string> = {
-  'target too close to current price':
-    'Target is too close to the current price. It must be at least 2% above or below it.',
-  'target too far from current price':
-    'Target is too far from the current price for this deadline (or the price just moved). Pick a target a bit closer.',
-  'market duration too short': 'The deadline is too soon. Pick a longer duration.',
-  'stale price feed': "The price feed hasn't updated recently. Try again in a minute.",
-  'feed not allowlisted': "This price feed isn't supported.",
-  'betting closed': 'Betting on this market has closed.',
-  'market not open': 'This market is no longer open.',
-  'already bet this side': "You've already bet on this side of this market.",
-  'exceeds max stake per side': 'Maximum stake is $50 per side of a market.',
-  'too early': "The deadline hasn't passed yet, so this market can't be resolved.",
-  'not resolved': "This market hasn't been resolved yet.",
-  'already claimed': "You've already claimed this payout.",
-  'no winning stake': 'You have no winning stake in this market.',
-  'not cancelled': "This market wasn't cancelled, so there is nothing to refund.",
-  'nothing to refund': 'You have nothing to refund on this market.',
-}
-
-// Wallets sometimes swallow the real revert reason and return only a generic
-// placeholder; showing that verbatim tells the user nothing.
-const GENERIC_WALLET_ERROR = /^(unexpected error|internal (json-rpc )?error|an internal error was received\.?|unknown error)$/i
-
-// The most common real-world failure: the wallet sits on another network
-// (usually Ethereum mainnet) while every Prophet contract lives on
-// Robinhood Chain. Every write pins chainId, so wagmi raises
-// ChainMismatchError before the wallet even opens; recognize that whole
-// error family and tell the user what to actually do.
-const WRONG_NETWORK_TEXT = /chain mismatch|does not match the target chain|chain not configured|unrecognized chain|unsupported chain/i
-const WRONG_NETWORK_NAMES = new Set(['ChainMismatchError', 'SwitchChainError', 'ChainNotConfiguredError', 'ChainDisconnectedError'])
-
-function isWrongNetworkError(e: unknown): boolean {
-  let current: unknown = e
-  for (let depth = 0; depth < 8 && current instanceof Error; depth++) {
-    if (WRONG_NETWORK_NAMES.has(current.name)) return true
-    const { shortMessage, details } = current as { shortMessage?: string; details?: string }
-    if (WRONG_NETWORK_TEXT.test([shortMessage, details, current.message].filter(Boolean).join(' '))) return true
-    current = current.cause
-  }
-  return false
-}
-
-/** Walks the error's `cause` chain (viem nests the actual revert several
- * levels deep) and returns the most specific single-line message found,
- * skipping generic wallet placeholders. */
-function mostSpecificErrorDetail(e: unknown): string | undefined {
-  let current: unknown = e
-  let best: string | undefined
-  for (let depth = 0; depth < 8 && current instanceof Error; depth++) {
-    const withExtras = current as { details?: string; shortMessage?: string }
-    const candidate = withExtras.details ?? withExtras.shortMessage ?? current.message
-    const trimmed = candidate?.replace(/\s+/g, ' ').trim()
-    if (trimmed && !GENERIC_WALLET_ERROR.test(trimmed)) best = trimmed
-    current = current.cause
-  }
-  if (!best) return undefined
-  return best.length > 160 ? `${best.slice(0, 157)}…` : best
-}
-
+/** Short, user-facing message for a failed wallet or program action. The
+ * console keeps the full error (with program logs) for debugging. */
 export function shortTxError(e: unknown, context = 'transaction'): string {
-  const raw = e instanceof Error ? ((e as { shortMessage?: string }).shortMessage ?? e.message) : String(e)
-  // A wallet rejection is a normal user action, not an error worth logging.
-  if (/rejected/i.test(raw)) return 'Rejected in wallet'
-  // The UI shows a short message; the console keeps the complete error
-  // object (viem errors expand to args, cause chain and docs link there),
-  // so failures stay debuggable instead of collapsing to one phrase.
-  console.error(`[tx:${context}]`, e)
-  if (isWrongNetworkError(e)) {
-    return 'Wrong network: check your wallet - it must be on Robinhood Chain, not Ethereum. Prophet runs only on Robinhood Chain for now.'
-  }
-  const reasonMatch = raw.match(/reason:\s*\n?\s*"?([^"\n]+)"?/i)
-  if (reasonMatch) {
-    const reason = reasonMatch[1].trim()
-    if (GENERIC_WALLET_ERROR.test(reason)) return 'Transaction would fail, but the wallet did not say why. Check the values and try again.'
-    return REVERT_MESSAGES[reason.toLowerCase()] ?? reason
-  }
-  const detail = mostSpecificErrorDetail(e)
-  const networkHint = 'Check your wallet network: Prophet runs only on Robinhood Chain for now, not Ethereum.'
-  return detail ? `Transaction failed: ${detail}` : `Transaction failed. ${networkHint}`
+  const message = solanaTxError(e)
+  if (message !== 'Request rejected in wallet.') console.error(`[tx:${context}]`, e)
+  return message
 }
 
 export function formatCountdown(msRemaining: number): string {

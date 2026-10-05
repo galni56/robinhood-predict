@@ -1,45 +1,42 @@
 import { useState } from 'react'
-import { Link, useParams, useSearchParams } from 'react-router-dom'
-import { formatEther, zeroAddress, type Hex } from 'viem'
-import { waitForTransactionReceipt } from 'wagmi/actions'
-import { useAccount, useBalance, useReadContract, useSwitchChain, useWriteContract } from 'wagmi'
-import { assetRaceChain, isLocalAssetRace, wagmiConfig } from '@/chain/config'
+import { Link, useParams } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
+import { useWallet } from '@solana/wallet-adapter-react'
 import {
-  ASSET_RACE_ADDRESS,
-  ASSET_RACE_CONFIG_ERROR,
   ASSET_RACE_STATUS,
   ASSET_RACE_ORIGIN,
-  ASSET_RACE_TOKEN_LABEL,
-  ETH_DECIMALS,
-  assetRaceAbi,
-  assetRaceCategoryLabel,
   assetRaceStatusLabel,
-  legacyAssetRaceAddress,
   raceModeForCategory,
 } from '@/chain/assetRaces'
 import {
   formatUsdCents,
-  freezeNativeStakeQuote,
-  nativeStakeGuardrailMessage,
-  nativeStakeGuardrailViolation,
-  nativeStakeQuoteErrorMessage,
-  type FrozenNativeStakeQuote,
+  freezeStakeQuote,
+  parseTokenAmount,
+  stakeGuardrailMessage,
+  stakeGuardrailViolation,
+  stakeQuoteErrorMessage,
+  type FrozenStakeQuote,
   type StakeInputUnit,
-} from '@/chain/ethUsd'
+} from '@/chain/stakeQuote'
+import { raceStakeMemo } from '@/chain/gameTx'
+import { useSignedAction } from '@/chain/gameServer'
 import { useAssetRace } from '@/chain/useAssetRace'
-import { useAssetRaceClock } from '@/chain/useAssetRaceClock'
-import { useAssetRaceLiveDisplay } from '@/chain/useAssetRaceLiveDisplay'
-import { priceSourceUrlForAssetId } from '@/chain/assetRaceRegistry'
+import { useServerNowMs } from '@/chain/serverClock'
+import { useLivePrices } from '@/chain/livePrices'
 import { AssetRaceBettingView } from '@/components/AssetRaceBettingView'
-import { AssetRaceLiveView } from '@/components/AssetRaceLiveView'
 import { AssetRaceLobbyView } from '@/components/AssetRaceLobbyView'
 import { AssetRaceResultView } from '@/components/AssetRaceResultView'
 import { AddressLabel } from '@/components/AddressLabel'
-import { InfoBanner } from '@/components/InfoBanner'
-import { PriceSourceLink } from '@/components/PriceSourceLink'
+import { ClusterBanner } from '@/components/ClusterBanner'
 import { ShareInviteButton } from '@/components/ShareInviteButton'
-import { TokenLogo } from '@/components/TokenLogo'
-import { shortTxError } from '@/lib/format'
+
+import { useStakeBalance, useStakeToken } from '@/solana/stakeTokens'
+import { TxUnconfirmedError } from '@/solana/tx'
+import { useStakeTransfer } from '@/solana/stake'
+import { formatUnits, formatCountdown, shortTxError } from '@/lib/format'
+import { formatStakeAmount } from '@/solana/stakeTokens'
+import { CREAM, INK, PINK, SKY, YELLOW } from '@/retro/scene'
+import { PIXEL, RaceBoard, ScoreBoard, TimerBox, YourBetCard, raceLanes } from '@/retro/race'
 
 type TxState = { label: string } | null
 
@@ -52,143 +49,105 @@ function parseRaceId(value: string | undefined) {
   }
 }
 
-export function OnchainRacePage({ legacy = false }: { legacy?: boolean }) {
+export function OnchainRacePage() {
   const { raceId: routeRaceId } = useParams()
-  const [searchParams] = useSearchParams()
   const raceId = parseRaceId(routeRaceId)
-  const { address, isConnected, chainId } = useAccount()
-  const { switchChain, isPending: isSwitching } = useSwitchChain()
-  const { writeContractAsync } = useWriteContract()
-  const raceContractAddress = legacy
-    ? legacyAssetRaceAddress(searchParams.get('contract'))
-    : ASSET_RACE_ADDRESS
-  const { race, position, isPreview, isLoading, error: readError, refetch } = useAssetRace(raceId, address, raceContractAddress)
+  const { publicKey, connected } = useWallet()
+  const stake = useStakeTransfer()
+  const act = useSignedAction()
+  const queryClient = useQueryClient()
+  const { race, position, payout, settlement, isLoading, error: readError, refetch } = useAssetRace(raceId, publicKey)
   const [selectedAssetIndex, setSelectedAssetIndex] = useState(0)
-  const betFormOwner = `${raceId?.toString() ?? ''}:${address ?? ''}`
+  const betFormOwner = `${raceId?.toString() ?? ''}:${publicKey?.toBase58() ?? ''}`
   const [amountState, setAmountState] = useState({ owner: betFormOwner, value: '' })
   const amount = amountState.owner === betFormOwner ? amountState.value : ''
   const setAmount = (value: string) => setAmountState({ owner: betFormOwner, value })
   const [stakeInputUnit, setStakeInputUnit] = useState<StakeInputUnit>('USD')
   const [tx, setTx] = useState<TxState>(null)
-  const [frozenBetQuote, setFrozenBetQuote] = useState<FrozenNativeStakeQuote | null>(null)
+  const [frozenBetQuote, setFrozenBetQuote] = useState<FrozenStakeQuote | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const raceNowMs = useAssetRaceClock()
-  const live = useAssetRaceLiveDisplay({ enabled: true })
+  const raceNowMs = useServerNowMs()
+  // Prices matter only while stakes can be quoted or the race is moving.
+  const live = useLivePrices({ enabled: race != null && (race.status === ASSET_RACE_STATUS.LOBBY || race.status === ASSET_RACE_STATUS.BETTING || race.status === ASSET_RACE_STATUS.RUNNING) })
+  // SOL stakes are entered in USD or SOL at the live rate; SPL stakes in their own units.
+  const token = useStakeToken(race?.stakeMint)
+  const usdQuoted = token?.native ?? true
+  const balance = useStakeBalance(token)
 
-  const readRaceAddress = raceContractAddress ?? zeroAddress
-  const tokenDecimals = ETH_DECIMALS
-  const balance = useBalance({
-    address,
-    chainId: assetRaceChain.id,
-    query: { enabled: !!address && !!raceContractAddress },
-  })
-  const lobbyAddition = useReadContract({
-    address: readRaceAddress,
-    chainId: assetRaceChain.id,
-    abi: assetRaceAbi,
-    functionName: 'lobbyAssetAddedByWallet',
-    args: raceId != null && address ? [raceId, address] : undefined,
-    query: { enabled: !!raceContractAddress && raceId != null && !!address },
-  })
-
-  const onRightChain = chainId === assetRaceChain.id
-  let quotedBet: FrozenNativeStakeQuote | undefined
+  let quotedBet: FrozenStakeQuote | undefined
   try {
-    quotedBet = live.ethUsd ? freezeNativeStakeQuote(amount, stakeInputUnit, live.ethUsd) : undefined
+    quotedBet = live.solUsd ? freezeStakeQuote(amount, stakeInputUnit, live.solUsd) : undefined
   } catch {
     quotedBet = undefined
   }
   const displayedBetQuote = frozenBetQuote ?? quotedBet
-  const displayedBetWei = displayedBetQuote?.wei ?? 0n
+  let tokenBetAmount = 0n
+  try {
+    tokenBetAmount = !usdQuoted && token && amount.trim() ? parseTokenAmount(amount, token.decimals) : 0n
+  } catch {
+    tokenBetAmount = 0n
+  }
+  const displayedBetAmount = usdQuoted ? displayedBetQuote?.lamports ?? 0n : tokenBetAmount
 
   async function refetchAll() {
-    await Promise.all([refetch(), balance.refetch(), lobbyAddition.refetch()])
+    await Promise.all([
+      refetch(),
+      balance.refetch(),
+      queryClient.invalidateQueries({ queryKey: ['history'] }),
+      queryClient.invalidateQueries({ queryKey: ['game-state'] }),
+    ])
   }
 
   async function handleBet() {
     setError(null)
     try {
-      if (legacy || !raceContractAddress || raceId == null || !race) return
-      if (!live.ethUsd) throw new Error('EthUsdQuoteStale')
-      const frozen = freezeNativeStakeQuote(amount, stakeInputUnit, live.ethUsd)
-      const amountRaw = frozen.wei
-      const guardrailViolation = nativeStakeGuardrailViolation(amountRaw, {
-        minInitialWei: race.minStake,
-        maxCumulativeWei: race.maxStakePerWallet,
-        existingStakeWei: position?.stake ?? 0n,
+      if (raceId == null || !race || !publicKey || !token) return
+      let frozen: FrozenStakeQuote | null = null
+      if (usdQuoted) {
+        if (!live.solUsd) throw new Error('SolUsdQuoteStale')
+        frozen = freezeStakeQuote(amount, stakeInputUnit, live.solUsd)
+      }
+      const betAmount = frozen ? frozen.lamports : parseTokenAmount(amount, token.decimals)
+      const violation = stakeGuardrailViolation(betAmount, {
+        minInitial: race.minStake,
+        maxCumulative: race.maxStakePerWallet,
+        existingStake: position?.stake ?? 0n,
         initialStake: !position?.exists,
       })
-      if (guardrailViolation) {
-        setError(nativeStakeGuardrailMessage(guardrailViolation))
+      if (violation) {
+        setError(stakeGuardrailMessage(violation))
         return
       }
       setFrozenBetQuote(frozen)
       const assetIndex = position?.exists ? position.assetIndex : selectedAssetIndex
-
-      setTx({ label: 'Confirm race bet in wallet…' })
-      const betHash = await writeContractAsync({
-        address: raceContractAddress,
-        abi: assetRaceAbi,
-        functionName: 'bet',
-        args: [raceId, assetIndex, amountRaw],
-        value: amountRaw,
-      })
-      setTx({ label: 'Waiting for bet confirmation…' })
-      await waitForTransactionReceipt(wagmiConfig, { hash: betHash })
+      setTx({ label: 'Preparing race bet…' })
+      const outcome = await stake(betAmount, raceStakeMemo(race.id, assetIndex), (phase) =>
+        setTx({ label: phase === 'signing' ? 'Placing bet…' : phase === 'confirming' ? 'Waiting for bet confirmation…' : 'Recording your bet…' }),
+      )
       setTx(null)
       setFrozenBetQuote(null)
       setAmount('')
+      if (outcome) setError(outcome)
       await refetchAll()
     } catch (cause) {
       setTx(null)
       setFrozenBetQuote(null)
-      setError(nativeStakeQuoteErrorMessage(cause) ?? shortTxError(cause, 'race-bet'))
+      setError(stakeQuoteErrorMessage(cause) ?? shortTxError(cause, 'race-bet'))
+      // Unknown outcome: the bet may have landed. Refresh so the UI shows
+      // the real position instead of inviting a duplicate bet.
+      if (cause instanceof TxUnconfirmedError) void refetchAll()
     }
   }
 
-  async function handleSettlement(functionName: 'claim' | 'refund') {
+  // Adding a lobby asset is a signed message: no transaction, no fee.
+  async function handleAddAsset(symbol: string) {
     setError(null)
     try {
-      if (!raceContractAddress || raceId == null) return
-      setTx({ label: `Confirm ${functionName} in wallet…` })
-      const hash = await writeContractAsync({
-        address: raceContractAddress,
-        abi: assetRaceAbi,
-        functionName,
-        args: [raceId],
-      })
-      setTx({ label: `Waiting for ${functionName} confirmation…` })
-      await waitForTransactionReceipt(wagmiConfig, { hash })
-      setTx(null)
-      await refetchAll()
-    } catch (cause) {
-      setTx(null)
-      setError(shortTxError(cause, 'race-settlement'))
-    }
-  }
-
-  async function handleLobbyAction(functionName: 'addLobbyAsset' | 'openBetting', assetId?: Hex) {
-    setError(null)
-    try {
-      if (legacy || !raceContractAddress || raceId == null) return
-      setTx({ label: functionName === 'addLobbyAsset' ? 'Confirm asset addition…' : 'Confirm betting transition…' })
-      const hash = functionName === 'addLobbyAsset'
-        ? await writeContractAsync({
-            address: raceContractAddress,
-            chainId: assetRaceChain.id,
-            abi: assetRaceAbi,
-            functionName,
-            args: [raceId, assetId!],
-          })
-        : await writeContractAsync({
-            address: raceContractAddress,
-            chainId: assetRaceChain.id,
-            abi: assetRaceAbi,
-            functionName,
-            args: [raceId],
-          })
-      setTx({ label: 'Waiting for confirmation…' })
-      await waitForTransactionReceipt(wagmiConfig, { hash, chainId: assetRaceChain.id })
+      if (!race || !publicKey) return
+      // PumpSwap coins are not in the static catalog, so the old reverse
+      // lookup from the synthetic asset id always failed for them.
+      setTx({ label: 'Signing…' })
+      await act({ action: 'add-lobby-asset', race: Number(race.id), asset: symbol })
       setTx(null)
       await refetchAll()
     } catch (cause) {
@@ -198,147 +157,166 @@ export function OnchainRacePage({ legacy = false }: { legacy?: boolean }) {
   }
 
   if (raceId == null) {
-    return <div className="mx-auto max-w-3xl px-4 py-12 text-rose-300">Invalid race ID.</div>
+    return <div style={{ padding: 48, textAlign: 'center', fontFamily: PIXEL, fontSize: 12 }}>INVALID RACE ID</div>
   }
 
+  const statusChip = race
+    ? race.status === ASSET_RACE_STATUS.RUNNING
+      ? { text: 'LIVE', bg: PINK, blink: true }
+      : race.status === ASSET_RACE_STATUS.BETTING
+        ? { text: 'BETTING', bg: YELLOW, blink: true }
+        : race.status === ASSET_RACE_STATUS.LOBBY
+          ? { text: 'LOBBY', bg: SKY, blink: false }
+          : { text: assetRaceStatusLabel(race.status), bg: CREAM, blink: false }
+    : null
+
+  const timer = race
+    ? race.status === ASSET_RACE_STATUS.BETTING
+      ? { label: 'betting closes', value: raceNowMs ? formatCountdown(Number(race.bettingEndTime) * 1_000 - raceNowMs) : '…' }
+      : race.status === ASSET_RACE_STATUS.RUNNING
+        ? { label: 'to finish', value: raceNowMs ? formatCountdown(Number(race.raceEndTime) * 1_000 - raceNowMs) : '…' }
+        : null
+    : null
+
+  const yourLane = race && position?.exists ? raceLanes(race, race.status >= 2).lanes.find((lane) => lane.assetIndex === position.assetIndex) : undefined
+  const yourRank = race && position?.exists
+    ? [...raceLanes(race, race.status >= 2).lanes].sort((a, b) => (a.returnValue > b.returnValue ? -1 : 1)).findIndex((lane) => lane.assetIndex === position.assetIndex) + 1
+    : 0
+  const rankSuffix = (n: number) => (n === 1 ? 'st' : n === 2 ? 'nd' : n === 3 ? 'rd' : 'th')
+
   return (
-    <div className="mx-auto max-w-[1200px] px-4 py-8">
-      {legacy && (
-        <InfoBanner tone="info" className="mb-5">
-          Legacy Asset Race - new bets are disabled. Existing claims and refunds remain available here.
-        </InfoBanner>
-      )}
-      {isPreview ? (
-        <InfoBanner tone="warning" className="mb-5">
-          Preview race - not onchain, no wallet transaction will be sent.
-          {ASSET_RACE_CONFIG_ERROR && <span className="mt-1 block text-rose-300">{ASSET_RACE_CONFIG_ERROR}</span>}
-        </InfoBanner>
-      ) : (
-        <InfoBanner tone="warning" className="mb-5">
-          {isLocalAssetRace
-            ? 'Local test network - contract state and transactions come from this Mac’s Anvil chain using local ETH.'
-            : 'Live Asset Race on Robinhood Chain. Enter the stake in USD or ETH; your wallet sends native ETH directly.'}
-        </InfoBanner>
-      )}
-
-      <Link to={legacy ? '/onchain/legacy?mode=races' : `/onchain/races${race ? `?mode=${raceModeForCategory(race.category)}` : ''}`} className="text-sm font-bold text-white/40 transition-colors hover:text-white/70">← {legacy ? 'Legacy games' : 'All races'}</Link>
-
-      {isLoading ? (
-        <p className="py-16 text-center text-sm text-white/40">Loading race…</p>
-      ) : readError ? (
-        <div className="mt-5 rounded-xl border border-rose-500/25 bg-rose-500/10 p-5 text-sm text-rose-300">Could not read race #{raceId.toString()}.</div>
-      ) : !race ? (
-        <div className="mt-5 rounded-xl border border-white/10 bg-[#241b2f]/95 p-8 text-center text-white/45">Race not found.</div>
-      ) : (
-        <div className={race.category === 1 ? 'asset-race-meme' : ''}>
-          <div className="mb-6 mt-4 flex flex-wrap items-end justify-between gap-3">
-            <div className="flex min-w-0 items-start gap-3">
-              <div className="flex shrink-0 -space-x-2 pt-1">
-                {race.assets.slice(0, 4).map((asset) => <TokenLogo key={asset.assetIndex} ticker={asset.symbol} className="h-10 w-10 rounded-xl border-2 border-[#17111f]" />)}
-              </div>
-              <div className="min-w-0">
-              <p className="flex flex-wrap items-center gap-2 text-sm font-bold text-[#F2A65A]">
-                {assetRaceCategoryLabel(race.category)} race #{race.id.toString()}
-                <span className={`rounded-full px-2.5 py-0.5 text-xs ${race.origin === ASSET_RACE_ORIGIN.PLATFORM ? 'bg-[#F2A65A]/15 text-[#F2A65A]' : 'bg-white/5 text-white/50'}`}>
-                  {race.origin === ASSET_RACE_ORIGIN.PLATFORM ? 'Featured' : 'Community'}
-                </span>
-              </p>
-              <h1 className="mt-1 break-words font-display text-2xl font-bold tracking-tight sm:text-4xl">{race.title || race.assets.map((asset) => asset.symbol).join(' vs ')}</h1>
-              {race.origin === ASSET_RACE_ORIGIN.PLATFORM ? (
-                <p className="mt-1 text-xs font-medium text-white/40">Created by Prophet</p>
-              ) : (
-                <p className="mt-1 text-xs font-medium text-white/40">Created by <AddressLabel address={race.creator} link={!isLocalAssetRace} className="font-bold text-white/65" /></p>
-              )}
-              <div className="mt-2 flex flex-wrap gap-1.5" aria-label="Participating asset price charts">
-                {race.assets.map((asset) => (
-                  <PriceSourceLink
-                    key={asset.assetIndex}
-                    href={priceSourceUrlForAssetId(asset.assetId)}
-                    symbol={asset.symbol}
-                    tone="race"
-                    label={`${asset.symbol} chart`}
-                    className="bg-[#F2A65A]/10 px-2.5 py-1"
-                  />
-                ))}
-              </div>
-              </div>
-            </div>
-            <div className="flex flex-wrap items-center justify-end gap-2">
-              {!legacy && <ShareInviteButton kind="race" id={race.id} />}
-              <span className="rounded-full bg-[#F2A65A]/15 px-3 py-1 text-xs font-bold text-[#F2A65A]">{assetRaceStatusLabel(race.status)}</span>
-            </div>
+    <div style={{ minHeight: '100%', fontFamily: "'Pixelify Sans', 'Courier New', monospace", color: INK, background: SKY }}>
+      <main style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', gap: 32, padding: '32px clamp(16px, 4vw, 64px) 48px' }}>
+        <div style={{ flex: '999 1 640px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 24 }}>
+          <ClusterBanner />
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '8px 24px' }}>
+            <Link to={`/onchain/races${race ? `?mode=${raceModeForCategory(race.category)}` : ''}`} style={{ fontSize: 20, fontWeight: 600 }}>
+              ← All races
+            </Link>
+            {race && <ShareInviteButton kind="race" id={race.id} />}
           </div>
 
-          {legacy && (race.status === ASSET_RACE_STATUS.LOBBY || race.status === ASSET_RACE_STATUS.BETTING) ? (
-            <div className="rounded-3xl border border-white/10 bg-[#241b2f] p-6 text-sm text-white/55">
-              This legacy race is settlement-only. No new assets or bets can be added.
-            </div>
-          ) : race.status === ASSET_RACE_STATUS.LOBBY ? (
-            <AssetRaceLobbyView
-              race={race}
-              nowMs={raceNowMs}
-              isConnected={isConnected}
-              onRightChain={onRightChain}
-              isSwitching={isSwitching}
-              onSwitchChain={() => switchChain({ chainId: assetRaceChain.id })}
-              hasAddedAsset={lobbyAddition.data ?? false}
-              onAddAsset={(assetId) => handleLobbyAction('addLobbyAsset', assetId)}
-              onOpenBetting={() => handleLobbyAction('openBetting')}
-              txLabel={tx?.label ?? null}
-              error={error}
-            />
-          ) : race.status === ASSET_RACE_STATUS.BETTING ? (
-            <AssetRaceBettingView
-              race={race}
-              position={position}
-              selectedAssetIndex={position?.exists ? position.assetIndex : selectedAssetIndex}
-              setSelectedAssetIndex={setSelectedAssetIndex}
-              amount={amount}
-              setAmount={setAmount}
-              inputUnit={stakeInputUnit}
-              setInputUnit={(unit) => {
-                if (unit === stakeInputUnit) return
-                setStakeInputUnit(unit)
-                setAmount('')
-                setFrozenBetQuote(null)
-                setError(null)
-              }}
-              balance={balance.data?.value}
-              isConnected={isConnected}
-              onRightChain={onRightChain}
-              isSwitching={isSwitching}
-              onSwitchChain={() => switchChain({ chainId: assetRaceChain.id })}
-              onBet={handleBet}
-              txLabel={tx?.label ?? null}
-              error={error}
-              nowMs={raceNowMs}
-              tokenDecimals={tokenDecimals}
-              tokenLabel={ASSET_RACE_TOKEN_LABEL}
-              amountRaw={displayedBetWei}
-              exactEth={displayedBetWei > 0n ? formatEther(displayedBetWei) : null}
-              equivalentUsd={displayedBetQuote ? formatUsdCents(displayedBetQuote.usdCents) : null}
-              quoteReady={!!live.ethUsd && !live.ethUsd.stale}
-            />
-          ) : race.status === ASSET_RACE_STATUS.RUNNING ? (
-            <AssetRaceLiveView race={race} position={position} nowMs={raceNowMs} tokenDecimals={tokenDecimals} tokenLabel={ASSET_RACE_TOKEN_LABEL} />
+          {isLoading ? (
+            <p style={{ padding: '64px 0', textAlign: 'center', fontFamily: PIXEL, fontSize: 12 }}>LOADING RACE…</p>
+          ) : readError ? (
+            <div className="rx-raised" style={{ background: CREAM, padding: 20, fontSize: 20, fontWeight: 600 }}>Could not read race #{raceId.toString()}. Refresh to retry.</div>
+          ) : !race ? (
+            <div className="rx-raised" style={{ background: CREAM, padding: 20, fontSize: 20, fontWeight: 600 }}>Race not found.</div>
           ) : (
-            <AssetRaceResultView
-              race={race}
-              position={position}
-              isConnected={isConnected}
-              onRightChain={onRightChain}
-              isSwitching={isSwitching}
-              onSwitchChain={() => switchChain({ chainId: assetRaceChain.id })}
-              onClaim={() => handleSettlement('claim')}
-              onRefund={() => handleSettlement('refund')}
-              txLabel={tx?.label ?? null}
-              error={error}
-              tokenDecimals={tokenDecimals}
-              tokenLabel={ASSET_RACE_TOKEN_LABEL}
-            />
+            <>
+              {/* Mock header row: RACE #N + status chip | timer */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '16px 24px' }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 20 }}>
+                  <h1 style={{ margin: 0, fontFamily: PIXEL, fontSize: 'clamp(18px, 2vw, 28px)', fontWeight: 400, lineHeight: 1.3, textShadow: `4px 4px 0 ${YELLOW}` }}>
+                    RACE #{race.id.toString()}
+                  </h1>
+                  {statusChip && (
+                    <span
+                      className="rx-plate"
+                      style={{ fontFamily: PIXEL, fontSize: 12, lineHeight: 1, background: statusChip.bg, padding: '10px 12px', ...(statusChip.blink ? { animation: 'rx-blink 1s steps(1) infinite' } : {}) }}
+                    >
+                      {statusChip.text}
+                    </span>
+                  )}
+                </div>
+                {timer && <TimerBox label={timer.label} value={timer.value} />}
+              </div>
+
+              {(race.title || race.origin === ASSET_RACE_ORIGIN.COMMUNITY) && (
+                <p style={{ margin: '-8px 0 0', fontSize: 20, fontWeight: 600 }}>
+                  {race.title}
+                  {race.origin === ASSET_RACE_ORIGIN.COMMUNITY && (
+                    <span style={{ fontWeight: 500, opacity: 0.7 }}> · by <AddressLabel address={race.creator} /></span>
+                  )}
+                </p>
+              )}
+
+              {!token ? (
+                <p style={{ padding: '40px 0', textAlign: 'center', fontSize: 20 }}>Loading stake currency…</p>
+              ) : race.status === ASSET_RACE_STATUS.LOBBY ? (
+                <AssetRaceLobbyView
+                  race={race}
+                  nowMs={raceNowMs}
+                  isConnected={connected}
+                  hasAddedAsset={!!publicKey && race.lobbyAdders.includes(publicKey.toBase58())}
+                  onAddAsset={handleAddAsset}
+                  txLabel={tx?.label ?? null}
+                  error={error}
+                />
+              ) : (
+                <>
+                  <RaceBoard race={race} final={race.status >= 2} />
+
+                  {race.status === ASSET_RACE_STATUS.BETTING && (
+                    <AssetRaceBettingView
+                      race={race}
+                      position={position}
+                      selectedAssetIndex={position?.exists ? position.assetIndex : selectedAssetIndex}
+                      setSelectedAssetIndex={setSelectedAssetIndex}
+                      amount={amount}
+                      setAmount={setAmount}
+                      inputUnit={stakeInputUnit}
+                      setInputUnit={(unit) => {
+                        if (unit === stakeInputUnit) return
+                        setStakeInputUnit(unit)
+                        setAmount('')
+                        setFrozenBetQuote(null)
+                        setError(null)
+                      }}
+                      balance={balance.data}
+                      isConnected={connected}
+                      onBet={handleBet}
+                      txLabel={tx?.label ?? null}
+                      error={error}
+                      nowMs={raceNowMs}
+                      tokenDecimals={token.decimals}
+                      tokenLabel={token.symbol}
+                      amountRaw={displayedBetAmount}
+                      exactAmount={displayedBetAmount > 0n ? formatUnits(displayedBetAmount, token.decimals) : null}
+                      equivalentUsd={usdQuoted && displayedBetQuote ? formatUsdCents(displayedBetQuote.usdCents) : null}
+                      quoteReady={!usdQuoted || !!live.solUsd}
+                      usdQuoted={usdQuoted}
+                    />
+                  )}
+
+                  {race.status === ASSET_RACE_STATUS.RUNNING && (
+                    <div className="rx-raised" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '12px 24px', background: CREAM, padding: '16px 20px' }}>
+                      <p style={{ margin: 0, fontSize: 22, fontWeight: 600 }}>Betting is closed - the field is racing.</p>
+                      <p style={{ margin: 0, fontSize: 18, fontWeight: 500, opacity: 0.7 }}>Winners split the losing pools after the finish.</p>
+                    </div>
+                  )}
+
+                  {race.status >= 2 && (
+                    <AssetRaceResultView
+                      race={race}
+                      position={position}
+                      settlement={settlement}
+                      payout={payout}
+                      isConnected={connected}
+                      error={error}
+                      tokenDecimals={token.decimals}
+                      tokenLabel={token.symbol}
+                    />
+                  )}
+                </>
+              )}
+            </>
           )}
         </div>
-      )}
+
+        {race && token && race.status !== ASSET_RACE_STATUS.LOBBY && (
+          <aside style={{ flex: '1 1 320px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 24 }}>
+            {position?.exists && yourLane && (
+              <YourBetCard
+                symbol={yourLane.symbol}
+                line1={`${formatStakeAmount(position.stake, token)} on ${yourLane.symbol}`}
+                line2={race.status === ASSET_RACE_STATUS.BETTING ? 'Locked until the finish' : yourRank > 0 ? `Now in ${yourRank}${rankSuffix(yourRank)} place` : ''}
+              />
+            )}
+            <ScoreBoard race={race} final={race.status >= 2} bank={formatStakeAmount(race.totalPool, token)} />
+          </aside>
+        )}
+      </main>
     </div>
   )
 }
