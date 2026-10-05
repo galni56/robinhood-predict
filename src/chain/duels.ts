@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { getJson, useGameState, type ServerPayout } from '@/chain/gameServer'
+import { convertRows, getJson, useGameState, type ServerPayout } from '@/chain/gameServer'
 import { GAME_SERVER_URL } from '@/solana/services'
 
 // Coin duels (scripts/solana/game-server/duel.mjs): every racer brings one
@@ -156,7 +156,7 @@ const OFFLINE_LOBBIES: Duel[] = Array.from({ length: 10 }, (_, i) => ({
 export function useDuels() {
   const state = useGameState()
   const served = (state.data as { duels?: ServerDuel[] } | undefined)?.duels
-  const duels = useMemo(() => (served ?? []).map(duelFromServer).sort((a, b) => b.id - a.id), [served])
+  const duels = useMemo(() => convertRows(served, duelFromServer, 'duel').sort((a, b) => b.id - a.id), [served])
   const offline = !served && !state.isLoading
   return { duels: offline ? OFFLINE_LOBBIES : duels, offline, isLoading: state.isLoading && GAME_SERVER_URL != null, error: state.error }
 }

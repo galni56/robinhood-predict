@@ -164,6 +164,20 @@ export interface ServerWallet {
 }
 
 /** A refusal from the game server, with its rule code (e.g. StakeBelowMinimum). */
+/** Converts server rows, dropping (and logging) any that do not parse
+ * instead of letting one malformed row take the whole page down. */
+export function convertRows<In, Out>(rows: readonly In[] | undefined, convert: (row: In) => Out, label: string): Out[] {
+  const out: Out[] = []
+  for (const row of rows ?? []) {
+    try {
+      out.push(convert(row))
+    } catch (error) {
+      console.warn(`[game-server] dropped a malformed ${label}`, error, row)
+    }
+  }
+  return out
+}
+
 /** The server answered and refused (a rule code in `error`). */
 export class GameServerError extends Error {
   readonly code: string

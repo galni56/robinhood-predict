@@ -1,15 +1,6 @@
 import { SOL_DECIMALS } from '@/solana/config'
 import { solanaTxError } from '@/solana/tx'
 
-export function formatUsd(value: number, digits = 2): string {
-  return value.toLocaleString('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: digits,
-    maximumFractionDigits: digits,
-  })
-}
-
 /** Exact decimal string of a raw integer amount (`formatUnits(1500000000n, 9)` → "1.5"). */
 export function formatUnits(raw: bigint, decimals: number): string {
   const negative = raw < 0n
@@ -69,10 +60,6 @@ export function formatUsdPrice(value: number): string {
   const magnitude = Math.abs(value)
   const maximumFractionDigits = magnitude >= 100 ? 2 : magnitude >= 1 ? 4 : magnitude >= 0.001 ? 6 : 10
   return `$${value.toLocaleString('en-US', { minimumFractionDigits: Math.min(2, maximumFractionDigits), maximumFractionDigits })}`
-}
-
-export function formatPct(value: number, digits = 1): string {
-  return `${(value * 100).toFixed(digits)}%`
 }
 
 export function timeAgo(ts: number): string {

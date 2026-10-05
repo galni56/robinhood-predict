@@ -61,15 +61,7 @@ export const assetRaceCatalog: AssetRaceCatalogAsset[] = (registryJson.assets as
 export const assetRaceCatalogById = new Map(assetRaceCatalog.map((asset) => [asset.assetId.toLowerCase(), asset]))
 export const assetRaceCatalogByPool = new Map(assetRaceCatalog.map((asset) => [asset.pool, asset]))
 
-export function priceSourceUrlForCatalogAsset(asset?: AssetRaceCatalogAsset): string | undefined {
-  return asset?.priceUrl
-}
-
 export function priceSourceUrlForAssetId(assetId?: string): string | undefined {
   return assetId ? assetRaceCatalogById.get(assetId.toLowerCase())?.priceUrl : undefined
 }
 
-export function priceSourceUrlForSymbol(symbol?: string): string | undefined {
-  if (!symbol) return undefined
-  return assetRaceCatalog.find((asset) => asset.symbol.toLowerCase() === symbol.toLowerCase())?.priceUrl
-}
