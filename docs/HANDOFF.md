@@ -107,8 +107,8 @@ http://localhost:5173/robinhood-predict/ (HashRouter: routes after `#`). The dev
       Actions → Deploy to GitHub Pages → Run workflow. The build then uses mainnet and the VPS paths.
    3. One $1 duel between two wallets; the owner's first launchpad token.
    4. To go back to the preview: `SOLANA_LIVE` = `false`, re-run the workflow, stop the services.
-3. Remaining review items (`GAME_SERVER_REVIEW_BACKLOG.md`, "Still open"): price sanity check before
-   signing, a global cap on open lobbies, a stored deposit-scan cursor, RPC failover and alerts.
+3. **Price sanity threshold (owner):** set `PRICE_MAX_DEVIATION_BP` in `/etc/prophet/prophet.env` (e.g. `500`
+   = 5%) and restart the price service; until then the check is off.
 4. **EVM wind-down (owner):** stop new games on `main`, let open ones settle, keep claims reachable, then merge.
 5. Ideas: launch races (pump.fun coins launched in a lobby, first to graduate to PumpSwap wins), "will it
    graduate in 24 h" bets.

@@ -21,15 +21,18 @@ per transaction and carry their own network fee), 4 (domain + nonce; replay keye
 key file permission check, real `/health`, hourly backups. Duel lifecycle e2e on a local validator passes
 (`e2e-duel-localnet.mjs`).
 
-Still open:
-- **No price sanity check before signing** (from `SOLANA_REVIEW_BACKLOG.md` #1-2): the price service signs the
-  spot price at the boundary block without comparing it to the pool's recent prices. Matters more now that
-  DOGE, BNB, SUI and XRP use thin pools. Needs an owner decision on the threshold (the duel then voids).
-- **No global cap on open lobbies**: creation is limited per wallet only; many wallets can flood `/state`.
-- **Deposit scan reads at most 20 signature pages** per pass with no stored cursor: after a long outage with
-  heavy traffic older deposits could be missed (they are not lost on chain, but not applied or refunded).
-- **One RPC for the game cluster** (`SOLANA_RPC_URL`, no failover) and no alerting for stuck payouts,
-  insolvency or deposits needing attention (the numbers are in `/health`).
+Fixed afterwards (2026-10-05):
+- **Boundary price sanity check** (`price-service/sanity.mjs`): the boundary price must lie within
+  `PRICE_MAX_DEVIATION_BP` of the pool's time-weighted median over ±`PRICE_SANITY_WINDOW_SECONDS` (30) around
+  the boundary, or it is not signed and the game voids by rule. **Off until the owner sets the threshold.**
+- **Deposit scan backlog**: a pass that hits the page limit stores a cursor (meta `scan_cursors`); later passes
+  read on from there, and games do not settle while a backlog remains. Test in `engine.test.mjs`.
+- **Solvency during finality**: a payout that landed but is not finalized is no longer counted as owed (it was
+  showing a false "insolvent" for ~13 s after each payout).
+
+Declined by the owner (2026-10-05): a global cap on open lobbies; a second game-cluster RPC and alerting.
+
+Still open: only what the owner declined, plus the ops items below.
 - Ops: the VPS price service now listens on 8793 (8790 is the EVM share-preview's port, used by nginx `/share/`).
 
 ## Money / security (before real funds)

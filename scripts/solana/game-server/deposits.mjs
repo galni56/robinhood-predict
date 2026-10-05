@@ -141,21 +141,45 @@ export function createDeposits({ db, chain, opts, log, now, funders, adoptWallet
   }
 
   /**
-   * Catches every transaction that touched the game wallet, including stakes
-   * whose sender never told the API. Newest pages first until a fully known
-   * page, then applied oldest first.
+   * Reads signature pages older than `before` until a fully known page or
+   * the end of history, at most `opts.scanPages` pages. Collects the unknown
+   * ones into `fresh`; returns where to continue, or null when done.
    */
-  async function scanDeposits() {
-    const fresh = []
-    let before
-    for (let page = 0; page < 20; page++) {
+  async function collect(before, fresh) {
+    for (let page = 0; page < opts.scanPages; page++) {
       const signatures = await chain.signatures(before)
       const unknown = signatures.filter((s) => !db.getDeposit(s.signature))
       fresh.push(...unknown)
-      if (unknown.length === 0 || signatures.length < 1000) break
+      if (unknown.length === 0 || signatures.length < 1000) return null
       before = signatures[signatures.length - 1].signature
     }
-    let pending = 0
+    return before
+  }
+
+  /**
+   * Catches every transaction that touched the game wallet, including stakes
+   * whose sender never told the API. Newest pages first until a fully known
+   * page, then applied oldest first.
+   *
+   * After a long outage the unknown history can be longer than one pass
+   * reads. Where a pass stopped is stored (meta `scan_cursors`) and later
+   * passes keep reading from there until they meet known history; until
+   * then games do not settle (the backlog may hold their stakes).
+   */
+  async function scanDeposits() {
+    const fresh = []
+    const cursors = JSON.parse(db.getMeta('scan_cursors') ?? '[]')
+    const head = await collect(undefined, fresh)
+    if (head) cursors.push(head)
+    else if (cursors.length > 0) {
+      // Newest history is caught up: spend this pass on the oldest backlog.
+      const next = await collect(cursors[0], fresh)
+      if (next) cursors[0] = next
+      else cursors.shift()
+    }
+    db.setMeta('scan_cursors', JSON.stringify(cursors))
+    if (cursors.length > 0) log.warn(`deposit scan: older history still being read (${cursors.length} backlog cursor(s))`)
+    let pending = cursors.length
     // A signature listed long ago that still cannot be read (dropped fork,
     // unsupported version) would stay pending forever and freeze every
     // game's settlement; past this many finalized slots it is given up on.

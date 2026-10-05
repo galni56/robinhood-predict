@@ -471,3 +471,21 @@ test('race: an expired start window cancels even while the scan is stuck', async
   await engine.tick()
   assert.equal(db.getGame('race', race.id).status, 'cancelled')
 })
+
+test('deposit scan: a backlog longer than one pass is read in later passes, and settlement waits for it', async () => {
+  const clock = { t: 10_000 }
+  const chain = fakeChain()
+  const db = openDatabase(':memory:')
+  // One page (1000 signatures) per pass makes a 2500-transaction outage a backlog.
+  const engine = createEngine({ db, chain, prices: fakePrices({}), assets: ASSETS, cluster: 'localnet', clock: () => clock.t, log: quiet, options: { scanPages: 1 } })
+  await engine.init()
+  const signatures = Array.from({ length: 2500 }, (_, i) => chain.deposit(`w${i}`, 1_000n, null, 1)) // dust, kept
+  await engine.tick()
+  assert.ok(engine.lastScan.pending > 0, 'unread history keeps settlement waiting')
+  assert.equal(signatures.filter((s) => db.getDeposit(s)).length, 1000)
+  await engine.tick()
+  await engine.tick()
+  assert.equal(signatures.filter((s) => db.getDeposit(s)).length, 2500, 'every older transaction was read')
+  assert.equal(engine.lastScan.pending, 0)
+  assert.equal(db.getMeta('scan_cursors'), '[]')
+})

@@ -29,6 +29,8 @@
 // Env: SOLANA_MAINNET_RPC_URLS (comma list; or SOLANA_MAINNET_RPC_URL for one),
 // SOLANA_MAINNET_WS_URLS / SOLANA_MAINNET_WS_URL (optional, same order),
 // ORACLE_KEYPAIR (read here, never printed), PRICE_SERVICE_PORT (8790),
+// PRICE_MAX_DEVIATION_BP (boundary sanity check, see sanity.mjs; 0 = off),
+// PRICE_SANITY_WINDOW_SECONDS (30: the median window on each side),
 // PRICE_SERVICE_HOST (127.0.0.1), BUFFER_SECONDS (1200), RESYNC_SECONDS (30),
 // SUPPLY_REFRESH_SECONDS (600), STALE_NOTIFICATION_MS (30000),
 // ALLOWED_PROGRAM_IDS (comma list; set in production),
@@ -42,6 +44,7 @@ import { encodeAttestation, signedEd25519Instruction } from './attestation.mjs'
 import { AccountHistory } from './history.mjs'
 import { formatScaled } from './pools.mjs'
 import { accountsFor, buildPlan, pricesFromData } from './snapshot.mjs'
+import { checkBoundaryPrice } from './sanity.mjs'
 import { poolDependencies } from './pools.mjs'
 
 const list = (value) => (value ?? '').split(',').map((v) => v.trim()).filter(Boolean)
@@ -56,6 +59,9 @@ const PORT = Number(process.env.PRICE_SERVICE_PORT ?? 8790)
 // Loopback by default: nginx is the only public entry (and WSL forwards IPv4 loopback to Windows).
 const HOST = process.env.PRICE_SERVICE_HOST ?? '127.0.0.1'
 const BUFFER_SECONDS = Number(process.env.BUFFER_SECONDS ?? 1200)
+// Boundary sanity check (owner sets the threshold; unset = off).
+const MAX_DEVIATION_BP = Number(process.env.PRICE_MAX_DEVIATION_BP ?? 0)
+const SANITY_WINDOW_SLOTS = Math.round(Number(process.env.PRICE_SANITY_WINDOW_SECONDS ?? 30) * 2.5)
 const RESYNC_SECONDS = Number(process.env.RESYNC_SECONDS ?? 30)
 const SUPPLY_REFRESH_SECONDS = Number(process.env.SUPPLY_REFRESH_SECONDS ?? 600)
 if (!process.env.ORACLE_KEYPAIR) throw new Error('ORACLE_KEYPAIR is required')
@@ -350,6 +356,28 @@ async function boundaryBlocks(target) {
   throw new Error('could not bracket the boundary')
 }
 
+/**
+ * An asset's USD price at every recorded change of its accounts within
+ * [fromSlot, toSlot] (plus the state at fromSlot), for the sanity median.
+ * Slots inside a gap are skipped.
+ */
+function priceSamples(asset, accounts, fromSlot, toSlot) {
+  const slots = new Set([fromSlot])
+  for (const account of accounts) for (const e of history.entries.get(account) ?? []) if (e.slot > fromSlot && e.slot <= toSlot) slots.add(e.slot)
+  const samples = []
+  for (const slot of [...slots].sort((a, b) => a - b)) {
+    try {
+      const data = Object.fromEntries(accounts.map((account) => [account, history.stateAt(account, slot)]))
+      const { prices } = pricesFromData(plan, data, [asset])
+      const p = prices.get(asset.symbol)
+      if (p) samples.push({ slot, price: p.scaled })
+    } catch {
+      // unknown state at this slot (gap): not a sample
+    }
+  }
+  return samples
+}
+
 async function attestation({ program, target, sources }) {
   if (ALLOWED_PROGRAM_IDS.length > 0 && !ALLOWED_PROGRAM_IDS.includes(program)) {
     throw new Error(`program ${program} is not in ALLOWED_PROGRAM_IDS`)
@@ -370,6 +398,22 @@ async function attestation({ program, target, sources }) {
   const data = Object.fromEntries(needed.map((account) => [account, history.stateAt(account, prev.slot)]))
   const { prices, errors } = pricesFromData(plan, data, assets)
   if (errors.length) throw new Error(errors.join('; '))
+  if (MAX_DEVIATION_BP > 0) {
+    // The median window reaches past the boundary: wait until it is observed.
+    if (maxSlotSeen < prev.slot + SANITY_WINDOW_SLOTS) throw new Error('price window after the boundary not observed yet; retry shortly')
+    for (const asset of assets) {
+      const reason = checkBoundaryPrice({
+        price: prices.get(asset.symbol).scaled,
+        samples: priceSamples(asset, accountsFor(plan, asset, latestData), prev.slot - SANITY_WINDOW_SLOTS, prev.slot + SANITY_WINDOW_SLOTS),
+        endSlot: prev.slot + SANITY_WINDOW_SLOTS,
+        maxDeviationBp: MAX_DEVIATION_BP,
+      })
+      if (reason) {
+        console.warn(`attestation target=${target}: ${asset.symbol} refused, ${reason}`)
+        throw new Error(`price check failed for ${asset.symbol}: ${reason}`)
+      }
+    }
+  }
 
   const entries = assets.map((asset) => {
     const p = prices.get(asset.symbol)

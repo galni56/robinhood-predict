@@ -15,6 +15,9 @@ import { BASE_FEE, RENT_EXEMPT_MINIMUM } from './chain.mjs'
  */
 export function createPayouts({ db, chain, opts, log, now, coldWallet, lastScan: currentScan }) {
   const lastBroadcast = new Map()
+  // Payouts that landed (confirmed, no error) but are not finalized yet: the
+  // SOL already left the wallet, so solvency must not count them as owed.
+  const landedUnfinal = new Map()
   // Base fee plus the priority fee, when one is configured.
   const txFee = chain.payoutFee ?? BASE_FEE
   let lastSweepCheck = 0
@@ -31,7 +34,11 @@ export function createPayouts({ db, chain, opts, log, now, coldWallet, lastScan:
           const landed = status && (status.confirmationStatus === 'confirmed' || status.confirmationStatus === 'finalized')
           // Done only once finalized: a confirmed block can (rarely) be rolled
           // back, and a payout marked done there would never be re-sent.
-          if (landed && status.err == null && status.confirmationStatus !== 'finalized') continue
+          if (landed && status.err == null && status.confirmationStatus !== 'finalized') {
+            landedUnfinal.set(p.id, BigInt(p.amount))
+            continue
+          }
+          landedUnfinal.delete(p.id)
           if (landed && status.err == null) {
             db.markDone(p.id)
             lastBroadcast.delete(p.id)
@@ -90,7 +97,8 @@ export function createPayouts({ db, chain, opts, log, now, coldWallet, lastScan:
   /** What the game wallet owes: stakes in live games, queued payouts, creator balances. */
   function liabilities() {
     const live = db.liveGames().reduce((sum, g) => sum + g.remainingLiability, 0n)
-    return live + db.owedTotal() + db.creatorBalancesTotal()
+    const inFlight = [...landedUnfinal.values()].reduce((sum, a) => sum + a, 0n)
+    return live + db.owedTotal() + db.creatorBalancesTotal() - inFlight
   }
 
   async function solvency() {

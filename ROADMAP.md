@@ -31,8 +31,7 @@ Change log: [`docs/SOLANA_CHANGELOG.md`](./docs/SOLANA_CHANGELOG.md). Status and
 1. **Own domain** for the site (browser-held keys should not share the `github.io` origin).
 2. **Live test** — start the services, set `SOLANA_LIVE=true`, one $1 duel between two wallets; the owner's
    first launchpad token.
-3. **Review leftovers** (`docs/GAME_SERVER_REVIEW_BACKLOG.md`): price sanity check before signing (owner picks
-   the threshold), a global cap on open lobbies, a stored deposit-scan cursor, RPC failover and alerts.
+3. **Price sanity threshold** — the check is built; the owner picks the limit (`PRICE_MAX_DEVIATION_BP`).
 
 ## Before real volume (owner)
 

@@ -76,6 +76,8 @@ export const DEFAULTS = {
   /** A listed signature still unreadable this many slots below the
    * finalized slot is marked dropped instead of blocking settlement. */
   unreadableAfterSlots: 300,
+  /** Signature pages (1000 each) one deposit scan reads before it continues next time. */
+  scanPages: 20,
   /** Spectators may back one duel racer with up to this much (USD cents). */
   duelBackCapUsdCents: 10_000,
 }

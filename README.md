@@ -78,7 +78,8 @@ Frontend (build time):
 | `VITE_BASE_PATH` | `/robinhood-predict/` by default; `/` when served from a domain root |
 
 Game server and price service: see the header comments of `scripts/solana/game-server/server.mjs` and
-`scripts/solana/price-service/service.mjs`. On mainnet the game server refuses to start without
+`scripts/solana/price-service/service.mjs` (`PRICE_MAX_DEVIATION_BP` turns on the boundary price sanity
+check; off until the owner picks the threshold). On mainnet the game server refuses to start without
 `ORACLE_PUBKEY`, `SIGNING_DOMAINS` and `COLD_WALLET`, and refuses an empty database next to a wallet that
 already has history (unless `ADOPT_WALLET=1` on a genuinely first start).
 
