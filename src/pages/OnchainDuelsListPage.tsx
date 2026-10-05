@@ -8,10 +8,9 @@ import { useLivePrices } from '@/chain/livePrices'
 import { assetIconUrl } from '@/lib/assetIcons'
 import { formatUnits, shortTxError } from '@/lib/format'
 import { CoinFighter, DriftingCloud } from '@/retro/landingFx'
-import { CREAM, INK, PINK, SKY, YELLOW } from '@/retro/scene'
+import { CREAM, INK, PINK, SKY, YELLOW, PIXEL } from '@/retro/scene'
 import { COIN_BODIES } from '@/components/GamePickers'
 
-const PIXEL = "'Press Start 2P', 'Courier New', monospace"
 const sol = (raw: bigint) => `${Number(Number(formatUnits(raw, 9)).toPrecision(3))} SOL`
 
 function LobbyCard({ duel }: { duel: Duel }) {

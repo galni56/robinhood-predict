@@ -18,10 +18,9 @@ import { useSendInstructions, TxUnconfirmedError } from '@/solana/tx'
 import { explorerUrl } from '@/solana/config'
 import { CoinFighter } from '@/retro/landingFx'
 import { PxSprite } from '@/retro/Sprite'
-import { CREAM, INK, PINK, ROAD, SKY, YELLOW } from '@/retro/scene'
+import { CREAM, INK, PINK, ROAD, SKY, YELLOW, PIXEL } from '@/retro/scene'
 import { crown } from '@/retro/spriteData'
 
-const PIXEL = "'Press Start 2P', 'Courier New', monospace"
 // Pixel fonts have no emoji; the firework uses the system emoji font.
 const EMOJI = "'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif"
 const STAKE_PRESETS = [100n, 500n, 1_000n, 2_500n, 5_000n]

@@ -3,6 +3,7 @@ import { WalletReadyState, type WalletName } from '@solana/wallet-adapter-base'
 import { useWallet } from '@solana/wallet-adapter-react'
 import { ProphetWalletName, prophetWalletStore } from '@/solana/prophetWallet'
 import { EXTERNAL_WALLETS_ENABLED } from '@/solana/SolanaProvider'
+import { PIXEL } from '@/retro/scene'
 
 const MOBILE_BREAKPOINT_PX = 500
 
@@ -34,7 +35,6 @@ function useIsNarrowViewport(maxWidthPx: number) {
 
 /** Shared "pick a wallet" list, used in ConnectWalletButton's dropdown and
  * inline wherever a page asks for a wallet before showing its content. */
-const PIXEL = "'Press Start 2P', 'Courier New', monospace"
 
 /** Platform-wallet entry: one bevelled button that creates (or logs into)
  * the personal account, plus a restore link for players with a saved key. */

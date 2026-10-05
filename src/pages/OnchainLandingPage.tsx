@@ -5,7 +5,7 @@ import { useHistory } from '@/chain/history'
 import { AddressLabel } from '@/components/AddressLabel'
 import { PxSprite } from '@/retro/Sprite'
 import { coinBlue, coinBlueGrin, coinOrangeGrin, coinPinkGrin, coinPurple, coinPurpleGrin, logoCoin } from '@/retro/spriteData'
-import { Cloud, CREAM, GrassStrip, Hills, INK, NIGHT, PINK, RoadLane, SKY, Stars, YELLOW } from '@/retro/scene'
+import { Cloud, CREAM, GrassStrip, Hills, INK, NIGHT, PINK, RoadLane, SKY, Stars, YELLOW, PIXEL } from '@/retro/scene'
 import { AnimatedRace, ArenaCallsScene, DriftingCloud, PixelDivider, Podium, Sun } from '@/retro/landingFx'
 import { assetRaceCatalog } from '@/chain/assetRaceRegistry'
 import pumpswapSnapshot from '@/chain/pumpswapSnapshot.json'
@@ -15,7 +15,6 @@ import { formatCompactSol } from '@/lib/format'
 // wired to the app's routes. Every size, color and animation step comes
 // from the mock.
 
-const PIXEL = "'Press Start 2P', 'Courier New', monospace"
 
 const STEPS = [
   ['Create an account', 'One click, no extension. Top it up with some SOL to stake.'],

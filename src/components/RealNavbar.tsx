@@ -4,7 +4,7 @@ import type { CSSProperties } from 'react'
 import { ConnectWalletButton } from '@/components/ConnectWalletButton'
 import { PxSprite } from '@/retro/Sprite'
 import { logoCoin } from '@/retro/spriteData'
-import { CREAM, INK, PINK } from '@/retro/scene'
+import { CREAM, INK, PINK, PIXEL } from '@/retro/scene'
 
 // The mock's nav, 1:1: cream bar with a 4px ink rule, the pixel logo coin,
 // three Pixelify links (active = pink underline bar) and the wallet button.
@@ -24,7 +24,6 @@ const MORE = [
   { to: '/onchain/archive', label: 'Archive' },
 ]
 
-const PIXEL = "'Press Start 2P', 'Courier New', monospace"
 
 export function RealNavbar() {
   const [moreOpen, setMoreOpen] = useState(false)

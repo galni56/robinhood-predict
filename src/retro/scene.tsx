@@ -5,6 +5,10 @@ import { cloud, crown, type PxSpriteData } from '@/retro/spriteData'
 // Scene pieces copied 1:1 from the approved mock: clouds, stepped hills,
 // grass strips and the race road with bobbing coin characters.
 
+/** Headline/label font (Press Start 2P) and body font (Pixelify Sans). */
+export const PIXEL = "'Press Start 2P', 'Courier New', monospace"
+export const BODY_FONT = "'Pixelify Sans', 'Courier New', monospace"
+
 export const INK = '#1B1340'
 export const CREAM = '#FFF6DF'
 export const SKY = '#6FD3FF'

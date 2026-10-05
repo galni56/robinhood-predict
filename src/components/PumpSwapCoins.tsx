@@ -3,10 +3,9 @@ import { usePumpSwapAssets } from '@/chain/gameServer'
 import { useLivePrices } from '@/chain/livePrices'
 import { formatUnits } from '@/lib/format'
 import { CoinFighter } from '@/retro/landingFx'
-import { CREAM, INK, PINK, YELLOW } from '@/retro/scene'
+import { CREAM, INK, PINK, YELLOW, PIXEL } from '@/retro/scene'
 import { coinBlueGrin, coinOrangeGrin, coinPinkGrin, coinPurpleGrin } from '@/retro/spriteData'
 
-const PIXEL = "'Press Start 2P', 'Courier New', monospace"
 const BODIES = [coinOrangeGrin, coinPinkGrin, coinBlueGrin, coinPurpleGrin]
 
 const usd = (value?: number) => (value == null ? '—' : value >= 1e6 ? `$${(value / 1e6).toFixed(1)}M` : value >= 1e3 ? `$${Math.round(value / 1e3)}K` : `$${Math.round(value)}`)

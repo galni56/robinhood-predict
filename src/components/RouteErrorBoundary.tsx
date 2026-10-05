@@ -1,6 +1,6 @@
 import { Component, type ReactNode } from 'react'
+import { PIXEL } from '@/retro/scene'
 
-const PIXEL = "'Press Start 2P', 'Courier New', monospace"
 
 /** One broken page (a malformed server row, a render bug) shows a recovery
  * card instead of white-screening the whole app. Keyed by route in App.tsx,

@@ -2,14 +2,14 @@ import type { ReactNode } from 'react'
 import { PxSprite } from '@/retro/Sprite'
 import { coinSkin } from '@/retro/coins'
 import { crown } from '@/retro/spriteData'
-import { CREAM, GREEN_UP, INK, RED_DOWN, ROAD, YELLOW } from '@/retro/scene'
+import { PIXEL, CREAM, GREEN_UP, INK, RED_DOWN, ROAD, YELLOW } from '@/retro/scene'
 import { calculateReturnWad, formatReturnWad, type AssetRaceViewModel } from '@/chain/assetRaces'
 
 // The mock's RACE screen pieces (Race.dc.html), generalized over our race
 // view model: lane board with the cream info cells, the scoreboard and the
 // yellow "your bet" card. All sizes and colors come from the mock.
 
-export const PIXEL = "'Press Start 2P', 'Courier New', monospace"
+export { PIXEL } from '@/retro/scene'
 
 export interface LaneEntry {
   assetIndex: number

@@ -5,14 +5,13 @@ import { formatUnits } from '@/lib/format'
 import { assetIconUrl } from '@/lib/assetIcons'
 import { CoinFighter } from '@/retro/landingFx'
 import { PxSprite } from '@/retro/Sprite'
-import { CREAM, INK, PINK, ROAD, YELLOW } from '@/retro/scene'
+import { CREAM, INK, PINK, ROAD, YELLOW, PIXEL } from '@/retro/scene'
 import { coinBlueGrin, coinGreen, coinOrangeGrin, coinPinkGrin, coinPurpleGrin, type PxSpriteData } from '@/retro/spriteData'
 
 // Game-style building blocks for the create pages: a searchable coin picker
 // of pixel fighters, a live track that fills as coins join, and a compact
 // four-step "how it works" strip.
 
-const PIXEL = "'Press Start 2P', 'Courier New', monospace"
 export const COIN_BODIES: PxSpriteData[] = [coinOrangeGrin, coinPinkGrin, coinBlueGrin, coinPurpleGrin, coinGreen]
 
 const shortPrice = (raw: bigint, decimals: number) => `$${Number(Number(formatUnits(raw, decimals)).toPrecision(4))}`

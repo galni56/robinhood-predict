@@ -14,10 +14,9 @@ import { WalletOptionsList } from '@/components/WalletOptionsList'
 import { assetIconUrl } from '@/lib/assetIcons'
 import { formatCompactUsd, formatUnits, shortTxError } from '@/lib/format'
 import { CoinFighter } from '@/retro/landingFx'
-import { CREAM, INK, NIGHT, PINK, Stars, YELLOW } from '@/retro/scene'
+import { CREAM, INK, NIGHT, PINK, Stars, YELLOW, PIXEL } from '@/retro/scene'
 import { coinBlueGrin, coinOrangeGrin, coinPinkGrin, logoCoin } from '@/retro/spriteData'
 
-const PIXEL = "'Press Start 2P', 'Courier New', monospace"
 const ARENA_BLUE = '#6BCBF4'
 
 /** The ring: the chosen coin in the middle, sample calls floating around it. */
