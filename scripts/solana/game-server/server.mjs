@@ -24,6 +24,10 @@
 //                         printed). "ephemeral" = throwaway key, localnet only.
 //   GAME_DB               SQLite file (default ./.data/game-server.sqlite)
 //   PRICE_SERVICE_URL     default http://127.0.0.1:8790
+//   ORACLE_PUBKEY         price oracle public key; boundary prices must carry
+//                         its signature (required off localnet)
+//   ADOPT_WALLET=1        first start on a wallet that already has history
+//                         (never set it to recover a lost database)
 //   COLD_WALLET           owner's wallet for swept surplus (optional)
 //   ADMIN_WALLET          creator of platform races (default: game wallet)
 //   PLATFORM_RACES        schedule file (default config/platform-races.json)
@@ -87,7 +91,13 @@ const wallet = loadWallet()
 mkdirSync(dirname(DB_PATH), { recursive: true })
 const db = openDatabase(DB_PATH)
 const chain = createChain({ rpcUrl: RPC, wallet, priorityMicroLamports: Number(process.env.PRIORITY_MICROLAMPORTS ?? 0) })
-const prices = createPriceClient(process.env.PRICE_SERVICE_URL ?? 'http://127.0.0.1:8790', chain.address)
+// Settlement prices must carry the pinned oracle's signature; only a
+// localnet stand may run without one.
+const ORACLE_PUBKEY = process.env.ORACLE_PUBKEY?.trim() || null
+if (ORACLE_PUBKEY && !isAddress(ORACLE_PUBKEY)) throw new Error('ORACLE_PUBKEY is not a valid address')
+if (!ORACLE_PUBKEY && CLUSTER !== 'localnet') throw new Error(`ORACLE_PUBKEY is required on ${CLUSTER}: settlement prices are verified against it`)
+if (!ORACLE_PUBKEY) console.warn('ORACLE_PUBKEY unset: boundary prices are NOT signature-checked (localnet only)')
+const prices = createPriceClient(process.env.PRICE_SERVICE_URL ?? 'http://127.0.0.1:8790', chain.address, ORACLE_PUBKEY)
 const baseCatalog = readJson(new URL('config/solana-assets.json', ROOT))
 const EXTRA_ASSETS = resolve(process.env.EXTRA_ASSETS ?? fileURLToPath(new URL('.data/pumpswap-assets.json', ROOT)))
 const readExtra = () => {
