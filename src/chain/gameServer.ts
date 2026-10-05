@@ -294,7 +294,10 @@ export function useSignedAction() {
       if (!publicKey) throw new Error('Log in first')
       if (!signMessage) throw new GameServerError('WalletCannotSignMessages')
       const cluster = config.data?.cluster ?? (await getJson<ServerConfig>('/config')).cluster
-      const message = `Prophet\n${JSON.stringify({ ...fields, wallet: publicKey.toBase58(), cluster, issuedAt: Math.floor(Date.now() / 1000) })}`
+      // domain: binds the signature to this site (the server rejects other
+      // hosts); nonce: makes every signed message unique.
+      const nonce = Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(16).padStart(2, '0')).join('')
+      const message = `Prophet\n${JSON.stringify({ ...fields, wallet: publicKey.toBase58(), cluster, domain: window.location.host, nonce, issuedAt: Math.floor(Date.now() / 1000) })}`
       const signature = await signMessage(new TextEncoder().encode(message))
       let binary = ''
       signature.forEach((b) => { binary += String.fromCharCode(b) })
@@ -307,6 +310,7 @@ export function useSignedAction() {
 
 // Rule codes the UI can explain in plain words.
 const FRIENDLY: Record<string, string> = {
+  WrongDomain: 'This action was signed for another website. Make sure you are on prophetmarkets.fun.',
   BettingNotOpen: 'Betting is not open for this race.',
   StakeBelowMinimum: 'The stake is below the minimum.',
   StakeExceedsMaximum: 'That would exceed the per-wallet maximum.',

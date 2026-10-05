@@ -116,7 +116,7 @@ export function catalogAssets(catalog) {
  * @param {string} [o.admin] wallet credited as creator of platform races
  * @param {() => number} [o.clock] unix seconds
  */
-export function createEngine({ db, chain, prices, assets, cluster, coldWallet = null, admin = null, adoptWallet = false, clock, log = console, options = {} }) {
+export function createEngine({ db, chain, prices, assets, cluster, coldWallet = null, admin = null, adoptWallet = false, signingDomains = null, clock, log = console, options = {} }) {
   const opts = { ...DEFAULTS, ...options }
   const now = clock ?? (() => Math.floor(Date.now() / 1000))
   // Replaced when the PumpSwap catalog refreshes (setAssets).
@@ -619,6 +619,11 @@ export function createEngine({ db, chain, prices, assets, cluster, coldWallet = 
     }
     const { action, wallet, issuedAt } = payload
     if (!isAddress(wallet) || payload.cluster !== cluster) throw new RuleError('BadMessage')
+    // Domain binding: a signature collected on a look-alike site is useless
+    // here. The nonce makes every signed message unique, so two identical
+    // actions in the same second are not mistaken for a replay.
+    if (signingDomains && !signingDomains.includes(payload.domain)) throw new RuleError('WrongDomain')
+    if (typeof payload.nonce !== 'string' || !/^[0-9a-f]{16,64}$/.test(payload.nonce)) throw new RuleError('BadMessage')
     if (!Number.isInteger(issuedAt) || Math.abs(now() - issuedAt) > opts.messageMaxAge) throw new RuleError('MessageExpired')
     if (typeof signature !== 'string' || !verifyWalletSignature(wallet, message, signature)) throw new RuleError('BadSignature')
     const t = now()

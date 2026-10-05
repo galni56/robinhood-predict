@@ -26,6 +26,8 @@
 //   PRICE_SERVICE_URL     default http://127.0.0.1:8790
 //   ORACLE_PUBKEY         price oracle public key; boundary prices must carry
 //                         its signature (required off localnet)
+//   SIGNING_DOMAINS       hosts whose signed actions are accepted, comma
+//                         separated (required on mainnet)
 //   ADOPT_WALLET=1        first start on a wallet that already has history
 //                         (never set it to recover a lost database)
 //   COLD_WALLET           owner's wallet for swept surplus (optional)
@@ -97,6 +99,10 @@ const ORACLE_PUBKEY = process.env.ORACLE_PUBKEY?.trim() || null
 if (ORACLE_PUBKEY && !isAddress(ORACLE_PUBKEY)) throw new Error('ORACLE_PUBKEY is not a valid address')
 if (!ORACLE_PUBKEY && CLUSTER !== 'localnet') throw new Error(`ORACLE_PUBKEY is required on ${CLUSTER}: settlement prices are verified against it`)
 if (!ORACLE_PUBKEY) console.warn('ORACLE_PUBKEY unset: boundary prices are NOT signature-checked (localnet only)')
+// Hosts (location.host) whose signed actions are accepted. Required on
+// mainnet so signatures phished on look-alike domains are rejected.
+const SIGNING_DOMAINS = process.env.SIGNING_DOMAINS ? process.env.SIGNING_DOMAINS.split(',').map((d) => d.trim()).filter(Boolean) : null
+if (!SIGNING_DOMAINS && CLUSTER === 'mainnet') throw new Error('SIGNING_DOMAINS is required on mainnet (e.g. prophetmarkets.fun)')
 const prices = createPriceClient(process.env.PRICE_SERVICE_URL ?? 'http://127.0.0.1:8790', chain.address, ORACLE_PUBKEY)
 const baseCatalog = readJson(new URL('config/solana-assets.json', ROOT))
 const EXTRA_ASSETS = resolve(process.env.EXTRA_ASSETS ?? fileURLToPath(new URL('.data/pumpswap-assets.json', ROOT)))
@@ -119,6 +125,7 @@ const engine = createEngine({
   coldWallet: process.env.COLD_WALLET || null,
   admin: process.env.ADMIN_WALLET || null,
   adoptWallet: process.env.ADOPT_WALLET === '1',
+  signingDomains: SIGNING_DOMAINS,
   // A short arena lobby makes the local stand quick to click through.
   options: CLUSTER === 'localnet' && process.env.ARENA_LOBBY_SECONDS ? { arenaLobbyDuration: Number(process.env.ARENA_LOBBY_SECONDS) } : {},
 })

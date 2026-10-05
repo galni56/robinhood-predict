@@ -4,7 +4,7 @@
 // server restarts mid-payout.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { generateKeyPairSync, sign } from 'node:crypto'
+import { generateKeyPairSync, randomBytes, sign } from 'node:crypto'
 import { openDatabase } from './db.mjs'
 import { createEngine } from './engine.mjs'
 import { base58 } from './chain.mjs'
@@ -229,7 +229,7 @@ function wallet() {
   return {
     address,
     signed(clock, fields) {
-      const message = `Prophet\n${JSON.stringify({ ...fields, wallet: address, cluster: 'localnet', issuedAt: clock.t })}`
+      const message = `Prophet\n${JSON.stringify({ domain: 'prophetmarkets.fun', nonce: randomBytes(16).toString('hex'), ...fields, wallet: address, cluster: 'localnet', issuedAt: clock.t })}`
       return { message, signature: sign(null, Buffer.from(message), privateKey).toString('base64') }
     },
   }
@@ -422,4 +422,15 @@ test('refunds: many transfers in one transaction cost one refund, fee included',
   const refunds = chain.paid.filter((p) => p.to === 'spammer')
   assert.equal(refunds.length, 1, 'one refund for the whole transaction')
   assert.equal(refunds[0].lamports, (SOL / 500n) * 10n - 5_000n)
+})
+
+test('signed actions are bound to the allowed domain', async () => {
+  const { chain, db } = setup({})
+  const clock = { t: 10_000 }
+  const engine = createEngine({ db, chain, prices: fakePrices({}), assets: ASSETS, cluster: 'localnet', signingDomains: ['prophetmarkets.fun'], clock: () => clock.t, log: quiet })
+  await engine.init()
+  const w = wallet()
+  engine.act(w.signed(clock, { action: 'set-nickname', nickname: 'ok' }))
+  const phished = w.signed(clock, { action: 'set-nickname', nickname: 'x', domain: 'prophetrnarkets.fun' })
+  assert.throws(() => engine.act(phished), /WrongDomain/)
 })
