@@ -65,7 +65,9 @@ function fakeChain() {
     },
     /** Simulates a lagging / history-less RPC node: status lookups miss. */
     statusesBlind: false,
-    statuses: async (signatures) => signatures.map((x) => (!chain.statusesBlind && landed.has(x) ? { confirmationStatus: 'confirmed', err: null } : null)),
+    /** Commitment the fake cluster reports for landed transactions. */
+    commitment: 'finalized',
+    statuses: async (signatures) => signatures.map((x) => (!chain.statusesBlind && landed.has(x) ? { confirmationStatus: chain.commitment, err: null } : null)),
     finalizedBlockHeight: async () => height,
     finalizedTransaction: async (signature) => (landed.has(signature) ? { err: null } : null),
   }
@@ -90,7 +92,7 @@ function setup(priceTable, { clockStart = 10_000, dbPath = ':memory:', db, adopt
   const clock = { t: clockStart }
   const chain = fakeChain()
   const database = db ?? openDatabase(dbPath)
-  const engine = createEngine({ db: database, chain, prices: fakePrices(priceTable), assets: ASSETS, cluster: 'localnet', coldWallet: COLD, adoptWallet, clock: () => clock.t, log: quiet, options: { sweepEverySeconds: 0, sweepMin: SOL / 100n } })
+  const engine = createEngine({ db: database, chain, prices: fakePrices(priceTable), assets: ASSETS, cluster: 'localnet', coldWallet: COLD, adoptWallet, clock: () => clock.t, log: quiet, options: { sweepEverySeconds: 0, sweepMin: SOL / 100n, settleDelay: 6 } })
   return { clock, chain, db: database, engine }
 }
 
@@ -374,4 +376,27 @@ test('payouts: a landed payout the status lookup misses is never sent twice', as
   await engine.tick()
   assert.equal(chain.paid.filter((p) => p.to === 'bob').length, 1, 'bob must be paid exactly once')
   assert.equal(db.payouts('done').length, 1)
+})
+
+test('payouts: a confirmed-but-not-final payout is not marked done', async () => {
+  const t0 = 10_000
+  const prices = { [t0 + 60]: { 'pool-SOL': 100n, 'pool-BTC': 100n }, [t0 + 120]: { 'pool-SOL': 100n, 'pool-BTC': 120n } }
+  const { clock, chain, db, engine } = setup(prices)
+  await engine.init()
+  const race = engine.createPlatform({ title: 'Duel', category: 'crypto', symbols: ['SOL', 'BTC'], bettingStartTime: t0, bettingEndTime: t0 + 60, raceDuration: 60 })
+  chain.deposit('alice', SOL / 10n, raceMemo(race.id, 0), t0 + 1)
+  chain.deposit('bob', SOL / 10n, raceMemo(race.id, 1), t0 + 2)
+  await engine.tick()
+  clock.t = t0 + 80
+  await engine.tick()
+  clock.t = t0 + 140
+  chain.commitment = 'confirmed'
+  await engine.tick()
+  await engine.tick()
+  assert.equal(db.payouts('done').length, 0, 'confirmed is not final')
+  assert.equal(db.payouts('sent').length, 1)
+  chain.commitment = 'finalized'
+  await engine.tick()
+  assert.equal(db.payouts('done').length, 1)
+  assert.equal(chain.paid.filter((p) => p.to === 'bob').length, 1)
 })

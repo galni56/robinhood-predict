@@ -53,8 +53,9 @@ import { FINAL_STATUSES } from './db.mjs'
 const LAMPORTS_PER_SOL = 1_000_000_000n
 
 export const DEFAULTS = {
-  /** Wait this long past a boundary for late-confirming stakes to show up. */
-  settleDelay: 6,
+  /** Wait this long past a boundary for late stakes to show up and for the
+   * boundary's slots to finalize (~13s on mainnet) before settling. */
+  settleDelay: 15,
   /** Smaller unusable deposits are kept instead of refunded. */
   minRefund: LAMPORTS_PER_SOL / 1_000n,
   /** Creator fees are sent once they reach this (must exceed rent exemption). */
@@ -416,6 +417,9 @@ export function createEngine({ db, chain, prices, assets, cluster, coldWallet = 
         for (const [k, p] of chunk.entries()) {
           const status = statuses[k]
           const landed = status && (status.confirmationStatus === 'confirmed' || status.confirmationStatus === 'finalized')
+          // Done only once finalized: a confirmed block can (rarely) be rolled
+          // back, and a payout marked done there would never be re-sent.
+          if (landed && status.err == null && status.confirmationStatus !== 'finalized') continue
           if (landed && status.err == null) {
             db.markDone(p.id)
             lastBroadcast.delete(p.id)
