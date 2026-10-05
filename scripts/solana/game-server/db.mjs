@@ -83,7 +83,7 @@ export function openDatabase(path) {
     setMeta: q('INSERT INTO meta (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = excluded.value'),
     getGame: q('SELECT state FROM games WHERE kind = ? AND id = ?'),
     gamesByKind: q('SELECT state FROM games WHERE kind = ? ORDER BY id'),
-    liveGames: q("SELECT state FROM games WHERE status NOT IN ('resolved', 'cancelled', 'void') ORDER BY kind, id"),
+    liveGames: q(`SELECT state FROM games WHERE status NOT IN (${[...FINAL_STATUSES].map((st) => `'${st}'`).join(', ')}) ORDER BY kind, id`),
     allGames: q('SELECT state FROM games ORDER BY kind, id'),
     putGame: q(`INSERT INTO games (kind, id, status, state, updated_at) VALUES (?, ?, ?, ?, ?)
       ON CONFLICT (kind, id) DO UPDATE SET status = excluded.status, state = excluded.state, updated_at = excluded.updated_at`),
