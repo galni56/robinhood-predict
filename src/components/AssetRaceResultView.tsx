@@ -41,7 +41,8 @@ export function AssetRaceResultView({
   tokenLabel: string
 }) {
   // Memes also show market cap (price x supply); supply comes with live prices.
-  const live = useLivePrices()
+  // Only market-cap races need live supply for the result caps.
+  const live = useLivePrices({ enabled: race.unit === 'cap' })
   const capOf = (symbol: string, price: bigint, decimals: number) => {
     const supply = race.unit === 'cap' ? live.assets[symbol]?.supply : undefined
     return supply ? formatCompactUsd(Number(formatUnits(price, decimals)) * (Number(supply.raw) / 10 ** supply.decimals)) : null

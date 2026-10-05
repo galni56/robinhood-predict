@@ -111,7 +111,7 @@ export function OnchainDuelPage() {
   const send = useSendInstructions()
   const act = useSignedAction()
   const config = useGameServerConfig()
-  const live = useLivePrices()
+  const live = useLivePrices({ enabled: duel != null && duel.status !== 'resolved' && duel.status !== 'void' })
   const { assets } = useApprovedRaceAssets()
   const now = useNowSeconds()
   const queryClient = useQueryClient()

@@ -67,7 +67,8 @@ export function OnchainRacePage() {
   const [frozenBetQuote, setFrozenBetQuote] = useState<FrozenStakeQuote | null>(null)
   const [error, setError] = useState<string | null>(null)
   const raceNowMs = useAssetRaceClock()
-  const live = useLivePrices()
+  // Prices matter only while stakes can be quoted or the race is moving.
+  const live = useLivePrices({ enabled: race != null && (race.status === ASSET_RACE_STATUS.LOBBY || race.status === ASSET_RACE_STATUS.BETTING || race.status === ASSET_RACE_STATUS.RUNNING) })
   // SOL stakes are entered in USD or SOL at the live rate; SPL stakes in their own units.
   const token = useStakeToken(race?.stakeMint)
   const usdQuoted = token?.native ?? true

@@ -17,16 +17,7 @@ import { reportDepositSafely, useGameServerConfig, useSignedAction } from '@/cha
 import { useAssetRaceClock } from '@/chain/useAssetRaceClock'
 import { useLivePrices } from '@/chain/livePrices'
 import { usePriceArena } from '@/chain/usePriceArena'
-import {
-  PRICE_ARENA_CANCEL_REASON,
-  PRICE_ARENA_MAX_PARTICIPANTS,
-  PRICE_ARENA_PHASE,
-  arenaDurationLabel,
-  arenaPhase,
-  arenaPhaseLabel,
-  modeForArenaCategory,
-  type PriceArenaEntry,
-} from '@/chain/priceArena'
+import { PRICE_ARENA_STATUS, PRICE_ARENA_CANCEL_REASON, PRICE_ARENA_MAX_PARTICIPANTS, PRICE_ARENA_PHASE, arenaDurationLabel, arenaPhase, arenaPhaseLabel, modeForArenaCategory, type PriceArenaEntry } from '@/chain/priceArena'
 import { AddressLabel } from '@/components/AddressLabel'
 import { ClusterBanner } from '@/components/ClusterBanner'
 import { ShareInviteButton } from '@/components/ShareInviteButton'
@@ -142,7 +133,8 @@ export function OnchainArenaPage() {
   const [txLabel, setTxLabel] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const nowMs = useAssetRaceClock()
-  const live = useLivePrices()
+  // A settled arena needs no live price.
+  const live = useLivePrices({ enabled: arena != null && arena.status === PRICE_ARENA_STATUS.OPEN })
   // SOL stakes are entered in USD or SOL at the live rate; SPL stakes in their own units.
   const token = useStakeToken(arena?.stakeMint)
   const usdQuoted = token?.native ?? true
