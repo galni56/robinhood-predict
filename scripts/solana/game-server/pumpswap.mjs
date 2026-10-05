@@ -82,13 +82,15 @@ export async function fetchPumpSwapPools({ pages = PUMPSWAP_FILTER.pages, fetchI
  * category MEME) plus display fields. `previous` keeps price decimals stable;
  * `keepSymbols` are coins used by running games (never dropped).
  */
-export function selectPumpSwapAssets(pools, { takenSymbols, previous = [], keepSymbols = new Set(), now = Date.now(), filter = PUMPSWAP_FILTER, pumpMints = new Set() } = {}) {
+export function selectPumpSwapAssets(pools, { takenSymbols, previous = [], keepSymbols = new Set(), now = Date.now(), filter = PUMPSWAP_FILTER, pumpMints = new Set(), blocked = { mints: new Set(), symbols: new Set() } } = {}) {
   const realCoin = (p) => p.mint === PUMP_TOKEN || p.mint.endsWith('pump') || pumpMints.has(p.mint)
   const bySymbol = new Map()
   for (const p of pools) {
     const symbol = String(p.symbol).trim()
     if (!/^[A-Za-z0-9$._-]{1,16}$/.test(symbol) || takenSymbols.has(symbol.toUpperCase())) continue
     if (!realCoin(p) || (p.quote !== WSOL && p.quote !== USDC)) continue
+    // Hand-picked honeypots and wash-traded coins (config/pumpswap-blocklist.json).
+    if (blocked.mints.has(p.mint) || blocked.symbols.has(symbol.toUpperCase())) continue
     if (!(p.liquidityUsd >= filter.minLiquidityUsd)) continue
     if ((now - Date.parse(p.createdAt)) / 3.6e6 < filter.minAgeHours) continue
     const key = symbol.toUpperCase()

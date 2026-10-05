@@ -4,6 +4,7 @@ import { useWallet } from '@solana/wallet-adapter-react'
 import { GAME_SERVER_URL, LAST_DATA_URL } from '@/solana/services'
 import { registerAssetIcons } from '@/lib/assetIcons'
 import pumpswapSnapshot from '@/chain/pumpswapSnapshot.json'
+import pumpswapBlocklist from '../../config/pumpswap-blocklist.json'
 
 // Client of the game server (scripts/solana/game-server). The server holds
 // the game wallet: stakes are SOL transfers to it with a `prophet:` memo
@@ -270,6 +271,11 @@ export function useGameServerConfig() {
 
 registerAssetIcons(pumpswapSnapshot.assets)
 
+const BLOCKED_MINTS = new Set(pumpswapBlocklist.mints)
+const BLOCKED_SYMBOLS = new Set(pumpswapBlocklist.symbols.map((s) => s.toUpperCase()))
+/** Honeypots the server drops; also hidden from the saved lists shown while it is off. */
+const isBlocked = (a: { mint?: string; symbol: string }) => (a.mint != null && BLOCKED_MINTS.has(a.mint)) || BLOCKED_SYMBOLS.has(a.symbol.toUpperCase())
+
 interface PumpSwapSnapshot {
   capturedAt: string
   assets: ServerAsset[]
@@ -295,7 +301,7 @@ export function usePumpSwapAssets() {
   })
   const fallback = last.data?.assets?.length ? last.data : (pumpswapSnapshot as PumpSwapSnapshot)
   if (needFallback && fallback === last.data) registerAssetIcons(fallback.assets)
-  const assets = (needFallback ? fallback.assets : live).slice().sort((a, b) => (b.liquidityUsd ?? 0) - (a.liquidityUsd ?? 0))
+  const assets = (needFallback ? fallback.assets : live).filter((a) => !isBlocked(a)).sort((a, b) => (b.liquidityUsd ?? 0) - (a.liquidityUsd ?? 0))
   return { assets, snapshotAt: needFallback ? fallback.capturedAt : null, isLoading: (config.isLoading && GAME_SERVER_URL != null) || (needFallback && last.isLoading) }
 }
 
