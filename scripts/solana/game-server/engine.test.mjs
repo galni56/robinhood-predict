@@ -63,7 +63,11 @@ function fakeChain() {
       record(signature, { outbound: [{ to, lamports: BigInt(lamports) }] })
       return signature
     },
-    statuses: async (signatures) => signatures.map((x) => (landed.has(x) ? { confirmationStatus: 'confirmed', err: null } : null)),
+    /** Simulates a lagging / history-less RPC node: status lookups miss. */
+    statusesBlind: false,
+    statuses: async (signatures) => signatures.map((x) => (!chain.statusesBlind && landed.has(x) ? { confirmationStatus: 'confirmed', err: null } : null)),
+    finalizedBlockHeight: async () => height,
+    finalizedTransaction: async (signature) => (landed.has(signature) ? { err: null } : null),
   }
   return chain
 }
@@ -333,4 +337,29 @@ test('duel: start and finish on boundary prices, the winner and his backers are 
   assert.equal(paidTo(chain, 'fan'), (27n * SOL) / 100n - ((7n * SOL) / 100n) / 50n)
   assert.equal(paidTo(chain, vasya.address) + paidTo(chain, 'other'), 0n)
   assert.equal(db.payouts('pending').length + db.payouts('sent').length, 0)
+})
+
+test('payouts: a landed payout the status lookup misses is never sent twice', async () => {
+  const t0 = 10_000
+  const prices = { [t0 + 60]: { 'pool-SOL': 100n, 'pool-BTC': 100n }, [t0 + 120]: { 'pool-SOL': 100n, 'pool-BTC': 120n } }
+  const { clock, chain, db, engine } = setup(prices)
+  await engine.init()
+  const race = engine.createPlatform({ title: 'Duel', category: 'crypto', symbols: ['SOL', 'BTC'], bettingStartTime: t0, bettingEndTime: t0 + 60, raceDuration: 60 })
+  chain.deposit('alice', SOL / 10n, raceMemo(race.id, 0), t0 + 1)
+  chain.deposit('bob', SOL / 10n, raceMemo(race.id, 1), t0 + 2)
+  await engine.tick()
+  clock.t = t0 + 70
+  await engine.tick()
+  clock.t = t0 + 125
+
+  // The payout lands, but this RPC node never reports it (lagging replica,
+  // or a restart after the status cache rolled over).
+  chain.statusesBlind = true
+  await engine.tick() // resolves and sends; the transfer lands
+  assert.equal(paidTo(chain, 'bob') > 0n, true)
+  chain.advanceBlocks(151) // blockhash expired, status still "unseen"
+  await engine.tick()
+  await engine.tick()
+  assert.equal(chain.paid.filter((p) => p.to === 'bob').length, 1, 'bob must be paid exactly once')
+  assert.equal(db.payouts('done').length, 1)
 })

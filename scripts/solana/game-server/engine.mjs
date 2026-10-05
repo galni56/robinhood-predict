@@ -407,9 +407,21 @@ export function createEngine({ db, chain, prices, assets, cluster, coldWallet = 
             db.markRetry(p.id, p.attempts >= opts.maxPayoutAttempts ? 'stuck' : 'pending', JSON.stringify(status.err))
             log.warn(`payout #${p.id} failed on chain: ${JSON.stringify(status.err)}`)
           } else if (!status && height > p.last_valid_height) {
-            // Its blockhash expired unseen: it can never land now.
+            // The blockhash looks expired and the status lookup saw nothing -
+            // but a lagging RPC node, or a restart after the status cache
+            // rolled over, also returns null for a payout that DID land.
+            // Re-signing on that alone pays twice. Only rebuild once
+            // finalized history confirms the transaction never landed.
+            if ((await chain.finalizedBlockHeight()) <= p.last_valid_height) continue
+            const final = await chain.finalizedTransaction(p.signature)
             lastBroadcast.delete(p.id)
-            db.markRetry(p.id, p.attempts >= opts.maxPayoutAttempts ? 'stuck' : 'pending', 'expired before landing')
+            if (final && final.err == null) {
+              db.markDone(p.id)
+              log.log(`payout #${p.id} ${p.kind}: found landed in finalized history (${p.signature})`)
+            } else {
+              const reason = final ? JSON.stringify(final.err) : 'expired before landing'
+              db.markRetry(p.id, p.attempts >= opts.maxPayoutAttempts ? 'stuck' : 'pending', reason)
+            }
           } else if (!status && (now() - (lastBroadcast.get(p.id) ?? 0)) >= opts.rebroadcastEverySeconds) {
             lastBroadcast.set(p.id, now())
             chain.broadcast(p.tx).catch((error) => log.warn(`payout #${p.id} rebroadcast: ${error.message.split('\n')[0]}`))
@@ -425,7 +437,7 @@ export function createEngine({ db, chain, prices, assets, cluster, coldWallet = 
       const amount = BigInt(p.amount)
       if (balance - amount - BASE_FEE * 2n < RENT_EXEMPT_MINIMUM) {
         log.warn(`payout #${p.id}: game wallet balance ${balance} is too low for ${amount}; waiting`)
-        break
+        continue
       }
       const prepared = await chain.preparePayout({ to: p.wallet, lamports: amount, memo: `prophet:payout:${p.id}` })
       if (!db.markSent(p.id, prepared.signature, prepared.lastValidBlockHeight, prepared.serialized)) continue
