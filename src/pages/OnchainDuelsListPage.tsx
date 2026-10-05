@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useWallet } from '@solana/wallet-adapter-react'
+import { ProphetWalletName, prophetWalletStore } from '@/solana/prophetWallet'
 import { useSignedAction } from '@/chain/gameServer'
 import { DUEL_RULES, duelPhaseLabel, durationLabel, useDuels, type Duel } from '@/chain/duels'
 import { useLivePrices } from '@/chain/livePrices'
@@ -54,7 +55,7 @@ function LobbyCard({ duel }: { duel: Duel }) {
 /** Coin duels: ten empty lobbies always wait; anyone can open another. */
 export function OnchainDuelsListPage() {
   const { duels, isLoading, offline } = useDuels()
-  const { connected } = useWallet()
+  const { connected, select } = useWallet()
   const act = useSignedAction()
   const navigate = useNavigate()
   const [error, setError] = useState<string | null>(null)
@@ -91,8 +92,8 @@ export function OnchainDuelsListPage() {
             </p>
           </div>
           {connected
-            ? <button type="button" onClick={createLobby} disabled={pending} className="rx-btn rx-btn-yellow" style={{ padding: '14px 20px', fontFamily: PIXEL, fontSize: 12 }}>{pending ? 'SIGN IN WALLET…' : '+ NEW LOBBY'}</button>
-            : <span style={{ fontWeight: 700, opacity: 0.7 }}>Connect a wallet to open your own lobby</span>}
+            ? <button type="button" onClick={createLobby} disabled={pending} className="rx-btn rx-btn-yellow" style={{ padding: '14px 20px', fontFamily: PIXEL, fontSize: 12 }}>{pending ? 'SIGNING…' : '+ NEW LOBBY'}</button>
+            : <button type="button" onClick={() => select(ProphetWalletName)} className="rx-btn rx-btn-pink" style={{ padding: '14px 20px', fontFamily: PIXEL, fontSize: 12 }}>{prophetWalletStore.hasWallet() ? 'LOG IN TO PLAY' : 'CREATE ACCOUNT'}</button>}
         </div>
         {error && <p style={{ color: '#C2245A', fontWeight: 700 }}>{error}</p>}
         {offline && <p className="rx-plate" style={{ display: 'inline-block', marginTop: 16, background: CREAM, padding: '8px 12px', fontWeight: 700 }}>The game server is taking a break - lobbies open again shortly.</p>}

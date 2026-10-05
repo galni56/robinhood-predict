@@ -17,9 +17,9 @@ import { formatCompactSol } from '@/lib/format'
 const PIXEL = "'Press Start 2P', 'Courier New', monospace"
 
 const STEPS = [
-  ['Connect a wallet', 'You need a Solana wallet and some SOL to stake.'],
+  ['Create an account', 'One click, no extension. Top it up with some SOL to stake.'],
   ['Pick your coin', 'Back the favorite in a race, or call one coin\'s final price in the arena.'],
-  ['Win lands in your wallet', 'Your call won? Your share of the bank is sent to your wallet automatically.'],
+  ['Win lands in your account', 'Your call won? Your share of the bank is sent to your account automatically.'],
 ] as const
 
 // Hero heats: four random coins from the game's catalog and the PumpSwap

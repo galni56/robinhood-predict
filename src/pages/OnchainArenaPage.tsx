@@ -232,7 +232,7 @@ export function OnchainArenaPage() {
       }
       if (additional === 0n) {
         // Only the prediction changes: a signed message, no transaction.
-        setTxLabel('Sign in wallet…')
+        setTxLabel('Signing…')
         await act({ action: 'change-prediction', arena: Number(arena.id), prediction: predicted.toString() })
         setPrediction(''); setTxLabel(null)
         await refetchAfterTx()
@@ -243,7 +243,7 @@ export function OnchainArenaPage() {
       setTxLabel(walletEntry ? 'Preparing arena update…' : 'Preparing arena entry…')
       const instructions = stakeInstructions({ player: publicKey, gameWallet, lamports: additional, memo: arenaStakeMemo(arena.id, predicted) })
       const signature = await send(instructions, {
-        onPhase: (phase) => setTxLabel(phase === 'signing' ? 'Confirm in wallet…' : 'Waiting for confirmation…'),
+        onPhase: (phase) => setTxLabel(phase === 'signing' ? 'Sending…' : 'Waiting for confirmation…'),
       })
       setTxLabel('Recording your entry…')
       const outcome = await reportDeposit(signature).catch(() => null)

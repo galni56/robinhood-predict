@@ -291,7 +291,7 @@ export function useSignedAction() {
   const config = useGameServerConfig()
   return useCallback(
     async <T = unknown>(fields: Record<string, unknown>): Promise<T> => {
-      if (!publicKey) throw new Error('Connect a wallet first')
+      if (!publicKey) throw new Error('Log in first')
       if (!signMessage) throw new GameServerError('WalletCannotSignMessages')
       const cluster = config.data?.cluster ?? (await getJson<ServerConfig>('/config')).cluster
       const message = `Prophet\n${JSON.stringify({ ...fields, wallet: publicKey.toBase58(), cluster, issuedAt: Math.floor(Date.now() / 1000) })}`
@@ -332,7 +332,7 @@ const FRIENDLY: Record<string, string> = {
   MessageExpired: 'Your device clock looks off; check the time and retry.',
   MessageReused: 'That request was already sent.',
   BadSignature: 'The wallet signature did not check out. Try again.',
-  WalletCannotSignMessages: 'This wallet cannot sign messages. Use Phantom or Solflare.',
+  WalletCannotSignMessages: 'This wallet cannot sign messages. Log in with your Prophet account.',
   InvalidNickname: 'Nicknames are 1–24 bytes, no control characters.',
   NicknameTaken: 'That nickname is taken.',
   TooManyRequests: 'Too many requests; wait a minute.',

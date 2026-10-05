@@ -236,7 +236,7 @@ export function OnchainDuelPage() {
                   !mine.paid ? (
                     <>
                       <span style={label}>PAY YOUR STAKE · {clock(mine.joinedAt + DUEL_RULES.payWindow - now)} LEFT</span>
-                      <button type="button" disabled={!!busy} onClick={() => run('pay', () => transfer(duel.stake, 0))} className="rx-btn rx-btn-yellow w-full" style={{ minHeight: 56, fontFamily: PIXEL, fontSize: 12 }}>{busy === 'pay' ? 'CONFIRM IN WALLET…' : `PAY ${sol(duel.stake)}`}</button>
+                      <button type="button" disabled={!!busy} onClick={() => run('pay', () => transfer(duel.stake, 0))} className="rx-btn rx-btn-yellow w-full" style={{ minHeight: 56, fontFamily: PIXEL, fontSize: 12 }}>{busy === 'pay' ? 'SENDING…' : `PAY ${sol(duel.stake)}`}</button>
                       <button type="button" disabled={!!busy} onClick={() => run('leave', async () => { await act({ action: 'duel-leave', duel: id }) })} className="rx-btn rx-btn-white" style={{ padding: '10px 14px', fontWeight: 700 }}>Leave lobby</button>
                     </>
                   ) : duel.status === 'open' ? (
@@ -284,7 +284,7 @@ export function OnchainDuelPage() {
                           className="rx-btn rx-btn-yellow w-full"
                           style={{ minHeight: 56, fontFamily: PIXEL, fontSize: 12 }}
                         >
-                          {busy === 'join' ? 'SIGN IN WALLET…' : coin ? `ENTER WITH ${coin.symbol}` : 'PICK A COIN'}
+                          {busy === 'join' ? 'SIGNING…' : coin ? `ENTER WITH ${coin.symbol}` : 'PICK A COIN'}
                         </button>
                       </div>
                     )}
@@ -294,7 +294,7 @@ export function OnchainDuelPage() {
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>{duel.racers.filter((r) => r.paid && (myBacking.length === 0 || myBacking[0].seat === r.seat)).map((r) => <button key={r.seat} type="button" onClick={() => setBackSeat(r.seat)} className={choice(backSeat === r.seat)} style={{ padding: '8px 12px', fontWeight: 700 }}>{r.symbol}</button>)}</div>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>{BACK_PRESETS.map((c) => <button key={String(c)} type="button" onClick={() => setBackCents(c)} className={choice(backCents === c)} style={{ padding: '8px 12px', fontWeight: 700 }}>{usd(c)}</button>)}</div>
                         <button type="button" disabled={!backSeat || !live.solUsd || !!busy} onClick={() => run('back', () => transfer(usdToLamports(backCents, live.solUsd!), backSeat!))} className="rx-btn rx-btn-pink w-full" style={{ minHeight: 52, fontFamily: PIXEL, fontSize: 11 }}>
-                          {busy === 'back' ? 'CONFIRM IN WALLET…' : backSeat ? `BACK ${duel.racers.find((r) => r.seat === backSeat)?.symbol} WITH ${usd(backCents)}` : 'PICK A RACER'}
+                          {busy === 'back' ? 'SENDING…' : backSeat ? `BACK ${duel.racers.find((r) => r.seat === backSeat)?.symbol} WITH ${usd(backCents)}` : 'PICK A RACER'}
                         </button>
                         {myBacking.length > 0 && <p style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>You backed {duel.racers.find((r) => r.seat === myBacking[0].seat)?.symbol} with {sol(myBacking.reduce((s, b) => s + b.amount, 0n))}.</p>}
                         <p style={{ margin: 0, fontSize: 13, opacity: 0.7 }}>If your racer wins you get your money back plus 70% of what was bet on the others (pro rata), minus 2% of the win. Racers cannot back.</p>

@@ -88,7 +88,7 @@ export function OnchainCreateArenaPage() {
     setError(null)
     try {
       // A signed message, not a transaction: creating an arena is free.
-      setTxLabel('Sign in wallet…')
+      setTxLabel('Signing…')
       const created = await act<{ id: number }>({ action: 'create-arena', title: title.trim(), asset: selected.symbol, duration: Number(duration), unit })
       await queryClient.invalidateQueries({ queryKey: ['game-state'] })
       navigate(`/onchain/arenas/${created.id}`)

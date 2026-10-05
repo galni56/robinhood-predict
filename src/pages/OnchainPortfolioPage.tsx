@@ -129,11 +129,11 @@ export function OnchainPortfolioPage() {
     <div className="mx-auto max-w-[1100px] px-4 py-8">
       <ClusterBanner />
       <h1 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">Portfolio</h1>
-      <p className="mt-2 text-sm text-[#1B1340]/55">Your Asset Race positions and Price Arena entries, payouts on their way to your wallet, and your history.</p>
+      <p className="mt-2 text-sm text-[#1B1340]/55">Your Asset Race positions and Price Arena entries, payouts on their way to your account, and your history.</p>
 
       {!connected || !publicKey ? (
-        <div className="mt-6 max-w-md rounded-none border border-[#1B1340]/12 bg-[#FFF6DF] p-5">
-          <p className="mb-4 text-sm text-[#1B1340]/60">Connect a wallet to see your games.</p>
+        <div className="rx-raised mt-6 max-w-md bg-[#FFF6DF] p-5">
+          <p className="mb-4 text-sm text-[#1B1340]/60">Log in to see your games.</p>
           <WalletOptionsList />
         </div>
       ) : (

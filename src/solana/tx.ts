@@ -42,7 +42,7 @@ export function useSendInstructions() {
 
   return useCallback(
     async (instructions: TransactionInstruction[], { onPhase }: { onPhase?: (phase: TxPhase) => void } = {}) => {
-      if (!publicKey) throw new Error('Connect a wallet first')
+      if (!publicKey) throw new Error('Log in first')
       const latest = await connection.getLatestBlockhash('confirmed')
       const tx = new Transaction({ feePayer: publicKey, ...latest }).add(...instructions)
       onPhase?.('signing')

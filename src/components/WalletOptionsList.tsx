@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { WalletReadyState, type WalletName } from '@solana/wallet-adapter-base'
 import { useWallet } from '@solana/wallet-adapter-react'
+import { ProphetWalletName, prophetWalletStore } from '@/solana/prophetWallet'
+import { EXTERNAL_WALLETS_ENABLED } from '@/solana/SolanaProvider'
 
 const MOBILE_BREAKPOINT_PX = 500
 
@@ -32,7 +34,54 @@ function useIsNarrowViewport(maxWidthPx: number) {
 
 /** Shared "pick a wallet" list, used in ConnectWalletButton's dropdown and
  * inline wherever a page asks for a wallet before showing its content. */
-export function WalletOptionsList({ onConnect, tone = 'market' }: {
+const PIXEL = "'Press Start 2P', 'Courier New', monospace"
+
+/** Platform-wallet entry: one bevelled button that creates (or logs into)
+ * the personal account, plus a restore link for players with a saved key. */
+function PlatformAccountEntry({ onConnect, onRestore }: { onConnect?: () => void; onRestore?: () => void }) {
+  const { select } = useWallet()
+  const hasAccount = prophetWalletStore.hasWallet()
+  return (
+    <div className="flex flex-col items-stretch gap-2 text-[#1B1340]">
+      <button
+        type="button"
+        className="rx-btn rx-btn-pink"
+        style={{ minHeight: 56, fontFamily: PIXEL, fontSize: 12 }}
+        onClick={() => {
+          select(ProphetWalletName)
+          onConnect?.()
+        }}
+      >
+        {hasAccount ? 'LOG IN' : 'CREATE ACCOUNT'}
+      </button>
+      {!hasAccount && (
+        <p style={{ margin: 0, fontSize: 15, fontWeight: 500, opacity: 0.7, textAlign: 'center' }}>
+          Free, instant, no extension needed.
+        </p>
+      )}
+      {onRestore && (
+        <button
+          type="button"
+          onClick={onRestore}
+          style={{ background: 'none', border: 0, cursor: 'pointer', fontSize: 16, fontWeight: 700, color: '#1B1340', textDecoration: 'underline', textUnderlineOffset: 4 }}
+        >
+          I have a secret key
+        </button>
+      )}
+    </div>
+  )
+}
+
+export function WalletOptionsList({ onConnect, onRestore, tone = 'market' }: {
+  onConnect?: () => void
+  onRestore?: () => void
+  tone?: 'market' | 'race' | 'arena'
+}) {
+  if (!EXTERNAL_WALLETS_ENABLED) return <PlatformAccountEntry onConnect={onConnect} onRestore={onRestore} />
+  return <ExternalWalletOptions onConnect={onConnect} tone={tone} />
+}
+
+function ExternalWalletOptions({ onConnect, tone = 'market' }: {
   onConnect?: () => void
   tone?: 'market' | 'race' | 'arena'
 }) {

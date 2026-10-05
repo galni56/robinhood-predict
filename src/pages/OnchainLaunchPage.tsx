@@ -13,7 +13,7 @@ const PIXEL = "'Press Start 2P', 'Courier New', monospace"
 const bytes = (value: string) => new TextEncoder().encode(value).length
 
 type Step = 'idle' | 'uploading' | 'signing' | 'confirming'
-const STEP_LABEL: Record<Step, string> = { idle: '', uploading: 'Uploading image…', signing: 'Sign in wallet…', confirming: 'Launching on pump.fun…' }
+const STEP_LABEL: Record<Step, string> = { idle: '', uploading: 'Uploading image…', signing: 'Signing…', confirming: 'Launching on pump.fun…' }
 
 /** Launch a token on pump.fun from Prophet: the creator's wallet signs and
  * pays pump.fun's network costs; Prophet takes nothing. */
