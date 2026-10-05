@@ -2,7 +2,8 @@ import { useMemo, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { useWallet } from '@solana/wallet-adapter-react'
-import { DUEL_RULES, cheerRacer, duelPhaseLabel, duelStake, durationLabel, useDuel, useNowSeconds, usdToLamports, type Duel, type DuelRacer } from '@/chain/duels'
+import { quoteUsdCents, usdCentsToLamports, stakeQuoteErrorMessage } from '@/chain/stakeQuote'
+import { DUEL_RULES, cheerRacer, duelPhaseLabel, duelStake, durationLabel, useDuel, useNowSeconds, type Duel, type DuelRacer } from '@/chain/duels'
 import { depositOutcomeMessage, reportDeposit, useGameServerConfig, useSignedAction } from '@/chain/gameServer'
 import { stakeInstructions } from '@/chain/gameTx'
 import { marketCapUsd, useLivePrices } from '@/chain/livePrices'
@@ -13,7 +14,7 @@ import { CoinPicker, COIN_BODIES } from '@/components/GamePickers'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
 import { assetIconUrl } from '@/lib/assetIcons'
 import { formatCompactUsd, formatUnits, shortTxError } from '@/lib/format'
-import { useSendInstructions } from '@/solana/tx'
+import { useSendInstructions, TxUnconfirmedError } from '@/solana/tx'
 import { explorerUrl } from '@/solana/config'
 import { CoinFighter } from '@/retro/landingFx'
 import { PxSprite } from '@/retro/Sprite'
@@ -141,7 +142,10 @@ export function OnchainDuelPage() {
       await fn()
       await Promise.all([refetch(), queryClient.invalidateQueries({ queryKey: ['game-state'] })])
     } catch (cause) {
-      setError(shortTxError(cause, 'duel'))
+      setError(stakeQuoteErrorMessage(cause) ?? shortTxError(cause, 'duel'))
+      // The transfer may have landed: show the real state, never invite a
+      // second payment.
+      if (cause instanceof TxUnconfirmedError) void Promise.all([refetch(), queryClient.invalidateQueries({ queryKey: ['game-state'] })])
     } finally {
       setBusy(null)
     }
@@ -165,7 +169,7 @@ export function OnchainDuelPage() {
   const label = { display: 'block', marginBottom: 8, fontFamily: PIXEL, fontSize: 10 } as const
   const choice = (active: boolean) => `rx-btn ${active ? 'rx-btn-yellow' : 'rx-btn-white'}`
   const usd = (cents: bigint) => `$${Number(cents) / 100}`
-  const stakeLamports = live.solUsd ? usdToLamports(stakeCents, live.solUsd) : null
+  const stakeLamports = live.solUsd ? usdCentsToLamports(stakeCents, live.solUsd.priceRaw, live.solUsd.decimals) : null
   const valueOf = (r: DuelRacer, raw: bigint) => {
     const p = live.assets[r.symbol]
     if (duel?.unit === 'cap' && p?.supply) return formatCompactUsd(marketCapUsd({ ...p, raw }) ?? 0)
@@ -293,7 +297,7 @@ export function OnchainDuelPage() {
                         <span style={label}>BACK A RACER · UP TO $100</span>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>{duel.racers.filter((r) => r.paid && (myBacking.length === 0 || myBacking[0].seat === r.seat)).map((r) => <button key={r.seat} type="button" onClick={() => setBackSeat(r.seat)} className={choice(backSeat === r.seat)} style={{ padding: '8px 12px', fontWeight: 700 }}>{r.symbol}</button>)}</div>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>{BACK_PRESETS.map((c) => <button key={String(c)} type="button" onClick={() => setBackCents(c)} className={choice(backCents === c)} style={{ padding: '8px 12px', fontWeight: 700 }}>{usd(c)}</button>)}</div>
-                        <button type="button" disabled={!backSeat || !live.solUsd || !!busy} onClick={() => run('back', () => transfer(usdToLamports(backCents, live.solUsd!), backSeat!))} className="rx-btn rx-btn-pink w-full" style={{ minHeight: 52, fontFamily: PIXEL, fontSize: 11 }}>
+                        <button type="button" disabled={!backSeat || !live.solUsd || !!busy} onClick={() => run('back', () => transfer(quoteUsdCents(backCents, live.solUsd!), backSeat!))} className="rx-btn rx-btn-pink w-full" style={{ minHeight: 52, fontFamily: PIXEL, fontSize: 11 }}>
                           {busy === 'back' ? 'SENDING…' : backSeat ? `BACK ${duel.racers.find((r) => r.seat === backSeat)?.symbol} WITH ${usd(backCents)}` : 'PICK A RACER'}
                         </button>
                         {myBacking.length > 0 && <p style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>You backed {duel.racers.find((r) => r.seat === myBacking[0].seat)?.symbol} with {sol(myBacking.reduce((s, b) => s + b.amount, 0n))}.</p>}

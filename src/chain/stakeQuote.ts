@@ -84,6 +84,13 @@ function assertFresh(quote: SolUsdQuote, now: number) {
   if (now - quote.receivedAt > quote.staleAfterMs) throw new Error('SolUsdQuoteStale')
 }
 
+/** Lamports for a USD amount at a quote that must still be fresh at send
+ * time - the single conversion path for every USD-denominated transfer. */
+export function quoteUsdCents(usdCents: bigint, quote: SolUsdQuote, now = Date.now()): bigint {
+  assertFresh(quote, now)
+  return usdCentsToLamports(usdCents, quote.priceRaw, quote.decimals)
+}
+
 export function freezeStakeQuote(
   input: string,
   inputUnit: StakeInputUnit,

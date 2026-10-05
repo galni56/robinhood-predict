@@ -20,7 +20,6 @@ import {
 } from '@/chain/stakeQuote'
 import { raceStakeMemo, stakeInstructions } from '@/chain/gameTx'
 import { depositOutcomeMessage, reportDeposit, useGameServerConfig, useSignedAction } from '@/chain/gameServer'
-import { assetRaceCatalogById } from '@/chain/assetRaceRegistry'
 import { useAssetRace } from '@/chain/useAssetRace'
 import { useAssetRaceClock } from '@/chain/useAssetRaceClock'
 import { useLivePrices } from '@/chain/livePrices'
@@ -146,12 +145,12 @@ export function OnchainRacePage() {
   }
 
   // Adding a lobby asset is a signed message: no transaction, no fee.
-  async function handleAddAsset(assetId: string) {
+  async function handleAddAsset(symbol: string) {
     setError(null)
     try {
       if (!race || !publicKey) return
-      const symbol = assetRaceCatalogById.get(assetId.toLowerCase())?.symbol
-      if (!symbol) throw new Error('Unknown asset')
+      // PumpSwap coins are not in the static catalog, so the old reverse
+      // lookup from the synthetic asset id always failed for them.
       setTx({ label: 'Signing…' })
       await act({ action: 'add-lobby-asset', race: Number(race.id), asset: symbol })
       setTx(null)

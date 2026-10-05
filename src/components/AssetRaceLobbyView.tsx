@@ -22,7 +22,8 @@ export function AssetRaceLobbyView({
   nowMs: number
   isConnected: boolean
   hasAddedAsset: boolean
-  onAddAsset: (assetId: string) => void
+  /** Receives the asset symbol - the game server keys assets by symbol. */
+  onAddAsset: (symbol: string) => void
   txLabel: string | null
   error: string | null
 }) {
@@ -136,7 +137,7 @@ export function AssetRaceLobbyView({
                       </button>
                       <button
                         type="button"
-                        onClick={() => onAddAsset(pendingAsset.assetId)}
+                        onClick={() => onAddAsset(pendingAsset.symbol)}
                         disabled={!!txLabel}
                         className="flex-1 rounded-full bg-gradient-to-r from-[#ffd23f] to-[#f7b928] px-4 py-2.5 text-xs font-bold text-[#191330] disabled:opacity-40 sm:flex-none"
                       >

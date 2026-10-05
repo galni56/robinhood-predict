@@ -192,7 +192,3 @@ export async function cheerRacer(duelId: number, seat: number) {
   return response.ok ? ((await response.json()) as { cheers: number }).cheers : null
 }
 
-/** USD cents at a SOL/USD quote, as lamports. */
-export function usdToLamports(cents: bigint, sol: { priceRaw: bigint; decimals: number }) {
-  return (cents * 1_000_000_000n * 10n ** BigInt(sol.decimals)) / (sol.priceRaw * 100n)
-}
