@@ -332,7 +332,7 @@ test('duel: empty lobbies, signed joins, stakes and backing by transfer, ready, 
   await engine.init()
   await engine.tick()
   const lobbies = db.games('duel')
-  assert.equal(lobbies.length, 10, 'ten empty lobbies wait for racers')
+  assert.equal(lobbies.length, 4, 'four empty lobbies wait for racers')
   const id = lobbies[0].id
   const vasya = wallet()
   const petya = wallet()
@@ -346,7 +346,7 @@ test('duel: empty lobbies, signed joins, stakes and backing by transfer, ready, 
   let duel = db.getGame('duel', id)
   assert.equal(duel.status, 'ready')
   assert.equal(duel.backers.length, 1)
-  assert.equal(db.games('duel').filter((d) => d.racers.length === 0).length, 10, 'a used lobby is replaced')
+  assert.equal(db.games('duel').filter((d) => d.racers.length === 0).length, 4, 'a used lobby is replaced')
   clock.t += 5
   engine.act(vasya.signed(clock, { action: 'duel-ready', duel: id }))
   engine.act(petya.signed(clock, { action: 'duel-ready', duel: id }))

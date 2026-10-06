@@ -36,7 +36,7 @@ export const DUEL = {
   /** After this long without start prices the duel is void. */
   startGrace: 300,
   resolutionGrace: 600,
-  emptyLobbies: 10,
+  emptyLobbies: 4,
 }
 
 const require = (condition, code) => {

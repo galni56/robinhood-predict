@@ -551,3 +551,36 @@ h3,
   to { transform: rotate(var(--rx-a)) translateX(46px); opacity: 0; }
 }
 .rx-fx-burst { animation: rx-fx-burst 0.7s steps(7) forwards; }
+
+/* Lobby life (src/lib/life.ts): idle coins, pulsing seats, moving stripes and
+   road. Duration --d and phase --o come inline per element, so cards and
+   lanes never move in sync. */
+@keyframes rx-idle {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  25% { transform: translateY(-3px) rotate(-5deg); }
+  50% { transform: translateY(0) rotate(0deg); }
+  75% { transform: translateY(-2px) rotate(5deg); }
+}
+@keyframes rx-seat {
+  0%, 100% { opacity: 0.25; transform: scale(1); }
+  50% { opacity: 0.85; transform: scale(1.08); }
+}
+@keyframes rx-stripes { to { background-position: 40px 0; } }
+@keyframes rx-peek {
+  0%, 70%, 100% { transform: translateY(0); }
+  78% { transform: translateY(-9px); }
+  86% { transform: translateY(-3px); }
+}
+.rx-life-idle { display: inline-block; animation: rx-idle var(--d, 1.8s) steps(4) var(--o, 0s) infinite; }
+.rx-life-peek { display: inline-block; animation: rx-peek var(--d, 3s) steps(6) var(--o, 0s) infinite; }
+.rx-life-bob { display: inline-block; animation: rx-bob var(--d, 0.4s) steps(1) var(--o, 0s) infinite; }
+.rx-life-seat { animation: rx-seat var(--d, 1.6s) steps(3) var(--o, 0s) infinite; }
+.rx-life-blink { animation: rx-blink var(--d, 1.2s) steps(1) var(--o, 0s) infinite; }
+.rx-life-stripes { animation: rx-stripes var(--d, 2s) steps(10) var(--o, 0s) infinite; }
+.rx-life-road { animation: rx-road var(--d, 1s) steps(12) var(--o, 0s) infinite; }
+.rx-lobby { transition: transform 0.15s steps(3); }
+.rx-lobby:hover { transform: translateY(-4px); }
+@media (prefers-reduced-motion: reduce) {
+  .rx-life-idle, .rx-life-peek, .rx-life-bob, .rx-life-seat, .rx-life-blink, .rx-life-stripes, .rx-life-road { animation: none !important; }
+  .rx-lobby:hover { transform: none; }
+}

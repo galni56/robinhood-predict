@@ -146,8 +146,8 @@ export function durationLabel(seconds: number) {
   return seconds >= 3600 ? `${seconds / 3600}h` : `${seconds / 60} min`
 }
 
-/** Ten empty lobbies to show while the game server is offline (never empty). */
-const OFFLINE_LOBBIES: Duel[] = Array.from({ length: 10 }, (_, i) => ({
+/** Four open lobbies to show while the game server is offline (never empty). */
+const OFFLINE_LOBBIES: Duel[] = Array.from({ length: 4 }, (_, i) => ({
   id: i + 1, status: 'open', creator: null, title: `Duel #${i + 1}`, category: null, unit: 'price', stake: 0n, duration: 0,
   racers: [], backers: [], startTime: 0, endTime: 0, winnerSeat: 0, cancelReason: null, payouts: [], pot: 0n,
 }))

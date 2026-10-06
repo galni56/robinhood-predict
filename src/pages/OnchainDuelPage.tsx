@@ -14,6 +14,7 @@ import { CoinPicker, COIN_BODIES } from '@/components/GamePickers'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
 import { assetIconUrl } from '@/lib/assetIcons'
 import { formatCompactUsd, formatUnits, shortTxError } from '@/lib/format'
+import { life } from '@/lib/life'
 import { TxUnconfirmedError } from '@/solana/tx'
 import { useStakeTransfer } from '@/solana/stake'
 import { explorerUrl } from '@/solana/config'
@@ -64,7 +65,9 @@ function DuelTrack({ duel, onCheer, bursts }: { duel: Duel; onCheer: (seat: numb
         const r = duel.racers[i]
         const ret = returns[i] ?? 0n
         return (
-          <div key={i} style={{ position: 'relative', height: 'clamp(64px, 10vw, 84px)', borderTop: i ? '2px dashed rgba(255,246,223,0.25)' : 'none' }}>
+          <div key={i} style={{ position: 'relative', height: 'clamp(64px, 10vw, 84px)', borderTop: i ? '2px dashed rgba(255,246,223,0.25)' : 'none', overflow: 'hidden' }}>
+            {/* Lane markings rush past while racing, each lane at its own speed; before the start they drift slowly. */}
+            {!final && <div className="rx-life-road" style={{ position: 'absolute', left: 0, right: 0, bottom: 10, height: 3, background: 'repeating-linear-gradient(90deg, rgba(255,246,223,0.22) 0 18px, transparent 18px 36px)', ...life(duel.id * 11 + i, 1, running ? 0.35 : 3, running ? 0.7 : 6) }} />}
             {r ? (
               <>
                 <button type="button" onClick={() => onCheer(r.seat)} title="Cheer" className="rx-btn rx-btn-white" style={{ position: 'absolute', left: 6, top: '50%', transform: 'translateY(-50%)', zIndex: 2, padding: '6px 8px', fontSize: 13, fontWeight: 700, margin: 0 }}>
@@ -72,7 +75,8 @@ function DuelTrack({ duel, onCheer, bursts }: { duel: Duel; onCheer: (seat: numb
                 </button>
                 {/* The coin and its label are shifted back by their own width as they near the finish, so they never leave the track (phones). */}
                 <div style={{ position: 'absolute', top: 6, left: `calc(70px + (100% - 120px) * ${progress(ret)})`, transform: `translateX(${-progress(ret) * 100}%)`, transition: 'left 1.2s steps(6), transform 1.2s steps(6)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <div style={{ position: 'relative', animation: running ? 'rx-bob 0.4s steps(1) infinite' : undefined }}>
+                  {/* Racing: a quick bob; waiting: jogging in place. Every lane has its own tempo and phase. */}
+                  <div className={running ? 'rx-life-bob' : final ? undefined : 'rx-life-idle'} style={{ position: 'relative', ...life(duel.id * 11 + r.seat, 2, running ? 0.3 : 1.1, running ? 0.55 : 2.6) }}>
                     {final && duel.winnerSeat === r.seat && <span style={{ position: 'absolute', left: '26%', top: -14 }}><PxSprite data={crown} width={26} height={15} /></span>}
                     {bursts[r.seat] ? <Burst id={bursts[r.seat]} /> : null}
                     <CoinFighter body={COIN_BODIES[i % COIN_BODIES.length]} logoUrl={assetIconUrl(r.symbol)} symbol={r.symbol} size={48} />
@@ -83,7 +87,10 @@ function DuelTrack({ duel, onCheer, bursts }: { duel: Duel; onCheer: (seat: numb
                 </div>
               </>
             ) : (
-              <span style={{ position: 'absolute', left: 80, top: '50%', transform: 'translateY(-50%)', color: CREAM, opacity: 0.5, fontFamily: PIXEL, fontSize: 9 }}>WAITING FOR A RACER…</span>
+              <>
+                <span className="rx-life-seat" style={{ position: 'absolute', left: 18, top: '50%', marginTop: -20, width: 40, height: 40, border: `3px dashed ${CREAM}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: CREAM, fontFamily: PIXEL, fontSize: 14, ...life(duel.id * 11 + i, 3, 1.3, 2.6) }}>?</span>
+                <span className="rx-life-blink" style={{ position: 'absolute', left: 80, top: '50%', transform: 'translateY(-50%)', color: CREAM, opacity: 0.6, fontFamily: PIXEL, fontSize: 9, ...life(duel.id * 11 + i, 4, 1.4, 2.4) }}>WAITING FOR A RACER…</span>
+              </>
             )}
           </div>
         )
