@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react'
+import { ipfsImageUrl } from '@/lib/ipfs'
 import { PxSprite } from '@/retro/Sprite'
 import { cloud, coinPurple, crown, type PxSpriteData } from '@/retro/spriteData'
 import { CREAM, INK, PINK, ROAD, YELLOW, PIXEL } from '@/retro/scene'
@@ -246,7 +247,8 @@ export function CoinFighter({ body, logoUrl, symbol, size = 56 }: { body: PxSpri
   // A logo that fails to load (dead IPFS gateway, removed file) shows the
   // ticker's first letter instead of a broken-image icon.
   const [failed, setFailed] = useState<string | null>(null)
-  const logo = logoUrl && failed !== logoUrl ? logoUrl : null
+  const source = ipfsImageUrl(logoUrl)
+  const logo = source && failed !== source ? source : null
   return (
     <span className="rx-hop" style={{ position: 'relative', display: 'inline-block', width: size, height: (size * 17) / 16, flex: 'none' }}>
       <PxSprite data={body} width={size} height={(size * 17) / 16} />

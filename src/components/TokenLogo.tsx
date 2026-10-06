@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { assetIconUrl } from '@/lib/assetIcons'
+import { ipfsImageUrl } from '@/lib/ipfs'
 
 /** Uses the project's reviewed stock/meme artwork first, an optional remote
  * logo second, then the ticker's first letter as the final fallback. */
 export function TokenLogo({ ticker, logoUrl, className }: { ticker: string | null | undefined; logoUrl?: string; className: string }) {
-  const resolvedUrl = assetIconUrl(ticker) ?? logoUrl
+  const resolvedUrl = ipfsImageUrl(assetIconUrl(ticker) ?? logoUrl)
   const [failedUrl, setFailedUrl] = useState<string>()
 
   if (resolvedUrl && failedUrl !== resolvedUrl) {
