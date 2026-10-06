@@ -584,3 +584,12 @@ h3,
   .rx-life-idle, .rx-life-peek, .rx-life-bob, .rx-life-seat, .rx-life-blink, .rx-life-stripes, .rx-life-road { animation: none !important; }
   .rx-lobby:hover { transform: none; }
 }
+
+/* Cheer confetti: tiny pixel squares fly out (--rx-dx/--rx-dy), then drop and fade. */
+@keyframes rx-fx-confetti-pop {
+  0% { transform: translate(0, 0); opacity: 1; }
+  55% { transform: translate(var(--rx-dx), var(--rx-dy)); opacity: 1; }
+  100% { transform: translate(var(--rx-dx), calc(var(--rx-dy) + 22px)); opacity: 0; }
+}
+.rx-fx-confetti-pop { animation-name: rx-fx-confetti-pop; animation-timing-function: steps(9); animation-fill-mode: forwards; }
+@media (prefers-reduced-motion: reduce) { .rx-fx-confetti-pop { animation: none !important; opacity: 0; } }

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { useWallet } from '@solana/wallet-adapter-react'
@@ -15,7 +15,7 @@ import { CoinsToBring, DuelNumbers, GhostCoin, PracticeLap } from '@/components/
 import { WalletOptionsList } from '@/components/WalletOptionsList'
 import { assetIconUrl } from '@/lib/assetIcons'
 import { formatCompactUsd, formatUnits, shortTxError } from '@/lib/format'
-import { life } from '@/lib/life'
+import { life, seeded } from '@/lib/life'
 import { TxUnconfirmedError } from '@/solana/tx'
 import { useStakeTransfer } from '@/solana/stake'
 import { explorerUrl } from '@/solana/config'
@@ -24,26 +24,44 @@ import { PxSprite } from '@/retro/Sprite'
 import { CREAM, INK, PINK, ROAD, SKY, YELLOW, PIXEL } from '@/retro/scene'
 import { crown } from '@/retro/spriteData'
 
-// Pixel fonts have no emoji; the firework uses the system emoji font.
+// Pixel fonts have no emoji; the cheer thumb uses the system emoji font.
 const EMOJI = "'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif"
 const STAKE_PRESETS = [100n, 500n, 1_000n, 2_500n, 5_000n]
 const BACK_PRESETS = [100n, 500n, 1_000n, 2_500n, 5_000n, 10_000n]
 const sol = (raw: bigint) => `${Number(Number(formatUnits(raw, 9)).toPrecision(4))} SOL`
 const clock = (seconds: number) => `${Math.max(0, Math.floor(seconds / 60))}:${String(Math.max(0, Math.floor(seconds % 60))).padStart(2, '0')}`
 
+/** Bursts playing at once per racer; clicks beyond this wait until one ends. */
+const MAX_BURSTS = 5
+const BURST_MS = 1100
+const CONFETTI = [PINK, YELLOW, '#4DB5FF', '#5FD46E', '#A77BFF', '#FF9F40', '#FFFFFF']
+
+/** Pixel confetti: 2-3 px squares fly up and out, then fall; every burst scatters differently. */
 function Burst({ id }: { id: number }) {
-  const colors = [PINK, YELLOW, '#4DB5FF', '#5FD46E', '#A77BFF']
   return (
-    <span key={id} aria-hidden="true" style={{ position: 'absolute', left: '50%', top: '30%', pointerEvents: 'none' }}>
-      {Array.from({ length: 10 }, (_, i) => (
-        <span key={i} className="rx-fx-burst" style={{ position: 'absolute', width: 8, height: 8, background: colors[i % colors.length], boxShadow: `0 0 0 2px ${INK}`, ['--rx-a' as string]: `${i * 36}deg` }} />
-      ))}
+    <span aria-hidden="true" style={{ position: 'absolute', left: '50%', top: '25%', pointerEvents: 'none', zIndex: 3 }}>
+      {Array.from({ length: 16 }, (_, i) => {
+        const angle = seeded(id, i) * Math.PI * 2
+        const reach = 18 + seeded(id, i + 40) * 34
+        const size = seeded(id, i + 80) < 0.5 ? 2 : 3
+        return (
+          <span
+            key={i}
+            className="rx-fx-confetti-pop"
+            style={{
+              position: 'absolute', width: size, height: size, background: CONFETTI[Math.floor(seeded(id, i + 120) * CONFETTI.length)],
+              ['--rx-dx' as string]: `${(Math.cos(angle) * reach).toFixed(1)}px`,
+              ['--rx-dy' as string]: `${(Math.sin(angle) * reach - 14).toFixed(1)}px`,
+              animationDuration: `${BURST_MS - Math.round(seeded(id, i + 160) * 300)}ms`,
+            }}
+          />
+        )
+      })}
     </span>
   )
 }
 
-/** The track: lanes per racer; during the race coins move by their live gain. */
-function DuelTrack({ duel, onCheer, bursts }: { duel: Duel; onCheer: (seat: number) => void; bursts: Record<number, number> }) {
+function DuelTrack({ duel, onCheer, bursts }: { duel: Duel; onCheer: (seat: number) => void; bursts: Record<number, number[]> }) {
   const live = useLivePrices({ enabled: duel.status === 'running' || duel.status === 'starting' })
   const running = duel.status === 'running'
   const final = duel.status === 'resolved'
@@ -69,20 +87,20 @@ function DuelTrack({ duel, onCheer, bursts }: { duel: Duel; onCheer: (seat: numb
         const r = duel.racers[i]
         const ret = returns[i] ?? 0n
         return (
-          <div key={i} style={{ position: 'relative', height: r ? 'clamp(64px, 10vw, 84px)' : 56, borderTop: i ? '2px dashed rgba(255,246,223,0.25)' : 'none', overflow: 'hidden' }}>
+          <div key={i} style={{ position: 'relative', height: r ? 'clamp(64px, 10vw, 84px)' : 56, borderTop: i ? '2px dashed rgba(255,246,223,0.25)' : 'none' }}>
             {/* Lane markings rush past while racing, each lane at its own speed; before the start they drift slowly. */}
             {!final && <div className="rx-life-road" style={{ position: 'absolute', left: 0, right: 0, bottom: 10, height: 3, background: 'repeating-linear-gradient(90deg, rgba(255,246,223,0.22) 0 18px, transparent 18px 36px)', ...life(duel.id * 11 + i, 1, running ? 0.35 : 3, running ? 0.7 : 6) }} />}
             {r ? (
               <>
                 <button type="button" onClick={() => onCheer(r.seat)} title="Cheer" className="rx-btn rx-btn-white" style={{ position: 'absolute', left: 6, top: '50%', transform: 'translateY(-50%)', zIndex: 2, padding: '6px 8px', fontSize: 13, fontWeight: 700, margin: 0 }}>
-                  <span style={{ fontFamily: EMOJI, fontSize: 18, verticalAlign: 'middle' }}>🎆</span> {r.cheers}
+                  <span style={{ fontFamily: EMOJI, fontSize: 18, verticalAlign: 'middle' }}>👍</span> {r.cheers}
                 </button>
                 {/* The coin and its label are shifted back by their own width as they near the finish, so they never leave the track (phones). */}
                 <div style={{ position: 'absolute', top: 6, left: `calc(70px + (100% - 120px) * ${progress(ret)})`, transform: `translateX(${-progress(ret) * 100}%)`, transition: 'left 1.2s steps(6), transform 1.2s steps(6)', display: 'flex', alignItems: 'center', gap: 6 }}>
                   {/* Racing: a quick bob; waiting: jogging in place. Every lane has its own tempo and phase. */}
                   <div className={running ? 'rx-life-bob' : final ? undefined : 'rx-life-idle'} style={{ position: 'relative', ...life(duel.id * 11 + r.seat, 2, running ? 0.3 : 1.1, running ? 0.55 : 2.6) }}>
                     {final && duel.winnerSeat === r.seat && <span style={{ position: 'absolute', left: '26%', top: -14 }}><PxSprite data={crown} width={26} height={15} /></span>}
-                    {bursts[r.seat] ? <Burst id={bursts[r.seat]} /> : null}
+                    {(bursts[r.seat] ?? []).map((burstId) => <Burst key={burstId} id={burstId} />)}
                     <CoinFighter body={COIN_BODIES[i % COIN_BODIES.length]} logoUrl={assetIconUrl(r.symbol)} symbol={r.symbol} size={48} />
                   </div>
                   <span className="rx-plate" style={{ fontFamily: PIXEL, fontSize: 9, background: CREAM, padding: '5px 6px', whiteSpace: 'nowrap' }}>
@@ -137,7 +155,11 @@ export function OnchainDuelPage() {
   const [unit, setUnit] = useState<'cap' | 'price'>('cap')
   const [backSeat, setBackSeat] = useState<number | null>(null)
   const [backCents, setBackCents] = useState(500n)
-  const [bursts, setBursts] = useState<Record<number, number>>({})
+  // Active confetti bursts per racer seat (ids), at most MAX_BURSTS at a time.
+  const [bursts, setBursts] = useState<Record<number, number[]>>({})
+  const burstSeq = useRef(0)
+  const seenCheers = useRef<Record<number, number> | null>(null)
+  const ownCheers = useRef<Record<number, number>>({})
 
   const mine = duel && me ? duel.racers.find((r) => r.wallet === me) : undefined
   const myBacking = duel && me ? duel.backers.filter((b) => b.wallet === me) : []
@@ -170,10 +192,44 @@ export function OnchainDuelPage() {
     if (message) setError(message)
   }
 
+  /** Starts one confetti burst on a seat; false when MAX_BURSTS are already playing there. */
+  function spawnBurst(seat: number, active: Record<number, number[]>) {
+    if ((active[seat] ?? []).length >= MAX_BURSTS) return false
+    const burstId = ++burstSeq.current + Date.now()
+    setBursts((b) => ({ ...b, [seat]: [...(b[seat] ?? []), burstId] }))
+    setTimeout(() => setBursts((b) => ({ ...b, [seat]: (b[seat] ?? []).filter((x) => x !== burstId) })), BURST_MS)
+    return true
+  }
+
   function cheer(seat: number) {
-    setBursts((b) => ({ ...b, [seat]: Date.now() }))
+    // A sixth click while five bursts play is ignored (not sent either).
+    if (!spawnBurst(seat, bursts)) return
+    ownCheers.current[seat] = (ownCheers.current[seat] ?? 0) + 1
     void cheerRacer(id!, seat).then(() => refetch())
   }
+
+  // Other people's cheers: when a racer's counter grows by more than our own
+  // clicks, play bursts for them too (up to three per refresh).
+  const cheerCounts = duel ? duel.racers.map((r) => `${r.seat}:${r.cheers}`).join(',') : ''
+  useEffect(() => {
+    if (!duel) return
+    const previous = seenCheers.current
+    seenCheers.current = Object.fromEntries(duel.racers.map((r) => [r.seat, r.cheers]))
+    if (!previous) return
+    for (const r of duel.racers) {
+      const delta = r.cheers - (previous[r.seat] ?? r.cheers)
+      if (delta <= 0) continue
+      const own = Math.min(delta, ownCheers.current[r.seat] ?? 0)
+      ownCheers.current[r.seat] = (ownCheers.current[r.seat] ?? 0) - own
+      const fromOthers = Math.min(3, delta - own)
+      for (let k = 0; k < fromOthers; k++) setTimeout(() => setBursts((b) => {
+        if ((b[r.seat] ?? []).length >= MAX_BURSTS) return b
+        const burstId = ++burstSeq.current + Date.now()
+        setTimeout(() => setBursts((x) => ({ ...x, [r.seat]: (x[r.seat] ?? []).filter((y) => y !== burstId) })), BURST_MS)
+        return { ...b, [r.seat]: [...(b[r.seat] ?? []), burstId] }
+      }), k * 180)
+    }
+  }, [cheerCounts]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (id == null) return <p style={{ padding: 48, fontFamily: PIXEL }}>INVALID LOBBY</p>
   const label = { display: 'block', marginBottom: 8, fontFamily: PIXEL, fontSize: 10 } as const
