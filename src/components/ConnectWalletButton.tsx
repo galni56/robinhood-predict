@@ -5,7 +5,7 @@ import { AddressAvatar } from '@/components/AddressAvatar'
 import { AddressLabel } from '@/components/AddressLabel'
 import { LocalnetAirdropButton } from '@/components/LocalnetAirdropButton'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
-import { BackupModal, DepositModal, ImportModal, SetPasswordModal, WithdrawModal, usePlatformLogin } from '@/components/WalletAccountModals'
+import { BackupModal, DepositModal, HistoryModal, ImportModal, SetPasswordModal, WithdrawModal, usePlatformLogin } from '@/components/WalletAccountModals'
 import { ProphetWalletName, prophetWalletStore } from '@/solana/prophetWallet'
 import { EXTERNAL_WALLETS_ENABLED } from '@/solana/SolanaProvider'
 import { formatStakeAmount, useLiveStakeBalance, useStakeBalance } from '@/solana/stakeTokens'
@@ -15,7 +15,7 @@ import { INK, PIXEL, YELLOW } from '@/retro/scene'
 // Lazy: the nickname modal is only needed when someone opens it.
 const SetNicknameModal = lazy(() => import('@/components/SetNicknameModal').then((m) => ({ default: m.SetNicknameModal })))
 
-type ModalKind = 'password' | 'backup' | 'deposit' | 'withdraw' | 'import' | 'nickname' | null
+type ModalKind = 'password' | 'backup' | 'deposit' | 'withdraw' | 'history' | 'import' | 'nickname' | null
 
 const itemClass = 'block w-full px-3 py-2 text-left font-bold text-[#1B1340]/80 hover:bg-[#FFD23F] hover:text-[#1B1340]'
 
@@ -89,6 +89,7 @@ export function ConnectWalletButton() {
       )}
       {modal === 'deposit' && <DepositModal onClose={() => setModal(null)} />}
       {modal === 'withdraw' && <WithdrawModal onClose={() => setModal(null)} />}
+      {modal === 'history' && <HistoryModal onClose={() => setModal(null)} />}
       {modal === 'import' && <ImportModal onClose={() => setModal(null)} />}
       {modal === 'nickname' && (
         <Suspense fallback={null}>
@@ -121,6 +122,7 @@ export function ConnectWalletButton() {
                 <div className="my-1 border-t-2 border-[#1B1340]/15" />
               </>
             )}
+            <button onClick={() => openModal('history')} className={itemClass}>History</button>
             <NavLink to="/onchain/portfolio" onClick={() => setOpen(false)} className={itemClass}>Your portfolio</NavLink>
             <button onClick={() => openModal('nickname')} className={itemClass}>Set nickname</button>
             <button

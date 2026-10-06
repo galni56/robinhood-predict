@@ -6,7 +6,8 @@ import { PublicKey, SystemProgram } from '@solana/web3.js'
 import { MIN_PASSWORD_LENGTH, ProphetWalletName, prophetWalletStore } from '@/solana/prophetWallet'
 import { useStakeBalance } from '@/solana/stakeTokens'
 import { useSendInstructions } from '@/solana/tx'
-import { LAMPORTS_PER_SOL } from '@/solana/config'
+import { LAMPORTS_PER_SOL, explorerUrl } from '@/solana/config'
+import { useWalletHistory, type WalletHistoryKind } from '@/solana/walletHistory'
 import { formatUnits, shortTxError } from '@/lib/format'
 import { PIXEL } from '@/retro/scene'
 
@@ -260,6 +261,36 @@ export function DepositModal({ onClose }: { onClose: () => void }) {
       <p style={{ margin: 0 }}>Send SOL on the Solana network to your account address. It shows up here in a few seconds.</p>
       <CopyField label="YOUR ADDRESS" value={publicKey.toBase58()} />
       <p style={{ margin: 0, fontSize: 15, opacity: 0.7 }}>Only send SOL on Solana. Tokens from other networks will be lost.</p>
+    </Modal>
+  )
+}
+
+const KIND_LABEL: Record<WalletHistoryKind, string> = { topup: 'Top up', withdrawal: 'Withdrawal', stake: 'Stake', payout: 'Payout', other: 'Transaction' }
+
+/** Top-ups, withdrawals, stakes and payouts of this account, from the chain. */
+export function HistoryModal({ onClose }: { onClose: () => void }) {
+  const history = useWalletHistory(true)
+  const when = (time: number | null) => (time ? new Date(time * 1000).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'pending')
+  const sol = (lamports: bigint) => `${lamports > 0n ? '+' : lamports < 0n ? '−' : ''}${Number(formatUnits(lamports < 0n ? -lamports : lamports, 9)).toLocaleString(undefined, { maximumFractionDigits: 6 })} SOL`
+  return (
+    <Modal title="HISTORY" onClose={onClose}>
+      {history.isLoading ? <p style={{ margin: 0, opacity: 0.7 }}>Loading…</p>
+        : history.isError ? <p style={{ margin: 0 }}>Could not load the history right now. Try again in a moment.</p>
+          : !history.data?.length ? <p style={{ margin: 0, opacity: 0.7 }}>No transactions yet. Top up to start playing.</p>
+            : (
+              <ul style={{ listStyle: 'none', margin: 0, padding: 0, maxHeight: '60vh', overflowY: 'auto' }}>
+                {history.data.map((row) => (
+                  <li key={row.signature} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '10px 0', borderBottom: `2px solid rgba(27,19,64,0.1)` }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontWeight: 700 }}>{KIND_LABEL[row.kind]}{row.game ? ` · ${row.game}` : ''}{row.failed ? ' · failed' : ''}</div>
+                      <a href={explorerUrl('tx', row.signature)} target="_blank" rel="noreferrer" style={{ fontSize: 14, opacity: 0.65 }}>{when(row.time)} ↗</a>
+                    </div>
+                    <span style={{ flexShrink: 0, fontFamily: PIXEL, fontSize: 11, color: row.change > 0n ? '#1E7A36' : row.change < 0n ? '#C2245A' : INK }}>{sol(row.change)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+      <p style={{ margin: 0, fontSize: 14, opacity: 0.6 }}>The last 40 transactions. Amounts include network fees.</p>
     </Modal>
   )
 }
