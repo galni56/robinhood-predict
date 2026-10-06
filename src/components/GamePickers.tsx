@@ -26,16 +26,19 @@ export function CoinPicker({ assets, selected, onToggle, max, accent = YELLOW }:
 }) {
   const [query, setQuery] = useState('')
   const live = useLivePrices()
+  // A coin the price service does not price cannot start or settle a game:
+  // hide it (unless the feed is down altogether, then show everything).
+  const priced = useMemo(() => (live.disconnected ? assets : assets.filter((a) => live.assets[a.symbol] != null)), [assets, live])
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase()
-    return q ? assets.filter((a) => a.symbol.toLowerCase().includes(q) || a.name.toLowerCase().includes(q)) : assets
-  }, [assets, query])
+    return q ? priced.filter((a) => a.symbol.toLowerCase().includes(q) || a.name.toLowerCase().includes(q)) : priced
+  }, [priced, query])
   return (
     <div>
       <input
         value={query}
         onChange={(event) => setQuery(event.target.value)}
-        placeholder={`Search ${assets.length} coins…`}
+        placeholder={`Search ${priced.length} coins…`}
         className="rx-input w-full px-3.5 font-medium"
         style={{ height: 48 }}
       />
