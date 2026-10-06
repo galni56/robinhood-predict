@@ -24,7 +24,8 @@ export function OnchainLaunchPage() {
   const [description, setDescription] = useState('')
   const [twitter, setTwitter] = useState('')
   const [telegram, setTelegram] = useState('')
-  const [website, setWebsite] = useState('')
+  // Coins launched here link back to Prophet unless the creator sets another site.
+  const [website, setWebsite] = useState(() => `${window.location.origin}${import.meta.env.BASE_URL}`)
   const [image, setImage] = useState<File | null>(null)
   const [step, setStep] = useState<Step>('idle')
   const [error, setError] = useState<string | null>(null)

@@ -52,9 +52,11 @@ export async function uploadLaunchMetadata(meta: LaunchMetadata): Promise<string
   form.append('name', meta.name)
   form.append('symbol', meta.symbol)
   form.append('description', meta.description)
-  if (meta.twitter) form.append('twitter', meta.twitter)
-  if (meta.telegram) form.append('telegram', meta.telegram)
-  if (meta.website) form.append('website', meta.website)
+  // Always sent, empty when not given: a missing field came back from
+  // pump.fun as "1", which terminals show as a broken X / Telegram link.
+  form.append('twitter', meta.twitter ?? '')
+  form.append('telegram', meta.telegram ?? '')
+  form.append('website', meta.website ?? '')
   form.append('showName', 'true')
   const response = await fetch(LAUNCH_IPFS_URL, { method: 'POST', body: form })
   const body = await response.json().catch(() => ({}))

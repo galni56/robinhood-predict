@@ -31,6 +31,7 @@ import { formatCompactUsd, formatCountdown, formatUnits, formatUsdPrice, parseUn
 import { FightStage } from '@/retro/arena'
 import { CREAM, INK } from '@/retro/scene'
 import { PIXEL } from '@/retro/race'
+import { DexChart } from '@/components/DexChart'
 
 function parseId(value?: string) {
   if (!value || !/^\d+$/.test(value)) return null
@@ -283,6 +284,8 @@ export function OnchainArenaPage() {
           <span style={{ fontFamily: PIXEL, fontSize: 14 }}>BANK {fmt(arena.totalPool)}</span>
           <span>{phase === PRICE_ARENA_PHASE.RESOLVED ? (supply ? 'Final cap' : 'Final price') : (supply ? 'Live cap' : 'Live price')} <span style={{ fontFamily: PIXEL, fontSize: 14 }}>{displayValue(referencePrice, arena.priceDecimals, supply)}</span></span>
         </div>
+
+        <div className="mt-6"><DexChart pool={arena.priceSource} /></div>
 
         {!token ? <p className="py-10 text-center text-sm text-[#FFF6DF]/80">Loading stake currency…</p> : phase === PRICE_ARENA_PHASE.LOBBY ? <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_0.8fr]">
           <section className="rx-raised min-w-0" style={{ background: CREAM, color: INK, padding: 24 }}><h2 style={{ margin: 0, fontFamily: PIXEL, fontSize: 14, fontWeight: 400, lineHeight: 1.4 }}>LOBBY STAKES</h2><p className="mt-2" style={{ fontSize: 18, fontWeight: 500, opacity: 0.7 }}>Predictions stay hidden here until the game starts. They travel in the stake transaction's public memo, so this is a display courtesy, not secrecy.</p><div className="mt-4 space-y-2">{entries.map((entry) => <div key={entry.player} className="rx-plate flex min-w-0 items-center justify-between gap-3 px-4 py-3" style={{ background: '#FFFFFF' }}><AddressLabel address={entry.player} className="min-w-0 font-bold" /><span title={fmtExact(entry.stake)} className="shrink-0 whitespace-nowrap font-mono">{fmt(entry.stake)} · prediction hidden</span></div>)}{entries.length === 0 && <p className="py-8" style={{ fontSize: 18, fontWeight: 500, opacity: 0.6 }}>Be the first player.</p>}</div></section>

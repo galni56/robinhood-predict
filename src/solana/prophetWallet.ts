@@ -20,9 +20,11 @@ import { Keypair, type TransactionVersion } from '@solana/web3.js'
 // At rest the key is encrypted with the player's password (PBKDF2-SHA256 ->
 // AES-256-GCM, WebCrypto): a copy of localStorage - another page on the same
 // origin, malware reading browser files, a shared computer - is useless
-// without it. The decrypted key lives only in memory, so every new visit asks
-// for the password. It does not stop code running inside our own page (XSS),
-// which could read the password as it is typed.
+// without it. After the password, the decrypted key is kept for this tab
+// only (sessionStorage, 12 hours) so a refresh does not log the player out;
+// closing the tab, logging out or the expiry clears it, and a new tab asks
+// for the password again. It does not stop code running inside our own page
+// (XSS), which could read the password as it is typed.
 
 export const ProphetWalletName = 'Prophet Wallet' as WalletName<'Prophet Wallet'>
 
@@ -31,6 +33,9 @@ const STORAGE_KEY = 'prophet_wallet_v1'
 /** The password-encrypted key. */
 const VAULT_KEY = 'prophet_wallet_v2'
 const BACKUP_KEY = 'prophet_wallet_backed_up_v1'
+/** This tab's unlocked key: survives a refresh, not a closed tab. */
+const SESSION_KEY = 'prophet_wallet_session_v1'
+const SESSION_HOURS = 12
 const PBKDF2_ITERATIONS = 600_000
 export const MIN_PASSWORD_LENGTH = 8
 
@@ -138,8 +143,41 @@ function writeVault(vault: Vault) {
   localStorage.removeItem(STORAGE_KEY)
 }
 
-/** The decrypted key of this tab (memory only). */
-let unlocked: Keypair | null = null
+function readSession(): Keypair | null {
+  try {
+    const raw = sessionStorage.getItem(SESSION_KEY)
+    if (!raw) return null
+    const session = JSON.parse(raw) as { secret: string; expiresAt: number }
+    const keypair = Keypair.fromSecretKey(decodeBase58(session.secret))
+    // Only the account saved on this device, and only until it expires.
+    if (Date.now() > session.expiresAt || readVault()?.publicKey !== keypair.publicKey.toBase58()) throw new Error('stale')
+    return keypair
+  } catch {
+    clearSession()
+    return null
+  }
+}
+
+function clearSession() {
+  try {
+    sessionStorage.removeItem(SESSION_KEY)
+  } catch {
+    /* storage blocked: nothing was kept */
+  }
+}
+
+/** Remembers the unlocked key for this tab. */
+function setUnlocked(keypair: Keypair) {
+  unlocked = keypair
+  try {
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify({ secret: encodeBase58(keypair.secretKey), expiresAt: Date.now() + SESSION_HOURS * 3_600_000 }))
+  } catch {
+    /* storage blocked: the key stays in memory only */
+  }
+}
+
+/** The decrypted key of this tab. */
+let unlocked: Keypair | null = readSession()
 
 export const prophetWalletStore = {
   hasWallet: () => readVault() != null || readPlain() != null,
@@ -160,22 +198,23 @@ export const prophetWalletStore = {
     const keypair = Keypair.generate()
     writeVault(await seal(keypair, password))
     localStorage.removeItem(BACKUP_KEY)
-    unlocked = keypair
+    setUnlocked(keypair)
     return keypair.publicKey.toBase58()
   },
   /** Decrypts the saved account for this tab. Throws WrongPassword. */
   unlock: async (password: string) => {
     const vault = readVault()
     if (!vault) throw new Error('NoAccount')
-    unlocked = await openVault(vault, password)
-    return unlocked.publicKey.toBase58()
+    const keypair = await openVault(vault, password)
+    setUnlocked(keypair)
+    return keypair.publicKey.toBase58()
   },
   /** Encrypts a legacy clear-text key (or re-encrypts the unlocked one). */
   setPassword: async (password: string) => {
     const keypair = unlocked ?? readPlain()
     if (!keypair) throw new Error('NoAccount')
     writeVault(await seal(keypair, password))
-    unlocked = keypair
+    setUnlocked(keypair)
   },
   /** Base58 secret key - the same format Phantom and Solflare import. */
   exportSecret: (): string | null => {
@@ -187,13 +226,14 @@ export const prophetWalletStore = {
     const keypair = Keypair.fromSecretKey(decodeBase58(secret.trim()))
     writeVault(await seal(keypair, password))
     localStorage.setItem(BACKUP_KEY, '1')
-    unlocked = keypair
+    setUnlocked(keypair)
     return keypair.publicKey.toBase58()
   },
   /** Removes the key from this browser. Funds stay on-chain but are lost
    * unless the key was backed up - callers must confirm that first. */
   forget: () => {
     unlocked = null
+    clearSession()
     localStorage.removeItem(STORAGE_KEY)
     localStorage.removeItem(VAULT_KEY)
     localStorage.removeItem(BACKUP_KEY)
@@ -238,6 +278,7 @@ export class ProphetWalletAdapter extends BaseMessageSignerWalletAdapter {
   async disconnect() {
     this.keypair = null
     unlocked = null
+    clearSession()
     this.emit('disconnect')
   }
 
