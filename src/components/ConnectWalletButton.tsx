@@ -33,6 +33,14 @@ export function ConnectWalletButton() {
   const balance = useStakeBalance()
   const platform = wallet?.adapter.name === ProphetWalletName
   const [backedUp, setBackedUp] = useState(() => prophetWalletStore.isBackedUp())
+  // When the header wraps (narrow window, wallet side panel open) the button
+  // sits on the left, and a right-anchored menu would open off screen.
+  const [menuSide, setMenuSide] = useState<'left-0' | 'right-0'>('right-0')
+  const toggleMenu = () => {
+    const rect = menuRef.current?.getBoundingClientRect()
+    setMenuSide(rect && rect.right < 300 ? 'left-0' : 'right-0')
+    setOpen((v) => !v)
+  }
 
   // A fresh platform account must be backed up before anything else: losing
   // the browser without the key loses the funds.
@@ -91,7 +99,7 @@ export function ConnectWalletButton() {
   if (connected && address) {
     return (
       <div ref={menuRef} className="relative">
-        <button onClick={() => setOpen((v) => !v)} className="rx-plate relative flex items-center gap-2 bg-[#FFF6DF] py-1 pl-1.5 pr-3">
+        <button onClick={toggleMenu} className="rx-plate relative flex items-center gap-2 bg-[#FFF6DF] py-1 pl-1.5 pr-3">
           <AddressAvatar address={address} size={22} />
           <span className="flex flex-col items-start leading-tight">
             <AddressLabel address={address} link={false} className="font-mono text-xs font-bold text-[#1B1340]" />
@@ -100,7 +108,7 @@ export function ConnectWalletButton() {
           {platform && !backedUp && <span aria-label="Back up your key" className="absolute -right-1.5 -top-1.5 h-3 w-3 bg-[#FF5C8A]" />}
         </button>
         {open && (
-          <div className="rx-plate absolute right-0 top-14 z-30 w-60 bg-[#FFF6DF] py-1 text-[17px]">
+          <div className={`rx-plate absolute ${menuSide} top-14 z-30 w-60 bg-[#FFF6DF] py-1 text-[17px]`}>
             {platform && (
               <>
                 <button onClick={() => openModal('deposit')} className={itemClass}>Top up</button>
@@ -153,7 +161,7 @@ export function ConnectWalletButton() {
         onClick={() => {
           // Returning players go straight in; new ones choose create/restore.
           if (!EXTERNAL_WALLETS_ENABLED && hasAccount) login.start()
-          else setOpen((v) => !v)
+          else toggleMenu()
         }}
         className="rx-btn rx-btn-pink"
         style={{ minHeight: 48, padding: '0 20px', fontFamily: "'Pixelify Sans', 'Courier New', monospace", fontSize: 18, fontWeight: 700 }}
@@ -161,7 +169,7 @@ export function ConnectWalletButton() {
         {hasAccount ? 'Log in' : 'Start playing'}
       </button>
       {open && (
-        <div className="rx-plate absolute right-0 top-16 z-30 w-72 bg-[#FFF6DF] p-3">
+        <div className={`rx-plate absolute ${menuSide} top-16 z-30 w-72 bg-[#FFF6DF] p-3`}>
           <WalletOptionsList login={login} onConnect={() => setOpen(false)} onRestore={() => { setOpen(false); login.restore() }} />
         </div>
       )}
