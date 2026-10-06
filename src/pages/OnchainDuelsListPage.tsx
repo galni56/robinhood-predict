@@ -134,7 +134,7 @@ export function OnchainDuelsListPage() {
   const grid = { display: 'grid', gap: 18, gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))' } as const
   const h2 = { margin: '36px 0 16px', fontFamily: PIXEL, fontSize: 14, fontWeight: 400 } as const
   return (
-    <div style={{ position: 'relative', minHeight: '100%', background: SKY, color: INK, fontFamily: "'Pixelify Sans', 'Courier New', monospace", overflow: 'hidden' }}>
+    <div style={{ position: 'relative', minHeight: '100%', background: SKY, color: INK, fontFamily: "'Prophet Digits', 'Pixelify Sans', 'Courier New', monospace", overflow: 'hidden' }}>
       <DriftingCloud width={120} top={50} duration={80} delay={15} />
       <div className="mx-auto max-w-[1200px] px-4 py-8" style={{ position: 'relative', zIndex: 1 }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16 }}>

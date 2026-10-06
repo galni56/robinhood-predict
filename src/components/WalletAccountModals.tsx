@@ -29,7 +29,7 @@ function Modal({ title, onClose, children, locked = false }: { title: string; on
       <div className="flex min-h-full items-center justify-center px-4 py-8">
         <div
           className="rx-raised w-full max-w-md"
-          style={{ background: CREAM, color: INK, padding: 24, fontFamily: "'Pixelify Sans', 'Courier New', monospace" }}
+          style={{ background: CREAM, color: INK, padding: 24, fontFamily: "'Prophet Digits', 'Pixelify Sans', 'Courier New', monospace" }}
           onClick={(event) => event.stopPropagation()}
         >
           <div className="flex items-start justify-between gap-4">

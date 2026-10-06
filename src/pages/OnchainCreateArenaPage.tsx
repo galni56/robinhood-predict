@@ -101,7 +101,7 @@ export function OnchainCreateArenaPage() {
   const choice = (active: boolean) => `rx-btn ${active ? 'rx-btn-yellow' : 'rx-btn-white'}`
 
   return (
-    <div style={{ minHeight: '100%', background: '#4B37B0', color: INK, fontFamily: "'Pixelify Sans', 'Courier New', monospace" }}>
+    <div style={{ minHeight: '100%', background: '#4B37B0', color: INK, fontFamily: "'Prophet Digits', 'Pixelify Sans', 'Courier New', monospace" }}>
       <div className="mx-auto max-w-[1200px] px-4 py-6">
         <ClusterBanner className="mb-4" />
         <Link to={`/onchain/arenas${mode === 'memes' ? '' : `?mode=${mode}`}`} style={{ color: CREAM, fontSize: 16, fontWeight: 700 }}>← All arenas</Link>

@@ -169,7 +169,7 @@ export function ConnectWalletButton() {
           else toggleMenu()
         }}
         className="rx-btn rx-btn-pink"
-        style={{ minHeight: 48, padding: '0 20px', fontFamily: "'Pixelify Sans', 'Courier New', monospace", fontSize: 18, fontWeight: 700 }}
+        style={{ minHeight: 48, padding: '0 20px', fontFamily: "'Prophet Digits', 'Pixelify Sans', 'Courier New', monospace", fontSize: 18, fontWeight: 700 }}
       >
         {hasAccount ? 'Log in' : 'Start playing'}
       </button>

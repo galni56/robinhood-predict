@@ -7,7 +7,7 @@ import { cloud, crown, type PxSpriteData } from '@/retro/spriteData'
 
 /** Headline/label font (Press Start 2P) and body font (Pixelify Sans). */
 export const PIXEL = "'Press Start 2P', 'Courier New', monospace"
-export const BODY_FONT = "'Pixelify Sans', 'Courier New', monospace"
+export const BODY_FONT = "'Prophet Digits', 'Pixelify Sans', 'Courier New', monospace"
 
 export const INK = '#1B1340'
 export const CREAM = '#FFF6DF'

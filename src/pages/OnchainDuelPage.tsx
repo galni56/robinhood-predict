@@ -406,7 +406,7 @@ export function OnchainDuelPage() {
   }
 
   return (
-    <div style={{ minHeight: '100%', background: SKY, color: INK, fontFamily: "'Pixelify Sans', 'Courier New', monospace" }}>
+    <div style={{ minHeight: '100%', background: SKY, color: INK, fontFamily: "'Prophet Digits', 'Pixelify Sans', 'Courier New', monospace" }}>
       <div className="mx-auto max-w-[1200px] px-4 py-6">
         <Link to="/onchain/races" style={{ fontSize: 16, fontWeight: 700 }}>← All lobbies</Link>
         {isLoading || !duel ? <p className="rx-plate" style={{ display: 'inline-block', marginTop: 32, background: CREAM, padding: '10px 14px', fontWeight: 700 }}>{isLoading ? 'Loading lobby…' : 'This lobby opens when the game server is back online.'}</p> : (

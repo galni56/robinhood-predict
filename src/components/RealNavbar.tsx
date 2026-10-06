@@ -55,7 +55,7 @@ export function RealNavbar() {
         background: CREAM,
         color: INK,
         borderBottom: `4px solid ${INK}`,
-        fontFamily: "'Pixelify Sans', 'Courier New', monospace",
+        fontFamily: "'Prophet Digits', 'Pixelify Sans', 'Courier New', monospace",
       }}
     >
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px 16px' }}>

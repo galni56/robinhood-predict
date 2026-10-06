@@ -20,7 +20,7 @@ export function Footer() {
   } as const
 
   return (
-    <footer style={{ background: INK, color: CREAM, padding: '32px clamp(16px, 4vw, 64px)', fontFamily: "'Pixelify Sans', 'Courier New', monospace" }}>
+    <footer style={{ background: INK, color: CREAM, padding: '32px clamp(16px, 4vw, 64px)', fontFamily: "'Prophet Digits', 'Pixelify Sans', 'Courier New', monospace" }}>
       <div style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '16px 40px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <span

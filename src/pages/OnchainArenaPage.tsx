@@ -257,7 +257,7 @@ export function OnchainArenaPage() {
 
   if (arenaId == null) return <div style={{ padding: 48, textAlign: 'center', fontFamily: PIXEL, fontSize: 12 }}>INVALID ARENA ID</div>
   return (
-    <div style={{ minHeight: '100%', background: '#4B37B0', color: CREAM, fontFamily: "'Pixelify Sans', 'Courier New', monospace" }}>
+    <div style={{ minHeight: '100%', background: '#4B37B0', color: CREAM, fontFamily: "'Prophet Digits', 'Pixelify Sans', 'Courier New', monospace" }}>
     <div className="mx-auto max-w-[1200px] px-4 py-8">
       <ClusterBanner className="mb-5" />
       <Link to={`/onchain/arenas${arena ? `?mode=${modeForArenaCategory(arena.category)}` : ''}`} style={{ color: CREAM, fontSize: 20, fontWeight: 600 }}>← All arenas</Link>

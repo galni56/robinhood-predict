@@ -35,7 +35,7 @@ export function PumpSwapCoins({ limit, feed = false }: { limit?: number; feed?: 
   const shown = limit ? ordered.slice(0, limit) : ordered
   const newest = Math.max(...assets.map((a) => Date.parse(a.addedAt ?? '0')))
   return (
-    <div style={{ color: CREAM, fontFamily: "'Pixelify Sans', 'Courier New', monospace" }}>
+    <div style={{ color: CREAM, fontFamily: "'Prophet Digits', 'Pixelify Sans', 'Courier New', monospace" }}>
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16 }}>
         <div>
           <h2 style={{ margin: 0, fontFamily: PIXEL, fontSize: 'clamp(16px, 2vw, 24px)', fontWeight: 400, lineHeight: 1.5, textShadow: `4px 4px 0 ${INK}` }}>FRESH FROM PUMPSWAP</h2>

@@ -19,7 +19,7 @@ export class RouteErrorBoundary extends Component<{ children: ReactNode }, { err
   render() {
     if (!this.state.error) return this.props.children
     return (
-      <div style={{ maxWidth: 560, margin: '64px auto', padding: '0 16px', fontFamily: "'Pixelify Sans', 'Courier New', monospace", color: '#1B1340' }}>
+      <div style={{ maxWidth: 560, margin: '64px auto', padding: '0 16px', fontFamily: "'Prophet Digits', 'Pixelify Sans', 'Courier New', monospace", color: '#1B1340' }}>
         <div className="rx-raised" style={{ background: '#FFF6DF', padding: 24 }}>
           <h1 style={{ margin: 0, fontFamily: PIXEL, fontSize: 14, lineHeight: 1.5 }}>SOMETHING BROKE</h1>
           <p style={{ margin: '12px 0 20px', fontSize: 18, fontWeight: 500 }}>

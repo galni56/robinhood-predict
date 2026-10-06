@@ -74,7 +74,7 @@ export function OnchainLaunchPage() {
   const busy = step !== 'idle'
 
   return (
-    <div style={{ position: 'relative', minHeight: '100%', background: SKY, color: INK, fontFamily: "'Pixelify Sans', 'Courier New', monospace", overflow: 'hidden' }}>
+    <div style={{ position: 'relative', minHeight: '100%', background: SKY, color: INK, fontFamily: "'Prophet Digits', 'Pixelify Sans', 'Courier New', monospace", overflow: 'hidden' }}>
       <Sun size={72} style={{ top: 24, right: '5%' }} />
       <DriftingCloud width={120} top={60} duration={80} delay={10} />
       <DriftingCloud width={90} top={220} duration={65} delay={40} />

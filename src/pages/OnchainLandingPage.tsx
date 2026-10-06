@@ -63,7 +63,7 @@ export function OnchainLandingPage() {
     if (params.get('section') === 'how') document.getElementById('how')?.scrollIntoView({ behavior: 'smooth' })
   }, [params])
   return (
-    <div style={{ fontFamily: "'Pixelify Sans', 'Courier New', monospace", color: INK, background: SKY, overflow: 'hidden' }}>
+    <div style={{ fontFamily: "'Prophet Digits', 'Pixelify Sans', 'Courier New', monospace", color: INK, background: SKY, overflow: 'hidden' }}>
       {/* ------------------------------------------------------- hero */}
       <header
         style={{

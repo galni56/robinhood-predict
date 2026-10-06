@@ -1,7 +1,7 @@
 @import 'tailwindcss';
 
 @theme {
-  --font-sans: 'Pixelify Sans', 'Nunito', system-ui, sans-serif;
+  --font-sans: 'Prophet Digits', 'Pixelify Sans', 'Nunito', system-ui, sans-serif;
   --font-display: 'Press Start 2P', 'Courier New', monospace;
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Consolas, monospace;
 
@@ -593,3 +593,18 @@ h3,
 }
 .rx-fx-confetti-pop { animation-name: rx-fx-confetti-pop; animation-timing-function: steps(9); animation-fill-mode: forwards; }
 @media (prefers-reduced-motion: reduce) { .rx-fx-confetti-pop { animation: none !important; opacity: 0; } }
+
+/* Pixelify Sans draws 5 (and 8) like S (and B), so "$25" read as "$2S".
+   'Prophet Digits' is VT323 (self-hosted, OFL) limited to 0-9 and listed
+   before Pixelify in every body-font stack: digits come from it, every other
+   character falls through to Pixelify. Headings (Press Start 2P) are fine. */
+@font-face {
+  font-family: 'Prophet Digits';
+  src: url('/fonts/vt323-latin.woff2') format('woff2');
+  /* One weight only, so the browser emboldens it to match bold body text. */
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0030-0039;
+  size-adjust: 128%;
+}
