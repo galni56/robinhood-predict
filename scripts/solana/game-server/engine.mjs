@@ -200,13 +200,24 @@ export function createEngine({ db, chain, prices, assets, cluster, coldWallet = 
     log.log(`${game.kind} #${game.id}: ${game.status}${game.cancelReason && game.cancelReason !== 'none' ? ` (${game.cancelReason})` : ''}, ${settlements.length} payout(s) queued`)
   }
 
-  /** Prices at a boundary, checked against what each asset expects. */
+  /**
+   * Prices at a boundary, in the precision each game stored for its assets.
+   * A PumpSwap coin's precision can change between joining and the boundary
+   * (it left the list and came back, or its price moved by orders of
+   * magnitude); the signed price is the same value, so it is rescaled rather
+   * than refused - refusing voided every such game at its start.
+   */
   async function boundaryPrices(target, assetsNeeded) {
     const result = await prices.boundary(target, [...new Set(assetsNeeded.map((a) => a.priceSource))])
+    const scaled = { ...result.prices }
     for (const a of assetsNeeded) {
-      if (result.decimals[a.priceSource] !== a.priceDecimals) throw new Error(`price decimals changed for ${a.symbol}`)
+      const signed = result.decimals[a.priceSource]
+      if (signed === a.priceDecimals || typeof scaled[a.priceSource] !== 'bigint') continue
+      const shift = a.priceDecimals - signed
+      scaled[a.priceSource] = shift > 0 ? result.prices[a.priceSource] * 10n ** BigInt(shift) : result.prices[a.priceSource] / 10n ** BigInt(-shift)
+      log.warn(`${a.symbol}: signed price has ${signed} decimals, game uses ${a.priceDecimals}; rescaled`)
     }
-    return result
+    return { ...result, prices: scaled }
   }
 
   const attestationRecord = (b) => ({ prevSlot: b.prevSlot, prevBlockTime: b.prevBlockTime, ...b.attestation })
