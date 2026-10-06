@@ -135,7 +135,7 @@ export function CoinsToBring({ assets, taken, category, onPick }: {
                   className="rx-plate rx-hop-host"
                   style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', background: used ? 'rgba(27,19,64,0.06)' : '#FFFFFF', color: INK, cursor: used || !onPick ? 'default' : 'pointer', opacity: used ? 0.45 : 1, textAlign: 'left', minWidth: 0 }}
                 >
-                  <CoinFighter body={COIN_BODIES[i % COIN_BODIES.length]} logoUrl={asset.logoUrl ?? assetIconUrl(asset.symbol)} symbol={asset.symbol} size={28} />
+                  <CoinFighter body={COIN_BODIES[i % COIN_BODIES.length]} logoUrl={assetIconUrl(asset.symbol) ?? asset.logoUrl} symbol={asset.symbol} size={28} />
                   <span style={{ minWidth: 0 }}>
                     <span style={{ display: 'block', fontWeight: 700, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{asset.symbol}</span>
                     <span style={{ display: 'block', fontSize: 11, opacity: 0.6 }}>{used ? 'in the race' : p ? price(p.raw, p.decimals) : '…'}</span>

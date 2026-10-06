@@ -58,7 +58,7 @@ export function CoinPicker({ assets, selected, onToggle, max, accent = YELLOW }:
               }}
             >
               {isSelected && <span style={{ position: 'absolute', top: 4, right: 4, fontFamily: PIXEL, fontSize: 8 }}>✓</span>}
-              <CoinFighter body={COIN_BODIES[index % COIN_BODIES.length]} logoUrl={asset.logoUrl ?? assetIconUrl(asset.symbol)} symbol={asset.symbol} size={40} />
+              <CoinFighter body={COIN_BODIES[index % COIN_BODIES.length]} logoUrl={assetIconUrl(asset.symbol) ?? asset.logoUrl} symbol={asset.symbol} size={40} />
               <span style={{ fontWeight: 700, fontSize: 14, maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{asset.symbol}</span>
               <span style={{ fontFamily: PIXEL, fontSize: 8, opacity: 0.7 }}>{price ? shortPrice(price.raw, price.decimals) : ' '}</span>
             </button>
@@ -89,7 +89,7 @@ export function GridPreview({ coins, lanes = 6, minimum = 2 }: { coins: Approved
               {coin ? (
                 <div className="rx-fx-enter" style={{ position: 'absolute', left: 32, top: 4, display: 'flex', alignItems: 'center', gap: 8 }}>
                   <div style={{ animation: 'rx-bob 0.5s steps(1) infinite', animationDelay: `${i * 0.12}s` }}>
-                    <CoinFighter body={COIN_BODIES[i % COIN_BODIES.length]} logoUrl={coin.logoUrl ?? assetIconUrl(coin.symbol)} symbol={coin.symbol} size={44} />
+                    <CoinFighter body={COIN_BODIES[i % COIN_BODIES.length]} logoUrl={assetIconUrl(coin.symbol) ?? coin.logoUrl} symbol={coin.symbol} size={44} />
                   </div>
                   <span className="rx-plate" style={{ fontFamily: PIXEL, fontSize: 9, background: CREAM, color: INK, padding: '5px 6px' }}>{coin.symbol}</span>
                 </div>

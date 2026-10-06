@@ -45,7 +45,7 @@ function ArenaPreview({ coin, unit }: { coin?: ApprovedRaceAsset; unit: 'cap' | 
             {coin ? `${coin.symbol} ${unit === 'cap' ? 'CAP' : 'PRICE'} ?` : '???'}
           </span>
           {coin
-            ? <CoinFighter body={COIN_BODIES[1]} logoUrl={coin.logoUrl ?? assetIconUrl(coin.symbol)} symbol={coin.symbol} size={96} />
+            ? <CoinFighter body={COIN_BODIES[1]} logoUrl={assetIconUrl(coin.symbol) ?? coin.logoUrl} symbol={coin.symbol} size={96} />
             : <span style={{ display: 'inline-flex', width: 96, height: 102, alignItems: 'center', justifyContent: 'center', border: `4px dashed rgba(255,246,223,0.4)`, color: CREAM, fontFamily: PIXEL, fontSize: 24 }}>?</span>}
         </div>
       </div>

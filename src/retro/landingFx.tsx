@@ -243,11 +243,15 @@ function Trophy() {
 
 /** A pixel coin character whose face is a token logo; hops on hover. */
 export function CoinFighter({ body, logoUrl, symbol, size = 56 }: { body: PxSpriteData; logoUrl?: string | null; symbol: string; size?: number }) {
+  // A logo that fails to load (dead IPFS gateway, removed file) shows the
+  // ticker's first letter instead of a broken-image icon.
+  const [failed, setFailed] = useState<string | null>(null)
+  const logo = logoUrl && failed !== logoUrl ? logoUrl : null
   return (
     <span className="rx-hop" style={{ position: 'relative', display: 'inline-block', width: size, height: (size * 17) / 16, flex: 'none' }}>
       <PxSprite data={body} width={size} height={(size * 17) / 16} />
       <span style={{ position: 'absolute', left: size * 0.19, top: size * 0.13, width: size * 0.62, height: size * 0.62, overflow: 'hidden', borderRadius: '50%', boxShadow: `0 0 0 2px ${INK}`, background: CREAM, display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: PIXEL, fontSize: size * 0.22, color: INK }}>
-        {logoUrl ? <img src={logoUrl} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', imageRendering: 'pixelated' }} /> : symbol.slice(0, 1)}
+        {logo ? <img src={logo} alt="" loading="lazy" onError={() => setFailed(logo)} style={{ width: '100%', height: '100%', objectFit: 'cover', imageRendering: 'pixelated' }} /> : symbol.slice(0, 1)}
       </span>
     </span>
   )
