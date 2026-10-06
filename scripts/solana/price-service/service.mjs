@@ -475,7 +475,13 @@ async function loadExtraAssets() {
       continue
     }
     const accounts = [asset.pool, ...deps.vaults].filter((a) => !plan.accounts.includes(a))
-    if (plan.accounts.length + accounts.length > MAX_ACCOUNTS) break
+    if (plan.accounts.length + accounts.length > MAX_ACCOUNTS) {
+      // Coins that left the list keep their subscriptions until a restart;
+      // once the cap is full, new coins get no price (and no game can settle
+      // on them). Say so instead of skipping them silently.
+      console.warn(`extra assets: subscription cap ${MAX_ACCOUNTS} reached, not tracking ${fresh.slice(i).map((x) => x.symbol).join(', ')} - restart the price service`)
+      break
+    }
     const missing = deps.mints.filter((m) => plan.decimals[m] == null)
     if (missing.length) {
       const mintInfos = await connection.getMultipleAccountsInfo(missing.map((m) => new PublicKey(m)), 'confirmed')
