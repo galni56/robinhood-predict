@@ -13,6 +13,8 @@ import { AddressLabel } from '@/components/AddressLabel'
 import { CoinPicker, COIN_BODIES } from '@/components/GamePickers'
 import { CoinsToBring, DuelNumbers, GhostCoin, PracticeLap } from '@/components/DuelExtras'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
+import { DepositModal } from '@/components/WalletAccountModals'
+import { useStakeBalance } from '@/solana/stakeTokens'
 import { assetIconUrl } from '@/lib/assetIcons'
 import { formatCompactUsd, formatUnits, shortTxError } from '@/lib/format'
 import { life, seeded } from '@/lib/life'
@@ -30,6 +32,23 @@ const STAKE_PRESETS = [100n, 500n, 1_000n, 2_500n, 5_000n]
 const BACK_PRESETS = [100n, 500n, 1_000n, 2_500n, 5_000n, 10_000n]
 /** A number in plain digits (never 3e-8), rounded to `significant` digits. */
 const plain = (n: number, significant: number) => n.toLocaleString('en-US', { maximumSignificantDigits: significant, useGrouping: false })
+/** A transfer's network fee, with room to spare. */
+const TX_FEE = 10_000n
+/** A Solana account left with less than this (but not zero) makes the transfer fail. */
+const RENT_MIN = 890_880n
+/** Whether a balance covers a transfer of `lamports`: it must end at exactly 0 or above the rent minimum. */
+const covers = (balance: bigint, lamports: bigint) => balance === lamports + 5_000n || balance >= lamports + TX_FEE + RENT_MIN
+
+/** "Not enough SOL" with the numbers and a top-up button, shown before anyone signs. */
+function NotEnoughSol({ need, have, onTopUp }: { need: bigint; have: bigint; onTopUp: () => void }) {
+  return (
+    <div className="rx-plate" style={{ background: '#FFE3EA', padding: '10px 12px', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10 }}>
+      <span style={{ fontSize: 14, fontWeight: 700, flex: '1 1 200px' }}>Not enough SOL: this needs about {sol(need + TX_FEE + RENT_MIN)}, your account has {sol(have)}.</span>
+      <button type="button" onClick={onTopUp} className="rx-btn rx-btn-yellow" style={{ padding: '8px 12px', fontWeight: 700 }}>Top up</button>
+    </div>
+  )
+}
+
 const sol = (raw: bigint) => `${Number(Number(formatUnits(raw, 9)).toPrecision(4))} SOL`
 const clock = (seconds: number) => `${Math.max(0, Math.floor(seconds / 60))}:${String(Math.max(0, Math.floor(seconds % 60))).padStart(2, '0')}`
 
@@ -223,6 +242,10 @@ export function OnchainDuelPage() {
   const { publicKey, connected } = useWallet()
   const me = publicKey?.toBase58()
   const stake = useStakeTransfer()
+  const balance = useStakeBalance()
+  const [topUp, setTopUp] = useState(false)
+  /** null when the transfer is affordable (or the balance is not known yet), else the shortfall card. */
+  const shortOf = (lamports: bigint | null | undefined) => (balance.data == null || lamports == null || lamports <= 0n || covers(balance.data, lamports) ? null : <NotEnoughSol need={lamports} have={balance.data} onTopUp={() => setTopUp(true)} />)
   const act = useSignedAction()
   // A finished market-cap duel still needs the coins' supply to show caps.
   const live = useLivePrices({ enabled: duel != null && ((duel.status !== 'resolved' && duel.status !== 'void') || duel.unit === 'cap') })
@@ -396,6 +419,7 @@ export function OnchainDuelPage() {
               <div className="rx-raised" style={{ background: CREAM, padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
                 {me && <YourBet duel={duel} me={me} sending={backSent} />}
                 {notice && <p style={{ margin: 0, fontWeight: 700 }}>{notice}</p>}
+                {topUp && <DepositModal onClose={() => { setTopUp(false); void balance.refetch() }} />}
                 {error && <p style={{ margin: 0, color: '#C2245A', fontWeight: 700 }}>{error}</p>}
                 {duel.status === 'resolved' || duel.status === 'void' ? (
                   <div>
@@ -412,7 +436,8 @@ export function OnchainDuelPage() {
                   !mine.paid ? (
                     <>
                       <span style={label}>PAY YOUR STAKE · {clock(mine.joinedAt + DUEL_RULES.payWindow - now)} LEFT</span>
-                      <button type="button" disabled={!!busy} onClick={() => run('pay', () => transfer(duel.stake, 0))} className="rx-btn rx-btn-yellow w-full" style={{ minHeight: 56, fontFamily: PIXEL, fontSize: 12 }}>{busy === 'pay' ? 'SENDING…' : `PAY ${sol(duel.stake)}`}</button>
+                      {shortOf(duel.stake)}
+                      <button type="button" disabled={!!busy || !!shortOf(duel.stake)} onClick={() => run('pay', () => transfer(duel.stake, 0))} className="rx-btn rx-btn-yellow w-full" style={{ minHeight: 56, fontFamily: PIXEL, fontSize: 12 }}>{busy === 'pay' ? 'SENDING…' : `PAY ${sol(duel.stake)}`}</button>
                       <button type="button" disabled={!!busy} onClick={() => run('leave', async () => { await act({ action: 'duel-leave', duel: id }) })} className="rx-btn rx-btn-white" style={{ padding: '10px 14px', fontWeight: 700 }}>Leave lobby</button>
                     </>
                   ) : duel.status === 'open' ? (
@@ -446,9 +471,10 @@ export function OnchainDuelPage() {
                             {category !== 'crypto' && <div><span style={label}>SHOW</span><div style={{ display: 'flex', gap: 4 }}>{(['cap', 'price'] as const).map((u) => <button key={u} type="button" onClick={() => setUnit(u)} className={choice(unit === u)} style={{ padding: '8px 12px', fontWeight: 700 }}>{u === 'cap' ? 'Market cap' : 'Price'}</button>)}</div></div>}
                           </>
                         )}
+                        {shortOf(duel.racers.length === 0 ? stakeLamports : duel.stake)}
                         <button
                           type="button"
-                          disabled={!coin || !!busy || (duel.racers.length === 0 && !stakeLamports)}
+                          disabled={!coin || !!busy || (duel.racers.length === 0 && !stakeLamports) || !!shortOf(duel.racers.length === 0 ? stakeLamports : duel.stake)}
                           onClick={() => run('join', async () => {
                             await act({
                               action: 'duel-join', duel: id, asset: coin!.symbol,
@@ -469,7 +495,8 @@ export function OnchainDuelPage() {
                         <span style={label}>BACK A RACER · UP TO $100</span>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>{duel.racers.filter((r) => r.paid && (myBacking.length === 0 || myBacking[0].seat === r.seat)).map((r) => <button key={r.seat} type="button" onClick={() => setBackSeat(r.seat)} className={choice(backSeat === r.seat)} style={{ padding: '8px 12px', fontWeight: 700 }}>{r.symbol}</button>)}</div>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>{BACK_PRESETS.map((c) => <button key={String(c)} type="button" onClick={() => setBackCents(c)} className={choice(backCents === c)} style={{ padding: '8px 12px', fontWeight: 700 }}>{usd(c)}</button>)}</div>
-                        <button type="button" disabled={!backSeat || !live.solUsd || !!busy} onClick={() => run('back', async () => { const seat = backSeat!; await transfer(quoteUsdCents(backCents, live.solUsd!), seat); setBackSent({ seat, at: Date.now() }) })} className="rx-btn rx-btn-pink w-full" style={{ minHeight: 52, fontFamily: PIXEL, fontSize: 11 }}>
+                        {shortOf(live.solUsd ? quoteUsdCents(backCents, live.solUsd) : null)}
+                        <button type="button" disabled={!backSeat || !live.solUsd || !!busy || !!shortOf(live.solUsd ? quoteUsdCents(backCents, live.solUsd) : null)} onClick={() => run('back', async () => { const seat = backSeat!; await transfer(quoteUsdCents(backCents, live.solUsd!), seat); setBackSent({ seat, at: Date.now() }) })} className="rx-btn rx-btn-pink w-full" style={{ minHeight: 52, fontFamily: PIXEL, fontSize: 11 }}>
                           {busy === 'back' ? 'SENDING…' : backSeat ? `BACK ${duel.racers.find((r) => r.seat === backSeat)?.symbol} WITH ${usd(backCents)}` : 'PICK A RACER'}
                         </button>
                         <p style={{ margin: 0, fontSize: 13, opacity: 0.7 }}>If your racer wins you get your money back plus 70% of what was bet on the others (pro rata), minus 2% of the win. If your racer leaves or is kicked before the start, your bet comes back in full. Racers cannot back.</p>
