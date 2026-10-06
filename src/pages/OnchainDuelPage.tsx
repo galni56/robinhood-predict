@@ -210,7 +210,7 @@ export function OnchainDuelPage() {
                       <CoinFighter body={COIN_BODIES[i % COIN_BODIES.length]} logoUrl={assetIconUrl(r.symbol)} symbol={r.symbol} size={40} />
                       <div style={{ minWidth: 0, flex: 1 }}>
                         <div style={{ fontWeight: 700, fontSize: 17 }}>{r.symbol}{r.wallet === me ? ' (you)' : ''}</div>
-                        <div style={{ fontSize: 13, opacity: 0.6 }}><AddressLabel address={r.wallet} /> · backed {sol(r.backed)} by {r.backers}</div>
+                        <div style={{ fontSize: 13, opacity: 0.6 }}><AddressLabel address={r.wallet} />{r.backers > 0 && <> · backed {sol(r.backed)} by {r.backers}</>}</div>
                         {(duel.status === 'running' || duel.status === 'resolved') && r.startPrice > 0n && <div style={{ fontSize: 12, opacity: 0.6 }}>start {valueOf(r, r.startPrice)}{r.endPrice > 0n ? ` → ${valueOf(r, r.endPrice)}` : ''}</div>}
                       </div>
                       <span style={{ fontFamily: PIXEL, fontSize: 8, padding: '5px 6px', border: `2px solid ${INK}`, background: st.bg, whiteSpace: 'nowrap' }}>{st.text}</span>

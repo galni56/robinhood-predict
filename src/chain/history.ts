@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { GAME_SERVER_URL } from '@/solana/services'
+import { SAMPLE_PLAYERS_ENABLED, withSamplePlayers } from '@/chain/samplePlayers'
 
 // The game server's history snapshot (`GET /history`): recent activity
 // (stakes, payouts, refunds), per-wallet totals and the leaderboards.
@@ -64,7 +65,7 @@ async function fetchHistory(): Promise<HistorySnapshot> {
 
 /** One shared poll of the history snapshot for activity and stats. */
 export function useHistory({ enabled = true }: { enabled?: boolean } = {}) {
-  return useQuery({
+  const query = useQuery({
     queryKey: ['history'],
     queryFn: fetchHistory,
     enabled: enabled && GAME_SERVER_URL != null,
@@ -72,5 +73,7 @@ export function useHistory({ enabled = true }: { enabled?: boolean } = {}) {
     refetchIntervalInBackground: false,
     retry: 1,
   })
+  if (!SAMPLE_PLAYERS_ENABLED || !enabled) return query
+  return { ...query, data: withSamplePlayers(query.data), isLoading: false } as typeof query
 }
 
