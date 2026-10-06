@@ -11,7 +11,7 @@ import { useApprovedRaceAssets } from '@/chain/useApprovedRaceAssets'
 import { calculateReturnWad, formatReturnAdaptive, type ApprovedRaceAsset } from '@/chain/assetRaces'
 import { AddressLabel } from '@/components/AddressLabel'
 import { CoinPicker, COIN_BODIES } from '@/components/GamePickers'
-import { CoinsToBring, DuelNumbers, GhostCoin, PracticeLap } from '@/components/DuelExtras'
+import { CategoryBadge, CoinsToBring, DuelNumbers, GhostCoin, PracticeLap } from '@/components/DuelExtras'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
 import { DepositModal } from '@/components/WalletAccountModals'
 import { useStakeBalance } from '@/solana/stakeTokens'
@@ -412,7 +412,10 @@ export function OnchainDuelPage() {
         {isLoading || !duel ? <p className="rx-plate" style={{ display: 'inline-block', marginTop: 32, background: CREAM, padding: '10px 14px', fontWeight: 700 }}>{isLoading ? 'Loading lobby…' : 'This lobby opens when the game server is back online.'}</p> : (
           <>
             <div style={{ marginTop: 12, display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
               <h1 style={{ margin: 0, fontFamily: PIXEL, fontSize: 'clamp(16px, 2.2vw, 26px)', fontWeight: 400, lineHeight: 1.4, textShadow: `4px 4px 0 ${YELLOW}` }}>{duel.title.toUpperCase()}</h1>
+              <CategoryBadge category={duel.category} size="large" />
+              </div>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                 <span className="rx-plate" style={{ fontFamily: PIXEL, fontSize: 10, background: CREAM, padding: '8px 10px' }}>{duelPhaseLabel(duel)}</span>
                 {duel.status === 'running' && <span className="rx-plate" style={{ fontFamily: PIXEL, fontSize: 12, background: PINK, padding: '8px 10px' }}>{clock(duel.endTime - now)}</span>}
@@ -421,7 +424,7 @@ export function OnchainDuelPage() {
             </div>
             {duel.category && (
               <p style={{ margin: '8px 0 0', fontSize: 16, fontWeight: 700 }}>
-                {duel.category === 'meme' ? 'Memes' : 'Crypto'} · stake {sol(duel.stake)} · {durationLabel(duel.duration)} · by {capShown ? 'market cap' : 'price'} · pot {sol(duel.pot)}
+                Stake {sol(duel.stake)} · {durationLabel(duel.duration)} · by {capShown ? 'market cap' : 'price'} · pot {sol(duel.pot)}
               </p>
             )}
 

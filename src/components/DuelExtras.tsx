@@ -17,6 +17,19 @@ import { coinBlue, coinBlueGrin, coinGreen, coinOrangeGrin, coinPinkGrin, coinPu
 
 export const RACE_ORANGE = '#ED8F3A'
 
+/** The lobby's coin type, big enough to see at a glance: crypto (BTC, ETH…) or memes. */
+export function CategoryBadge({ category, size = 'small' }: { category: 'meme' | 'crypto' | null; size?: 'small' | 'large' }) {
+  if (!category) return null
+  const crypto = category === 'crypto'
+  const icon = size === 'large' ? 26 : 18
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: size === 'large' ? '6px 10px 6px 6px' : '3px 8px 3px 4px', background: crypto ? '#8FD3FF' : '#FF9FC4', border: `3px solid ${INK}`, boxShadow: `0 3px 0 ${INK}`, fontFamily: PIXEL, fontSize: size === 'large' ? 11 : 8, color: INK, whiteSpace: 'nowrap' }}>
+      <img src={assetIconUrl(crypto ? 'BTC' : 'WIF')} alt="" width={icon} height={icon} style={{ borderRadius: '50%', imageRendering: 'pixelated' }} />
+      {crypto ? 'CRYPTO' : 'MEMES'}
+    </span>
+  )
+}
+
 /** Every coin a duel can use: the catalog (no stocks) and the PumpSwap list. */
 export const DUEL_COIN_NAMES = [...new Set([
   ...assetRaceCatalog.filter((a) => a.category !== 'STOCK').map((a) => a.symbol),

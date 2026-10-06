@@ -88,7 +88,7 @@ export function WhitepaperPage() {
               <strong>Accounts:</strong> a Prophet account is a Solana key generated in the browser and encrypted with the player&apos;s password (PBKDF2-SHA256, 600,000 iterations, AES-256-GCM). The key never leaves the device. External wallets (Phantom, Solflare) work the same way.
             </li>
             <li>
-              <strong>Assets:</strong> reviewed crypto and meme pools, plus PumpSwap coins selected automatically: a real pump.fun coin paired with SOL or USDC, at least $10,000 of liquidity, a pool older than one hour, the 30 most liquid, minus a hand-kept blocklist of honeypots and wash-traded coins.
+              <strong>Assets:</strong> reviewed crypto and meme pools, plus PumpSwap coins selected automatically: a real pump.fun coin paired with SOL or USDC, at least $10,000 of liquidity, a pool older than one hour; the list keeps up to 40 coins (the most liquid make room), drops a coin whose liquidity falls under $10,000 or that has not been seen for 7 days, minus a hand-kept blocklist of honeypots and wash-traded coins.
             </li>
             <li><strong>Prices in USD</strong> come straight from each coin&apos;s pool reserves; SOL-paired pools are converted through SOL/USDC at the same block.</li>
           </ul>

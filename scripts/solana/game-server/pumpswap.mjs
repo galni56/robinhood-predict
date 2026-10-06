@@ -9,15 +9,21 @@
 // curve exists - coins launched from our site have ordinary addresses),
 // paired with SOL or USDC, pool
 // liquidity >= $10k, pool older than 1 hour, one coin per symbol (the one
-// with the most liquidity). The top `limit` by liquidity are kept, plus any
-// coin still used by a running game (30 by default).
+// with the most liquidity).
+//
+// The list accumulates (owner, 2026-10-06): a coin stays after it leaves the
+// top pages, up to `limit` coins (40). It goes when we see it fail the filter
+// (liquidity under $10k), when it is blocklisted, or after `staleDays` (7)
+// without being seen. Over the limit the least liquid make room; Prophet
+// launches and coins of running games are never dropped. 40 coins x 3
+// accounts (pool + vaults) keeps the price service well under its 250 subscriptions.
 
 const GECKO = 'https://api.geckoterminal.com/api/v2/networks/solana/dexes/pumpswap/pools'
 const WSOL = 'So11111111111111111111111111111111111111112'
 const USDC = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'
 const PUMP_TOKEN = 'pumpCmXqMfrsAkQ5r49WcJnRayYRqmXz6ae8H7H9Dfn'
 
-export const PUMPSWAP_FILTER = { minLiquidityUsd: 10_000, minAgeHours: 1, limit: 30, pages: 10 }
+export const PUMPSWAP_FILTER = { minLiquidityUsd: 10_000, minAgeHours: 1, limit: 40, pages: 10, staleDays: 7 }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms))
 const tokenAddress = (id) => String(id ?? '').replace(/^solana_/, '')
@@ -118,10 +124,6 @@ export function selectPumpSwapAssets(pools, { takenSymbols, previous = [], keepS
     if (!bySymbol.has(key) || bySymbol.get(key).liquidityUsd < p.liquidityUsd) bySymbol.set(key, { ...p, symbol })
   }
   const prior = new Map(previous.map((a) => [a.symbol, a]))
-  // Prophet launches that passed the filter always join, on top of the 30 most liquid.
-  const ranked = [...bySymbol.values()].sort((a, b) => b.liquidityUsd - a.liquidityUsd)
-  const ours = ranked.filter((p) => launched.has(p.mint))
-  const picked = [...ours, ...ranked.filter((p) => !launched.has(p.mint)).slice(0, filter.limit)]
   const asset = (p) => ({
     symbol: p.symbol,
     name: p.name,
@@ -142,10 +144,23 @@ export function selectPumpSwapAssets(pools, { takenSymbols, previous = [], keepS
     volume24hUsd: Math.round(p.volume24hUsd),
     poolCreatedAt: p.createdAt,
     addedAt: prior.get(p.symbol)?.mint === p.mint && prior.get(p.symbol).addedAt ? prior.get(p.symbol).addedAt : new Date(now).toISOString(),
+    lastSeenAt: new Date(now).toISOString(),
   })
-  const out = picked.map(asset)
-  for (const symbol of keepSymbols) {
-    if (!out.some((a) => a.symbol === symbol) && prior.has(symbol)) out.push(prior.get(symbol))
-  }
-  return out
+  const fresh = [...bySymbol.values()].map(asset)
+  // Coins seen this time but failing the filter (every pool of the mint): we know they are out.
+  const passingMints = new Set([...bySymbol.values()].map((p) => p.mint))
+  const failedMints = new Set(pools.filter((p) => !passingMints.has(p.mint)).map((p) => p.mint))
+  const staleMs = (filter.staleDays ?? 7) * 86_400_000
+  const kept = previous.filter((a) => {
+    const key = String(a.symbol).toUpperCase()
+    if (bySymbol.has(key) || takenSymbols.has(key)) return false
+    if (blocked.mints.has(a.mint) || blocked.symbols.has(key)) return false
+    if (keepSymbols.has(a.symbol)) return true
+    if (failedMints.has(a.mint)) return false
+    return now - Date.parse(a.lastSeenAt ?? a.addedAt ?? 0) < staleMs
+  })
+  const protectedCoin = (a) => launched.has(a.mint) || a.launchedOnProphet === true || keepSymbols.has(a.symbol)
+  const all = [...fresh, ...kept]
+  const others = all.filter((a) => !protectedCoin(a)).sort((a, b) => (b.liquidityUsd ?? 0) - (a.liquidityUsd ?? 0))
+  return [...all.filter(protectedCoin), ...others.slice(0, filter.limit)]
 }

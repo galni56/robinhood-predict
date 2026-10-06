@@ -59,3 +59,24 @@ test('pumpswap filter: coins launched on Prophet join on top of the limit and ar
   assert.equal(out.find((a) => a.symbol === 'OURS').launchedOnProphet, true)
   assert.equal(out.find((a) => a.symbol === 'BIG').launchedOnProphet, undefined)
 })
+
+test('pumpswap list accumulates: kept when out of the top pages, dropped when seen failing, blocked or stale', () => {
+  const day = 86_400_000
+  const previous = [
+    { symbol: 'OLD', mint: 'Oldpump', pool: 'p1', priceDecimals: 9, liquidityUsd: 40_000, lastSeenAt: new Date(now - day).toISOString() }, // not in today's pages: stays
+    { symbol: 'THIN', mint: 'Thinpump', pool: 'p2', priceDecimals: 9, liquidityUsd: 40_000, lastSeenAt: new Date(now - day).toISOString() }, // seen today below $10k: goes
+    { symbol: 'STALE', mint: 'Stalepump', pool: 'p3', priceDecimals: 9, liquidityUsd: 40_000, lastSeenAt: new Date(now - 8 * day).toISOString() }, // unseen 8 days: goes
+    { symbol: 'BAD', mint: 'Badpump', pool: 'p4', priceDecimals: 9, liquidityUsd: 40_000, lastSeenAt: new Date(now - day).toISOString() }, // blocklisted: goes
+  ]
+  const pools = [pool('NEW', 'Newpump', 30_000, 5), pool('THIN', 'Thinpump', 5_000, 5)]
+  const out = selectPumpSwapAssets(pools, { takenSymbols: new Set(), previous, now, blocked: { mints: new Set(['Badpump']), symbols: new Set() } })
+  assert.deepEqual(out.map((a) => a.symbol).sort(), ['NEW', 'OLD'])
+  assert.equal(out.find((a) => a.symbol === 'NEW').lastSeenAt, new Date(now).toISOString())
+})
+
+test('pumpswap list: over the limit the least liquid make room', () => {
+  const previous = [{ symbol: 'SMALL', mint: 'Smallpump', pool: 'p', priceDecimals: 9, liquidityUsd: 11_000, lastSeenAt: new Date(now).toISOString() }]
+  const pools = [pool('A', 'Apump', 90_000, 5), pool('B', 'Bpump', 50_000, 5)]
+  const out = selectPumpSwapAssets(pools, { takenSymbols: new Set(), previous, now, filter: { minLiquidityUsd: 10_000, minAgeHours: 1, limit: 2, staleDays: 7 } })
+  assert.deepEqual(out.map((a) => a.symbol), ['A', 'B'])
+})

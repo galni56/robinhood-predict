@@ -12,7 +12,7 @@ import { CoinFighter, DriftingCloud } from '@/retro/landingFx'
 import { CREAM, INK, PINK, ROAD, SKY, YELLOW, PIXEL } from '@/retro/scene'
 import { life, seeded } from '@/lib/life'
 import { COIN_BODIES } from '@/components/GamePickers'
-import { DuelNumbers, DuelSteps, PracticeLap } from '@/components/DuelExtras'
+import { CategoryBadge, DuelNumbers, DuelSteps, PracticeLap } from '@/components/DuelExtras'
 
 const sol = (raw: bigint) => `${Number(Number(formatUnits(raw, 9)).toPrecision(3))} SOL`
 
@@ -56,7 +56,10 @@ function LobbyCard({ duel }: { duel: Duel }) {
       {/* Moving stripe band: each card has its own color, speed and phase. */}
       <div className={duel.status === 'resolved' ? undefined : 'rx-life-stripes'} style={{ height: 10, margin: '0 -16px', background: `repeating-linear-gradient(90deg, ${accent} 0 10px, ${INK} 10px 20px)`, ...life(seed, 5, 1.6, 4) }} />
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-        <span style={{ fontFamily: PIXEL, fontSize: 11 }}>{duel.title}</span>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+          <span style={{ fontFamily: PIXEL, fontSize: 11 }}>{duel.title}</span>
+          <CategoryBadge category={duel.category} />
+        </span>
         <span className={hot || empty ? 'rx-life-blink' : undefined} style={{ fontFamily: PIXEL, fontSize: 8, padding: '5px 7px', border: `2px solid ${INK}`, background: chipBg, ...life(seed, 6, hot ? 0.8 : 1.4, hot ? 1.3 : 2.6) }}>{empty ? 'OPEN' : duelPhaseLabel(duel)}</span>
       </div>
       {empty ? <OpenLobbyScene duel={duel} /> : (
@@ -84,7 +87,6 @@ function LobbyCard({ duel }: { duel: Duel }) {
           <>
             <span>Stake {usd ? `$${usd.toFixed(usd < 10 ? 2 : 0)}` : sol(duel.stake)}</span>
             <span>{durationLabel(duel.duration)}</span>
-            <span>{duel.category === 'meme' ? 'Memes' : 'Crypto'}</span>
             {duel.pot > 0n && <span>Pot {sol(duel.pot)}</span>}
           </>
         )}
@@ -106,10 +108,13 @@ export function OnchainDuelsListPage() {
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
   const live = duels.filter((d) => !['resolved', 'void', 'cancelled'].includes(d.status))
-  const active = live.filter((d) => d.racers.length > 0).sort((a, b) => b.racers.length - a.racers.length)
+  // Lobby type filter; 'all' (the default) shows the page as it always was.
+  const [kind, setKind] = useState<'all' | 'crypto' | 'meme'>('all')
+  const ofKind = (d: Duel) => kind === 'all' || d.category === kind
+  const active = live.filter((d) => d.racers.length > 0 && ofKind(d)).sort((a, b) => b.racers.length - a.racers.length)
   // The oldest open lobbies first, so the same four stay put between refreshes.
   const empty = live.filter((d) => d.racers.length === 0).sort((a, b) => a.id - b.id).slice(0, OPEN_LOBBIES_SHOWN)
-  const finished = duels.filter((d) => d.status === 'resolved').slice(0, 6)
+  const finished = duels.filter((d) => d.status === 'resolved' && ofKind(d)).slice(0, 6)
 
   async function createLobby() {
     setError(null)
@@ -149,6 +154,12 @@ export function OnchainDuelsListPage() {
 
         {isLoading && duels.length === 0 ? <p style={{ marginTop: 32 }}>Loading lobbies…</p> : (
           <>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 24 }}>
+              {([['all', 'All'], ['crypto', 'Crypto'], ['meme', 'Memes']] as const).map(([k, text]) => (
+                <button key={k} type="button" onClick={() => setKind(k)} className={`rx-btn ${kind === k ? 'rx-btn-yellow' : 'rx-btn-white'}`} style={{ padding: '8px 14px', fontSize: 14, fontWeight: 700 }}>{text}</button>
+              ))}
+            </div>
+            {kind !== 'all' && active.length === 0 && <p style={{ fontWeight: 700 }}>No live {kind === 'meme' ? 'meme' : 'crypto'} lobby right now - open one below and pick a {kind === 'meme' ? 'meme' : 'crypto'} coin.</p>}
             {active.length > 0 && (<><h2 style={h2}>LIVE LOBBIES</h2><div style={grid}>{active.map((d) => <LobbyCard key={d.id} duel={d} />)}</div></>)}
             <h2 style={h2}>OPEN LOBBIES · PICK ONE</h2>
             <div style={{ ...grid, gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 250px), 1fr))' }}>{empty.map((d) => <LobbyCard key={d.id} duel={d} />)}</div>
