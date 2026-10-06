@@ -11,6 +11,7 @@ import { useApprovedRaceAssets } from '@/chain/useApprovedRaceAssets'
 import { calculateReturnWad, formatReturnWad, type ApprovedRaceAsset } from '@/chain/assetRaces'
 import { AddressLabel } from '@/components/AddressLabel'
 import { CoinPicker, COIN_BODIES } from '@/components/GamePickers'
+import { CoinsToBring, DuelNumbers, GhostCoin, PracticeLap } from '@/components/DuelExtras'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
 import { assetIconUrl } from '@/lib/assetIcons'
 import { formatCompactUsd, formatUnits, shortTxError } from '@/lib/format'
@@ -57,7 +58,10 @@ function DuelTrack({ duel, onCheer, bursts }: { duel: Duel; onCheer: (seat: numb
   const span = max - min
   // 0 = start line, 1 = finish: the leader runs up to the finish line, the rest by their return.
   const progress = (ret: bigint) => (!running && !final ? 0 : span === 0n ? 0.45 : 0.05 + (Number(((ret - min) * 1000n) / span) / 1000) * 0.95)
-  const lanes = Math.max(duel.racers.length, 2)
+  // While the lobby fills, all six places are shown; once it starts only the racers.
+  const filling = duel.status === 'open' || duel.status === 'ready'
+  const lanes = filling ? DUEL_RULES.maxRacers : Math.max(duel.racers.length, 2)
+  const firstFree = duel.racers.length
   return (
     <div className="rx-raised" style={{ position: 'relative', background: ROAD, overflow: 'hidden' }}>
       <div style={{ position: 'absolute', top: 0, bottom: 0, right: '6%', width: 24, background: `repeating-conic-gradient(${INK} 0% 25%, ${CREAM} 0% 50%) 0 0 / 24px 24px` }} />
@@ -65,7 +69,7 @@ function DuelTrack({ duel, onCheer, bursts }: { duel: Duel; onCheer: (seat: numb
         const r = duel.racers[i]
         const ret = returns[i] ?? 0n
         return (
-          <div key={i} style={{ position: 'relative', height: 'clamp(64px, 10vw, 84px)', borderTop: i ? '2px dashed rgba(255,246,223,0.25)' : 'none', overflow: 'hidden' }}>
+          <div key={i} style={{ position: 'relative', height: r ? 'clamp(64px, 10vw, 84px)' : 56, borderTop: i ? '2px dashed rgba(255,246,223,0.25)' : 'none', overflow: 'hidden' }}>
             {/* Lane markings rush past while racing, each lane at its own speed; before the start they drift slowly. */}
             {!final && <div className="rx-life-road" style={{ position: 'absolute', left: 0, right: 0, bottom: 10, height: 3, background: 'repeating-linear-gradient(90deg, rgba(255,246,223,0.22) 0 18px, transparent 18px 36px)', ...life(duel.id * 11 + i, 1, running ? 0.35 : 3, running ? 0.7 : 6) }} />}
             {r ? (
@@ -88,8 +92,9 @@ function DuelTrack({ duel, onCheer, bursts }: { duel: Duel; onCheer: (seat: numb
               </>
             ) : (
               <>
-                <span className="rx-life-seat" style={{ position: 'absolute', left: 18, top: '50%', marginTop: -20, width: 40, height: 40, border: `3px dashed ${CREAM}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: CREAM, fontFamily: PIXEL, fontSize: 14, ...life(duel.id * 11 + i, 3, 1.3, 2.6) }}>?</span>
-                <span className="rx-life-blink" style={{ position: 'absolute', left: 80, top: '50%', transform: 'translateY(-50%)', color: CREAM, opacity: 0.6, fontFamily: PIXEL, fontSize: 9, ...life(duel.id * 11 + i, 4, 1.4, 2.4) }}>WAITING FOR A RACER…</span>
+                {/* A faded coin keeps changing: what could race here. */}
+                <span style={{ position: 'absolute', left: 16, top: '50%', marginTop: -22 }}><GhostCoin seed={duel.id * 11 + i} /></span>
+                <span className="rx-life-blink" style={{ position: 'absolute', left: 72, top: '50%', transform: 'translateY(-50%)', color: CREAM, opacity: 0.7, fontFamily: PIXEL, fontSize: 9, ...life(duel.id * 11 + i, 4, 1.4, 2.4) }}>{filling && i === firstFree ? 'YOUR COIN HERE · JOIN >' : 'WAITING FOR A RACER…'}</span>
               </>
             )}
           </div>
@@ -314,9 +319,25 @@ export function OnchainDuelPage() {
                 )}
               </div>
             </div>
+
+            {open && (
+              <div style={{ marginTop: 24 }}>
+                <CoinsToBring
+                  assets={assets}
+                  taken={duel.racers.map((r) => r.symbol)}
+                  category={duel.category}
+                  // Picking fills the join form; spectators and racers already in only look.
+                  onPick={connected && !mine && duel.racers.length < DUEL_RULES.maxRacers ? (a) => { setCoin(a); window.scrollTo({ top: 0, behavior: 'smooth' }) } : undefined}
+                />
+              </div>
+            )}
+            <h2 style={{ margin: '40px 0 16px', fontFamily: PIXEL, fontSize: 14, fontWeight: 400 }}>THE NUMBERS</h2>
+            <DuelNumbers />
           </>
         )}
       </div>
+      {/* The practice heat would only confuse next to a real race. */}
+      {duel && duel.status !== 'running' && duel.status !== 'starting' && <PracticeLap />}
     </div>
   )
 }

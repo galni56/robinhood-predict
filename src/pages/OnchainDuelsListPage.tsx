@@ -8,14 +8,11 @@ import { DUEL_RULES, duelPhaseLabel, durationLabel, useDuels, type Duel } from '
 import { useLivePrices } from '@/chain/livePrices'
 import { assetIconUrl } from '@/lib/assetIcons'
 import { formatUnits, shortTxError } from '@/lib/format'
-import { AnimatedRace, CoinFighter, DriftingCloud } from '@/retro/landingFx'
-import { CREAM, GrassStrip, Hills, INK, PINK, ROAD, SKY, YELLOW, PIXEL } from '@/retro/scene'
-import { PxSprite } from '@/retro/Sprite'
-import { coinBlue, coinBlueGrin, coinGreen, coinOrangeGrin, coinPinkGrin, coinPurple, coinPurpleGrin } from '@/retro/spriteData'
-import { assetRaceCatalog } from '@/chain/assetRaceRegistry'
-import pumpswapSnapshot from '@/chain/pumpswapSnapshot.json'
+import { CoinFighter, DriftingCloud } from '@/retro/landingFx'
+import { CREAM, INK, PINK, ROAD, SKY, YELLOW, PIXEL } from '@/retro/scene'
 import { life, seeded } from '@/lib/life'
-import { COIN_BODIES, HowItWorksStrip } from '@/components/GamePickers'
+import { COIN_BODIES } from '@/components/GamePickers'
+import { DuelNumbers, DuelSteps, PracticeLap } from '@/components/DuelExtras'
 
 const sol = (raw: bigint) => `${Number(Number(formatUnits(raw, 9)).toPrecision(3))} SOL`
 
@@ -96,38 +93,6 @@ function LobbyCard({ duel }: { duel: Duel }) {
   )
 }
 
-/** Practice-lap runners: coins from the catalog and the PumpSwap list. */
-const PRACTICE_NAMES = [...new Set([
-  ...assetRaceCatalog.filter((a) => a.category !== 'STOCK').map((a) => a.symbol),
-  ...pumpswapSnapshot.assets.map((a) => a.symbol),
-])].filter((name) => name.length <= 9)
-const PRACTICE_BODIES = [coinOrangeGrin, coinPinkGrin, coinPurple, coinBlue]
-const RACE_ORANGE = '#ED8F3A'
-
-/** The duel rules in four numbers, each tile with its own idle coin. */
-const NUMBERS = [
-  { big: '2-6', label: 'racers, one coin each', sprite: coinOrangeGrin },
-  { big: '$1-$50', label: 'same stake for everyone', sprite: coinBlueGrin },
-  { big: '2%', label: 'only from winnings', sprite: coinPurpleGrin },
-  { big: '30/70', label: "losing backers' money: winner / his backers", sprite: coinGreen },
-]
-
-function DuelNumbers() {
-  return (
-    <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))' }}>
-      {NUMBERS.map((n, i) => (
-        <div key={n.big} className="rx-raised" style={{ display: 'flex', alignItems: 'center', gap: 14, padding: 16, background: CREAM }}>
-          <span className="rx-life-idle" style={life(31 + i, 1, 1.3, 2.9)}><PxSprite data={n.sprite} width={44} height={47} /></span>
-          <div>
-            <div style={{ fontFamily: PIXEL, fontSize: 20, textShadow: `3px 3px 0 ${i % 2 ? YELLOW : RACE_ORANGE}` }}>{n.big}</div>
-            <div style={{ fontSize: 15, fontWeight: 700, opacity: 0.75 }}>{n.label}</div>
-          </div>
-        </div>
-      ))}
-    </div>
-  )
-}
-
 /** Open lobbies shown at once: the server keeps this many waiting (DUEL.emptyLobbies). */
 const OPEN_LOBBIES_SHOWN = 4
 
@@ -191,28 +156,13 @@ export function OnchainDuelsListPage() {
         )}
 
         <h2 style={{ ...h2, marginTop: 56 }}>HOW A DUEL GOES</h2>
-        <HowItWorksStrip
-          accent={RACE_ORANGE}
-          steps={[
-            { sprite: coinOrangeGrin, title: 'Bring a coin', timing: 'LOBBY', body: 'Pick a meme or crypto coin nobody here has. The first racer sets the stake, the time and price or cap.' },
-            { sprite: coinPinkGrin, title: 'Pay the stake', timing: '2 MIN', body: 'Everyone pays the same $1-$50. Until someone is ready you can leave with all of it back.' },
-            { sprite: coinBlueGrin, title: 'Hit READY', timing: '1 MIN', body: 'The first READY starts a minute for the rest. Miss it and you are kicked with a 10% tax.' },
-            { sprite: coinPurple, title: 'Biggest gain wins', timing: '1-60 MIN', body: "The coin that grows the most takes the pot. Backers of the winner share the losing backers' money." },
-          ]}
-        />
+        <DuelSteps />
 
         <h2 style={{ ...h2, marginTop: 48 }}>THE NUMBERS</h2>
         <DuelNumbers />
       </div>
 
-      {/* A practice lap closes the page: hills, the grandstand and a random heat, no money involved. */}
-      <div aria-hidden="true" style={{ position: 'relative', marginTop: 56 }}>
-        <span className="rx-plate rx-life-blink" style={{ position: 'absolute', zIndex: 2, left: '50%', top: 8, transform: 'translateX(-50%)', background: CREAM, fontFamily: PIXEL, fontSize: 10, padding: '8px 12px', whiteSpace: 'nowrap', ...life(77, 1, 1.6, 2.2) }}>PRACTICE LAP · NO MONEY</span>
-        <Hills />
-        <GrassStrip height={20} top />
-        <AnimatedRace names={PRACTICE_NAMES} bodies={PRACTICE_BODIES} />
-        <GrassStrip height={28} />
-      </div>
+      <PracticeLap />
     </div>
   )
 }

@@ -44,7 +44,16 @@ export function useApprovedRaceAssets() {
       })),
       ...pumpswap.assets.map(pumpSwapAsset),
     ]
-    return list.filter((a) => CATEGORY_NAMES[a.category] !== 'STOCK').sort((a, b) => a.symbol.localeCompare(b.symbol))
+    // One coin per ticker, the catalog first: an older saved PumpSwap list can
+    // still hold a coin whose ticker the catalog took later (PUMP).
+    const seen = new Set<string>()
+    const unique = list.filter((a) => {
+      const key = a.symbol.toUpperCase()
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+    return unique.filter((a) => CATEGORY_NAMES[a.category] !== 'STOCK').sort((a, b) => a.symbol.localeCompare(b.symbol))
   }, [config.data, pumpswap.assets])
 
   const durations = useMemo(() => {
