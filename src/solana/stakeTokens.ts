@@ -1,4 +1,5 @@
-import { useQuery } from '@tanstack/react-query'
+import { useEffect } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useConnection, useWallet } from '@solana/wallet-adapter-react'
 import { NATIVE_SOL, SOL_DECIMALS } from '@/solana/config'
 import { formatCompactUnits, formatUnits } from '@/lib/format'
@@ -42,4 +43,25 @@ export function useStakeBalance(_token?: StakeToken) {
     enabled: !!publicKey,
     refetchInterval: 15_000,
   })
+}
+
+/** Pushes balance changes as they confirm (websocket), instead of waiting
+ * for the next poll. Mount once, next to the wallet button. */
+export function useLiveStakeBalance() {
+  const { connection } = useConnection()
+  const { publicKey } = useWallet()
+  const queryClient = useQueryClient()
+  useEffect(() => {
+    if (!publicKey) return
+    const key = ['stake-balance', connection.rpcEndpoint, publicKey.toBase58()]
+    let id: number | null = null
+    try {
+      id = connection.onAccountChange(publicKey, (info) => queryClient.setQueryData(key, BigInt(info.lamports)), { commitment: 'confirmed' })
+    } catch {
+      return // no websocket: the 15 s poll still updates the balance
+    }
+    return () => {
+      if (id != null) void connection.removeAccountChangeListener(id).catch(() => {})
+    }
+  }, [connection, publicKey, queryClient])
 }
