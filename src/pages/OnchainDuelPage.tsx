@@ -61,7 +61,42 @@ function Burst({ id }: { id: number }) {
   )
 }
 
-function DuelTrack({ duel, onCheer, bursts }: { duel: Duel; onCheer: (seat: number) => void; bursts: Record<number, number[]> }) {
+/**
+ * A spectator's bet, shown at the top of the panel in every phase: whom they
+ * backed and with how much, what a win would pay, then the result.
+ */
+function YourBet({ duel, me, sending }: { duel: Duel; me: string; sending: { seat: number; at: number } | null }) {
+  const mine = duel.backers.filter((b) => b.wallet === me)
+  const pendingSeat = mine.length === 0 && sending ? sending.seat : null
+  if (mine.length === 0 && pendingSeat == null) return null
+  const seat = mine[0]?.seat ?? pendingSeat!
+  const racer = duel.racers.find((r) => r.seat === seat)
+  const amount = mine.reduce((sum, b) => sum + b.amount, 0n)
+  // What a win pays now: the stake back plus 70% of the money on the other
+  // racers, pro rata among this racer's backers, minus 2% of the gain.
+  const onSeat = duel.backers.filter((b) => b.seat === seat).reduce((sum, b) => sum + b.amount, 0n)
+  const onOthers = duel.backers.filter((b) => b.seat !== seat).reduce((sum, b) => sum + b.amount, 0n)
+  const gain = onSeat > 0n ? (onOthers * 7_000n / 10_000n) * amount / onSeat : 0n
+  const ifWin = amount + gain - (gain * 200n) / 10_000n
+  const paidOut = duel.payouts.filter((p) => p.wallet === me && (p.kind === 'win' || p.kind === 'refund')).reduce((sum, p) => sum + p.amount, 0n)
+  const status = mine.length === 0 ? 'Sent - confirming on chain…'
+    : duel.status === 'resolved' ? (duel.winnerSeat === seat ? `${racer?.symbol} won! You get ${sol(paidOut || ifWin)}.` : `${racer?.symbol} did not win this time.`)
+      : duel.status === 'void' || duel.status === 'cancelled' ? 'No race - your bet goes back in full.'
+        : duel.status === 'running' ? `Racing! If ${racer?.symbol} wins you get ≈ ${sol(ifWin)}.`
+          : `If ${racer?.symbol} wins you get ≈ ${sol(ifWin)}${gain === 0n ? ' (more once others back the rivals)' : ''}.`
+  const won = duel.status === 'resolved' && duel.winnerSeat === seat
+  return (
+    <div className="rx-plate" style={{ background: won ? '#8BE89A' : YELLOW, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 12 }}>
+      {racer && <CoinFighter body={COIN_BODIES[duel.racers.indexOf(racer) % COIN_BODIES.length]} logoUrl={assetIconUrl(racer.symbol)} symbol={racer.symbol} size={40} />}
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontFamily: PIXEL, fontSize: 10, marginBottom: 4 }}>YOUR BET · {racer?.symbol ?? '…'}{mine.length > 0 ? ` · ${sol(amount)}` : ''}</div>
+        <div style={{ fontSize: 15, fontWeight: 700 }}>{status}</div>
+      </div>
+    </div>
+  )
+}
+
+function DuelTrack({ duel, onCheer, bursts, pickedSeat }: { duel: Duel; onCheer: (seat: number) => void; bursts: Record<number, number[]>; pickedSeat?: number }) {
   const live = useLivePrices({ enabled: duel.status === 'running' || duel.status === 'starting' })
   const running = duel.status === 'running'
   const final = duel.status === 'resolved'
@@ -104,7 +139,7 @@ function DuelTrack({ duel, onCheer, bursts }: { duel: Duel; onCheer: (seat: numb
                     <CoinFighter body={COIN_BODIES[i % COIN_BODIES.length]} logoUrl={assetIconUrl(r.symbol)} symbol={r.symbol} size={48} />
                   </div>
                   <span className="rx-plate" style={{ fontFamily: PIXEL, fontSize: 9, background: CREAM, padding: '5px 6px', whiteSpace: 'nowrap' }}>
-                    {r.symbol}{(running || final) ? ` ${formatReturnWad(ret)}` : ''}
+                    {r.symbol}{(running || final) ? ` ${formatReturnWad(ret)}` : ''}{pickedSeat === r.seat ? ' · YOUR PICK' : ''}
                   </span>
                 </div>
               </>
@@ -155,6 +190,8 @@ export function OnchainDuelPage() {
   const [unit, setUnit] = useState<'cap' | 'price'>('cap')
   const [backSeat, setBackSeat] = useState<number | null>(null)
   const [backCents, setBackCents] = useState(500n)
+  // A bet transfer that landed but the server has not applied yet.
+  const [backSent, setBackSent] = useState<{ seat: number; at: number } | null>(null)
   // Active confetti bursts per racer seat (ids), at most MAX_BURSTS at a time.
   const [bursts, setBursts] = useState<Record<number, number[]>>({})
   const burstSeq = useRef(0)
@@ -263,7 +300,7 @@ export function OnchainDuelPage() {
             )}
 
             <div style={{ marginTop: 16 }}>
-              <DuelTrack duel={duel} onCheer={cheer} bursts={bursts} />
+              <DuelTrack duel={duel} onCheer={cheer} bursts={bursts} pickedSeat={myBacking[0]?.seat} />
             </div>
 
             <div style={{ marginTop: 24, display: 'grid', gap: 24, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 420px), 1fr))', alignItems: 'start' }}>
@@ -277,7 +314,7 @@ export function OnchainDuelPage() {
                     <div key={r.seat} className="rx-hop-host" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderTop: i ? `2px solid rgba(27,19,64,0.1)` : 'none' }}>
                       <CoinFighter body={COIN_BODIES[i % COIN_BODIES.length]} logoUrl={assetIconUrl(r.symbol)} symbol={r.symbol} size={40} />
                       <div style={{ minWidth: 0, flex: 1 }}>
-                        <div style={{ fontWeight: 700, fontSize: 17 }}>{r.symbol}{r.wallet === me ? ' (you)' : ''}</div>
+                        <div style={{ fontWeight: 700, fontSize: 17 }}>{r.symbol}{r.wallet === me ? ' (you)' : ''}{myBacking.some((b) => b.seat === r.seat) && <span style={{ marginLeft: 8, background: YELLOW, border: `2px solid ${INK}`, fontFamily: PIXEL, fontSize: 8, padding: '3px 5px', verticalAlign: 'middle' }}>YOUR PICK</span>}</div>
                         <div style={{ fontSize: 13, opacity: 0.6 }}><AddressLabel address={r.wallet} />{r.backers > 0 && <> · backed {sol(r.backed)} by {r.backers}</>}</div>
                         {(duel.status === 'running' || duel.status === 'resolved') && r.startPrice > 0n && <div style={{ fontSize: 12, opacity: 0.6 }}>start {valueOf(r, r.startPrice)}{r.endPrice > 0n ? ` → ${valueOf(r, r.endPrice)}` : ''}</div>}
                       </div>
@@ -289,6 +326,7 @@ export function OnchainDuelPage() {
 
               {/* actions */}
               <div className="rx-raised" style={{ background: CREAM, padding: 16, display: 'flex', flexDirection: 'column', gap: 14 }}>
+                {me && <YourBet duel={duel} me={me} sending={backSent} />}
                 {notice && <p style={{ margin: 0, fontWeight: 700 }}>{notice}</p>}
                 {error && <p style={{ margin: 0, color: '#C2245A', fontWeight: 700 }}>{error}</p>}
                 {duel.status === 'resolved' || duel.status === 'void' ? (
@@ -326,7 +364,7 @@ export function OnchainDuelPage() {
                         <p style={{ margin: 0, fontSize: 13, opacity: 0.7 }}>Once someone is ready, the others have one minute. Missing it costs 10% of the stake (20% if spectators backed you), shared by those who stayed.</p>
                       </>
                     )
-                  ) : <p style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>The race is on - go {mine.symbol}! <span style={{ fontFamily: EMOJI }}>🎆</span></p>
+                  ) : <p style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>The race is on - go {mine.symbol}! <span style={{ fontFamily: EMOJI }}>👍</span></p>
                 ) : (
                   <>
                     {open && duel.racers.length < DUEL_RULES.maxRacers && myBacking.length === 0 && (
@@ -363,14 +401,13 @@ export function OnchainDuelPage() {
                         <span style={label}>BACK A RACER · UP TO $100</span>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>{duel.racers.filter((r) => r.paid && (myBacking.length === 0 || myBacking[0].seat === r.seat)).map((r) => <button key={r.seat} type="button" onClick={() => setBackSeat(r.seat)} className={choice(backSeat === r.seat)} style={{ padding: '8px 12px', fontWeight: 700 }}>{r.symbol}</button>)}</div>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>{BACK_PRESETS.map((c) => <button key={String(c)} type="button" onClick={() => setBackCents(c)} className={choice(backCents === c)} style={{ padding: '8px 12px', fontWeight: 700 }}>{usd(c)}</button>)}</div>
-                        <button type="button" disabled={!backSeat || !live.solUsd || !!busy} onClick={() => run('back', () => transfer(quoteUsdCents(backCents, live.solUsd!), backSeat!))} className="rx-btn rx-btn-pink w-full" style={{ minHeight: 52, fontFamily: PIXEL, fontSize: 11 }}>
+                        <button type="button" disabled={!backSeat || !live.solUsd || !!busy} onClick={() => run('back', async () => { const seat = backSeat!; await transfer(quoteUsdCents(backCents, live.solUsd!), seat); setBackSent({ seat, at: Date.now() }) })} className="rx-btn rx-btn-pink w-full" style={{ minHeight: 52, fontFamily: PIXEL, fontSize: 11 }}>
                           {busy === 'back' ? 'SENDING…' : backSeat ? `BACK ${duel.racers.find((r) => r.seat === backSeat)?.symbol} WITH ${usd(backCents)}` : 'PICK A RACER'}
                         </button>
-                        {myBacking.length > 0 && <p style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>You backed {duel.racers.find((r) => r.seat === myBacking[0].seat)?.symbol} with {sol(myBacking.reduce((s, b) => s + b.amount, 0n))}.</p>}
                         <p style={{ margin: 0, fontSize: 13, opacity: 0.7 }}>If your racer wins you get your money back plus 70% of what was bet on the others (pro rata), minus 2% of the win. Racers cannot back.</p>
                       </fieldset>
                     )}
-                    {!open && <p style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>{duel.status === 'running' ? <>The race is on! Cheer for your coin <span style={{ fontFamily: EMOJI }}>🎆</span></> : 'Starting…'}</p>}
+                    {!open && myBacking.length === 0 && <p style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>{duel.status === 'running' ? <>The race is on! Cheer for your favourite <span style={{ fontFamily: EMOJI }}>👍</span></> : 'Starting…'}</p>}
                   </>
                 )}
               </div>
