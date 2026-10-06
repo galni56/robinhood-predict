@@ -118,7 +118,7 @@ function YourBet({ duel, me, sending }: { duel: Duel; me: string; sending: { sea
   )
 }
 
-function DuelTrack({ duel, onCheer, bursts, pickedSeat }: { duel: Duel; onCheer: (seat: number) => void; bursts: Record<number, number[]>; pickedSeat?: number }) {
+function DuelTrack({ duel, onCheer, bursts, pickedSeat, me }: { duel: Duel; onCheer: (seat: number) => void; bursts: Record<number, number[]>; pickedSeat?: number; me?: string }) {
   const live = useLivePrices({ enabled: duel.status === 'running' || duel.status === 'starting' })
   const running = duel.status === 'running'
   const final = duel.status === 'resolved'
@@ -157,10 +157,11 @@ function DuelTrack({ duel, onCheer, bursts, pickedSeat }: { duel: Duel; onCheer:
                   {/* Racing: a quick bob; waiting: jogging in place. Every lane has its own tempo and phase. */}
                   <div className={running ? 'rx-life-bob' : final ? undefined : 'rx-life-idle'} style={{ position: 'relative', ...life(duel.id * 11 + r.seat, 2, running ? 0.3 : 1.1, running ? 0.55 : 2.6) }}>
                     {final && duel.winnerSeat === r.seat && <span style={{ position: 'absolute', left: '26%', top: -14 }}><PxSprite data={crown} width={26} height={15} /></span>}
+                    {r.wallet === me && <span className="rx-plate" style={{ position: 'absolute', left: '50%', top: final && duel.winnerSeat === r.seat ? 6 : -4, transform: 'translateX(-50%)', zIndex: 3, fontFamily: PIXEL, fontSize: 8, lineHeight: 1, color: CREAM, background: PINK, padding: '3px 5px', whiteSpace: 'nowrap' }}>YOU</span>}
                     {(bursts[r.seat] ?? []).map((burstId) => <Burst key={burstId} id={burstId} />)}
                     <CoinFighter body={COIN_BODIES[i % COIN_BODIES.length]} logoUrl={assetIconUrl(r.symbol)} symbol={r.symbol} size={48} />
                   </div>
-                  <span className="rx-plate" style={{ fontFamily: PIXEL, fontSize: 9, background: CREAM, padding: '5px 6px', whiteSpace: 'nowrap' }}>
+                  <span className="rx-plate" style={{ fontFamily: PIXEL, fontSize: 9, background: r.wallet === me ? PINK : CREAM, color: r.wallet === me ? CREAM : INK, padding: '5px 6px', whiteSpace: 'nowrap' }}>
                     {r.symbol}{(running || final) ? ` ${formatReturnAdaptive(ret)}` : ''}{pickedSeat === r.seat ? ' · YOUR PICK' : ''}
                   </span>
                 </div>
@@ -340,7 +341,7 @@ export function OnchainDuelPage() {
             )}
 
             <div style={{ marginTop: 16 }}>
-              <DuelTrack duel={duel} onCheer={cheer} bursts={bursts} pickedSeat={myBacking[0]?.seat} />
+              <DuelTrack duel={duel} onCheer={cheer} bursts={bursts} pickedSeat={myBacking[0]?.seat} me={me} />
             </div>
 
             <div style={{ marginTop: 24, display: 'grid', gap: 24, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 420px), 1fr))', alignItems: 'start' }}>
