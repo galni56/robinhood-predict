@@ -93,7 +93,8 @@ export const DUEL_RULES = {
   payWindow: 120,
   readyWindow: 60,
   prepareExtra: 15,
-  durations: { meme: [60, 180, 300, 900, 1800, 3600], crypto: [300, 900, 1800, 3600] },
+  // Owner, 2026-10-06: memes up to 15 min, crypto up to 30 min.
+  durations: { meme: [60, 180, 300, 900], crypto: [300, 900, 1800] },
   backCapUsdCents: 10_000n,
 }
 

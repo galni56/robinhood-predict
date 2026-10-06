@@ -27,7 +27,7 @@ const STEPS = [
   { sprite: coinOrangeGrin, title: 'Bring a coin', timing: 'LOBBY', body: 'Pick a meme or crypto coin nobody here has. The first racer sets the stake, the time and price or cap.' },
   { sprite: coinPinkGrin, title: 'Pay the stake', timing: '2 MIN', body: 'Everyone pays the same $1-$50. Until someone is ready you can leave with all of it back.' },
   { sprite: coinBlueGrin, title: 'Hit READY', timing: '1 MIN', body: 'The first READY starts a minute for the rest. Miss it and you are kicked with a 10% tax.' },
-  { sprite: coinPurple, title: 'Biggest gain wins', timing: '1-60 MIN', body: "The coin that grows the most takes the pot. Backers of the winner share the losing backers' money." },
+  { sprite: coinPurple, title: 'Biggest gain wins', timing: '1-30 MIN', body: "The coin that grows the most takes the pot. Backers of the winner share the losing backers' money." },
 ]
 
 /** The four steps of a duel (the lobby list). */

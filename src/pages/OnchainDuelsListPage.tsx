@@ -77,7 +77,7 @@ function LobbyCard({ duel }: { duel: Duel }) {
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '4px 14px', fontSize: 14, fontWeight: 700 }}>
         {empty ? (
           <>
-            <span style={{ opacity: 0.7 }}>Memes or crypto · $1-$50 · 1-60 min</span>
+            <span style={{ opacity: 0.7 }}>Memes or crypto · $1-$50 · 1-30 min</span>
             <span style={{ marginLeft: 'auto', fontFamily: PIXEL, fontSize: 9 }}>JOIN &gt;</span>
           </>
         ) : (
