@@ -9,6 +9,20 @@ export const gameAddress = (kind, id) => `${kind}-${id}`
 
 const plain = (value) => JSON.parse(toJson(value))
 
+/**
+ * Why a payout exists, from its outbox key: 'result' for the game's final
+ * settlement, or what happened earlier in a duel lobby ('left', 'kicked',
+ * 'kicked-backer', 'tax-share').
+ */
+export function payoutStage(key) {
+  const parts = String(key).split(':')
+  if (parts[0] !== 'duel' || parts.length < 6) return 'result'
+  if (parts[2].startsWith('leave')) return 'left'
+  if (parts[4] === 'kick-refund') return 'kicked'
+  if (parts[4] === 'tax-share') return 'tax-share'
+  return 'kicked-backer'
+}
+
 /** A game as the frontend reads it, with the state of every payout it owes. */
 export function gameView(db, game) {
   const { startAttestation, endAttestation, finalAttestation, ...state } = game
@@ -18,6 +32,7 @@ export function gameView(db, game) {
     amount: p.amount,
     status: p.status,
     signature: p.status === 'done' ? p.signature : null,
+    stage: payoutStage(p.key),
   }))
   return {
     ...plain(state),

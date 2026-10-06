@@ -82,7 +82,7 @@ export interface Duel {
   endTime: number
   winnerSeat: number
   cancelReason: string | null
-  payouts: { wallet: string; kind: string; amount: bigint; status: string; signature: string | null }[]
+  payouts: { wallet: string; kind: string; amount: bigint; status: string; signature: string | null; stage?: string }[]
   /** Racers' stakes plus spectators' money. */
   pot: bigint
 }

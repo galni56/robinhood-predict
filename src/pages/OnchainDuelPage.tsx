@@ -86,6 +86,23 @@ function Burst({ id }: { id: number }) {
  * A spectator's bet, shown at the top of the panel in every phase: whom they
  * backed and with how much, what a win would pay, then the result.
  */
+/** Why a payout was made, for the lobby history under the result. */
+const PAYOUT_NOTES: Record<string, string> = {
+  left: 'left - stake back',
+  kicked: 'kicked - stake minus tax',
+  'kicked-backer': "kicked racer's backer - back in full",
+  'tax-share': 'share of a kick tax',
+}
+
+function PayoutRow({ payout, note, muted = false }: { payout: Duel['payouts'][number]; note: string; muted?: boolean }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8, fontSize: muted ? 14 : 15, fontWeight: 600, padding: '4px 0', opacity: muted ? 0.7 : 1 }}>
+      <span style={{ minWidth: 0 }}><AddressLabel address={payout.wallet} /> <span style={{ fontSize: 12, opacity: 0.7 }}>· {note}</span></span>
+      {payout.signature ? <a href={explorerUrl('tx', payout.signature)} target="_blank" rel="noreferrer" style={{ whiteSpace: 'nowrap' }}>{sol(payout.amount)} ↗</a> : <span style={{ whiteSpace: 'nowrap' }}>{sol(payout.amount)} · sending…</span>}
+    </div>
+  )
+}
+
 function YourBet({ duel, me, sending }: { duel: Duel; me: string; sending: { seat: number; at: number } | null }) {
   const mine = duel.backers.filter((b) => b.wallet === me)
   // Remembers that this viewer had a bet here, so a refund after the racer left is explained to them only.
@@ -423,14 +440,16 @@ export function OnchainDuelPage() {
                 {error && <p style={{ margin: 0, color: '#C2245A', fontWeight: 700 }}>{error}</p>}
                 {duel.status === 'resolved' || duel.status === 'void' ? (
                   <div>
-                    <span style={label}>{duel.status === 'resolved' ? 'PAYOUTS' : 'REFUNDS'}</span>
+                    <span style={label}>{duel.status === 'resolved' ? 'RESULT' : 'REFUNDS'}</span>
                     {duel.status === 'void' && <p style={{ margin: '0 0 8px', fontWeight: 600 }}>No winner this time ({duel.cancelReason === 'topTie' ? 'a tie at the top' : 'no price'}): every stake goes back.</p>}
-                    {duel.payouts.filter((p) => p.kind === 'win' || p.kind === 'refund').map((p, i) => (
-                      <div key={i} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 15, fontWeight: 600, padding: '4px 0' }}>
-                        <AddressLabel address={p.wallet} />
-                        {p.signature ? <a href={explorerUrl('tx', p.signature)} target="_blank" rel="noreferrer">{sol(p.amount)} ↗</a> : <span>{sol(p.amount)} · sending…</span>}
-                      </div>
-                    ))}
+                    {/* The final result first; then money that moved earlier while the lobby filled (leaves, kicks). */}
+                    {duel.payouts.filter((p) => (p.stage ?? 'result') === 'result' && (p.kind === 'win' || p.kind === 'refund')).map((p, i) => <PayoutRow key={`r${i}`} payout={p} note={p.kind === 'win' ? 'win' : 'refund'} />)}
+                    {duel.payouts.some((p) => p.stage && p.stage !== 'result') && (
+                      <>
+                        <span style={{ ...label, marginTop: 16, opacity: 0.6 }}>EARLIER IN THIS LOBBY</span>
+                        {duel.payouts.filter((p) => p.stage && p.stage !== 'result').map((p, i) => <PayoutRow key={`e${i}`} payout={p} note={PAYOUT_NOTES[p.stage!] ?? p.stage!} muted />)}
+                      </>
+                    )}
                   </div>
                 ) : !connected ? <WalletOptionsList tone="race" /> : mine ? (
                   !mine.paid ? (

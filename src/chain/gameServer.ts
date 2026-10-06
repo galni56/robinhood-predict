@@ -21,6 +21,8 @@ export interface ServerPayout {
   status: 'pending' | 'sent' | 'done' | 'stuck'
   /** Set once the transfer is confirmed. */
   signature: string | null
+  /** Why it was paid: the final result, or earlier in a duel lobby (left, kicked, kicked-backer, tax-share). */
+  stage?: 'result' | 'left' | 'kicked' | 'kicked-backer' | 'tax-share'
 }
 
 export interface ServerRaceAsset {
