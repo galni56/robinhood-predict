@@ -94,7 +94,8 @@ export function joinDuel(duel, { wallet, asset, stake, duration, unit, title }, 
     duel.category = asset.category
     duel.stake = stake
     duel.duration = duration
-    duel.unit = unit === 'cap' ? 'cap' : 'price'
+    // Market cap only for memes: bridged crypto's Solana supply is not its real cap.
+    duel.unit = unit === 'cap' && asset.category === 'meme' ? 'cap' : 'price'
   } else {
     require(asset.category === duel.category, 'WrongCategory')
   }

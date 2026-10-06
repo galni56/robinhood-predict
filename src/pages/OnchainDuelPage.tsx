@@ -199,7 +199,10 @@ export function OnchainDuelPage() {
   const me = publicKey?.toBase58()
   const stake = useStakeTransfer()
   const act = useSignedAction()
-  const live = useLivePrices({ enabled: duel != null && duel.status !== 'resolved' && duel.status !== 'void' })
+  // A finished market-cap duel still needs the coins' supply to show caps.
+  const live = useLivePrices({ enabled: duel != null && ((duel.status !== 'resolved' && duel.status !== 'void') || duel.unit === 'cap') })
+  // Market cap only for memes: crypto here is bridged, and its Solana supply is not the coin's real cap.
+  const capShown = duel?.unit === 'cap' && duel.category === 'meme'
   const { assets } = useApprovedRaceAssets()
   const now = useServerNowMs() / 1000
   const queryClient = useQueryClient()
@@ -297,7 +300,7 @@ export function OnchainDuelPage() {
   const stakeLamports = live.solUsd ? usdCentsToLamports(stakeCents, live.solUsd.priceRaw, live.solUsd.decimals) : null
   const valueOf = (r: DuelRacer, raw: bigint) => {
     const p = live.assets[r.symbol]
-    if (duel?.unit === 'cap' && p?.supply) return formatCompactUsd(marketCapUsd({ ...p, raw }) ?? 0)
+    if (capShown && p?.supply) return formatCompactUsd(marketCapUsd({ ...p, raw }) ?? 0)
     // Six significant digits: a one-minute race can move only the last ones.
     return raw > 0n ? `$${plain(Number(formatUnits(raw, r.priceDecimals)), 6)}` : '-'
   }
@@ -309,7 +312,7 @@ export function OnchainDuelPage() {
     if (now === 0n) return `start ${valueOf(r, r.startPrice)}`
     const diff = now - r.startPrice
     let delta: string
-    if (duel.unit === 'cap' && p?.supply) {
+    if (capShown && p?.supply) {
       const d = (marketCapUsd({ ...p, raw: now }) ?? 0) - (marketCapUsd({ ...p, raw: r.startPrice }) ?? 0)
       delta = `${d >= 0 ? '+' : '-'}${formatCompactUsd(Math.abs(d))}`
     } else {
@@ -335,7 +338,7 @@ export function OnchainDuelPage() {
             </div>
             {duel.category && (
               <p style={{ margin: '8px 0 0', fontSize: 16, fontWeight: 700 }}>
-                {duel.category === 'meme' ? 'Memes' : 'Crypto'} · stake {sol(duel.stake)} · {durationLabel(duel.duration)} · by {duel.unit === 'cap' ? 'market cap' : 'price'} · pot {sol(duel.pot)}
+                {duel.category === 'meme' ? 'Memes' : 'Crypto'} · stake {sol(duel.stake)} · {durationLabel(duel.duration)} · by {capShown ? 'market cap' : 'price'} · pot {sol(duel.pot)}
               </p>
             )}
 
@@ -415,7 +418,7 @@ export function OnchainDuelPage() {
                           <>
                             <div><span style={label}>STAKE (EVERY RACER PAYS THE SAME)</span><div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>{STAKE_PRESETS.map((c) => <button key={String(c)} type="button" onClick={() => setStakeCents(c)} className={choice(stakeCents === c)} style={{ padding: '8px 12px', fontWeight: 700 }}>{usd(c)}</button>)}</div></div>
                             <div><span style={label}>RACE LENGTH</span><div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>{durations.map((s) => <button key={s} type="button" onClick={() => setDuration(s)} className={choice((duration || durations[0]) === s)} style={{ padding: '8px 12px', fontWeight: 700 }}>{durationLabel(s)}</button>)}</div></div>
-                            <div><span style={label}>SHOW</span><div style={{ display: 'flex', gap: 4 }}>{(['cap', 'price'] as const).map((u) => <button key={u} type="button" onClick={() => setUnit(u)} className={choice(unit === u)} style={{ padding: '8px 12px', fontWeight: 700 }}>{u === 'cap' ? 'Market cap' : 'Price'}</button>)}</div></div>
+                            {category !== 'crypto' && <div><span style={label}>SHOW</span><div style={{ display: 'flex', gap: 4 }}>{(['cap', 'price'] as const).map((u) => <button key={u} type="button" onClick={() => setUnit(u)} className={choice(unit === u)} style={{ padding: '8px 12px', fontWeight: 700 }}>{u === 'cap' ? 'Market cap' : 'Price'}</button>)}</div></div>}
                           </>
                         )}
                         <button
@@ -424,7 +427,7 @@ export function OnchainDuelPage() {
                           onClick={() => run('join', async () => {
                             await act({
                               action: 'duel-join', duel: id, asset: coin!.symbol,
-                              ...(duel.racers.length === 0 ? { stake: stakeLamports!.toString(), duration: durations.includes(duration) ? duration : durations[0], unit } : {}),
+                              ...(duel.racers.length === 0 ? { stake: stakeLamports!.toString(), duration: durations.includes(duration) ? duration : durations[0], unit: category === 'crypto' ? 'price' : unit } : {}),
                             })
                             setCoin(null)
                             setNotice('You are in! Now pay your stake.')
