@@ -327,10 +327,24 @@ export function createEngine({ db, chain, prices, assets, cluster, coldWallet = 
   }
 
   /** Keeps DUEL.emptyLobbies empty lobbies waiting for racers. */
+  /** Empty lobbies older than this beyond DUEL.emptyLobbies are closed (they hold no money). */
+  const SPARE_LOBBY_SECONDS = 600
+
   function fillDuelLobbies(t) {
-    const empty = db.liveGames().filter((g) => g.kind === 'duel' && g.status === 'open' && g.racers.length === 0).length
-    for (let i = empty; i < DUEL.emptyLobbies; i++) {
+    const empty = db.liveGames().filter((g) => g.kind === 'duel' && g.status === 'open' && g.racers.length === 0 && g.backers.length === 0)
+    for (let i = empty.length; i < DUEL.emptyLobbies; i++) {
       db.transaction(() => db.saveGame(createDuel(db.nextId('duel'), t)))
+    }
+    // Lobbies players opened and left pile up otherwise: keep the oldest
+    // DUEL.emptyLobbies, close the rest once they have been idle a while.
+    const spare = empty.sort((a, b) => a.id - b.id).slice(DUEL.emptyLobbies).filter((g) => t - g.createdAt > SPARE_LOBBY_SECONDS)
+    for (const g of spare) {
+      mutate('duel', g.id, (d) => {
+        if (d.status !== 'open' || d.racers.length > 0 || d.backers.length > 0) return
+        d.status = 'cancelled'
+        d.cancelReason = 'emptyLobby'
+        d.resolvedAt = t
+      })
     }
   }
 
@@ -463,7 +477,8 @@ export function createEngine({ db, chain, prices, assets, cluster, coldWallet = 
           return { nickname }
         }
         case 'duel-create': {
-          if (openGamesBy(wallet).filter((g) => g.kind === 'duel').length >= opts.maxOpenGamesPerWallet) throw new RuleError('TooManyOpenGames')
+          // Only lobbies someone is in count: an empty one a player opened and left is spare.
+          if (openGamesBy(wallet).filter((g) => g.kind === 'duel' && (g.racers.length > 0 || g.backers.length > 0)).length >= opts.maxOpenGamesPerWallet) throw new RuleError('TooManyOpenGames')
           const duel = createDuel(db.nextId('duel'), t, wallet)
           db.saveGame(duel)
           return { kind: 'duel', id: duel.id }

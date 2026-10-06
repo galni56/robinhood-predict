@@ -515,3 +515,20 @@ test('deposit scan: a backlog longer than one pass is read in later passes, and 
   assert.equal(engine.lastScan.pending, 0)
   assert.equal(db.getMeta('scan_cursors'), '[]')
 })
+
+test('duel lobbies: spare empty lobbies are closed after a while, and empty ones do not count toward the wallet limit', async () => {
+  const { clock, db, engine } = setup({})
+  await engine.init()
+  await engine.tick()
+  const open = () => db.games('duel').filter((d) => d.status === 'open' && d.racers.length === 0)
+  assert.equal(open().length, 4)
+  // A player opens four more lobbies and leaves them empty: the limit (3) only counts occupied ones.
+  const player = wallet()
+  const created = []
+  for (let i = 0; i < 4; i++) created.push(engine.act(player.signed(clock, { action: 'duel-create' })).id)
+  assert.equal(open().length, 8)
+  clock.t += 601
+  await engine.tick()
+  assert.equal(open().length, 4, 'the spare lobbies were closed')
+  assert.ok(created.every((id) => db.getGame('duel', id).status === 'cancelled'))
+})

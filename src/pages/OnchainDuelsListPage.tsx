@@ -113,6 +113,8 @@ export function OnchainDuelsListPage() {
 
   async function createLobby() {
     setError(null)
+    // Every empty lobby is the same: take a free one instead of opening another.
+    if (empty.length > 0) return navigate(`/onchain/duel/${empty[0].id}`)
     setPending(true)
     try {
       const created = await act<{ id: number }>({ action: 'duel-create' })
