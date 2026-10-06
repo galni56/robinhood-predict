@@ -92,8 +92,10 @@ function fakePrices(table) {
       const prices = {}
       const decimals = {}
       for (const s of sources) {
-        prices[s] = table[target][s]
-        decimals[s] = 8
+        // A price given as [raw, decimals] is signed at another precision.
+        const entry = table[target][s]
+        prices[s] = Array.isArray(entry) ? entry[0] : entry
+        decimals[s] = Array.isArray(entry) ? entry[1] : 8
       }
       return { prevSlot: 7, prevBlockTime: target - 1, prices, decimals, attestation: { message: 'm', instruction: 'i' } }
     },
@@ -168,6 +170,30 @@ test('race: stakes become bets, bad deposits are refunded, winners are paid once
   await engine.tick()
   assert.equal(engine.liabilities(), 0n)
   assert.equal(paidTo(chain, COLD), SOL / 100n + 1_000n)
+})
+
+test('a coin signed at another precision is rescaled, not voided', async () => {
+  const t0 = 10_000
+  const { clock, chain, db, engine } = setup({
+    // BTC signed with 6 decimals instead of the stored 8: 1.00 then 2.00.
+    [t0 + 120]: { 'pool-SOL': 100n, 'pool-BTC': [1n, 6], 'pool-ETH': 300n },
+    [t0 + 420]: { 'pool-SOL': 110n, 'pool-BTC': [2n, 6], 'pool-ETH': 300n },
+  })
+  await engine.init()
+  const race = engine.createPlatform({ title: 'Precision', category: 'crypto', symbols: ['SOL', 'BTC', 'ETH'], bettingStartTime: t0, bettingEndTime: t0 + 120, raceDuration: 300 })
+  chain.deposit('alice', SOL / 10n, raceMemo(race.id, 0), t0 + 10)
+  chain.deposit('bob', SOL / 10n, raceMemo(race.id, 1), t0 + 20)
+  clock.t = t0 + 130
+  await engine.tick()
+  const running = db.getGame('race', race.id)
+  assert.equal(running.status, 'running')
+  assert.equal(running.assets[1].startPrice, 100n, '1 at 6 decimals = 100 at 8')
+  clock.t = t0 + 425
+  await engine.tick()
+  await engine.tick()
+  assert.equal(db.getGame('race', race.id).status, 'resolved')
+  assert.ok(paidTo(chain, 'bob') > SOL / 10n, 'BTC doubled and won')
+  assert.equal(paidTo(chain, 'alice'), 0n)
 })
 
 test('payouts: a lost send is rebuilt after expiry; a restart never pays twice', async () => {
