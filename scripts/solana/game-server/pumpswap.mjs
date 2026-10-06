@@ -54,25 +54,45 @@ export async function fetchPumpSwapPools({ pages = PUMPSWAP_FILTER.pages, fetchI
     if (!response.ok) throw new Error(`GeckoTerminal ${response.status}`)
     const body = await response.json()
     if (!body.data?.length) break
-    const tokens = new Map((body.included ?? []).map((t) => [t.id, t.attributes]))
-    for (const p of body.data) {
-      const a = p.attributes
-      const base = tokens.get(p.relationships?.base_token?.data?.id)
-      pools.push({
-        pool: a.address,
-        mint: base?.address ?? tokenAddress(p.relationships?.base_token?.data?.id),
-        quote: tokenAddress(p.relationships?.quote_token?.data?.id),
-        symbol: base?.symbol ?? String(a.name).split(' / ')[0],
-        name: base?.name ?? a.name,
-        logoUrl: base?.image_url && base.image_url !== 'missing.png' ? base.image_url : null,
-        tokenDecimals: base?.decimals ?? 6,
-        priceUsd: Number(a.base_token_price_usd),
-        liquidityUsd: Number(a.reserve_in_usd),
-        volume24hUsd: Number(a.volume_usd?.h24 ?? 0),
-        createdAt: a.pool_created_at,
-      })
-    }
+    pools.push(...parsePools(body))
     await sleep(2_500) // GeckoTerminal allows ~30 requests a minute
+  }
+  return pools
+}
+
+/** GeckoTerminal pool rows -> our pool objects (PumpSwap pools only). */
+function parsePools(body) {
+  const tokens = new Map((body.included ?? []).map((t) => [t.id, t.attributes]))
+  return (body.data ?? []).filter((p) => (p.relationships?.dex?.data?.id ?? 'pumpswap') === 'pumpswap').map((p) => {
+    const a = p.attributes
+    const base = tokens.get(p.relationships?.base_token?.data?.id)
+    return {
+      pool: a.address,
+      mint: base?.address ?? tokenAddress(p.relationships?.base_token?.data?.id),
+      quote: tokenAddress(p.relationships?.quote_token?.data?.id),
+      symbol: base?.symbol ?? String(a.name).split(' / ')[0],
+      name: base?.name ?? a.name,
+      logoUrl: base?.image_url && base.image_url !== 'missing.png' ? base.image_url : null,
+      tokenDecimals: base?.decimals ?? 6,
+      priceUsd: Number(a.base_token_price_usd),
+      liquidityUsd: Number(a.reserve_in_usd),
+      volume24hUsd: Number(a.volume_usd?.h24 ?? 0),
+      createdAt: a.pool_created_at,
+    }
+  })
+}
+
+/**
+ * The PumpSwap pools of specific mints (coins launched on Prophet), which
+ * the volume-sorted pages above may not reach. A coin still on its pump.fun
+ * curve has none yet.
+ */
+export async function fetchTokenPools(mints, { fetchImpl = fetch } = {}) {
+  const pools = []
+  for (const mint of mints) {
+    const response = await fetchImpl(`https://api.geckoterminal.com/api/v2/networks/solana/tokens/${mint}/pools?include=base_token,quote_token`, { signal: AbortSignal.timeout(20_000) })
+    if (response.ok) pools.push(...parsePools(await response.json()).filter((p) => p.mint === mint))
+    await sleep(2_500)
   }
   return pools
 }
@@ -82,8 +102,9 @@ export async function fetchPumpSwapPools({ pages = PUMPSWAP_FILTER.pages, fetchI
  * category MEME) plus display fields. `previous` keeps price decimals stable;
  * `keepSymbols` are coins used by running games (never dropped).
  */
-export function selectPumpSwapAssets(pools, { takenSymbols, previous = [], keepSymbols = new Set(), now = Date.now(), filter = PUMPSWAP_FILTER, pumpMints = new Set(), blocked = { mints: new Set(), symbols: new Set() } } = {}) {
-  const realCoin = (p) => p.mint === PUMP_TOKEN || p.mint.endsWith('pump') || pumpMints.has(p.mint)
+export function selectPumpSwapAssets(pools, { takenSymbols, previous = [], keepSymbols = new Set(), now = Date.now(), filter = PUMPSWAP_FILTER, pumpMints = new Set(), blocked = { mints: new Set(), symbols: new Set() }, launched = new Set() } = {}) {
+  // Coins launched on Prophet are pump.fun coins by construction (verified at launch).
+  const realCoin = (p) => p.mint === PUMP_TOKEN || p.mint.endsWith('pump') || pumpMints.has(p.mint) || launched.has(p.mint)
   const bySymbol = new Map()
   for (const p of pools) {
     const symbol = String(p.symbol).trim()
@@ -97,7 +118,10 @@ export function selectPumpSwapAssets(pools, { takenSymbols, previous = [], keepS
     if (!bySymbol.has(key) || bySymbol.get(key).liquidityUsd < p.liquidityUsd) bySymbol.set(key, { ...p, symbol })
   }
   const prior = new Map(previous.map((a) => [a.symbol, a]))
-  const picked = [...bySymbol.values()].sort((a, b) => b.liquidityUsd - a.liquidityUsd).slice(0, filter.limit)
+  // Prophet launches that passed the filter always join, on top of the 30 most liquid.
+  const ranked = [...bySymbol.values()].sort((a, b) => b.liquidityUsd - a.liquidityUsd)
+  const ours = ranked.filter((p) => launched.has(p.mint))
+  const picked = [...ours, ...ranked.filter((p) => !launched.has(p.mint)).slice(0, filter.limit)]
   const asset = (p) => ({
     symbol: p.symbol,
     name: p.name,
@@ -113,6 +137,7 @@ export function selectPumpSwapAssets(pools, { takenSymbols, previous = [], keepS
     priceUrl: `https://dexscreener.com/solana/${p.pool}`,
     approved: true,
     source: 'pumpswap',
+    ...(launched.has(p.mint) ? { launchedOnProphet: true } : {}),
     liquidityUsd: Math.round(p.liquidityUsd),
     volume24hUsd: Math.round(p.volume24hUsd),
     poolCreatedAt: p.createdAt,

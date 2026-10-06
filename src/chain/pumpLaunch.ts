@@ -64,6 +64,14 @@ export async function uploadLaunchMetadata(meta: LaunchMetadata): Promise<string
   return body.metadataUri
 }
 
+/** The memo that marks a create transaction as made on Prophet (the game server checks it). */
+export const LAUNCH_MEMO = 'prophet:launch'
+const MEMO_PROGRAM = new PublicKey('MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr')
+
+export function launchMemoInstruction(user: PublicKey) {
+  return new TransactionInstruction({ programId: MEMO_PROGRAM, keys: [{ pubkey: user, isSigner: true, isWritable: false }], data: Buffer.from(LAUNCH_MEMO, 'utf8') })
+}
+
 /** create_v2 for a new mint, with the wallet as payer and creator. */
 export function createTokenInstructions(args: { mint: Keypair; user: PublicKey; name: string; symbol: string; uri: string }): TransactionInstruction[] {
   const mint = args.mint.publicKey

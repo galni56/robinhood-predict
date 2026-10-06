@@ -45,3 +45,17 @@ test('price decimals give about six significant digits', () => {
   assert.equal(priceDecimalsFor(0.00000123), 12)
   assert.equal(priceDecimalsFor(5000), 8)
 })
+
+test('pumpswap filter: coins launched on Prophet join on top of the limit and are marked', () => {
+  const pools = [
+    pool('BIG', 'Bigpump', 90_000, 5),
+    pool('MID', 'Midpump', 50_000, 5),
+    pool('OURS', 'OurMintWithNoPumpSuffix', 12_000, 5), // launched here: ordinary mint, small pool
+    pool('OURNEW', 'OurFreshMint', 12_000, 0.5), // launched here but younger than an hour: waits
+  ]
+  const launched = new Set(['OurMintWithNoPumpSuffix', 'OurFreshMint'])
+  const out = selectPumpSwapAssets(pools, { takenSymbols: new Set(), now, filter: { minLiquidityUsd: 10_000, minAgeHours: 1, limit: 1 }, launched })
+  assert.deepEqual(out.map((a) => a.symbol), ['OURS', 'BIG'])
+  assert.equal(out.find((a) => a.symbol === 'OURS').launchedOnProphet, true)
+  assert.equal(out.find((a) => a.symbol === 'BIG').launchedOnProphet, undefined)
+})

@@ -180,6 +180,20 @@ export function createChain({ rpcUrl, wallet, priorityMicroLamports = 0 }) {
       return tx ? { err: tx.meta?.err ?? null } : null
     },
     statuses: async (signatures) => (await connection.getSignatureStatuses(signatures, { searchTransactionHistory: true })).value,
+    /**
+     * A transaction as launch proof: success, the signers, the programs it
+     * called and its memos. Null when the node does not know it.
+     */
+    launchTransaction: async (signature) => {
+      const tx = await connection.getTransaction(signature, { commitment: 'confirmed', maxSupportedTransactionVersion: 0 })
+      if (!tx) return null
+      const keys = tx.transaction.message.getAccountKeys({ accountKeysFromLookups: tx.meta?.loadedAddresses }).keySegments().flat().map((k) => k.toBase58())
+      const signers = keys.slice(0, tx.transaction.message.header.numRequiredSignatures)
+      const ixs = tx.transaction.message.compiledInstructions
+      const programs = ixs.map((ix) => keys[ix.programIdIndex])
+      const memos = ixs.filter((ix) => keys[ix.programIdIndex] === MEMO_PROGRAM_ID.toBase58()).map((ix) => Buffer.from(ix.data).toString('utf8'))
+      return { ok: tx.meta?.err == null, signers, programs, memos, blockTime: tx.blockTime ?? null }
+    },
     /** Newest first; `before` pages further back. */
     signatures: (before, limit = 1000) => connection.getSignaturesForAddress(address, { before, limit }, 'confirmed'),
   }

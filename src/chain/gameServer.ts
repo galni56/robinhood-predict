@@ -155,6 +155,8 @@ export interface ServerAsset {
   poolCreatedAt?: string
   /** When the game server added the coin to the list. */
   addedAt?: string
+  /** Launched from the Prophet launchpad (and graduated to PumpSwap). */
+  launchedOnProphet?: boolean
   /** Price kept in the bundled snapshot (shown while the server is off). */
   price?: { raw: string; decimals: number } | null
 }
@@ -243,6 +245,41 @@ async function postJson<T>(path: string, payload: unknown): Promise<{ status: nu
 }
 
 const enabled = GAME_SERVER_URL != null
+
+export interface ProphetLaunch {
+  mint: string
+  wallet: string
+  signature: string
+  at: number
+}
+
+/**
+ * Tells the game server about a coin launched from our launchpad. The server
+ * checks the transaction on chain (pump.fun create, our memo) before it
+ * records it; best effort, a failure only means the coin is not marked.
+ */
+export async function recordLaunch(mint: string, signature: string) {
+  if (!enabled) return
+  for (let i = 0; i < 10; i++) {
+    try {
+      const { status } = await postJson('/launch', { mint, signature })
+      if (status !== 202) return
+    } catch {
+      return
+    }
+    await new Promise((resolve) => setTimeout(resolve, 2_000))
+  }
+}
+
+/** Coins launched on Prophet (newest first), graduated or not. */
+export function useProphetLaunches() {
+  return useQuery({
+    queryKey: ['prophet-launches'],
+    queryFn: async () => (await getJson<{ launches: ProphetLaunch[] }>('/launches')).launches,
+    enabled,
+    refetchInterval: 60_000,
+  })
+}
 
 /** Every race and arena, one shared poll. */
 export function useGameState() {

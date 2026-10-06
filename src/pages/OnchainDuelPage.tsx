@@ -103,6 +103,24 @@ function PayoutRow({ payout, note, muted = false }: { payout: Duel['payouts'][nu
   )
 }
 
+/** The leave / kick rules, said where a racer decides (before joining, paying, while waiting). */
+function LeaveRules({ phase }: { phase: 'before' | 'paid' }) {
+  return (
+    <div className="rx-plate" style={{ background: '#FFFFFF', padding: '10px 12px', fontSize: 13, fontWeight: 600, lineHeight: 1.45 }}>
+      {phase === 'before' ? (
+        <>
+          <div style={{ fontFamily: PIXEL, fontSize: 9, marginBottom: 6 }}>BEFORE YOU JOIN</div>
+          <div>· Leaving is free until anyone presses READY: you get the full stake back.</div>
+          <div>· After the first READY you cannot leave. Miss READY within a minute and you are kicked: your stake comes back minus 10% (20% if spectators backed you).</div>
+          <div>· Win and you take the racers' pot; Prophet keeps 2% of the winnings only.</div>
+        </>
+      ) : (
+        <div>You can still leave with the full stake - until anyone presses READY. After that, only READY or a kick with a 10-20% penalty.</div>
+      )}
+    </div>
+  )
+}
+
 function YourBet({ duel, me, sending }: { duel: Duel; me: string; sending: { seat: number; at: number } | null }) {
   const mine = duel.backers.filter((b) => b.wallet === me)
   // Remembers that this viewer had a bet here, so a refund after the racer left is explained to them only.
@@ -455,6 +473,7 @@ export function OnchainDuelPage() {
                   !mine.paid ? (
                     <>
                       <span style={label}>PAY YOUR STAKE · {clock(mine.joinedAt + DUEL_RULES.payWindow - now)} LEFT</span>
+                      <LeaveRules phase="before" />
                       {shortOf(duel.stake)}
                       <button type="button" disabled={!!busy || !!shortOf(duel.stake)} onClick={() => run('pay', () => transfer(duel.stake, 0))} className="rx-btn rx-btn-yellow w-full" style={{ minHeight: 56, fontFamily: PIXEL, fontSize: 12 }}>{busy === 'pay' ? 'SENDING…' : `PAY ${sol(duel.stake)}`}</button>
                       <button type="button" disabled={!!busy} onClick={() => run('leave', async () => { await act({ action: 'duel-leave', duel: id }) })} className="rx-btn rx-btn-white" style={{ padding: '10px 14px', fontWeight: 700 }}>Leave lobby</button>
@@ -462,6 +481,7 @@ export function OnchainDuelPage() {
                   ) : duel.status === 'open' ? (
                     <>
                       <p style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>Paid. Waiting for a rival to pay…</p>
+                      <LeaveRules phase="paid" />
                       <button type="button" disabled={!!busy} onClick={() => run('leave', async () => { await act({ action: 'duel-leave', duel: id }); setNotice('Left - your stake is on its way back.') })} className="rx-btn rx-btn-white" style={{ padding: '10px 14px', fontWeight: 700 }}>Leave and get the stake back</button>
                     </>
                   ) : duel.status === 'ready' ? (
@@ -473,7 +493,9 @@ export function OnchainDuelPage() {
                         <button type="button" disabled={!!busy} onClick={() => run('ready', async () => { await act({ action: 'duel-ready', duel: id }) })} className="rx-btn rx-btn-pink w-full" style={{ minHeight: 72, fontFamily: PIXEL, fontSize: 18, animation: timerRunning ? 'rx-blink 0.8s steps(1) infinite' : undefined }}>{busy === 'ready' ? 'SIGN…' : 'READY!'}</button>
                         {timerRunning && !mine.prepared && <button type="button" disabled={!!busy} onClick={() => run('prepare', async () => { await act({ action: 'duel-prepare', duel: id }) })} className="rx-btn rx-btn-white" style={{ padding: '10px 14px', fontWeight: 700 }}>Preparing… (+{DUEL_RULES.prepareExtra}s, once)</button>}
                         {!timerRunning && <button type="button" disabled={!!busy} onClick={() => run('leave', async () => { await act({ action: 'duel-leave', duel: id }); setNotice('Left - your stake is on its way back.') })} className="rx-btn rx-btn-white" style={{ padding: '10px 14px', fontWeight: 700 }}>Leave with the full stake (nobody is ready yet)</button>}
-                        <p style={{ margin: 0, fontSize: 13, opacity: 0.7 }}>Once someone is ready, the others have one minute. Missing it costs 10% of the stake (20% if spectators backed you), shared by those who stayed.</p>
+                        {timerRunning
+                          ? <div className="rx-plate" style={{ background: '#FFE3EA', padding: '10px 12px', fontSize: 14, fontWeight: 700 }}>Press READY in time or you are kicked: your stake comes back minus 10% (20% if spectators backed you). Leaving is no longer possible.</div>
+                          : <LeaveRules phase="paid" />}
                       </>
                     )
                   ) : <p style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>The race is on - go {mine.symbol}! <span style={{ fontFamily: EMOJI }}>👍</span></p>
@@ -490,6 +512,7 @@ export function OnchainDuelPage() {
                             {category !== 'crypto' && <div><span style={label}>SHOW</span><div style={{ display: 'flex', gap: 4 }}>{(['cap', 'price'] as const).map((u) => <button key={u} type="button" onClick={() => setUnit(u)} className={choice(unit === u)} style={{ padding: '8px 12px', fontWeight: 700 }}>{u === 'cap' ? 'Market cap' : 'Price'}</button>)}</div></div>}
                           </>
                         )}
+                        <LeaveRules phase="before" />
                         {shortOf(duel.racers.length === 0 ? stakeLamports : duel.stake)}
                         <button
                           type="button"
@@ -518,7 +541,7 @@ export function OnchainDuelPage() {
                         <button type="button" disabled={!backSeat || !live.solUsd || !!busy || !!shortOf(live.solUsd ? quoteUsdCents(backCents, live.solUsd) : null)} onClick={() => run('back', async () => { const seat = backSeat!; await transfer(quoteUsdCents(backCents, live.solUsd!), seat); setBackSent({ seat, at: Date.now() }) })} className="rx-btn rx-btn-pink w-full" style={{ minHeight: 52, fontFamily: PIXEL, fontSize: 11 }}>
                           {busy === 'back' ? 'SENDING…' : backSeat ? `BACK ${duel.racers.find((r) => r.seat === backSeat)?.symbol} WITH ${usd(backCents)}` : 'PICK A RACER'}
                         </button>
-                        <p style={{ margin: 0, fontSize: 13, opacity: 0.7 }}>If your racer wins you get your money back plus 70% of what was bet on the others (pro rata), minus 2% of the win. If your racer leaves or is kicked before the start, your bet comes back in full. Racers cannot back.</p>
+                        <p style={{ margin: 0, fontSize: 13, opacity: 0.7 }}>If your racer wins you get your money back plus 70% of what was bet on the others (pro rata), minus 2% of the win. If your racer leaves or is kicked before the start, your bet comes back in full, with no fee. Once the race starts, bets stay in until the finish. Racers cannot back.</p>
                       </fieldset>
                     )}
                     {!open && myBacking.length === 0 && <p style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>{duel.status === 'running' ? <>The race is on! Cheer for your favourite <span style={{ fontFamily: EMOJI }}>👍</span></> : 'Starting…'}</p>}

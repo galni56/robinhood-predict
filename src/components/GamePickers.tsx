@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react'
 import type { ApprovedRaceAsset } from '@/chain/assetRaces'
 import { useLivePrices } from '@/chain/livePrices'
+import { useProphetLaunches } from '@/chain/gameServer'
+import { Link } from 'react-router-dom'
 import { formatUnits } from '@/lib/format'
 import { assetIconUrl } from '@/lib/assetIcons'
 import { CoinFighter } from '@/retro/landingFx'
@@ -17,6 +19,15 @@ export const COIN_BODIES: PxSpriteData[] = [coinOrangeGrin, coinPinkGrin, coinBl
 const shortPrice = (raw: bigint, decimals: number) => `$${Number(Number(formatUnits(raw, decimals)).toPrecision(4))}`
 
 /** Searchable grid of coins; `max` 1 is a single choice (arena). */
+/** Coin groups in the picker. Category codes: 1 meme, 2 crypto. */
+const COIN_FILTERS = [
+  { key: 'all', label: 'All', test: () => true },
+  { key: 'crypto', label: 'Crypto', test: (a: ApprovedRaceAsset) => a.category === 2 },
+  { key: 'memes', label: 'Memes', test: (a: ApprovedRaceAsset) => a.category === 1 && a.source !== 'pumpswap' },
+  { key: 'fresh', label: 'Fresh PumpSwap', test: (a: ApprovedRaceAsset) => a.source === 'pumpswap' && !a.launchedOnProphet },
+  { key: 'prophet', label: 'Made on Prophet', test: (a: ApprovedRaceAsset) => a.launchedOnProphet === true },
+] as const
+
 export function CoinPicker({ assets, selected, onToggle, max, accent = YELLOW }: {
   assets: ApprovedRaceAsset[]
   selected: string[]
@@ -25,14 +36,19 @@ export function CoinPicker({ assets, selected, onToggle, max, accent = YELLOW }:
   accent?: string
 }) {
   const [query, setQuery] = useState('')
+  const [filter, setFilter] = useState<(typeof COIN_FILTERS)[number]['key']>('all')
+  const launches = useProphetLaunches()
   const live = useLivePrices()
   // A coin the price service does not price cannot start or settle a game:
   // hide it (unless the feed is down altogether, then show everything).
   const priced = useMemo(() => (live.disconnected ? assets : assets.filter((a) => live.assets[a.symbol] != null)), [assets, live])
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase()
-    return q ? priced.filter((a) => a.symbol.toLowerCase().includes(q) || a.name.toLowerCase().includes(q)) : priced
-  }, [priced, query])
+    const group = COIN_FILTERS.find((f) => f.key === filter) ?? COIN_FILTERS[0]
+    const inGroup = priced.filter((a) => group.test(a))
+    return q ? inGroup.filter((a) => a.symbol.toLowerCase().includes(q) || a.name.toLowerCase().includes(q)) : inGroup
+  }, [priced, query, filter])
+  const waiting = (launches.data ?? []).filter((l) => !priced.some((a) => a.launchedOnProphet && a.mint === l.mint)).length
   return (
     <div>
       <input
@@ -42,6 +58,18 @@ export function CoinPicker({ assets, selected, onToggle, max, accent = YELLOW }:
         className="rx-input w-full px-3.5 font-medium"
         style={{ height: 48 }}
       />
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
+        {COIN_FILTERS.map((f) => {
+          const count = priced.filter((a) => f.test(a)).length
+          // Groups with no coin are hidden, except our own launches (it explains how to get one in).
+          if (count === 0 && f.key !== 'prophet' && f.key !== 'all') return null
+          return (
+            <button key={f.key} type="button" onClick={() => setFilter(f.key)} className={`rx-btn ${filter === f.key ? 'rx-btn-yellow' : 'rx-btn-white'}`} style={{ padding: '6px 10px', fontSize: 13, fontWeight: 700 }}>
+              {f.label} · {count}
+            </button>
+          )
+        })}
+      </div>
       <div style={{ marginTop: 12, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(112px, 1fr))', gap: 8, maxHeight: 360, overflowY: 'auto', padding: 4 }}>
         {shown.map((asset, index) => {
           const isSelected = selected.includes(asset.assetId)
@@ -67,7 +95,12 @@ export function CoinPicker({ assets, selected, onToggle, max, accent = YELLOW }:
             </button>
           )
         })}
-        {shown.length === 0 && <p style={{ gridColumn: '1 / -1', padding: 16, textAlign: 'center', opacity: 0.6 }}>No coin matches “{query}”.</p>}
+        {shown.length === 0 && (filter === 'prophet' && !query.trim() ? (
+          <p style={{ gridColumn: '1 / -1', padding: 16, textAlign: 'center', fontWeight: 600 }}>
+            {waiting > 0 ? `${waiting} coin${waiting === 1 ? '' : 's'} launched on Prophet ${waiting === 1 ? 'is' : 'are'} still on the pump.fun curve. ` : 'No coin launched on Prophet has graduated yet. '}
+            A coin can race once it graduates to PumpSwap. <Link to="/onchain/launch" style={{ textDecoration: 'underline' }}>Launch one</Link>
+          </p>
+        ) : <p style={{ gridColumn: '1 / -1', padding: 16, textAlign: 'center', opacity: 0.6 }}>No coin matches “{query}”.</p>)}
       </div>
     </div>
   )

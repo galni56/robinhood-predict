@@ -18,6 +18,9 @@ function pumpSwapAsset(asset: ServerAsset): ApprovedRaceAsset {
     name: asset.name,
     logoUrl: asset.logoUrl ?? undefined,
     priceUrl: asset.priceUrl ?? undefined,
+    source: 'pumpswap',
+    launchedOnProphet: asset.launchedOnProphet === true,
+    mint: asset.mint,
   }
 }
 
@@ -35,12 +38,12 @@ export function useApprovedRaceAssets() {
       const catalog = assetRaceCatalogByPool.get(asset.priceSource)
       const category = categoryCode(asset.category)
       if (!catalog?.enabled || CATEGORY_NAMES[category] !== catalog.category || catalog.priceDecimals !== asset.priceDecimals) return []
-      return [{ assetId: catalog.assetId, enabled: true, category, priceSource: asset.priceSource, expectedDecimals: asset.priceDecimals, symbol: catalog.symbol, name: catalog.displayName, logoUrl: catalog.logoUrl, priceUrl: catalog.priceUrl }]
+      return [{ assetId: catalog.assetId, enabled: true, category, priceSource: asset.priceSource, expectedDecimals: asset.priceDecimals, symbol: catalog.symbol, name: catalog.displayName, logoUrl: catalog.logoUrl, priceUrl: catalog.priceUrl, source: 'catalog' }]
     })
     const list = fromServer.length > 0 ? fromServer : [
       ...assetRaceCatalog.filter((a) => a.enabled && a.category !== 'STOCK').map((catalog): ApprovedRaceAsset => ({
         assetId: catalog.assetId, enabled: true, category: categoryCode(catalog.category), priceSource: catalog.pool, expectedDecimals: catalog.priceDecimals,
-        symbol: catalog.symbol, name: catalog.displayName, logoUrl: catalog.logoUrl, priceUrl: catalog.priceUrl,
+        symbol: catalog.symbol, name: catalog.displayName, logoUrl: catalog.logoUrl, priceUrl: catalog.priceUrl, source: 'catalog',
       })),
       ...pumpswap.assets.map(pumpSwapAsset),
     ]

@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Connection, Keypair, Transaction } from '@solana/web3.js'
 import { useWallet } from '@solana/wallet-adapter-react'
-import { LAUNCH_LIMITS, LAUNCH_RPC_URL, LAUNCH_WS_URL, createTokenInstructions, uploadLaunchMetadata } from '@/chain/pumpLaunch'
+import { LAUNCH_LIMITS, LAUNCH_RPC_URL, LAUNCH_WS_URL, createTokenInstructions, launchMemoInstruction, uploadLaunchMetadata } from '@/chain/pumpLaunch'
+import { recordLaunch } from '@/chain/gameServer'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
 import { shortTxError } from '@/lib/format'
 import { CoinFighter, DriftingCloud, Sun } from '@/retro/landingFx'
@@ -53,13 +54,15 @@ export function OnchainLaunchPage() {
       // The new token's mint address: a fresh key made here, used once to sign.
       const mint = Keypair.generate()
       const latest = await connection.getLatestBlockhash('confirmed')
-      const tx = new Transaction({ feePayer: publicKey, ...latest }).add(...createTokenInstructions({ mint, user: publicKey, name: cleanName, symbol: cleanSymbol, uri }))
+      // The memo marks the launch as made on Prophet, so the coin is labeled in races once it graduates.
+      const tx = new Transaction({ feePayer: publicKey, ...latest }).add(...createTokenInstructions({ mint, user: publicKey, name: cleanName, symbol: cleanSymbol, uri }), launchMemoInstruction(publicKey))
       setStep('signing')
       const signature = await sendTransaction(tx, connection, { signers: [mint], preflightCommitment: 'confirmed' })
       setStep('confirming')
       const result = await connection.confirmTransaction({ signature, ...latest }, 'confirmed')
       if (result.value.err) throw new Error(`Launch failed: ${JSON.stringify(result.value.err)}`)
       setLaunched({ mint: mint.publicKey.toBase58(), signature })
+      void recordLaunch(mint.publicKey.toBase58(), signature)
       setStep('idle')
     } catch (cause) {
       setStep('idle')

@@ -107,7 +107,7 @@ export function catalogAssets(catalog) {
       logoUrl: a.icon ?? null,
       priceUrl: a.priceUrl ?? null,
       source: a.source ?? 'catalog',
-      ...(a.source === 'pumpswap' ? { liquidityUsd: a.liquidityUsd, volume24hUsd: a.volume24hUsd, poolCreatedAt: a.poolCreatedAt, addedAt: a.addedAt } : {}),
+      ...(a.source === 'pumpswap' ? { liquidityUsd: a.liquidityUsd, volume24hUsd: a.volume24hUsd, poolCreatedAt: a.poolCreatedAt, addedAt: a.addedAt, launchedOnProphet: a.launchedOnProphet === true } : {}),
     }))
 }
 

@@ -54,7 +54,14 @@ import { createChain, isAddress } from './chain.mjs'
 import { catalogAssets, createEngine } from './engine.mjs'
 import { createPriceClient } from './prices.mjs'
 import { RuleError } from './rules.mjs'
-import { fetchPumpSwapPools, pumpFunMints, selectPumpSwapAssets } from './pumpswap.mjs'
+import { fetchPumpSwapPools, fetchTokenPools, pumpFunMints, selectPumpSwapAssets } from './pumpswap.mjs'
+
+// Coins launched from the Prophet launchpad (src/chain/pumpLaunch.ts): their
+// create transaction carries this memo. Recorded mints join the PumpSwap
+// list ahead of the rest once they graduate, marked "made on Prophet".
+const PUMP_PROGRAM = '6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P'
+const LAUNCH_MEMO = 'prophet:launch'
+const MAX_LAUNCHES_WATCHED = 40
 import { gameView, historyView, walletView } from './views.mjs'
 import { toJson } from './db.mjs'
 
@@ -251,6 +258,7 @@ const server = createServer(async (req, res) => {
       const walletPath = /^\/wallet\/([1-9A-HJ-NP-Za-km-z]{32,44})$/.exec(path)
       if (walletPath && isAddress(walletPath[1])) return send(req, res, 200, walletView(db, walletPath[1]))
       if (path === '/nicknames') return send(req, res, 200, cached('nicknames', () => db.nicknames()))
+      if (path === '/launches') return send(req, res, 200, { launches: launches() })
       return send(req, res, 404, { error: 'NotFound' })
     }
     if (req.method === 'POST') {
@@ -270,6 +278,22 @@ const server = createServer(async (req, res) => {
       }
       if (!allowWrite(ip)) return send(req, res, 429, { error: 'TooManyRequests' })
       const body = await readBody(req)
+      if (path === '/launch') {
+        // Proof is on chain: a successful pump.fun create signed by the new
+        // mint, with our memo. Nothing here moves money.
+        const { mint, signature } = body
+        if (!isAddress(mint) || typeof signature !== 'string' || !/^[1-9A-HJ-NP-Za-km-z]{64,90}$/.test(signature)) throw new RuleError('BadLaunch')
+        const known = launches().find((l) => l.mint === mint)
+        if (known) return send(req, res, 200, known)
+        // Version-1 transactions (not made by our launchpad) cannot be read: refused, not a crash.
+        const tx = await chain.launchTransaction(signature).catch(() => { throw new RuleError('UnreadableLaunch') })
+        if (!tx) return send(req, res, 202, { status: 'pending' })
+        if (!tx.ok || !tx.signers.includes(mint) || !tx.programs.includes(PUMP_PROGRAM) || !tx.memos.some((m) => m.includes(LAUNCH_MEMO))) throw new RuleError('NotAProphetLaunch')
+        const record = { mint, wallet: tx.signers[0], signature, at: tx.blockTime ?? Math.floor(Date.now() / 1000) }
+        db.setMeta('prophet_launches', JSON.stringify([record, ...launches()].slice(0, 500)))
+        console.log(`launch recorded: ${mint} by ${record.wallet}`)
+        return send(req, res, 200, record)
+      }
       if (path === '/deposit') {
         if (typeof body.signature !== 'string' || !/^[1-9A-HJ-NP-Za-km-z]{64,90}$/.test(body.signature)) throw new RuleError('BadSignature')
         const result = await engine.ingest(body.signature)
@@ -304,15 +328,27 @@ function readBlocklist() {
     return { mints: new Set(), symbols: new Set() }
   }
 }
+function launches() {
+  try {
+    return JSON.parse(db.getMeta('prophet_launches') ?? '[]')
+  } catch {
+    return []
+  }
+}
+
 async function refreshPumpSwap() {
   try {
     const previous = readExtra()
     const pools = await fetchPumpSwapPools()
+    // Our launches may be too small for the volume-sorted pages: ask for them directly.
+    const launched = new Set(launches().slice(0, MAX_LAUNCHES_WATCHED).map((l) => l.mint))
+    const seen = new Set(pools.map((p) => p.mint))
+    pools.push(...await fetchTokenPools([...launched].filter((m) => !seen.has(m))).catch(() => []))
     const takenSymbols = new Set(baseCatalog.assets.map((a) => a.symbol.toUpperCase()))
     // Coins launched from our site have ordinary mint addresses: confirm them by their pump.fun curve.
     const others = [...new Set(pools.map((p) => p.mint).filter((m) => m && !m.endsWith('pump')))]
     const pumpMints = others.length ? await pumpFunMints(chain.connection, others, PublicKey).catch(() => new Set()) : new Set()
-    const extra = selectPumpSwapAssets(pools, { takenSymbols, previous, keepSymbols: engine.liveSymbols(), pumpMints, blocked: readBlocklist() })
+    const extra = selectPumpSwapAssets(pools, { takenSymbols, previous, keepSymbols: engine.liveSymbols(), pumpMints, blocked: readBlocklist(), launched })
     mkdirSync(dirname(EXTRA_ASSETS), { recursive: true })
     writeFileSync(`${EXTRA_ASSETS}.tmp`, JSON.stringify({ updatedAt: new Date().toISOString(), source: 'pumpswap', assets: extra }, null, 1))
     renameSync(`${EXTRA_ASSETS}.tmp`, EXTRA_ASSETS)
