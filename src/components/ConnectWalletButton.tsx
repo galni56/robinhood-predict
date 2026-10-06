@@ -8,9 +8,9 @@ import { WalletOptionsList } from '@/components/WalletOptionsList'
 import { BackupModal, DepositModal, ImportModal, SetPasswordModal, WithdrawModal, usePlatformLogin } from '@/components/WalletAccountModals'
 import { ProphetWalletName, prophetWalletStore } from '@/solana/prophetWallet'
 import { EXTERNAL_WALLETS_ENABLED } from '@/solana/SolanaProvider'
-import { formatStakeAmount, useStakeBalance } from '@/solana/stakeTokens'
+import { formatStakeAmount, useLiveStakeBalance, useStakeBalance } from '@/solana/stakeTokens'
 import { explorerUrl } from '@/solana/config'
-import { PIXEL } from '@/retro/scene'
+import { INK, PIXEL, YELLOW } from '@/retro/scene'
 
 // Lazy: the nickname modal is only needed when someone opens it.
 const SetNicknameModal = lazy(() => import('@/components/SetNicknameModal').then((m) => ({ default: m.SetNicknameModal })))
@@ -31,6 +31,8 @@ export function ConnectWalletButton() {
   const address = publicKey?.toBase58()
   const menuRef = useRef<HTMLDivElement>(null)
   const balance = useStakeBalance()
+  useLiveStakeBalance()
+  const arrived = useArrivals(address, balance.data)
   const platform = wallet?.adapter.name === ProphetWalletName
   const [backedUp, setBackedUp] = useState(() => prophetWalletStore.isBackedUp())
   // When the header wraps (narrow window, wallet side panel open) the button
@@ -149,6 +151,7 @@ export function ConnectWalletButton() {
           </div>
         )}
         {modals}
+        {arrived && <ArrivalToast amount={arrived.amount} key={arrived.at} />}
       </div>
     )
   }
@@ -175,6 +178,34 @@ export function ConnectWalletButton() {
       )}
       {modals}
       {login.modal}
+    </div>
+  )
+}
+
+/** The latest balance increase of this wallet (a top-up or a payout), or
+ * null. The first balance seen after connecting is not an arrival. */
+function useArrivals(address: string | undefined, balance: bigint | undefined) {
+  const last = useRef<{ address?: string; balance?: bigint }>({})
+  const [arrived, setArrived] = useState<{ amount: bigint; at: number } | null>(null)
+  useEffect(() => {
+    if (balance == null) return
+    const prev = last.current
+    if (prev.address === address && prev.balance != null && balance > prev.balance) setArrived({ amount: balance - prev.balance, at: Date.now() })
+    last.current = { address, balance }
+  }, [address, balance])
+  useEffect(() => {
+    if (!arrived) return
+    const timer = setTimeout(() => setArrived(null), 6_000)
+    return () => clearTimeout(timer)
+  }, [arrived])
+  return arrived
+}
+
+function ArrivalToast({ amount }: { amount: bigint }) {
+  return (
+    <div role="status" className="rx-raised" style={{ position: 'fixed', right: 16, bottom: 16, zIndex: 60, display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', background: YELLOW, color: INK, maxWidth: 'calc(100vw - 32px)' }}>
+      <span style={{ fontFamily: PIXEL, fontSize: 12 }}>+{formatStakeAmount(amount)}</span>
+      <span style={{ fontSize: 18, fontWeight: 700 }}>arrived in your account</span>
     </div>
   )
 }
