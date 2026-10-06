@@ -69,7 +69,24 @@ function Burst({ id }: { id: number }) {
  */
 function YourBet({ duel, me, sending }: { duel: Duel; me: string; sending: { seat: number; at: number } | null }) {
   const mine = duel.backers.filter((b) => b.wallet === me)
+  // Remembers that this viewer had a bet here, so a refund after the racer left is explained to them only.
+  const [hadBet, setHadBet] = useState(false)
+  useEffect(() => {
+    if (mine.length > 0 || sending) setHadBet(true)
+  }, [mine.length, sending])
   const pendingSeat = mine.length === 0 && sending ? sending.seat : null
+  // The racer we backed left or was kicked: the server dropped our bet and
+  // queued it back, so say so instead of silently losing the card.
+  const refunded = duel.payouts.filter((p) => p.wallet === me && p.kind === 'refund' && !duel.racers.some((r) => r.wallet === me))
+  if (hadBet && mine.length === 0 && pendingSeat == null && refunded.length > 0 && (duel.status === 'open' || duel.status === 'ready')) {
+    const total = refunded.reduce((sum, p) => sum + p.amount, 0n)
+    return (
+      <div className="rx-plate" style={{ background: '#FFFFFF', padding: '12px 14px' }}>
+        <div style={{ fontFamily: PIXEL, fontSize: 10, marginBottom: 4 }}>YOUR BET · RETURNED</div>
+        <div style={{ fontSize: 15, fontWeight: 700 }}>Your racer left the lobby, so your {sol(total)} {refunded.every((p) => p.status === 'done') ? 'is back in your account' : 'is on its way back'}.</div>
+      </div>
+    )
+  }
   if (mine.length === 0 && pendingSeat == null) return null
   const seat = mine[0]?.seat ?? pendingSeat!
   const racer = duel.racers.find((r) => r.seat === seat)
@@ -93,6 +110,9 @@ function YourBet({ duel, me, sending }: { duel: Duel; me: string; sending: { sea
       <div style={{ minWidth: 0 }}>
         <div style={{ fontFamily: PIXEL, fontSize: 10, marginBottom: 4 }}>YOUR BET · {racer?.symbol ?? '…'}{mine.length > 0 ? ` · ${sol(amount)}` : ''}</div>
         <div style={{ fontSize: 15, fontWeight: 700 }}>{status}</div>
+        {(duel.status === 'open' || duel.status === 'ready') && mine.length > 0 && (
+          <div style={{ fontSize: 13, fontWeight: 600, marginTop: 4 }}>If {racer?.symbol} leaves or is kicked before the start, your bet comes back in full.</div>
+        )}
       </div>
     </div>
   )
@@ -424,7 +444,7 @@ export function OnchainDuelPage() {
                         <button type="button" disabled={!backSeat || !live.solUsd || !!busy} onClick={() => run('back', async () => { const seat = backSeat!; await transfer(quoteUsdCents(backCents, live.solUsd!), seat); setBackSent({ seat, at: Date.now() }) })} className="rx-btn rx-btn-pink w-full" style={{ minHeight: 52, fontFamily: PIXEL, fontSize: 11 }}>
                           {busy === 'back' ? 'SENDING…' : backSeat ? `BACK ${duel.racers.find((r) => r.seat === backSeat)?.symbol} WITH ${usd(backCents)}` : 'PICK A RACER'}
                         </button>
-                        <p style={{ margin: 0, fontSize: 13, opacity: 0.7 }}>If your racer wins you get your money back plus 70% of what was bet on the others (pro rata), minus 2% of the win. Racers cannot back.</p>
+                        <p style={{ margin: 0, fontSize: 13, opacity: 0.7 }}>If your racer wins you get your money back plus 70% of what was bet on the others (pro rata), minus 2% of the win. If your racer leaves or is kicked before the start, your bet comes back in full. Racers cannot back.</p>
                       </fieldset>
                     )}
                     {!open && myBacking.length === 0 && <p style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>{duel.status === 'running' ? <>The race is on! Cheer for your favourite <span style={{ fontFamily: EMOJI }}>👍</span></> : 'Starting…'}</p>}
