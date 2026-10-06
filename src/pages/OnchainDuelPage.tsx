@@ -8,7 +8,7 @@ import { useSignedAction } from '@/chain/gameServer'
 import { useServerNowMs } from '@/chain/serverClock'
 import { marketCapUsd, useLivePrices } from '@/chain/livePrices'
 import { useApprovedRaceAssets } from '@/chain/useApprovedRaceAssets'
-import { calculateReturnWad, formatReturnWad, type ApprovedRaceAsset } from '@/chain/assetRaces'
+import { calculateReturnWad, formatReturnAdaptive, type ApprovedRaceAsset } from '@/chain/assetRaces'
 import { AddressLabel } from '@/components/AddressLabel'
 import { CoinPicker, COIN_BODIES } from '@/components/GamePickers'
 import { CoinsToBring, DuelNumbers, GhostCoin, PracticeLap } from '@/components/DuelExtras'
@@ -28,6 +28,8 @@ import { crown } from '@/retro/spriteData'
 const EMOJI = "'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif"
 const STAKE_PRESETS = [100n, 500n, 1_000n, 2_500n, 5_000n]
 const BACK_PRESETS = [100n, 500n, 1_000n, 2_500n, 5_000n, 10_000n]
+/** A number in plain digits (never 3e-8), rounded to `significant` digits. */
+const plain = (n: number, significant: number) => n.toLocaleString('en-US', { maximumSignificantDigits: significant, useGrouping: false })
 const sol = (raw: bigint) => `${Number(Number(formatUnits(raw, 9)).toPrecision(4))} SOL`
 const clock = (seconds: number) => `${Math.max(0, Math.floor(seconds / 60))}:${String(Math.max(0, Math.floor(seconds % 60))).padStart(2, '0')}`
 
@@ -139,7 +141,7 @@ function DuelTrack({ duel, onCheer, bursts, pickedSeat }: { duel: Duel; onCheer:
                     <CoinFighter body={COIN_BODIES[i % COIN_BODIES.length]} logoUrl={assetIconUrl(r.symbol)} symbol={r.symbol} size={48} />
                   </div>
                   <span className="rx-plate" style={{ fontFamily: PIXEL, fontSize: 9, background: CREAM, padding: '5px 6px', whiteSpace: 'nowrap' }}>
-                    {r.symbol}{(running || final) ? ` ${formatReturnWad(ret)}` : ''}{pickedSeat === r.seat ? ' · YOUR PICK' : ''}
+                    {r.symbol}{(running || final) ? ` ${formatReturnAdaptive(ret)}` : ''}{pickedSeat === r.seat ? ' · YOUR PICK' : ''}
                   </span>
                 </div>
               </>
@@ -276,7 +278,25 @@ export function OnchainDuelPage() {
   const valueOf = (r: DuelRacer, raw: bigint) => {
     const p = live.assets[r.symbol]
     if (duel?.unit === 'cap' && p?.supply) return formatCompactUsd(marketCapUsd({ ...p, raw }) ?? 0)
-    return raw > 0n ? `$${Number(Number(formatUnits(raw, r.priceDecimals)).toPrecision(4))}` : '-'
+    // Six significant digits: a one-minute race can move only the last ones.
+    return raw > 0n ? `$${plain(Number(formatUnits(raw, r.priceDecimals)), 6)}` : '-'
+  }
+  /** Start -> now (racing, live) or -> end (finished), with the change in % and in $ (price or cap). */
+  const moveOf = (r: DuelRacer) => {
+    if (!duel || r.startPrice === 0n) return null
+    const p = live.assets[r.symbol]
+    const now = r.endPrice > 0n ? r.endPrice : duel.status === 'running' && p && p.decimals === r.priceDecimals ? p.raw : 0n
+    if (now === 0n) return `start ${valueOf(r, r.startPrice)}`
+    const diff = now - r.startPrice
+    let delta: string
+    if (duel.unit === 'cap' && p?.supply) {
+      const d = (marketCapUsd({ ...p, raw: now }) ?? 0) - (marketCapUsd({ ...p, raw: r.startPrice }) ?? 0)
+      delta = `${d >= 0 ? '+' : '-'}${formatCompactUsd(Math.abs(d))}`
+    } else {
+      const d = Number(formatUnits(diff < 0n ? -diff : diff, r.priceDecimals))
+      delta = `${diff >= 0n ? '+' : '-'}$${plain(d, 3)}`
+    }
+    return `${valueOf(r, r.startPrice)} → ${r.endPrice > 0n ? '' : 'now '}${valueOf(r, now)} · ${formatReturnAdaptive(calculateReturnWad(r.startPrice, now))} (${delta})`
   }
 
   return (
@@ -316,7 +336,7 @@ export function OnchainDuelPage() {
                       <div style={{ minWidth: 0, flex: 1 }}>
                         <div style={{ fontWeight: 700, fontSize: 17 }}>{r.symbol}{r.wallet === me ? ' (you)' : ''}{myBacking.some((b) => b.seat === r.seat) && <span style={{ marginLeft: 8, background: YELLOW, border: `2px solid ${INK}`, fontFamily: PIXEL, fontSize: 8, padding: '3px 5px', verticalAlign: 'middle' }}>YOUR PICK</span>}</div>
                         <div style={{ fontSize: 13, opacity: 0.6 }}><AddressLabel address={r.wallet} />{r.backers > 0 && <> · backed {sol(r.backed)} by {r.backers}</>}</div>
-                        {(duel.status === 'running' || duel.status === 'resolved') && r.startPrice > 0n && <div style={{ fontSize: 12, opacity: 0.6 }}>start {valueOf(r, r.startPrice)}{r.endPrice > 0n ? ` → ${valueOf(r, r.endPrice)}` : ''}</div>}
+                        {(duel.status === 'running' || duel.status === 'resolved') && r.startPrice > 0n && <div style={{ fontSize: 13, fontWeight: 700, opacity: 0.75 }}>{moveOf(r)}</div>}
                       </div>
                       <span style={{ fontFamily: PIXEL, fontSize: 8, padding: '5px 6px', border: `2px solid ${INK}`, background: st.bg, whiteSpace: 'nowrap' }}>{st.text}</span>
                     </div>

@@ -264,6 +264,19 @@ export function formatReturnWad(value: bigint, digits = 2) {
   return `${negative ? '-' : '+'}${whole}.${fraction}%`
 }
 
+/**
+ * A return with as many decimals as it needs to not read as zero: short
+ * races on quiet coins move by thousandths of a percent.
+ */
+export function formatReturnAdaptive(value: bigint) {
+  const absolute = value < 0n ? -value : value
+  // Two significant digits past the leading zeros, never fewer than 2 decimals
+  // (RETURN_SCALE is 100%, so 10^-(k+2) of it is 10^-k %).
+  let digits = 2
+  while (digits < 10 && absolute > 0n && absolute * 10n ** BigInt(digits + 2) < RETURN_SCALE * 10n) digits++
+  return formatReturnWad(value, digits)
+}
+
 export function estimateRacePayout(
   selectedPool: bigint,
   totalPool: bigint,
