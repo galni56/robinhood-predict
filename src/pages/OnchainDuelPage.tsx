@@ -176,6 +176,30 @@ function DuelTrack({ duel, onCheer, bursts, pickedSeat, me }: { duel: Duel; onCh
           </div>
         )
       })}
+      {(final || duel.status === 'void') && <FinishBanner duel={duel} me={me} />}
+    </div>
+  )
+}
+
+/** Over the finished track: race over, who won (or why it was cancelled). */
+function FinishBanner({ duel, me }: { duel: Duel; me?: string }) {
+  const winner = duel.status === 'resolved' ? duel.racers.find((r) => r.seat === duel.winnerSeat) : undefined
+  const youWon = winner != null && winner.wallet === me
+  return (
+    <div style={{ position: 'absolute', inset: 0, zIndex: 4, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 12, background: 'rgba(27, 19, 64, 0.45)', pointerEvents: 'none' }}>
+      <div className="rx-raised" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: '16px 22px', background: winner ? YELLOW : CREAM, color: INK, textAlign: 'center', maxWidth: '100%' }}>
+        <span style={{ fontFamily: PIXEL, fontSize: 'clamp(11px, 1.6vw, 14px)' }}>{winner ? 'RACE OVER' : 'RACE CANCELLED'}</span>
+        {winner ? (
+          <span style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
+            <PxSprite data={crown} width={26} height={15} />
+            <span style={{ fontFamily: PIXEL, fontSize: 'clamp(13px, 2.2vw, 20px)' }}>{winner.symbol} WINS</span>
+            <span style={{ fontSize: 22, fontWeight: 700 }}>{formatReturnAdaptive(winner.returnValue)}</span>
+          </span>
+        ) : (
+          <span style={{ fontSize: 18, fontWeight: 700 }}>No winner this time - every stake goes back.</span>
+        )}
+        {youWon && <span className="rx-plate" style={{ fontFamily: PIXEL, fontSize: 10, color: CREAM, background: PINK, padding: '5px 8px' }}>YOU WON!</span>}
+      </div>
     </div>
   )
 }
