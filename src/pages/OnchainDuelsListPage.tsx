@@ -4,7 +4,7 @@ import { useWallet } from '@solana/wallet-adapter-react'
 import { prophetWalletStore } from '@/solana/prophetWallet'
 import { usePlatformLogin } from '@/components/WalletAccountModals'
 import { useSignedAction } from '@/chain/gameServer'
-import { DUEL_RULES, duelPhaseLabel, durationLabel, useDuels, type Duel } from '@/chain/duels'
+import { DUEL_GROUP_LABELS, DUEL_RULES, duelPhaseLabel, durationLabel, useDuels, type Duel, type DuelGroup } from '@/chain/duels'
 import { useLivePrices } from '@/chain/livePrices'
 import { assetIconUrl } from '@/lib/assetIcons'
 import { formatUnits, shortTxError } from '@/lib/format'
@@ -80,7 +80,7 @@ function LobbyCard({ duel }: { duel: Duel }) {
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '4px 14px', fontSize: 14, fontWeight: 700 }}>
         {empty ? (
           <>
-            <span style={{ opacity: 0.7 }}>Memes or crypto · $1-$50 · 1-30 min</span>
+            <span style={{ opacity: 0.7 }}>Crypto, memes, PumpSwap or Prophet coins · $1-$50</span>
             <span style={{ marginLeft: 'auto', fontFamily: PIXEL, fontSize: 9 }}>JOIN &gt;</span>
           </>
         ) : (
@@ -109,7 +109,7 @@ export function OnchainDuelsListPage() {
   const [pending, setPending] = useState(false)
   const live = duels.filter((d) => !['resolved', 'void', 'cancelled'].includes(d.status))
   // Lobby type filter; 'all' (the default) shows the page as it always was.
-  const [kind, setKind] = useState<'all' | 'crypto' | 'meme'>('all')
+  const [kind, setKind] = useState<'all' | DuelGroup>('all')
   const ofKind = (d: Duel) => kind === 'all' || d.category === kind
   const active = live.filter((d) => d.racers.length > 0 && ofKind(d)).sort((a, b) => b.racers.length - a.racers.length)
   // The oldest open lobbies first, so the same four stay put between refreshes.
@@ -155,11 +155,11 @@ export function OnchainDuelsListPage() {
         {isLoading && duels.length === 0 ? <p style={{ marginTop: 32 }}>Loading lobbies…</p> : (
           <>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 24 }}>
-              {([['all', 'All'], ['crypto', 'Crypto'], ['meme', 'Memes']] as const).map(([k, text]) => (
+              {([['all', 'All'], ['crypto', 'Crypto'], ['meme', 'Memes'], ['pumpswap', 'PumpSwap'], ['prophet', 'Made on Prophet']] as const).map(([k, text]) => (
                 <button key={k} type="button" onClick={() => setKind(k)} className={`rx-btn ${kind === k ? 'rx-btn-yellow' : 'rx-btn-white'}`} style={{ padding: '8px 14px', fontSize: 14, fontWeight: 700 }}>{text}</button>
               ))}
             </div>
-            {kind !== 'all' && active.length === 0 && <p style={{ fontWeight: 700 }}>No live {kind === 'meme' ? 'meme' : 'crypto'} lobby right now - open one below and pick a {kind === 'meme' ? 'meme' : 'crypto'} coin.</p>}
+            {kind !== 'all' && active.length === 0 && <p style={{ fontWeight: 700 }}>No live {DUEL_GROUP_LABELS[kind]} lobby right now - open one below and pick a {DUEL_GROUP_LABELS[kind]} coin.</p>}
             {active.length > 0 && (<><h2 style={h2}>LIVE LOBBIES</h2><div style={grid}>{active.map((d) => <LobbyCard key={d.id} duel={d} />)}</div></>)}
             <h2 style={h2}>OPEN LOBBIES · PICK ONE</h2>
             <div style={{ ...grid, gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 250px), 1fr))' }}>{empty.map((d) => <LobbyCard key={d.id} duel={d} />)}</div>

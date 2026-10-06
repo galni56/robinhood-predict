@@ -76,7 +76,20 @@ const racer = (duel, wallet) => duel.racers.find((r) => r.wallet === wallet)
 const paidRacers = (duel) => duel.racers.filter((r) => r.paid)
 export const duelSeat = (duel, seat) => duel.racers.find((r) => r.seat === seat)
 
-/** A racer brings a coin. The first one also sets category, stake, duration and unit. */
+/**
+ * The lobby group of a coin (owner, 2026-10-06: groups never mix in one
+ * race): 'crypto' and 'meme' from the reviewed catalog, 'pumpswap' for coins
+ * the server adds from PumpSwap, 'prophet' for coins launched on Prophet.
+ */
+export function duelGroup(asset) {
+  if (asset.launchedOnProphet === true) return 'prophet'
+  if (asset.source === 'pumpswap') return 'pumpswap'
+  return asset.category
+}
+/** Race lengths: crypto has its own, every meme-like group the meme ones. */
+export const durationsFor = (group) => DUEL.durations[group === 'crypto' ? 'crypto' : 'meme']
+
+/** A racer brings a coin. The first one also sets the group, stake, duration and unit. */
 export function joinDuel(duel, { wallet, asset, stake, duration, unit, title }, now) {
   require(duel.status === 'open' || duel.status === 'ready', 'DuelClosed')
   require(asset && asset.enabled !== false, 'AssetNotApproved')
@@ -86,18 +99,18 @@ export function joinDuel(duel, { wallet, asset, stake, duration, unit, title }, 
   require(duel.racers.length < DUEL.maxRacers, 'DuelFull')
   if (duel.racers.length === 0) {
     require(typeof stake === 'bigint' && stake >= STAKE.min && stake <= STAKE.max, 'InvalidStake')
-    require(DUEL.durations[asset.category].includes(duration), 'UnsupportedDuration')
+    require(durationsFor(duelGroup(asset)).includes(duration), 'UnsupportedDuration')
     if (title != null && String(title).trim()) {
       validateTitle(String(title).trim())
       duel.title = String(title).trim()
     }
-    duel.category = asset.category
+    duel.category = duelGroup(asset)
     duel.stake = stake
     duel.duration = duration
     // Market cap only for memes: bridged crypto's Solana supply is not its real cap.
-    duel.unit = unit === 'cap' && asset.category === 'meme' ? 'cap' : 'price'
+    duel.unit = unit === 'cap' && duel.category !== 'crypto' ? 'cap' : 'price'
   } else {
-    require(asset.category === duel.category, 'WrongCategory')
+    require(duelGroup(asset) === duel.category, 'WrongCategory')
   }
   require(!duel.racers.some((r) => r.symbol === asset.symbol || r.priceSource === asset.priceSource), 'CoinTaken')
   duel.racers.push({

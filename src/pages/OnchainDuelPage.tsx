@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { useWallet } from '@solana/wallet-adapter-react'
 import { quoteUsdCents, usdCentsToLamports, stakeQuoteErrorMessage } from '@/chain/stakeQuote'
-import { DUEL_RULES, cheerRacer, duelPhaseLabel, duelStake, durationLabel, useDuel, type Duel, type DuelRacer } from '@/chain/duels'
+import { DUEL_RULES, duelGroupOf, durationsOf, cheerRacer, duelPhaseLabel, duelStake, durationLabel, useDuel, type Duel, type DuelRacer } from '@/chain/duels'
 import { useSignedAction } from '@/chain/gameServer'
 import { useServerNowMs } from '@/chain/serverClock'
 import { marketCapUsd, useLivePrices } from '@/chain/livePrices'
@@ -285,7 +285,7 @@ export function OnchainDuelPage() {
   // A finished market-cap duel still needs the coins' supply to show caps.
   const live = useLivePrices({ enabled: duel != null && ((duel.status !== 'resolved' && duel.status !== 'void') || duel.unit === 'cap') })
   // Market cap only for memes: crypto here is bridged, and its Solana supply is not the coin's real cap.
-  const capShown = duel?.unit === 'cap' && duel.category === 'meme'
+  const capShown = duel?.unit === 'cap' && duel.category != null && duel.category !== 'crypto'
   const { assets } = useApprovedRaceAssets()
   const now = useServerNowMs() / 1000
   const queryClient = useQueryClient()
@@ -310,9 +310,9 @@ export function OnchainDuelPage() {
   const myBacking = duel && me ? duel.backers.filter((b) => b.wallet === me) : []
   const open = duel && (duel.status === 'open' || duel.status === 'ready')
   const timerRunning = !!duel?.racers.some((r) => r.ready)
-  const category = duel?.category ?? (coin ? (coin.category === 1 ? 'meme' : 'crypto') : null)
-  const durations = category ? DUEL_RULES.durations[category] : DUEL_RULES.durations.meme
-  const pickable = useMemo(() => assets.filter((a) => (duel?.category ? (duel.category === 'meme' ? a.category === 1 : a.category === 2) : a.category !== 0) && !duel?.racers.some((r) => r.symbol === a.symbol)), [assets, duel])
+  const category = duel?.category ?? (coin ? duelGroupOf(coin) : null)
+  const durations = durationsOf(category)
+  const pickable = useMemo(() => assets.filter((a) => (duel?.category ? duelGroupOf(a) === duel.category : a.category !== 0) && !duel?.racers.some((r) => r.symbol === a.symbol)), [assets, duel])
 
   async function run(label: string, fn: () => Promise<void>) {
     setError(null)

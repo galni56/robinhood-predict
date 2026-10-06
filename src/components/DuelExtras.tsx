@@ -10,7 +10,8 @@ import { life, seeded } from '@/lib/life'
 import { AnimatedRace, CoinFighter } from '@/retro/landingFx'
 import { PxSprite } from '@/retro/Sprite'
 import { CREAM, GrassStrip, Hills, INK, YELLOW, PIXEL } from '@/retro/scene'
-import { coinBlue, coinBlueGrin, coinGreen, coinOrangeGrin, coinPinkGrin, coinPurple, coinPurpleGrin } from '@/retro/spriteData'
+import { coinBlue, coinBlueGrin, coinGreen, coinOrangeGrin, coinPinkGrin, coinPurple, coinPurpleGrin, logoCoin } from '@/retro/spriteData'
+import { DUEL_GROUP_LABELS, duelGroupOf, type DuelGroup } from '@/chain/duels'
 
 // Shared blocks of the duel pages (list and lobby): the four steps, the rules
 // in numbers, the practice lap and the coins a racer can bring.
@@ -18,14 +19,22 @@ import { coinBlue, coinBlueGrin, coinGreen, coinOrangeGrin, coinPinkGrin, coinPu
 export const RACE_ORANGE = '#ED8F3A'
 
 /** The lobby's coin type, big enough to see at a glance: crypto (BTC, ETH…) or memes. */
-export function CategoryBadge({ category, size = 'small' }: { category: 'meme' | 'crypto' | null; size?: 'small' | 'large' }) {
+const GROUP_STYLE: Record<DuelGroup, { bg: string; text: string; icon?: string }> = {
+  crypto: { bg: '#8FD3FF', text: 'CRYPTO', icon: 'BTC' },
+  meme: { bg: '#FF9FC4', text: 'MEMES', icon: 'WIF' },
+  pumpswap: { bg: '#8BE89A', text: 'PUMPSWAP' },
+  prophet: { bg: YELLOW, text: 'MADE ON PROPHET' },
+}
+
+export function CategoryBadge({ category, size = 'small' }: { category: DuelGroup | null; size?: 'small' | 'large' }) {
   if (!category) return null
-  const crypto = category === 'crypto'
+  const look = GROUP_STYLE[category]
   const icon = size === 'large' ? 26 : 18
+  const iconUrl = look.icon ? assetIconUrl(look.icon) : undefined
   return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: size === 'large' ? '6px 10px 6px 6px' : '3px 8px 3px 4px', background: crypto ? '#8FD3FF' : '#FF9FC4', border: `3px solid ${INK}`, boxShadow: `0 3px 0 ${INK}`, fontFamily: PIXEL, fontSize: size === 'large' ? 11 : 8, color: INK, whiteSpace: 'nowrap' }}>
-      <img src={assetIconUrl(crypto ? 'BTC' : 'WIF')} alt="" width={icon} height={icon} style={{ borderRadius: '50%', imageRendering: 'pixelated' }} />
-      {crypto ? 'CRYPTO' : 'MEMES'}
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: size === 'large' ? '6px 10px 6px 6px' : '3px 8px 3px 4px', background: look.bg, border: `3px solid ${INK}`, boxShadow: `0 3px 0 ${INK}`, fontFamily: PIXEL, fontSize: size === 'large' ? 11 : 8, color: INK, whiteSpace: 'nowrap' }}>
+      {iconUrl ? <img src={iconUrl} alt="" width={icon} height={icon} style={{ borderRadius: '50%', imageRendering: 'pixelated' }} /> : <PxSprite data={category === 'prophet' ? logoCoin : coinGreen} width={icon} height={icon} />}
+      {look.text}
     </span>
   )
 }
@@ -119,19 +128,18 @@ export function CoinsToBring({ assets, taken, category, onPick }: {
   assets: ApprovedRaceAsset[]
   taken: string[]
   /** Set once the first racer locked the lobby to one category. */
-  category: 'meme' | 'crypto' | null
+  category: DuelGroup | null
   onPick?: (asset: ApprovedRaceAsset) => void
 }) {
   const live = useLivePrices()
   // Long groups (memes) start folded so the page stays short on phones.
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
-  const groups = [
-    { key: 'crypto' as const, title: 'CRYPTO', list: assets.filter((a) => a.category === 2) },
-    { key: 'meme' as const, title: 'MEMES', list: assets.filter((a) => a.category === 1) },
-  ].filter((g) => g.list.length > 0 && (!category || g.key === category))
+  const groups = (['crypto', 'meme', 'pumpswap', 'prophet'] as const)
+    .map((key) => ({ key, title: DUEL_GROUP_LABELS[key].toUpperCase(), list: assets.filter((a) => duelGroupOf(a) === key) }))
+    .filter((g) => g.list.length > 0 && (!category || g.key === category))
   return (
     <div className="rx-raised" style={{ background: CREAM, padding: 16, display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <span style={{ fontFamily: PIXEL, fontSize: 10 }}>COINS YOU CAN BRING{category ? ` · ${category === 'meme' ? 'MEMES' : 'CRYPTO'} ONLY` : ''}</span>
+      <span style={{ fontFamily: PIXEL, fontSize: 10 }}>COINS YOU CAN BRING{category ? ` · ${DUEL_GROUP_LABELS[category].toUpperCase()} ONLY` : ''}</span>
       {groups.map((group) => (
         <div key={group.key}>
           <div style={{ fontFamily: PIXEL, fontSize: 9, opacity: 0.6, marginBottom: 8 }}>{group.title} · {group.list.length}</div>

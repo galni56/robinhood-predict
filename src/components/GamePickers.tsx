@@ -24,7 +24,7 @@ const COIN_FILTERS = [
   { key: 'all', label: 'All', test: () => true },
   { key: 'crypto', label: 'Crypto', test: (a: ApprovedRaceAsset) => a.category === 2 },
   { key: 'memes', label: 'Memes', test: (a: ApprovedRaceAsset) => a.category === 1 && a.source !== 'pumpswap' },
-  { key: 'fresh', label: 'Fresh PumpSwap', test: (a: ApprovedRaceAsset) => a.source === 'pumpswap' && !a.launchedOnProphet },
+  { key: 'fresh', label: 'PumpSwap', test: (a: ApprovedRaceAsset) => a.source === 'pumpswap' && !a.launchedOnProphet },
   { key: 'prophet', label: 'Made on Prophet', test: (a: ApprovedRaceAsset) => a.launchedOnProphet === true },
 ] as const
 

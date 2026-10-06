@@ -158,3 +158,23 @@ test('duel: unpaid racers leave after the pay window; a top tie refunds everyone
   assert.equal(tie.status, 'void')
   assert.equal(sum(duelSettlements(tie)), (3n * SOL) / 10n)
 })
+
+test('duel: crypto, catalog memes, PumpSwap coins and Prophet launches never mix in one lobby', () => {
+  const pumpswap = (symbol) => ({ ...coin(symbol), source: 'pumpswap' })
+  const ours = (symbol) => ({ ...coin(symbol), source: 'pumpswap', launchedOnProphet: true })
+  const lobby = (asset) => {
+    const duel = createDuel(0, 0)
+    joinDuel(duel, { wallet: 'first', asset, stake: SOL / 10n, duration: 60, unit: 'cap' }, 1)
+    return duel
+  }
+  const fresh = lobby(pumpswap('CATE'))
+  assert.equal(fresh.category, 'pumpswap')
+  assert.equal(fresh.unit, 'cap')
+  throwsCode(() => joinDuel(fresh, { wallet: 'b', asset: coin('WIF') }, 2), 'WrongCategory')
+  throwsCode(() => joinDuel(fresh, { wallet: 'c', asset: ours('MINE') }, 2), 'WrongCategory')
+  joinDuel(fresh, { wallet: 'd', asset: pumpswap('UDR') }, 2)
+  const prophet = lobby(ours('MINE'))
+  assert.equal(prophet.category, 'prophet')
+  throwsCode(() => joinDuel(prophet, { wallet: 'e', asset: pumpswap('UDR') }, 2), 'WrongCategory')
+  throwsCode(() => joinDuel(lobby(coin('WIF')), { wallet: 'f', asset: pumpswap('UDR') }, 2), 'WrongCategory')
+})

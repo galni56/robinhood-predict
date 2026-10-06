@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import type { ApprovedRaceAsset } from '@/chain/assetRaces'
 import { useQuery } from '@tanstack/react-query'
 import { convertRows, getJson, useGameState, type ServerPayout } from '@/chain/gameServer'
 import { GAME_SERVER_URL } from '@/solana/services'
@@ -33,7 +34,7 @@ export interface ServerDuel {
   creator: string | null
   title: string
   createdAt: number
-  category: 'meme' | 'crypto' | null
+  category: DuelGroup | null
   unit: 'price' | 'cap'
   stake: string
   duration: number
@@ -72,7 +73,7 @@ export interface Duel {
   status: ServerDuel['status']
   creator: string | null
   title: string
-  category: 'meme' | 'crypto' | null
+  category: DuelGroup | null
   unit: 'price' | 'cap'
   stake: bigint
   duration: number
@@ -87,6 +88,21 @@ export interface Duel {
   pot: bigint
 }
 
+/**
+ * A lobby's coin group (server duel.mjs duelGroup): groups never mix in one
+ * race. 'meme' is the reviewed catalog's memes; PumpSwap coins and coins
+ * launched on Prophet are groups of their own.
+ */
+export type DuelGroup = 'crypto' | 'meme' | 'pumpswap' | 'prophet'
+
+export function duelGroupOf(asset: ApprovedRaceAsset): DuelGroup {
+  if (asset.launchedOnProphet) return 'prophet'
+  if (asset.source === 'pumpswap') return 'pumpswap'
+  return asset.category === 2 ? 'crypto' : 'meme'
+}
+
+export const DUEL_GROUP_LABELS: Record<DuelGroup, string> = { crypto: 'Crypto', meme: 'Memes', pumpswap: 'PumpSwap', prophet: 'Made on Prophet' }
+
 export const DUEL_RULES = {
   minRacers: 2,
   maxRacers: 6,
@@ -97,6 +113,9 @@ export const DUEL_RULES = {
   durations: { meme: [60, 180, 300, 900], crypto: [300, 900, 1800] },
   backCapUsdCents: 10_000n,
 }
+
+/** Race lengths of a group: crypto its own, every meme-like group the meme ones. */
+export const durationsOf = (group: DuelGroup | null) => DUEL_RULES.durations[group === 'crypto' ? 'crypto' : 'meme']
 
 export function duelFromServer(d: ServerDuel): Duel {
   const backers = d.backers.map((b) => ({ wallet: b.wallet, seat: b.seat, amount: BigInt(b.amount) }))

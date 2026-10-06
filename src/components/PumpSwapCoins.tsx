@@ -40,8 +40,16 @@ export function PumpSwapCoins({ limit, feed = false }: { limit?: number; feed?: 
         <div>
           <h2 style={{ margin: 0, fontFamily: PIXEL, fontSize: 'clamp(16px, 2vw, 24px)', fontWeight: 400, lineHeight: 1.5, textShadow: `4px 4px 0 ${INK}` }}>FRESH FROM PUMPSWAP</h2>
           <p style={{ margin: '8px 0 0', fontSize: 18, fontWeight: 500, opacity: 0.8 }}>
-            Coins that graduated from pump.fun join the game automatically every 15 minutes. Race them or call their price in an arena.
+            Coins that graduated from pump.fun to PumpSwap join the game automatically. Race them or call their price in an arena.
           </p>
+          {!feed && (
+            <ul style={{ margin: '12px 0 0', paddingLeft: 20, maxWidth: 820, fontSize: 16, fontWeight: 500, opacity: 0.85, lineHeight: 1.5 }}>
+              <li>Checked every 15 minutes: a real pump.fun coin paired with SOL or USDC, at least $10,000 of liquidity, a pool older than one hour.</li>
+              <li>The list grows up to 40 coins. A coin leaves when its liquidity falls under $10,000 or it has not been seen for 7 days; when the list is full, the least liquid make room.</li>
+              <li>Coins launched on Prophet always get a place once they graduate, marked MADE ON PROPHET. A coin in a running game never leaves mid-race.</li>
+              <li>Known honeypots and wash-traded coins are blocked by hand.</li>
+            </ul>
+          )}
         </div>
         {limit && assets.length > limit && <Link to="/onchain/pumpswap" style={{ color: YELLOW, fontSize: 18, fontWeight: 700 }}>All {assets.length} coins →</Link>}
       </div>
@@ -74,6 +82,7 @@ export function PumpSwapCoins({ limit, feed = false }: { limit?: number; feed?: 
                           <div style={{ fontWeight: 700, fontSize: 18 }}>
                             {asset.symbol}
                             {fresh && <span style={{ marginLeft: 8, background: PINK, fontFamily: PIXEL, fontSize: 8, padding: '4px 6px', border: `2px solid ${INK}`, verticalAlign: 'middle' }}>NEW</span>}
+                            {asset.launchedOnProphet && <span style={{ marginLeft: 8, background: YELLOW, fontFamily: PIXEL, fontSize: 8, padding: '4px 6px', border: `2px solid ${INK}`, verticalAlign: 'middle' }}>MADE ON PROPHET</span>}
                           </div>
                           <div style={{ fontSize: 13, opacity: 0.55, maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis' }}>{asset.name}</div>
                         </div>
