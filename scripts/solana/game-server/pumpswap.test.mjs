@@ -80,3 +80,9 @@ test('pumpswap list: over the limit the least liquid make room', () => {
   const out = selectPumpSwapAssets(pools, { takenSymbols: new Set(), previous, now, filter: { minLiquidityUsd: 10_000, minAgeHours: 1, limit: 2, staleDays: 7 } })
   assert.deepEqual(out.map((a) => a.symbol), ['A', 'B'])
 })
+
+test('pumpswap list: a kept coin is not dropped for a young pool or another pair, only for low liquidity', () => {
+  const previous = [{ symbol: 'KEEP', mint: 'Keeppump', pool: 'p', priceDecimals: 9, liquidityUsd: 40_000, lastSeenAt: new Date(now).toISOString() }]
+  const pools = [pool('KEEP', 'Keeppump', 50_000, 0.2), pool('KEEP', 'Keeppump', 50_000, 5, { quote: 'OtherMint' })]
+  assert.deepEqual(selectPumpSwapAssets(pools, { takenSymbols: new Set(), previous, now }).map((a) => a.symbol), ['KEEP'])
+})

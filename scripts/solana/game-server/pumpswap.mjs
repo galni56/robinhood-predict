@@ -48,16 +48,36 @@ export async function pumpFunMints(connection, mints, PublicKey) {
   return found
 }
 
+/** Two views of PumpSwap (10 pages each, the most the free API serves): by 24 h volume and by trade count. */
+const SORTS = ['h24_volume_usd_desc', 'h24_tx_count_desc']
+
 export async function fetchPumpSwapPools({ pages = PUMPSWAP_FILTER.pages, fetchImpl = fetch } = {}) {
+  const byPool = new Map()
+  for (const sort of SORTS) {
+    try {
+      for (const p of await fetchSorted(sort, pages, fetchImpl)) byPool.set(p.pool, p)
+    } catch (error) {
+      // The first view is required; a failed second one only means fewer candidates.
+      if (sort === SORTS[0]) throw error
+    }
+  }
+  return [...byPool.values()]
+}
+
+async function fetchSorted(sort, pages, fetchImpl) {
   const pools = []
   for (let page = 1; page <= pages; page++) {
     let response
     for (let attempt = 0; attempt < 4; attempt++) {
-      response = await fetchImpl(`${GECKO}?page=${page}&sort=h24_volume_usd_desc&include=base_token,quote_token`, { signal: AbortSignal.timeout(20_000) })
+      response = await fetchImpl(`${GECKO}?page=${page}&sort=${sort}&include=base_token,quote_token`, { signal: AbortSignal.timeout(20_000) })
       if (response.status !== 429) break
       await sleep(20_000) // rate limited: wait out the minute window
     }
-    if (!response.ok) throw new Error(`GeckoTerminal ${response.status}`)
+    // GeckoTerminal's free API serves 10 pages; past what it serves, keep what we have.
+    if (!response.ok) {
+      if (page > 1) break
+      throw new Error(`GeckoTerminal ${response.status}`)
+    }
     const body = await response.json()
     if (!body.data?.length) break
     pools.push(...parsePools(body))
@@ -112,13 +132,18 @@ export function selectPumpSwapAssets(pools, { takenSymbols, previous = [], keepS
   // Coins launched on Prophet are pump.fun coins by construction (verified at launch).
   const realCoin = (p) => p.mint === PUMP_TOKEN || p.mint.endsWith('pump') || pumpMints.has(p.mint) || launched.has(p.mint)
   const bySymbol = new Map()
+  // Mints seen with a pool that fails only on liquidity: the one reason to drop a kept coin.
+  const lowLiquidity = new Set()
   for (const p of pools) {
     const symbol = String(p.symbol).trim()
     if (!/^[A-Za-z0-9$._-]{1,16}$/.test(symbol) || takenSymbols.has(symbol.toUpperCase())) continue
     if (!realCoin(p) || (p.quote !== WSOL && p.quote !== USDC)) continue
     // Hand-picked honeypots and wash-traded coins (config/pumpswap-blocklist.json).
     if (blocked.mints.has(p.mint) || blocked.symbols.has(symbol.toUpperCase())) continue
-    if (!(p.liquidityUsd >= filter.minLiquidityUsd)) continue
+    if (!(p.liquidityUsd >= filter.minLiquidityUsd)) {
+      lowLiquidity.add(p.mint)
+      continue
+    }
     if ((now - Date.parse(p.createdAt)) / 3.6e6 < filter.minAgeHours) continue
     const key = symbol.toUpperCase()
     if (!bySymbol.has(key) || bySymbol.get(key).liquidityUsd < p.liquidityUsd) bySymbol.set(key, { ...p, symbol })
@@ -147,9 +172,10 @@ export function selectPumpSwapAssets(pools, { takenSymbols, previous = [], keepS
     lastSeenAt: new Date(now).toISOString(),
   })
   const fresh = [...bySymbol.values()].map(asset)
-  // Coins seen this time but failing the filter (every pool of the mint): we know they are out.
+  // Seen this time with liquidity under the floor (and no pool above it): out. A
+  // young pool, another pair or a failed check never drops a coin we keep.
   const passingMints = new Set([...bySymbol.values()].map((p) => p.mint))
-  const failedMints = new Set(pools.filter((p) => !passingMints.has(p.mint)).map((p) => p.mint))
+  const failedMints = new Set([...lowLiquidity].filter((m) => !passingMints.has(m)))
   const staleMs = (filter.staleDays ?? 7) * 86_400_000
   const kept = previous.filter((a) => {
     const key = String(a.symbol).toUpperCase()
