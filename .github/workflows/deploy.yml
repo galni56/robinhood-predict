@@ -43,9 +43,12 @@ jobs:
           # Node 24 ships npm 11, which wrote package-lock.json; npm 10 reads its peer entries as out of sync.
           node-version: 24
           cache: npm
-      # npm 12 rejects this lockfile (optional wasm/native deps); npm 11 wrote it.
+      # npm 12 refuses some optional wasm/native tarballs; npm 11 wrote the lockfile.
       - run: npm install -g npm@11
-      - run: npm ci
+      # `npm ci` stops the deploy whenever the runner's npm reads the lockfile
+      # differently from a developer's machine; `npm install` resolves from the
+      # same lockfile and only fills what the runner's platform needs.
+      - run: npm install --no-audit --no-fund
       - run: npm run build
       - uses: actions/upload-pages-artifact@v3
         with:
