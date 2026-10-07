@@ -341,20 +341,29 @@ function launches() {
 }
 
 // Name, ticker and picture of a launched coin: Token-2022 metadata inside the
-// mint, the picture from the JSON its uri points to. Cached; a coin keeps them.
+// mint, the picture from the JSON its uri points to. ipfs.io rate-limits the
+// VPS, so IPFS links are read through Pinata's gateway (the site does the
+// same for pictures). Cached once a picture is found; retried until then.
 const coinMetas = new Map()
-const ipfsGateway = (url) => (typeof url === 'string' ? (url.startsWith('ipfs://') ? `https://ipfs.io/ipfs/${url.slice('ipfs://'.length)}` : url) : null)
+const IPFS_GATEWAY = 'https://gateway.pinata.cloud/ipfs/'
+function viaGateway(url) {
+  if (typeof url !== 'string') return null
+  if (url.startsWith('ipfs://')) return IPFS_GATEWAY + url.slice('ipfs://'.length).replace(/^ipfs\//, '')
+  const at = url.indexOf('/ipfs/')
+  return at >= 0 && /^https:\/\/(ipfs\.io|cloudflare-ipfs\.com|dweb\.link)\//.test(url) ? IPFS_GATEWAY + url.slice(at + '/ipfs/'.length) : url
+}
 async function coinMeta(mint) {
-  if (coinMetas.has(mint)) return coinMetas.get(mint)
+  const cached = coinMetas.get(mint)
+  if (cached?.image) return cached
   const info = await chain.connection.getParsedAccountInfo(new PublicKey(mint), 'confirmed')
   const meta = info.value?.data?.parsed?.info?.extensions?.find((e) => e.extension === 'tokenMetadata')?.state
-  if (!meta) return null
+  if (!meta) return cached ?? null
   let image = null
   try {
-    const json = await fetch(ipfsGateway(meta.uri), { signal: AbortSignal.timeout(10_000) }).then((r) => r.json())
-    image = ipfsGateway(json.image)
+    const json = await fetch(viaGateway(meta.uri), { signal: AbortSignal.timeout(10_000) }).then((r) => r.json())
+    image = viaGateway(json.image)
   } catch {
-    // no picture: the site shows the ticker's letter
+    // no picture yet: the site shows the ticker's letter, the next refresh tries again
   }
   const value = { name: meta.name, symbol: meta.symbol, image }
   coinMetas.set(mint, value)

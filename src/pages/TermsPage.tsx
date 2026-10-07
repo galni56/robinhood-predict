@@ -22,7 +22,7 @@ export function TermsPage() {
         </p>
       </div>
 
-      <div className="rounded-none border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+      <div className="rounded-none border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-[#7A4A00]">
         This is a template, not reviewed by a lawyer. It is not a substitute for real legal review - see the{' '}
         <a href="#launch-status" onClick={(e) => scrollToSection(e, 'launch-status')} className="underline">
           §9 note
