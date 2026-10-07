@@ -61,8 +61,8 @@ export function CoinPicker({ assets, selected, onToggle, max, accent = YELLOW }:
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
         {COIN_FILTERS.map((f) => {
           const count = priced.filter((a) => f.test(a)).length
-          // Groups with no coin are hidden, except our own launches (it explains how to get one in).
-          if (count === 0 && f.key !== 'prophet' && f.key !== 'all') return null
+          // Groups with no coin to pick are hidden; our launches show up once one graduates.
+          if (count === 0 && f.key !== 'all') return null
           return (
             <button key={f.key} type="button" onClick={() => setFilter(f.key)} className={`rx-btn ${filter === f.key ? 'rx-btn-yellow' : 'rx-btn-white'}`} style={{ padding: '6px 10px', fontSize: 13, fontWeight: 700 }}>
               {f.label} · {count}

@@ -124,6 +124,7 @@ export function ConnectWalletButton() {
             )}
             <button onClick={() => openModal('history')} className={itemClass}>History</button>
             <NavLink to="/onchain/portfolio" onClick={() => setOpen(false)} className={itemClass}>Your portfolio</NavLink>
+            <NavLink to="/onchain/launch" onClick={() => setOpen(false)} className={itemClass}>Your coins</NavLink>
             <button onClick={() => openModal('nickname')} className={itemClass}>Set nickname</button>
             <button
               onClick={async () => {
