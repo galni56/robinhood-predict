@@ -3,6 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom'
 import type { CSSProperties } from 'react'
 import { ConnectWalletButton } from '@/components/ConnectWalletButton'
 import { SoundToggle } from '@/components/SoundToggle'
+import { XLink } from '@/components/XLink'
 import { PROPHET_TOKEN_CA, TokenCa } from '@/components/TokenCa'
 import { PxSprite } from '@/retro/Sprite'
 import { logoCoin } from '@/retro/spriteData'
@@ -104,6 +105,7 @@ export function RealNavbar() {
       </nav>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <XLink color={INK} />
         <SoundToggle color={INK} />
         <ConnectWalletButton />
       </div>
