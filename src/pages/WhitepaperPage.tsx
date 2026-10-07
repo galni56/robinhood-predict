@@ -304,6 +304,7 @@ export function WhitepaperPage() {
 
         <Section id="next" title="15. What comes next">
           <ul className="list-disc space-y-2 pl-5">
+            <li><strong>Bigger stakes.</strong> High-stakes lobbies above today&apos;s $50 duel stake and 1 SOL Shot stake, for players who want more on the line.</li>
             <li><strong>Launch races.</strong> Several coins launched in one lobby; the first to graduate to PumpSwap wins.</li>
             <li><strong>Graduation calls.</strong> &ldquo;Will it graduate in 24 hours?&rdquo; games on fresh launches.</li>
             <li><strong>The HasteFun token</strong> on pump.fun, with buyback and burn through pump.fun and PumpSwap.</li>

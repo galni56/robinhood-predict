@@ -40,6 +40,7 @@ Change log: [`docs/SOLANA_CHANGELOG.md`](./docs/SOLANA_CHANGELOG.md). Status and
 
 ## Later
 
+- Bigger stakes: high-stakes lobbies above the $50 duel stake and the 1 SOL Shot stake (owner, 2026-10-07).
 - Launch races: coins launched in one lobby, the first to graduate to PumpSwap wins; "will it graduate in
   24 h" bets.
 - $PROPHET on pump.fun; buyback and burn through pump.fun / PumpSwap.
