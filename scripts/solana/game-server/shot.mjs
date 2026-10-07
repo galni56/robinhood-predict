@@ -16,6 +16,7 @@
 // Money: a stake moves from the player's balance into the room
 // (remainingLiability); settlement or cancellation moves it back out.
 
+import { unitForGroup, duelGroup } from './duel.mjs'
 import { BP_DENOMINATOR, CREATOR_FEE_SHARE_BP, RuleError, STAKE, mulDiv, settlePredictions, validateTitle } from './rules.mjs'
 
 export const SHOT = {
@@ -51,7 +52,8 @@ export function createShot(id, input, asset, now) {
     priceSource: asset.priceSource,
     priceDecimals: asset.priceDecimals,
     category: asset.category,
-    unit: input.unit === 'cap' ? 'cap' : 'price',
+    // Same rule as duels: PumpSwap and Prophet-made coins by market cap.
+    unit: unitForGroup(duelGroup(asset)),
     duration: Number(input.duration),
     createdAt: now,
     lastJoinAt: now,

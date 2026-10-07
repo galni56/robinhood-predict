@@ -296,7 +296,6 @@ export function OnchainDuelPage() {
   const [coin, setCoin] = useState<ApprovedRaceAsset | null>(null)
   const [stakeCents, setStakeCents] = useState(500n)
   const [duration, setDuration] = useState(0)
-  const [unit, setUnit] = useState<'cap' | 'price'>('cap')
   const [backSeat, setBackSeat] = useState<number | null>(null)
   const [backCents, setBackCents] = useState(500n)
   // A bet transfer that landed but the server has not applied yet.
@@ -515,7 +514,6 @@ export function OnchainDuelPage() {
                           <>
                             <div><span style={label}>STAKE (EVERY RACER PAYS THE SAME)</span><div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>{STAKE_PRESETS.map((c) => <button key={String(c)} type="button" onClick={() => setStakeCents(c)} className={choice(stakeCents === c)} style={{ padding: '8px 12px', fontWeight: 700 }}>{usd(c)}</button>)}</div></div>
                             <div><span style={label}>RACE LENGTH</span><div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>{durations.map((s) => <button key={s} type="button" onClick={() => setDuration(s)} className={choice((duration || durations[0]) === s)} style={{ padding: '8px 12px', fontWeight: 700 }}>{durationLabel(s)}</button>)}</div></div>
-                            {category !== 'crypto' && <div><span style={label}>SHOW</span><div style={{ display: 'flex', gap: 4 }}>{(['cap', 'price'] as const).map((u) => <button key={u} type="button" onClick={() => setUnit(u)} className={choice(unit === u)} style={{ padding: '8px 12px', fontWeight: 700 }}>{u === 'cap' ? 'Market cap' : 'Price'}</button>)}</div></div>}
                           </>
                         )}
                         <LeaveRules phase="before" />
@@ -526,7 +524,7 @@ export function OnchainDuelPage() {
                           onClick={() => run('join', async () => {
                             await act({
                               action: 'duel-join', duel: id, asset: coin!.symbol,
-                              ...(duel.racers.length === 0 ? { stake: stakeLamports!.toString(), duration: durations.includes(duration) ? duration : durations[0], unit: category === 'crypto' ? 'price' : unit } : {}),
+                              ...(duel.racers.length === 0 ? { stake: stakeLamports!.toString(), duration: durations.includes(duration) ? duration : durations[0] } : {}),
                             })
                             setCoin(null)
                             setNotice('You are in! Now pay your stake.')

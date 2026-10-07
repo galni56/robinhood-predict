@@ -30,7 +30,7 @@ export const DUEL = {
   /** One "preparing" press adds this much, once. */
   prepareExtra: 15,
   // Owner, 2026-10-06: memes up to 15 min, crypto up to 30 min.
-  durations: { meme: [60, 180, 300, 900], crypto: [300, 900, 1800] },
+  durations: { meme: [60, 180, 300, 900], crypto: [60, 300, 900, 1800] },
   feeBp: 200n,
   racerShareBp: 3_000n,
   tax: { baseBp: 1_000n, backedBp: 2_000n, repeatThreshold: 10, repeatMultiplier: 2n },
@@ -86,11 +86,13 @@ export function duelGroup(asset) {
   if (asset.source === 'pumpswap') return 'pumpswap'
   return asset.category
 }
+export const unitForGroup = (group) => (group === 'pumpswap' || group === 'prophet' ? 'cap' : 'price')
+
 /** Race lengths: crypto has its own, every meme-like group the meme ones. */
 export const durationsFor = (group) => DUEL.durations[group === 'crypto' ? 'crypto' : 'meme']
 
-/** A racer brings a coin. The first one also sets the group, stake, duration and unit. */
-export function joinDuel(duel, { wallet, asset, stake, duration, unit, title }, now) {
+/** A racer brings a coin. The first one also sets the group (and with it the unit), stake and duration. */
+export function joinDuel(duel, { wallet, asset, stake, duration, title }, now) {
   require(duel.status === 'open' || duel.status === 'ready', 'DuelClosed')
   require(asset && asset.enabled !== false, 'AssetNotApproved')
   require(asset.category === 'meme' || asset.category === 'crypto', 'AssetNotApproved')
@@ -107,8 +109,9 @@ export function joinDuel(duel, { wallet, asset, stake, duration, unit, title }, 
     duel.category = duelGroup(asset)
     duel.stake = stake
     duel.duration = duration
-    // Market cap only for memes: bridged crypto's Solana supply is not its real cap.
-    duel.unit = unit === 'cap' && duel.category !== 'crypto' ? 'cap' : 'price'
+    // The group decides (owner, 2026-10-07): PumpSwap coins and coins made on
+    // Prophet race by market cap, catalog crypto and memes by price.
+    duel.unit = unitForGroup(duel.category)
   } else {
     require(duelGroup(asset) === duel.category, 'WrongCategory')
   }

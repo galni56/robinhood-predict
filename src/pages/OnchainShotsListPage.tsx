@@ -134,7 +134,6 @@ export function OnchainShotsListPage() {
   // "Arena" on a PumpSwap coin opens the form with that coin picked.
   const coin = picked ?? (wanted ? assets.find((a) => a.symbol === wanted) ?? null : null)
   const [duration, setDuration] = useState(300)
-  const [unit, setUnit] = useState<'price' | 'cap'>('cap')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -154,8 +153,7 @@ export function OnchainShotsListPage() {
     setError(null)
     setBusy(true)
     try {
-      const memes = coin.category === 1
-      const room = await act<{ id: number }>({ action: 'shot-create', asset: coin.symbol, duration, unit: memes ? unit : 'price' })
+      const room = await act<{ id: number }>({ action: 'shot-create', asset: coin.symbol, duration })
       navigate(`/onchain/shot/${room.id}`)
     } catch (cause) {
       setError(shortTxError(cause, 'shot-create'))
@@ -187,14 +185,6 @@ export function OnchainShotsListPage() {
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
               {SHOT_RULES.durations.map((s) => <button key={s} type="button" onClick={() => setDuration(s)} className={`rx-btn ${duration === s ? 'rx-btn-yellow' : 'rx-btn-white'}`} style={{ padding: '8px 12px', fontWeight: 700 }}>{durationLabel(s)}</button>)}
             </div>
-            {coin?.category === 1 && (
-              <>
-                <span style={{ fontFamily: PIXEL, fontSize: 10 }}>PLAYERS CALL</span>
-                <div style={{ display: 'flex', gap: 4 }}>
-                  {(['cap', 'price'] as const).map((u) => <button key={u} type="button" onClick={() => setUnit(u)} className={`rx-btn ${unit === u ? 'rx-btn-yellow' : 'rx-btn-white'}`} style={{ padding: '8px 12px', fontWeight: 700 }}>{u === 'cap' ? 'Market cap' : 'Price'}</button>)}
-                </div>
-              </>
-            )}
             <button type="button" disabled={!coin || busy} onClick={create} className="rx-btn rx-btn-pink" style={{ minHeight: 56, fontFamily: PIXEL, fontSize: 12, color: CREAM }}>{busy ? 'SIGNING…' : coin ? `OPEN A ${coin.symbol} ROOM` : 'PICK A COIN'}</button>
             {error && <span style={{ fontWeight: 700, color: '#C2245A' }}>{error}</span>}
           </div>
