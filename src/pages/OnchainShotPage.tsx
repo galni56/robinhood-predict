@@ -98,7 +98,7 @@ export function OnchainShotPage() {
             <Header shot={shot} now={now} livePrice={livePrice} unit={unit} supply={supply} />
             <div style={{ marginTop: 20, display: 'grid', gap: 20, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 420px), 1fr))', alignItems: 'start' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
-                {shot.status === 'open' && <ReadyPanel shot={shot} me={me} busy={busy} run={run} onLogin={login.start} />}
+                {shot.status === 'open' && <ReadyPanel shot={shot} me={me} now={now} busy={busy} run={run} onLogin={login.start} />}
                 {shot.status === 'aim' && <AimPanel shot={shot} me={me} now={now} busy={busy} livePrice={livePrice} unit={unit} supply={supply} solUsd={live.solUsd} />}
                 {(shot.status === 'live' || shot.status === 'resolved') && <MatchPanel shot={shot} me={me} now={now} livePrice={livePrice} unit={unit} supply={supply} />}
                 {shot.status === 'cancelled' && (
@@ -124,7 +124,7 @@ export function OnchainShotPage() {
 
 function Header({ shot, now, livePrice, unit, supply }: { shot: Shot; now: number; livePrice: number | null; unit: 'price' | 'cap'; supply: number | null }) {
   // Aim, then the window for locked stakes to confirm, then the match.
-  const timer = shot.status === 'aim' ? (shotConfirming(shot, now) ? shot.aimEndsAt + SHOT_RULES.lockGrace - now : shot.aimEndsAt - now) : shot.status === 'live' ? shot.deadline - now : null
+  const timer = shot.status === 'open' ? (shot.readyEndsAt ? shot.readyEndsAt - now : null) : shot.status === 'aim' ? (shotConfirming(shot, now) ? shot.aimEndsAt + SHOT_RULES.lockGrace - now : shot.aimEndsAt - now) : shot.status === 'live' ? shot.deadline - now : null
   const asset = useApprovedRaceAssets().assets.find((a) => a.symbol === shot.symbol)
   return (
     <div style={{ marginTop: 12, display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
@@ -140,22 +140,29 @@ function Header({ shot, now, livePrice, unit, supply }: { shot: Shot; now: numbe
       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
         {shot.status === 'open' && <InviteButton path={`/onchain/shot/${shot.id}`} />}
         <span className="rx-plate" style={{ fontFamily: PIXEL, fontSize: 10, background: CREAM, color: INK, padding: '8px 10px' }}>{shotPhaseLabel(shot, now)}</span>
-        {timer != null && <span className="rx-plate" style={{ fontFamily: PIXEL, fontSize: 14, background: shot.status === 'aim' ? PINK : YELLOW, color: shot.status === 'aim' ? CREAM : INK, padding: '8px 10px', animation: shot.status === 'aim' && timer < 10 && timer > 0 ? 'rx-blink 0.6s steps(1) infinite' : undefined }}>{timer <= 0 ? (shot.status === 'aim' ? 'STARTING…' : 'FINAL BELL…') : clock(timer)}</span>}
+        {timer != null && <span className="rx-plate" style={{ fontFamily: PIXEL, fontSize: 14, background: shot.status === 'aim' ? PINK : YELLOW, color: shot.status === 'aim' ? CREAM : INK, padding: '8px 10px', animation: shot.status === 'aim' && timer < 10 && timer > 0 ? 'rx-blink 0.6s steps(1) infinite' : undefined }}>{timer <= 0 ? (shot.status === 'live' ? 'FINAL BELL…' : 'STARTING…') : clock(timer)}</span>}
       </div>
       {asset?.launchedOnProphet && <div style={{ flexBasis: '100%' }}><LaunchpadWarning /></div>}
     </div>
   )
 }
 
-function ReadyPanel({ shot, me, busy, run, onLogin }: { shot: Shot; me?: string; busy: string | null; run: (name: string, fields: Record<string, unknown>) => void; onLogin: () => void }) {
+function ReadyPanel({ shot, me, now, busy, run, onLogin }: { shot: Shot; me?: string; now: number; busy: string | null; run: (name: string, fields: Record<string, unknown>) => void; onLogin: () => void }) {
   const mine = me ? shot.players.find((p) => p.wallet === me) : undefined
   const ready = shot.players.filter((p) => p.ready).length
   const needed = Math.max(SHOT_RULES.minPlayers, Math.floor(shot.players.length / 2) + 1)
+  const countdown = shot.readyEndsAt ? Math.max(0, Math.ceil(shot.readyEndsAt - now)) : null
   return (
     <div className="rx-raised" style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: 20, background: CREAM, color: INK }}>
       <span style={label}>WAITING FOR PLAYERS</span>
+      {countdown != null && (
+        <div className="rx-plate" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, padding: '12px 14px', background: mine && !mine.ready ? PINK : YELLOW, color: mine && !mine.ready ? CREAM : INK, animation: mine && !mine.ready ? 'rx-blink 0.8s steps(1) infinite' : undefined }}>
+          <span style={{ fontSize: 18, fontWeight: 700 }}>{mine && !mine.ready ? 'Press READY to play this match!' : 'The match starts soon - waiting for the others.'}</span>
+          <span style={{ fontFamily: PIXEL, fontSize: 16 }}>{clock(countdown)}</span>
+        </div>
+      )}
       <p style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>
-        Ready {ready} of {shot.players.length}. The aim starts once {needed} {needed === 1 ? 'is' : 'are'} ready - more than half the room, at least two. Players who are not ready sit this match out.
+        Ready {ready} of {shot.players.length}. Once {needed} {needed === 1 ? 'is' : 'are'} ready (more than half, at least two), the others get {SHOT_RULES.readyCountdown} seconds to press Ready too; then the match starts with whoever is ready. Everyone ready starts it at once.
       </p>
       {!me ? (
         <button type="button" onClick={onLogin} className="rx-btn rx-btn-pink" style={{ minHeight: 56, fontFamily: PIXEL, fontSize: 12, color: CREAM }}>{prophetWalletStore.hasWallet() ? 'LOG IN TO PLAY' : 'CREATE ACCOUNT'}</button>

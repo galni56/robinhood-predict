@@ -4,8 +4,10 @@
 //
 // Phases:
 // - open:  players join the room (free) and press Ready. Once more than half
-//          of them, and at least two, are ready, the ready players go on to
-//          the aim phase; the others are left out of this match.
+//          of them, and at least two, are ready, a SHOT.readyCountdown starts
+//          for the rest to press Ready too; when it ends (or as soon as
+//          everyone is ready) the ready players go on to the aim phase and the
+//          others sit this match out. Losing the majority stops the countdown.
 // - aim:   AIM_SECONDS to lock a shot. Lock Shot is two steps: the price goes
 //          to the server in a signed message (aimShot, kept secret until the
 //          match starts), then the stake is a transfer to the game wallet
@@ -26,6 +28,8 @@ export const SHOT = {
   minPlayers: 2,
   maxPlayers: 10,
   aimSeconds: 30,
+  /** Once a majority is ready, the others get this long to join in. */
+  readyCountdown: 15,
   /** After the aim, the stakes of shots locked in time get this long to confirm. */
   lockGrace: 15,
   durations: [60, 5 * 60, 15 * 60, 60 * 60],
@@ -65,6 +69,7 @@ export function createShot(id, input, asset, now) {
     createdAt: now,
     lastJoinAt: now,
     players: [],
+    readyEndsAt: 0,
     aimEndsAt: 0,
     deadline: 0,
     resolvedAt: 0,
@@ -94,26 +99,46 @@ export function joinShot(shot, wallet, now) {
   require(shot.players.length < SHOT.maxPlayers, 'RoomFull')
   shot.players.push({ wallet, ready: false, joinedAt: now })
   shot.lastJoinAt = now
+  checkReady(shot, now)
 }
 
-export function leaveShot(shot, wallet) {
+export function leaveShot(shot, wallet, now) {
   require(shot.status === 'open', 'RoomClosed')
   require(player(shot, wallet), 'NotInRoom')
   shot.players = shot.players.filter((p) => p.wallet !== wallet)
+  checkReady(shot, now)
 }
 
-/** Ready (or not ready again). More than half ready, at least two: aim starts. */
+/** Ready (or not ready again). */
 export function readyShot(shot, wallet, ready, now) {
   require(shot.status === 'open', 'RoomClosed')
   const p = player(shot, wallet)
   require(p, 'NotInRoom')
   p.ready = ready !== false
-  const readyCount = shot.players.filter((x) => x.ready).length
-  if (readyCount >= SHOT.minPlayers && readyCount * 2 > shot.players.length) {
-    shot.players = shot.players.filter((x) => x.ready)
-    shot.status = 'aim'
-    shot.aimEndsAt = now + SHOT.aimSeconds
+  checkReady(shot, now)
+}
+
+const readyCount = (shot) => shot.players.filter((x) => x.ready).length
+const hasMajority = (shot) => readyCount(shot) >= SHOT.minPlayers && readyCount(shot) * 2 > shot.players.length
+
+/**
+ * Everyone ready: aim now. A majority: the countdown runs (started once,
+ * not restarted by more players getting ready). No majority: no countdown.
+ */
+function checkReady(shot, now) {
+  if (!hasMajority(shot)) {
+    shot.readyEndsAt = 0
+    return
   }
+  if (readyCount(shot) === shot.players.length) return startAim(shot, now)
+  if (!shot.readyEndsAt) shot.readyEndsAt = now + SHOT.readyCountdown
+}
+
+function startAim(shot, now) {
+  shot.players = shot.players.filter((x) => x.ready)
+  shot.status = 'aim'
+  shot.readyEndsAt = 0
+  shot.aimEndsAt = now + SHOT.aimSeconds
 }
 
 /** Lock Shot, step 1 (signed message): the price, secret until the match starts. */
@@ -157,6 +182,14 @@ export const allAimsLocked = (shot) => Object.keys(shot.aims ?? {}).every((w) =>
 /** Aim end, idle rooms, missed resolution window. */
 export function shotTimers(shot, now) {
   if (shot.status === 'open' && shot.players.length === 0 && now - shot.lastJoinAt > SHOT.idleRoomSeconds) return cancelShot(shot, now, 'idleRoom')
+  if (shot.status === 'open' && shot.readyEndsAt && now >= shot.readyEndsAt) {
+    if (!hasMajority(shot)) {
+      shot.readyEndsAt = 0
+      return null
+    }
+    startAim(shot, now)
+    return shot.status
+  }
   // The match starts once the aim is over and either every aimed shot is
   // locked or the confirming window has passed.
   if (shot.status === 'aim' && now >= shot.aimEndsAt && (allAimsLocked(shot) || now >= shotStartsAt(shot))) {

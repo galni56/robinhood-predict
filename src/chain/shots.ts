@@ -22,6 +22,8 @@ export interface ServerShot {
   duration: number
   createdAt: number
   players: { wallet: string; ready: boolean; joinedAt: number }[]
+  /** Set while a ready majority waits for the others (0 = no countdown). */
+  readyEndsAt?: number
   aimEndsAt: number
   deadline: number
   resolvedAt: number
@@ -60,6 +62,8 @@ export interface Shot {
   duration: number
   createdAt: number
   players: { wallet: string; ready: boolean }[]
+  /** Set while a ready majority waits for the others (0 = no countdown). */
+  readyEndsAt?: number
   aimEndsAt: number
   deadline: number
   minStake: bigint
@@ -70,7 +74,7 @@ export interface Shot {
   winnerCount: number
 }
 
-export const SHOT_RULES = { minPlayers: 2, maxPlayers: 10, aimSeconds: 30, lockGrace: 15, durations: [60, 300, 900, 3600] }
+export const SHOT_RULES = { minPlayers: 2, maxPlayers: 10, readyCountdown: 15, aimSeconds: 30, lockGrace: 15, durations: [60, 300, 900, 3600] }
 /** A Price Shot stake: a transfer to the game wallet with this memo (the price was sent signed). */
 export const shotMemo = (id: number) => `prophet:shot:${id}:0`
 
@@ -89,6 +93,7 @@ export function shotFromServer(s: ServerShot): Shot {
     duration: s.duration,
     createdAt: s.createdAt,
     players: s.players.map((p) => ({ wallet: p.wallet, ready: p.ready })),
+    readyEndsAt: s.readyEndsAt ?? 0,
     aimEndsAt: s.aimEndsAt,
     deadline: s.deadline,
     minStake: BigInt(s.minStake),

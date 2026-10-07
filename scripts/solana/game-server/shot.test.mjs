@@ -18,19 +18,46 @@ function room(players, now = 100) {
   return shot
 }
 
-test('ready: more than half and at least two; the rest sit this match out', () => {
+test('ready: a majority starts a countdown; at its end the not-ready sit this match out', () => {
   const shot = room(['a', 'b', 'c', 'd'])
   readyShot(shot, 'a', true, 110)
   readyShot(shot, 'b', true, 110)
-  assert.equal(shot.status, 'open', 'two of four is only half')
-  readyShot(shot, 'b', false, 111)
-  readyShot(shot, 'b', true, 112)
+  assert.equal(shot.readyEndsAt, 0, 'two of four is only half: no countdown')
   readyShot(shot, 'c', true, 113)
+  assert.equal(shot.status, 'open')
+  assert.equal(shot.readyEndsAt, 113 + SHOT.readyCountdown, 'a majority: the others get a countdown')
+  readyShot(shot, 'b', false, 114)
+  assert.equal(shot.readyEndsAt, 0, 'the majority is lost: the countdown stops')
+  readyShot(shot, 'b', true, 115)
+  assert.equal(shot.readyEndsAt, 115 + SHOT.readyCountdown)
+  assert.equal(shotTimers(shot, 115 + SHOT.readyCountdown - 1), null)
+  shotTimers(shot, 115 + SHOT.readyCountdown)
   assert.equal(shot.status, 'aim')
   assert.deepEqual(shot.players.map((p) => p.wallet), ['a', 'b', 'c'])
-  assert.equal(shot.aimEndsAt, 113 + SHOT.aimSeconds)
-  throwsCode(() => joinShot(shot, 'e', 114), 'RoomClosed')
-  throwsCode(() => leaveShot(shot, 'a'), 'RoomClosed')
+  assert.equal(shot.aimEndsAt, 115 + SHOT.readyCountdown + SHOT.aimSeconds)
+  throwsCode(() => joinShot(shot, 'e', 140), 'RoomClosed')
+  throwsCode(() => leaveShot(shot, 'a', 140), 'RoomClosed')
+})
+
+test('everyone ready: the aim starts at once, countdown or not', () => {
+  const shot = room(['a', 'b', 'c'])
+  readyShot(shot, 'a', true, 110)
+  readyShot(shot, 'b', true, 111)
+  assert.equal(shot.status, 'open')
+  readyShot(shot, 'c', true, 112)
+  assert.equal(shot.status, 'aim')
+  assert.equal(shot.aimEndsAt, 112 + SHOT.aimSeconds)
+})
+
+test('a newcomer or a leaver changes the majority during the countdown', () => {
+  const shot = room(['a', 'b', 'c'])
+  readyShot(shot, 'a', true, 110)
+  readyShot(shot, 'b', true, 110)
+  assert.ok(shot.readyEndsAt > 0)
+  joinShot(shot, 'd', 111)
+  assert.equal(shot.readyEndsAt, 0, '2 of 4 is no majority')
+  leaveShot(shot, 'd', 112)
+  assert.equal(shot.readyEndsAt, 112 + SHOT.readyCountdown)
 })
 
 test('a lone ready player never starts a match', () => {
@@ -40,10 +67,9 @@ test('a lone ready player never starts a match', () => {
 })
 
 test('odd field: one more loser than winners; payouts weighted by accuracy', () => {
-  // Five in the room: the third ready player (3 of 5) starts the aim.
-  const shot = room(['a', 'b', 'c', 'd', 'e'])
+  const shot = room(['a', 'b', 'c'])
   for (const p of ['a', 'b', 'c']) readyShot(shot, p, true, 110)
-  assert.equal(shot.players.length, 3)
+  assert.equal(shot.status, 'aim')
   lock(shot, 'a', 1000n, SOL / 10n, 111)
   lock(shot, 'b', 1050n, SOL / 10n, 112)
   lock(shot, 'c', 2000n, SOL / 10n, 113)
@@ -79,7 +105,7 @@ test('a shot locked in the last second still counts; its stake has the grace to 
 
 test('an empty room closes after a while; a room with players stays', () => {
   const shot = room(['a'])
-  leaveShot(shot, 'a')
+  leaveShot(shot, 'a', 100)
   assert.equal(shotTimers(shot, 100 + SHOT.idleRoomSeconds), null)
   assert.equal(shotTimers(shot, 101 + SHOT.idleRoomSeconds), 'cancelled')
   const busy = room(['a'])
@@ -100,7 +126,7 @@ test('a stake without an aimed price, or out of the stake limits, is refused (an
 })
 
 test('an aimed shot whose stake has not arrived holds the start until the confirming window ends', () => {
-  const shot = room(['a', 'b', 'c', 'd', 'e'])
+  const shot = room(['a', 'b', 'c'])
   for (const p of ['a', 'b', 'c']) readyShot(shot, p, true, 110)
   lock(shot, 'a', 5n, SOL / 100n, 120)
   lock(shot, 'b', 6n, SOL / 100n, 121)
