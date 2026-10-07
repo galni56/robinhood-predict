@@ -15,7 +15,7 @@ const SECTIONS = [
   { id: 'notation', label: '3. Notation' },
   { id: 'duels', label: '4. Coin Duels' },
   { id: 'duel-math', label: '5. Duel settlement' },
-  { id: 'arena', label: '6. Price Arena' },
+  { id: 'arena', label: '6. Price Shot' },
   { id: 'arena-math', label: '7. Arena ranking' },
   { id: 'prices', label: '8. Prices & settlement' },
   { id: 'trust', label: '9. Custody & trust' },
@@ -67,7 +67,7 @@ export function WhitepaperPage() {
             <ModeCard title="Duels" accent="text-[#B8860B]" link="/onchain/races">
               Bring a coin, match the stake, press READY. Biggest % gain wins. Spectators back a racer.
             </ModeCard>
-            <ModeCard title="Arena" accent="text-[#1F7FD1]" link="/onchain/arenas">
+            <ModeCard title="Arena" accent="text-[#1F7FD1]" link="/onchain/shots">
               Call the final price. The closest half share the losing half&apos;s stakes, weighted by accuracy.
             </ModeCard>
           </div>
@@ -139,18 +139,24 @@ export function WhitepaperPage() {
           <p><strong>Void.</strong> A top tie, or no valid start price within 5 minutes (end price within 10 minutes), refunds every racer and spectator in full.</p>
         </Section>
 
-        <Section id="arena" title="6. Price Arena · closest call wins">
+        <Section id="arena" title="6. Price Shot · closest call wins">
           <ol className="list-decimal space-y-2 pl-5">
-            <li>Any player opens an arena for one coin and a length of 1, 5, 15 or 60 minutes. A 10-minute lobby follows; the round starts when it ends.</li>
-            <li>2–10 players enter with a prediction and a stake. In the lobby a player may change the prediction or add stake, never withdraw.</li>
-            <li>Meme arenas can be called in market cap; the site converts it to price (cap ÷ supply), so the result is the same.</li>
-            <li>Predictions are hidden in the interface during the lobby. They travel in a public memo, so this is display privacy, not secrecy.</li>
+            <li><strong>Room.</strong> Any player opens a room for one coin and a match length of 1, 5, 15 or 60 minutes; up to 10 players join it for free.</li>
+            <li><strong>Ready.</strong> Players press Ready. Once more than half of the room, and at least two, are ready, the ready players go on; the rest sit this match out.</li>
+            <li><strong>Aim (30 seconds).</strong> Each player sets the price they expect at the end with a crosshair on the chart, picks a stake and presses Lock Shot. The stake is taken from the player&apos;s game balance at once. Fewer than two locked shots cancel the match and every stake returns to its balance.</li>
+            <li><strong>Live.</strong> Shots are fixed and become visible to everyone; each player sees the current price, every shot and a provisional place until the final bell.</li>
+            <li><strong>Result.</strong> The final price is the signed pool price at the deadline. Winnings land on the game balance automatically; no claim is needed.</li>
           </ol>
+          <p>
+            Shots travel in signed messages to the game server, not in public transactions, so they stay secret until the match starts.
+            Meme rooms can be called in market cap; the site converts it to price (cap ÷ supply), so the result is the same.
+            The game balance is topped up with a transfer to the game wallet and can be withdrawn to the player&apos;s account at any time.
+          </p>
         </Section>
 
         <Section id="arena-math" title="7. Arena ranking and payouts">
           <Formula>eⱼ = |predictionⱼ − P₁|,   ranked ascending;   k = ⌊n ÷ 2⌋ winners</Formula>
-          <p>On equal error, the earlier prediction ranks higher; adding stake keeps the time, changing the prediction resets it. The k-th winner&apos;s error is the cutoff e꜀.</p>
+          <p>On equal error, the earlier shot ranks higher. The k-th winner&apos;s error is the cutoff e꜀.</p>
           <Formula>multiplier mⱼ = 1 + 2 × (e꜀ − eⱼ) ÷ e꜀   ∈ [1, 3]</Formula>
           <Formula>score σⱼ = stakeⱼ × mⱼ</Formula>
           <Formula>L = Σ losing stakes;   payoutⱼ = stakeⱼ + (σⱼ ÷ Σσ) × L × (1 − f)</Formula>

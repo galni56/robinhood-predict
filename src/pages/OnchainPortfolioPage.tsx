@@ -179,7 +179,7 @@ export function OnchainPortfolioPage() {
                 <p className="py-6 text-sm text-[#C2245A]">Could not read your positions.</p>
               ) : !isLoading && inPlay.length === 0 ? (
                 <p className="py-6 text-sm text-[#1B1340]/55">
-                  No open games. <Link to="/onchain/races" className="font-bold text-[#B8860B] hover:underline">Find a race</Link> or <Link to="/onchain/arenas" className="font-bold text-[#1F7FD1] hover:underline">join an arena</Link>.
+                  No open games. <Link to="/onchain/races" className="font-bold text-[#B8860B] hover:underline">Find a race</Link> or <Link to="/onchain/shots" className="font-bold text-[#1F7FD1] hover:underline">join an arena</Link>.
                 </p>
               ) : isLoading && inPlay.length === 0 ? (
                 <p className="py-6 text-sm text-[#1B1340]/55">Loading your games…</p>

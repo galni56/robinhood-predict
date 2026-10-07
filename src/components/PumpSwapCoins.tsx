@@ -95,7 +95,7 @@ export function PumpSwapCoins({ limit, feed = false }: { limit?: number; feed?: 
                     <td style={{ ...cell, textAlign: 'right' }}>
                       <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                         <Link to="/onchain/races" className="rx-btn rx-btn-yellow" style={{ padding: '6px 10px', fontSize: 13, fontWeight: 700, margin: '4px 4px 10px' }}>Race</Link>
-                        <Link to="/onchain/arenas/create?mode=memes" className="rx-btn rx-btn-pink" style={{ padding: '6px 10px', fontSize: 13, fontWeight: 700, margin: '4px 4px 10px' }}>Arena</Link>
+                        <Link to={`/onchain/shots?asset=${encodeURIComponent(asset.symbol)}`} className="rx-btn rx-btn-pink" style={{ padding: '6px 10px', fontSize: 13, fontWeight: 700, margin: '4px 4px 10px' }}>Arena</Link>
                         {asset.priceUrl && <a href={asset.priceUrl} target="_blank" rel="noreferrer" style={{ padding: '0 6px', fontSize: 14, fontWeight: 700 }}>Chart ↗</a>}
                       </div>
                     </td>

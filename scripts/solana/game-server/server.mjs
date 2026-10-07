@@ -11,7 +11,7 @@
 //   GET  /state               every race and arena with its payouts
 //   GET  /games/<kind>/<id>   one game
 //   GET  /history             activity, wallet totals, leaderboards
-//   GET  /wallet/<address>    one wallet's stakes and payouts
+//   GET  /wallet/<address>    one wallet's stakes, payouts and game balance
 //   GET  /nicknames           wallet -> nickname
 //   POST /deposit {signature} apply a stake right after it confirmed
 //   POST /cheer   {duel, seat}  a free cheer for a duel racer (rate-limited)
@@ -246,10 +246,11 @@ const server = createServer(async (req, res) => {
             races: all.filter((g) => g.kind === 'race').map((g) => gameView(db, g)),
             arenas: all.filter((g) => g.kind === 'arena').map((g) => gameView(db, g)),
             duels: all.filter((g) => g.kind === 'duel').map((g) => gameView(db, g)),
+            shots: all.filter((g) => g.kind === 'shot').map((g) => gameView(db, g)),
           }
         }))
       }
-      const game = /^\/games\/(race|arena|duel)\/(\d+)$/.exec(path)
+      const game = /^\/games\/(race|arena|duel|shot)\/(\d+)$/.exec(path)
       if (game) {
         const state = db.getGame(game[1], Number(game[2]))
         return state ? send(req, res, 200, gameView(db, state)) : send(req, res, 404, { error: 'GameNotFound' })

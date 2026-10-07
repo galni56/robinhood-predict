@@ -532,3 +532,81 @@ test('duel lobbies: spare empty lobbies are closed after a while, and empty ones
   assert.equal(open().length, 4, 'the spare lobbies were closed')
   assert.ok(created.every((id) => db.getGame('duel', id).status === 'cancelled'))
 })
+
+test('price shot: balance top-up, ready, hidden locked shots, settlement into balances, withdrawal', async () => {
+  const t0 = 10_000
+  const aimEnd = t0 + 100 + 30
+  const { clock, chain, db, engine } = setup({ [aimEnd + 60]: { 'pool-SOL': 1_000n } }, { adoptWallet: true })
+  await engine.init()
+  const [alice, bob, carol] = [wallet(), wallet(), wallet()]
+  for (const p of [alice, bob, carol]) chain.deposit(p.address, SOL / 10n, 'prophet:balance:0:0', t0)
+  clock.t = t0 + 1
+  await engine.tick()
+  assert.equal(db.balance(alice.address), SOL / 10n, 'a balance top-up is credited, not refunded')
+
+  const room = engine.act(alice.signed(clock, { action: 'shot-create', asset: 'SOL', duration: 60 }))
+  engine.act(bob.signed(clock, { action: 'shot-join', shot: room.id }))
+  engine.act(carol.signed(clock, { action: 'shot-join', shot: room.id }))
+  clock.t = t0 + 100
+  engine.act(alice.signed(clock, { action: 'shot-ready', shot: room.id }))
+  assert.equal(db.getGame('shot', room.id).status, 'open', 'one of three ready is not more than half')
+  engine.act(bob.signed(clock, { action: 'shot-ready', shot: room.id }))
+  const aim = db.getGame('shot', room.id)
+  assert.equal(aim.status, 'aim')
+  assert.deepEqual(aim.players.map((p) => p.wallet), [alice.address, bob.address], 'only the ready players go on')
+
+  assert.throws(() => engine.act(carol.signed(clock, { action: 'shot-lock', shot: room.id, prediction: '990', stake: String(SOL / 20n) })), /NotInMatch/)
+  assert.throws(() => engine.act(alice.signed(clock, { action: 'shot-lock', shot: room.id, prediction: '1000', stake: String(SOL) })), /InsufficientBalance|InvalidStake/)
+  assert.equal(db.balance(alice.address), SOL / 10n, 'a refused shot takes nothing')
+  engine.act(alice.signed(clock, { action: 'shot-lock', shot: room.id, prediction: '1000', stake: String(SOL / 20n) }))
+  engine.act(bob.signed(clock, { action: 'shot-lock', shot: room.id, prediction: '1100', stake: String(SOL / 20n) }))
+  assert.throws(() => engine.act(bob.signed(clock, { action: 'shot-lock', shot: room.id, prediction: '1001', stake: String(SOL / 20n) })), /AlreadyLocked/)
+  assert.equal(db.balance(bob.address), SOL / 20n)
+  const { gameView } = await import('./views.mjs')
+  assert.ok(gameView(db, db.getGame('shot', room.id)).entries.every((e) => e.prediction === '0'), 'shots stay hidden during aim')
+  assert.equal(engine.liabilities(), 3n * SOL / 10n, 'balances plus the stakes in the room')
+
+  clock.t = aimEnd
+  await engine.tick()
+  assert.equal(db.getGame('shot', room.id).status, 'live')
+  assert.equal(gameView(db, db.getGame('shot', room.id)).entries[0].prediction, '1000', 'shots are public once live')
+  clock.t = aimEnd + 60 + 3
+  await engine.tick()
+  const done = db.getGame('shot', room.id)
+  assert.equal(done.status, 'resolved')
+  // Alice exact: stake back + bob's stake minus 2%; the creator half of the fee is hers too.
+  assert.equal(db.balance(alice.address), SOL / 20n + (SOL / 20n + (SOL / 20n) * 98n / 100n) + (SOL / 20n) / 100n)
+  assert.equal(db.balance(bob.address), SOL / 20n)
+  assert.equal(db.unsweptFees(), (SOL / 20n) / 100n, 'Prophet keeps the other half of the fee')
+
+  engine.act(bob.signed(clock, { action: 'balance-withdraw', amount: String(SOL / 20n) }))
+  assert.equal(db.balance(bob.address), 0n)
+  const withdrawal = db.payouts('pending').find((p) => p.kind === 'withdraw')
+  assert.equal(BigInt(withdrawal.amount), SOL / 20n - 5_000n, 'the network fee comes out of the withdrawal')
+  assert.throws(() => engine.act(bob.signed(clock, { action: 'balance-withdraw', amount: String(SOL / 20n) })), /InsufficientBalance/)
+})
+
+test('price shot: too few shots by the end of aim cancels and refunds into balances', async () => {
+  const t0 = 10_000
+  const { clock, chain, db, engine } = setup({}, { adoptWallet: true })
+  await engine.init()
+  const [alice, bob] = [wallet(), wallet()]
+  for (const p of [alice, bob]) chain.deposit(p.address, SOL / 10n, 'prophet:balance:0:0', t0)
+  clock.t = t0 + 1
+  await engine.tick()
+  const room = engine.act(alice.signed(clock, { action: 'shot-create', asset: 'BTC', duration: 60 }))
+  engine.act(bob.signed(clock, { action: 'shot-join', shot: room.id }))
+  engine.act(alice.signed(clock, { action: 'shot-ready', shot: room.id }))
+  engine.act(bob.signed(clock, { action: 'shot-ready', shot: room.id }))
+  engine.act(alice.signed(clock, { action: 'shot-lock', shot: room.id, prediction: '500', stake: String(SOL / 20n) }))
+  assert.equal(db.balance(alice.address), SOL / 20n)
+  clock.t += 31
+  await engine.tick()
+  const shot = db.getGame('shot', room.id)
+  assert.equal(shot.status, 'cancelled')
+  assert.equal(shot.cancelReason, 'notEnoughShots')
+  assert.equal(db.balance(alice.address), SOL / 10n, 'the stake is back on the balance')
+  await engine.tick()
+  assert.equal(db.balance(alice.address), SOL / 10n, 'credited once')
+  assert.equal(db.unsweptFees(), 0n)
+})
