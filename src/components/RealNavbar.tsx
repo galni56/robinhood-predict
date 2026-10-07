@@ -13,7 +13,7 @@ import { CREAM, INK, PINK, PIXEL } from '@/retro/scene'
 
 const LINKS = [
   { to: '/onchain/races', label: 'Races' },
-  { to: '/onchain/arenas', label: 'Arena' },
+  { to: '/onchain/shots', label: 'Arena' },
   { to: '/onchain/pumpswap', label: 'PumpSwap' },
   { to: '/onchain/launch', label: 'Launch' },
   { to: '/?section=how', label: 'How to play' },

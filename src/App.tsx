@@ -24,6 +24,8 @@ const OnchainDuelsListPage = lazy(() => import('@/pages/OnchainDuelsListPage').t
 const OnchainDuelPage = lazy(() => import('@/pages/OnchainDuelPage').then((m) => ({ default: m.OnchainDuelPage })))
 const OnchainCreateArenaPage = lazy(() => import('@/pages/OnchainCreateArenaPage').then((m) => ({ default: m.OnchainCreateArenaPage })))
 const OnchainArenaPage = lazy(() => import('@/pages/OnchainArenaPage').then((m) => ({ default: m.OnchainArenaPage })))
+const OnchainShotsListPage = lazy(() => import('@/pages/OnchainShotsListPage').then((m) => ({ default: m.OnchainShotsListPage })))
+const OnchainShotPage = lazy(() => import('@/pages/OnchainShotPage').then((m) => ({ default: m.OnchainShotPage })))
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage').then((m) => ({ default: m.NotFoundPage })))
 
 export default function App() {
@@ -56,6 +58,8 @@ export default function App() {
               <Route path="launch" element={<OnchainLaunchPage />} />
               <Route path="arenas/create" element={<OnchainCreateArenaPage />} />
               <Route path="arenas/:arenaId" element={<OnchainArenaPage />} />
+              <Route path="shots" element={<OnchainShotsListPage />} />
+              <Route path="shot/:shotId" element={<OnchainShotPage />} />
             </Route>
             <Route path="*" element={<NotFoundPage />} />
           </Routes>

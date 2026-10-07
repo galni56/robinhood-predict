@@ -187,7 +187,7 @@ export function OnchainLandingPage() {
                 <p style={{ margin: 0, fontSize: 20, lineHeight: 1.4, fontWeight: 500, textWrap: 'pretty' }}>
                   One coin, one round. Every player calls its final price - the closest calls take the bank.
                 </p>
-                <Link to="/onchain/arenas" className="rx-btn rx-btn-pink" style={{ minHeight: 56, padding: '0 28px', fontFamily: PIXEL, fontSize: 16 }}>
+                <Link to="/onchain/shots" className="rx-btn rx-btn-pink" style={{ minHeight: 56, padding: '0 28px', fontFamily: PIXEL, fontSize: 16 }}>
                   INTO THE FIGHT
                 </Link>
               </div>
