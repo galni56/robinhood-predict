@@ -27,7 +27,7 @@ import { BP_DENOMINATOR, CREATOR_FEE_SHARE_BP, RuleError, STAKE, mulDiv, settleP
 export const SHOT = {
   minPlayers: 2,
   maxPlayers: 10,
-  aimSeconds: 30,
+  aimSeconds: 60,
   /** Once a majority is ready, the others get this long to join in. */
   readyCountdown: 15,
   /** After the aim, the stakes of shots locked in time get this long to confirm. */

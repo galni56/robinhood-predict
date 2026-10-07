@@ -37,7 +37,7 @@ const STEPS = [
 const NUMBERS = [
   { big: '2-10', label: 'players per room', sprite: coinOrangeGrin },
   { big: '0.005-1', label: 'SOL stake, your choice', sprite: coinBlueGrin },
-  { big: '30 sec', label: 'to aim and lock', sprite: coinPinkGrin },
+  { big: '1 min', label: 'to aim and lock', sprite: coinPinkGrin },
   { big: '2%', label: 'only from winnings', sprite: coinPurpleGrin },
 ]
 

@@ -1,10 +1,9 @@
 import { Link } from 'react-router-dom'
 import { SoundToggle } from '@/components/SoundToggle'
-import { CREAM, INK, PINK } from '@/retro/scene'
+import { CREAM, INK } from '@/retro/scene'
 import { X_URL } from '@/lib/social'
 
-// The mock's footer: ink band, 18+ square, responsibility line and the
-// underlined link row.
+// The mock's footer: ink band, responsibility line and the underlined link row.
 
 export function Footer() {
   const linkStyle = {
@@ -21,22 +20,6 @@ export function Footer() {
     <footer style={{ background: INK, color: CREAM, padding: '32px clamp(16px, 4vw, 64px)', fontFamily: "'HasteFun Digits', 'Pixelify Sans', 'Courier New', monospace" }}>
       <div style={{ maxWidth: 1200, margin: '0 auto', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '16px 40px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <span
-            style={{
-              flex: 'none',
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: 56,
-              height: 56,
-              fontFamily: "'Press Start 2P', 'Courier New', monospace",
-              fontSize: 14,
-              color: INK,
-              background: PINK,
-            }}
-          >
-            18+
-          </span>
           <p style={{ margin: 0, maxWidth: 420, fontSize: 20, lineHeight: 1.35, fontWeight: 500 }}>
             Playing with money carries risk. Play responsibly.
           </p>
