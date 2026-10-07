@@ -44,6 +44,7 @@ export function Footer() {
           </p>
         </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 28px', fontSize: 20, fontWeight: 600 }}>
+          <Link to="/whitepaper" style={linkStyle}>Whitepaper</Link>
           <Link to="/terms" style={linkStyle}>Rules</Link>
           {X_URL && <a href={X_URL} target="_blank" rel="noreferrer" style={linkStyle}>X / Twitter</a>}
           <button

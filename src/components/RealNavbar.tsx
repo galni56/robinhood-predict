@@ -23,6 +23,8 @@ const MORE = [
   { to: '/onchain/portfolio', label: 'Portfolio' },
   { to: '/onchain/leaderboard', label: 'Leaderboard' },
   { to: '/onchain/archive', label: 'Archive' },
+  { to: '/whitepaper', label: 'Whitepaper' },
+  { to: '/roadmap', label: 'Roadmap' },
 ]
 
 
