@@ -11,7 +11,7 @@
 //   GET  /state               every race and arena with its payouts
 //   GET  /games/<kind>/<id>   one game
 //   GET  /history             activity, wallet totals, leaderboards
-//   GET  /wallet/<address>    one wallet's stakes, payouts and game balance
+//   GET  /wallet/<address>    one wallet's stakes and payouts
 //   GET  /nicknames           wallet -> nickname
 //   POST /deposit {signature} apply a stake right after it confirmed
 //   POST /cheer   {duel, seat}  a free cheer for a duel racer (rate-limited)

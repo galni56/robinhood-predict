@@ -6,9 +6,11 @@ import { useSignedAction } from '@/chain/gameServer'
 import { useLivePrices } from '@/chain/livePrices'
 import { useServerNowMs } from '@/chain/serverClock'
 import { quoteUsdCents } from '@/chain/stakeQuote'
-import { CANCEL_REASON, SHOT_RULES, provisionalOrder, shotPhaseLabel, useGameBalance, useShot, type Shot, type ShotEntry } from '@/chain/shots'
+import { CANCEL_REASON, SHOT_RULES, provisionalOrder, shotMemo, shotPhaseLabel, useShot, type Shot, type ShotEntry } from '@/chain/shots'
 import { AddressLabel } from '@/components/AddressLabel'
-import { GameBalancePanel } from '@/components/GameBalancePanel'
+import { useStakeTransfer } from '@/solana/stake'
+import { useStakeBalance } from '@/solana/stakeTokens'
+import { stakeQuoteErrorMessage } from '@/chain/stakeQuote'
 import { ShotChart, formatChartValue, type ChartLine } from '@/components/ShotChart'
 import { usePlatformLogin } from '@/components/WalletAccountModals'
 import { prophetWalletStore } from '@/solana/prophetWallet'
@@ -21,8 +23,9 @@ import { CREAM, INK, PINK, PIXEL, YELLOW } from '@/retro/scene'
 import { InviteButton } from '@/components/InviteButton'
 
 // Price Shot room: Ready -> Aim (30 s, crosshair + stake, Lock Shot) -> Live
-// (everyone's shots, provisional places) -> Results. Stakes come from the game
-// balance and winnings go back to it.
+// (everyone's shots, provisional places) -> Results. The price goes to the
+// server signed (secret until the match starts), the stake is one transfer,
+// and winnings are paid to the wallet.
 
 const NIGHT = '#4B37B0'
 const sol = (raw: bigint) => `${Number(Number(formatUnits(raw, 9)).toPrecision(4))} SOL`
@@ -70,7 +73,7 @@ export function OnchainShotPage() {
     setBusy(name)
     try {
       await act(fields)
-      await Promise.all([refetch(), queryClient.invalidateQueries({ queryKey: ['game-balance'] }), queryClient.invalidateQueries({ queryKey: ['game-state'] })])
+      await Promise.all([refetch(), queryClient.invalidateQueries({ queryKey: ['game-state'] })])
     } catch (cause) {
       setError(shortTxError(cause, 'shot'))
     } finally {
@@ -94,18 +97,17 @@ export function OnchainShotPage() {
             <div style={{ marginTop: 20, display: 'grid', gap: 20, gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 420px), 1fr))', alignItems: 'start' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
                 {shot.status === 'open' && <ReadyPanel shot={shot} me={me} busy={busy} run={run} onLogin={login.start} />}
-                {shot.status === 'aim' && <AimPanel shot={shot} me={me} now={now} busy={busy} run={run} livePrice={livePrice} unit={unit} supply={supply} solUsd={live.solUsd} />}
+                {shot.status === 'aim' && <AimPanel shot={shot} me={me} now={now} busy={busy} livePrice={livePrice} unit={unit} supply={supply} solUsd={live.solUsd} />}
                 {(shot.status === 'live' || shot.status === 'resolved') && <MatchPanel shot={shot} me={me} now={now} livePrice={livePrice} unit={unit} supply={supply} />}
                 {shot.status === 'cancelled' && (
                   <div className="rx-raised" style={{ padding: 20, background: CREAM, color: INK }}>
                     <span style={label}>MATCH CANCELLED</span>
-                    <p style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>{CANCEL_REASON[shot.cancelReason] ?? 'The match did not happen.'} Every stake is back on its player&apos;s game balance.</p>
+                    <p style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>{CANCEL_REASON[shot.cancelReason] ?? 'The match did not happen.'} Every stake is sent back to its player.</p>
                   </div>
                 )}
                 {error && <p className="rx-plate" style={{ margin: 0, padding: '10px 14px', background: PINK, color: CREAM, fontWeight: 700 }}>{error}</p>}
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
-                {me && <GameBalancePanel />}
                 <PlayersPanel shot={shot} me={me} />
               </div>
             </div>
@@ -166,13 +168,17 @@ function ReadyPanel({ shot, me, busy, run, onLogin }: { shot: Shot; me?: string;
   )
 }
 
-function AimPanel({ shot, me, now, busy, run, livePrice, unit, supply, solUsd }: {
-  shot: Shot; me?: string; now: number; busy: string | null; run: (name: string, fields: Record<string, unknown>) => Promise<void>
+function AimPanel({ shot, me, now, busy, livePrice, unit, supply, solUsd }: {
+  shot: Shot; me?: string; now: number; busy: string | null
   livePrice: number | null; unit: 'price' | 'cap'; supply: number | null; solUsd: Parameters<typeof quoteUsdCents>[1] | undefined
 }) {
   const inMatch = !!me && shot.players.some((p) => p.wallet === me)
   const locked = !!me && shot.entries.some((e) => e.player === me)
-  const balance = useGameBalance(me)
+  const balance = useStakeBalance()
+  const act = useSignedAction()
+  const stake = useStakeTransfer()
+  const [locking, setLocking] = useState<string | null>(null)
+  const [lockError, setLockError] = useState<string | null>(null)
   const [aim, setAim] = useState<number | null>(null)
   const [text, setText] = useState('')
   const [cents, setCents] = useState(500n)
@@ -191,14 +197,28 @@ function AimPanel({ shot, me, now, busy, run, livePrice, unit, supply, solUsd }:
   }
   const tooLow = lamports != null && lamports < shot.minStake
   const tooHigh = lamports != null && lamports > shot.maxStake
-  const short = lamports != null && balance.data != null && lamports > balance.data.balance
+  // The stake plus room for the network fee.
+  const short = lamports != null && balance.data != null && lamports + 20_000n > balance.data
   const own = me ? recallShot(shot.id, me) : null
 
+  // Lock Shot: the price goes signed to the server (secret until the match
+  // starts), then the stake is a transfer with the room's memo, like a duel.
   async function lock() {
     if (!me || aim == null || lamports == null) return
-    const raw = BigInt(Math.round(aim * 10 ** shot.priceDecimals))
-    await run('lock', { action: 'shot-lock', shot: shot.id, prediction: raw.toString(), stake: lamports.toString() })
-    rememberShot(shot.id, me, aim)
+    setLockError(null)
+    try {
+      setLocking('Aiming…')
+      const raw = BigInt(Math.round(aim * 10 ** shot.priceDecimals))
+      await act({ action: 'shot-aim', shot: shot.id, prediction: raw.toString() })
+      rememberShot(shot.id, me, aim)
+      const note = await stake(lamports, shotMemo(shot.id), (phase) => setLocking(phase === 'signing' ? 'Sending stake…' : phase === 'confirming' ? 'Confirming…' : 'Locking…'))
+      if (note) setLockError(note)
+      void balance.refetch()
+    } catch (cause) {
+      setLockError(stakeQuoteErrorMessage(cause) ?? shortTxError(cause, 'shot-lock'))
+    } finally {
+      setLocking(null)
+    }
   }
 
   const lines: ChartLine[] = own != null ? [{ price: own, label: 'YOUR SHOT', mine: true }] : []
@@ -231,8 +251,9 @@ function AimPanel({ shot, me, now, busy, run, livePrice, unit, supply, solUsd }:
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
               {STAKE_PRESETS.map((c) => <button key={String(c)} type="button" onClick={() => setCents(c)} className={`rx-btn ${cents === c ? 'rx-btn-yellow' : 'rx-btn-white'}`} style={{ padding: '8px 12px', fontWeight: 700 }}>{usd(c)}</button>)}
             </div>
-            <span style={{ fontSize: 15, opacity: 0.75 }}>{lamports != null ? `${sol(lamports)} from your game balance` : 'Waiting for the SOL price…'}{short ? ' - not enough, add SOL first' : tooLow ? ' - below the minimum' : tooHigh ? ' - above the maximum' : ''}</span>
-            <button type="button" disabled={!!busy || aim == null || lamports == null || short || tooLow || tooHigh} onClick={lock} className="rx-btn rx-btn-pink" style={{ minHeight: 60, fontFamily: PIXEL, fontSize: 15, color: CREAM }}>{busy === 'lock' ? 'LOCKING…' : 'LOCK SHOT'}</button>
+            <span style={{ fontSize: 15, opacity: 0.75 }}>{lamports != null ? `${sol(lamports)} from your account` : 'Waiting for the SOL price…'}{short ? ' - not enough SOL, top up first' : tooLow ? ' - below the minimum' : tooHigh ? ' - above the maximum' : ''}</span>
+            <button type="button" disabled={!!busy || !!locking || aim == null || lamports == null || short || tooLow || tooHigh} onClick={lock} className="rx-btn rx-btn-pink" style={{ minHeight: 60, fontFamily: PIXEL, fontSize: 15, color: CREAM }}>{locking ? locking.toUpperCase() : 'LOCK SHOT'}</button>
+            {lockError && <span style={{ fontWeight: 700, color: '#C2245A' }}>{lockError}</span>}
           </>
         )}
       </div>
@@ -285,8 +306,6 @@ function MatchPanel({ shot, me, now, livePrice, unit, supply }: { shot: Shot; me
 }
 
 function ResultCard({ shot, entry, place, unit, supply }: { shot: Shot; entry: ShotEntry; place: number; unit: 'price' | 'cap'; supply: number | null }) {
-  const me = entry.player
-  const balance = useGameBalance(me)
   const final = valueOf(shot, shot.finalPrice)
   const call = valueOf(shot, entry.prediction)
   const won = entry.payout > 0n
@@ -299,7 +318,6 @@ function ResultCard({ shot, entry, place, unit, supply }: { shot: Shot; entry: S
         <Stat name="Off by" value={`${((Math.abs(call - final) / final) * 100).toFixed(2)}%`} />
         <Stat name="Place" value={`${place} of ${shot.entries.length}`} />
         <Stat name="Payout" value={won ? `+${sol(entry.payout)}` : '0'} />
-        <Stat name="Game balance" value={balance.data ? sol(balance.data.balance) : '…'} />
       </div>
     </div>
   )

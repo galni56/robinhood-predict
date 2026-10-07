@@ -6,15 +6,15 @@
 // - open:  players join the room (free) and press Ready. Once more than half
 //          of them, and at least two, are ready, the ready players go on to
 //          the aim phase; the others are left out of this match.
-// - aim:   AIM_SECONDS to set a price and a stake and press Lock Shot. The
-//          stake comes out of the player's game balance at once. Predictions
-//          stay hidden from the others until the match starts.
+// - aim:   AIM_SECONDS to lock a shot. Lock Shot is two steps: the price goes
+//          to the server in a signed message (aimShot, kept secret until the
+//          match starts), then the stake is a transfer to the game wallet
+//          with memo prophet:shot:<id>:0 (lockShot, like a duel stake). A
+//          transfer confirmed after the aim ended, or without an aimed price,
+//          is refunded.
 // - live:  from the end of aim to the deadline; nothing can change.
 // - resolved / cancelled: the closest half wins (settlePredictions, the same
-//          math as Price Arena). Payouts and refunds go back to game balances.
-//
-// Money: a stake moves from the player's balance into the room
-// (remainingLiability); settlement or cancellation moves it back out.
+//          math as Price Arena). Winnings and refunds are paid to wallets.
 
 import { unitForGroup, duelGroup } from './duel.mjs'
 import { BP_DENOMINATOR, CREATOR_FEE_SHARE_BP, RuleError, STAKE, mulDiv, settlePredictions, validateTitle } from './rules.mjs'
@@ -29,6 +29,8 @@ export const SHOT = {
   maxPriceStaleness: 60,
   /** No result this long after the deadline cancels the match with refunds. */
   resolutionGrace: 60 * 60,
+  /** Longest wait past the aim for the deposit scan before the match starts anyway. */
+  startGrace: 5 * 60,
   /** A room nobody has joined for this long closes (it holds no money). */
   idleRoomSeconds: 30 * 60,
 }
@@ -64,6 +66,8 @@ export function createShot(id, input, asset, now) {
     feeBp: SHOT.feeBp,
     minStake: STAKE.min,
     maxStake: STAKE.max,
+    /** Aimed prices not yet backed by a stake: wallet -> prediction. */
+    aims: {},
     entries: [],
     nextPredictionSeq: 0,
     totalPool: 0n,
@@ -107,14 +111,25 @@ export function readyShot(shot, wallet, ready, now) {
   }
 }
 
-/** Lock Shot: the prediction and the stake (already taken from the balance). */
-export function lockShot(shot, { wallet, prediction, stake }, now) {
+/** Lock Shot, step 1 (signed message): the price, secret until the match starts. */
+export function aimShot(shot, { wallet, prediction }, now) {
   require(shot.status === 'aim' && now < shot.aimEndsAt, 'AimClosed')
   require(player(shot, wallet), 'NotInMatch')
   require(!shot.entries.some((e) => e.player === wallet), 'AlreadyLocked')
   require(typeof prediction === 'bigint' && prediction > 0n, 'InvalidPrediction')
+  shot.aims = { ...(shot.aims ?? {}), [wallet]: prediction }
+}
+
+/** Lock Shot, step 2: the stake transfer, confirmed at block time `time`. */
+export function lockShot(shot, { wallet, amount, time }) {
+  require(shot.status === 'aim' && time < shot.aimEndsAt, 'AimClosed')
+  require(player(shot, wallet), 'NotInMatch')
+  require(!shot.entries.some((e) => e.player === wallet), 'AlreadyLocked')
+  const prediction = shot.aims?.[wallet]
+  require(typeof prediction === 'bigint' && prediction > 0n, 'NoAimedPrice')
+  const stake = amount
   require(typeof stake === 'bigint' && stake >= shot.minStake && stake <= shot.maxStake, 'InvalidStake')
-  shot.entries.push({ player: wallet, prediction, stake, lockedAt: now, predictionSeq: shot.nextPredictionSeq++, payout: 0n, rank: 0, accuracyMultiplierBp: 0 })
+  shot.entries.push({ player: wallet, prediction, stake, lockedAt: time, predictionSeq: shot.nextPredictionSeq++, payout: 0n, rank: 0, accuracyMultiplierBp: 0 })
   shot.totalPool += stake
   shot.remainingLiability += stake
 }
@@ -156,17 +171,13 @@ export function resolveShot(shot, { price, prevSlot, prevBlockTime }, now) {
   shot.finalPriceTime = prevBlockTime
   shot.creatorFee = creatorFee
   shot.protocolFee = shot.totalPool - payoutTotal - creatorFee
-  shot.remainingLiability = 0n
+  shot.remainingLiability = payoutTotal
   return shot.status
 }
 
-/** What goes back to game balances once the match is final. */
-export function shotCredits(shot) {
-  if (shot.status === 'resolved') {
-    const out = shot.entries.filter((e) => e.payout > 0n).map((e) => ({ wallet: e.player, amount: e.payout, reason: 'win' }))
-    if (shot.creatorFee > 0n) out.push({ wallet: shot.creator, amount: shot.creatorFee, reason: 'creator' })
-    return out
-  }
+/** What every wallet is paid once the match is final (the creator's fee is paid like an arena's). */
+export function shotSettlements(shot) {
+  if (shot.status === 'resolved') return shot.entries.filter((e) => e.payout > 0n).map((e) => ({ wallet: e.player, amount: e.payout, reason: 'win' }))
   if (shot.status === 'cancelled') return shot.entries.map((e) => ({ wallet: e.player, amount: e.stake, reason: 'refund' }))
   return []
 }

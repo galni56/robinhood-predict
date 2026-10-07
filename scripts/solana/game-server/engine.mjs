@@ -45,9 +45,9 @@ import {
   resolveRace,
   startRace,
 } from './rules.mjs'
-import { BASE_FEE, fromBase58, isAddress } from './chain.mjs'
+import { fromBase58, isAddress } from './chain.mjs'
 import { DUEL, backDuel, createDuel, duelNeedsResolve, duelNeedsStart, duelSettlements, duelTimers, joinDuel, leaveDuel, payDuel, prepareDuel, readyDuel, resolveDuel, startDuel } from './duel.mjs'
-import { SHOT, createShot, joinShot, leaveShot, lockShot, readyShot, resolveShot, shotCredits, shotNeedsResolve, shotTimers } from './shot.mjs'
+import { SHOT, aimShot, createShot, joinShot, leaveShot, lockShot, readyShot, resolveShot, shotNeedsResolve, shotSettlements, shotTimers } from './shot.mjs'
 import { FINAL_STATUSES } from './db.mjs'
 import { createPayouts } from './payouts.mjs'
 import { createDeposits } from './deposits.mjs'
@@ -145,14 +145,11 @@ export function createEngine({ db, chain, prices, assets, cluster, coldWallet = 
 
   /** Applies a parsed stake memo to its game (throws RuleError to refuse). */
   function applyStake(memo, stake) {
-    if (memo.kind === 'balance') {
-      db.moveBalance({ ref: `deposit:${stake.signature}`, wallet: stake.wallet, kind: 'deposit', delta: stake.amount })
-      return
-    }
     const game = db.getGame(memo.kind, memo.id)
     if (!game) throw new RuleError('GameNotFound')
     if (memo.kind === 'race') placeBet(game, { ...stake, assetIndex: memo.assetIndex })
     else if (memo.kind === 'arena') arenaDeposit(game, { ...stake, prediction: memo.prediction })
+    else if (memo.kind === 'shot') lockShot(game, stake)
     else if (memo.seat === 0) payDuel(game, stake)
     else backDuel(game, { ...stake, seat: memo.seat, maxPerWallet: duelBackCap() })
     db.saveGame(game)
@@ -167,10 +164,7 @@ export function createEngine({ db, chain, prices, assets, cluster, coldWallet = 
       const wasFinal = FINAL_STATUSES.has(game.status)
       const result = fn(game)
       db.saveGame(game)
-      if (!wasFinal && FINAL_STATUSES.has(game.status)) {
-        if (game.kind === 'shot') creditShot(game)
-        else queueSettlements(game)
-      }
+      if (!wasFinal && FINAL_STATUSES.has(game.status)) queueSettlements(game)
       return result
     })
   }
@@ -182,21 +176,8 @@ export function createEngine({ db, chain, prices, assets, cluster, coldWallet = 
     })
   }
 
-  /** Price Shot settles into game balances, not on-chain transfers. */
-  function creditShot(shot) {
-    const merged = new Map()
-    for (const c of shotCredits(shot)) {
-      const key = `${c.reason}:${c.wallet}`
-      merged.set(key, { ...c, amount: (merged.get(key)?.amount ?? 0n) + c.amount })
-    }
-    for (const c of merged.values()) {
-      db.moveBalance({ ref: `shot:${shot.id}:${c.reason}:${c.wallet}`, wallet: c.wallet, kind: c.reason, delta: c.amount, gameKind: 'shot', gameId: shot.id })
-    }
-    log.log(`shot #${shot.id}: ${shot.status}${shot.cancelReason !== 'none' ? ` (${shot.cancelReason})` : ''}, ${merged.size} balance credit(s)`)
-  }
-
   function queueSettlements(game) {
-    const raw = game.kind === 'race' ? raceSettlements(game) : game.kind === 'arena' ? arenaSettlements(game) : duelSettlements(game)
+    const raw = game.kind === 'race' ? raceSettlements(game) : game.kind === 'arena' ? arenaSettlements(game) : game.kind === 'shot' ? shotSettlements(game) : duelSettlements(game)
     // One payout per wallet and reason (a spectator may have backed twice).
     const merged = new Map()
     for (const s of raw) {
@@ -208,7 +189,7 @@ export function createEngine({ db, chain, prices, assets, cluster, coldWallet = 
       db.addPayout({ key: `${game.kind}:${game.id}:${s.reason}:${s.wallet}`, kind: s.reason, wallet: s.wallet, amount: s.amount, gameKind: game.kind, gameId: game.id })
     }
     // Platform races and duels credit Prophet; their creator half stays with the fees.
-    const creatorPaid = game.kind === 'arena' || (game.kind === 'race' && game.origin === 'community')
+    const creatorPaid = game.kind === 'arena' || game.kind === 'shot' || (game.kind === 'race' && game.origin === 'community')
     if (game.status === 'resolved' && creatorPaid && game.creatorFee > 0n) {
       const balance = db.creatorBalance(game.creator) + game.creatorFee
       if (balance >= opts.creatorPayoutMin) {
@@ -311,7 +292,14 @@ export function createEngine({ db, chain, prices, assets, cluster, coldWallet = 
 
   async function advanceShot(shot, t) {
     const { id } = shot
-    if (shot.status === 'open' || shot.status === 'aim' || (shot.status === 'live' && t > shot.deadline + SHOT.resolutionGrace)) {
+    if (shot.status === 'aim' && t >= shot.aimEndsAt) {
+      // Stakes confirmed before the aim ended must all be in before deciding
+      // who plays; a stuck scan holds this back at most SHOT.startGrace.
+      if (!settledPast(shot.aimEndsAt, t) && t < shot.aimEndsAt + SHOT.startGrace) return
+      mutate('shot', id, (s) => shotTimers(s, t))
+      return
+    }
+    if (shot.status === 'open' || (shot.status === 'live' && t > shot.deadline + SHOT.resolutionGrace)) {
       mutate('shot', id, (s) => shotTimers(s, t))
       return
     }
@@ -532,27 +520,12 @@ export function createEngine({ db, chain, prices, assets, cluster, coldWallet = 
         case 'shot-ready':
           mutate('shot', Number(payload.shot), (g) => readyShot(g, wallet, payload.ready !== false, t))
           return { kind: 'shot', id: Number(payload.shot) }
-        case 'shot-lock': {
-          // The stake leaves the balance in the same transaction that records
-          // the shot: a refused shot (aim over, already locked) takes nothing.
-          if (!/^\d{1,30}$/.test(String(payload.prediction)) || !/^\d{1,20}$/.test(String(payload.stake))) throw new RuleError('InvalidStake')
-          const id = Number(payload.shot)
-          const stake = BigInt(payload.stake)
-          mutate('shot', id, (g) => {
-            lockShot(g, { wallet, prediction: BigInt(payload.prediction), stake }, t)
-            debit({ ref: `shot:${id}:stake:${wallet}`, wallet, kind: 'stake', amount: stake, gameKind: 'shot', gameId: id })
-          })
-          return { kind: 'shot', id }
-        }
-        case 'balance-withdraw': {
-          if (!/^\d{1,20}$/.test(String(payload.amount))) throw new RuleError('InvalidAmount')
-          const amount = BigInt(payload.amount)
-          // The withdrawal's own network fee comes out of it, like refunds.
-          if (amount - BASE_FEE < opts.minRefund) throw new RuleError('WithdrawalTooSmall')
-          const ref = `withdraw:${createHash('sha256').update(message).digest('hex').slice(0, 32)}`
-          debit({ ref, wallet, kind: 'withdraw', amount })
-          db.addPayout({ key: ref, kind: 'withdraw', wallet, amount: amount - BASE_FEE })
-          return { balance: db.balance(wallet).toString() }
+        case 'shot-aim': {
+          // Lock Shot, step 1: the price stays on the server (hidden) until the
+          // stake transfer (memo prophet:shot:<id>:0) locks it in.
+          if (!/^\d{1,30}$/.test(String(payload.prediction))) throw new RuleError('InvalidPrediction')
+          mutate('shot', Number(payload.shot), (g) => aimShot(g, { wallet, prediction: BigInt(payload.prediction) }, t))
+          return { kind: 'shot', id: Number(payload.shot) }
         }
         case 'duel-create': {
           // Only lobbies someone is in count: an empty one a player opened and left is spare.
@@ -579,15 +552,6 @@ export function createEngine({ db, chain, prices, assets, cluster, coldWallet = 
           throw new RuleError('UnknownAction')
       }
     })
-  }
-
-  function debit({ ref, wallet, kind, amount, gameKind = null, gameId = null }) {
-    try {
-      db.moveBalance({ ref, wallet, kind, delta: -amount, gameKind, gameId })
-    } catch (error) {
-      if (error.message === 'InsufficientBalance') throw new RuleError('InsufficientBalance')
-      throw error
-    }
   }
 
   /** A platform race (admin CLI or the schedule). */

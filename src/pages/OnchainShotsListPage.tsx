@@ -11,7 +11,6 @@ import { useLivePrices } from '@/chain/livePrices'
 import { life } from '@/lib/life'
 import { PxSprite } from '@/retro/Sprite'
 import { coinBlueGrin, coinGreen, coinOrangeGrin, coinPinkGrin, coinPurple, coinPurpleGrin } from '@/retro/spriteData'
-import { GameBalancePanel } from '@/components/GameBalancePanel'
 import { usePlatformLogin } from '@/components/WalletAccountModals'
 import { prophetWalletStore } from '@/solana/prophetWallet'
 import { assetIconUrl } from '@/lib/assetIcons'
@@ -175,7 +174,6 @@ export function OnchainShotsListPage() {
             : <button type="button" onClick={login.start} className="rx-btn rx-btn-pink" style={{ padding: '14px 20px', fontFamily: PIXEL, fontSize: 12, color: CREAM }}>{prophetWalletStore.hasWallet() ? 'LOG IN TO PLAY' : 'CREATE ACCOUNT'}</button>}
         </div>
 
-        {publicKey && <div style={{ marginTop: 18, maxWidth: 520 }}><GameBalancePanel /></div>}
 
         {creating && (
           <div className="rx-raised" style={{ marginTop: 18, display: 'flex', flexDirection: 'column', gap: 14, padding: 20, background: CREAM, color: INK }}>

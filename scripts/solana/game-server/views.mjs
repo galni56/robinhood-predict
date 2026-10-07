@@ -24,13 +24,16 @@ export function payoutStage(key) {
 }
 
 /**
- * Price Shot predictions travel in signed messages, not public memos, so they
- * really are secret until the match starts: before that, every entry shows
- * only that its player has locked a shot (and the stake).
+ * Price Shot prices travel in signed messages, not public memos, so they
+ * really are secret until the match starts: before that, entries show only
+ * who has locked a shot (and the stake), `aimed` who has sent a price.
  */
 function hidePredictions(game) {
-  if (game.kind !== 'shot' || (game.status !== 'open' && game.status !== 'aim')) return game
-  return { ...game, entries: game.entries.map((e) => ({ ...e, prediction: 0n })) }
+  if (game.kind !== 'shot') return game
+  // Aimed prices are never served; locked ones only once the match starts.
+  const { aims, ...rest } = game
+  if (game.status !== 'open' && game.status !== 'aim') return rest
+  return { ...rest, entries: game.entries.map((e) => ({ ...e, prediction: 0n })), aimed: Object.keys(aims ?? {}) }
 }
 
 /** A game as the frontend reads it, with the state of every payout it owes. */
@@ -168,14 +171,6 @@ export function walletView(db, wallet) {
   return {
     wallet,
     nickname: db.nickname(wallet),
-    /** Game balance (Price Shot) and its latest movements. */
-    balance: db.balance(wallet).toString(),
-    balanceEvents: db.balanceEvents(wallet, 100).map((e) => ({
-      kind: e.kind,
-      amount: e.amount,
-      time: e.at,
-      game: e.game_kind ? { kind: e.game_kind, id: e.game_id, address: gameAddress(e.game_kind, e.game_id) } : null,
-    })),
     deposits: db.depositsByWallet(wallet).map((d) => ({
       signature: d.signature,
       time: d.block_time,

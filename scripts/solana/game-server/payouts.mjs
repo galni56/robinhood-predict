@@ -94,11 +94,11 @@ export function createPayouts({ db, chain, opts, log, now, coldWallet, lastScan:
     }
   }
 
-  /** What the game wallet owes: stakes in live games, queued payouts, creator and game balances. */
+  /** What the game wallet owes: stakes in live games, queued payouts, creator balances. */
   function liabilities() {
     const live = db.liveGames().reduce((sum, g) => sum + g.remainingLiability, 0n)
     const inFlight = [...landedUnfinal.values()].reduce((sum, a) => sum + a, 0n)
-    return live + db.owedTotal() + db.creatorBalancesTotal() + db.balancesTotal() - inFlight
+    return live + db.owedTotal() + db.creatorBalancesTotal() - inFlight
   }
 
   async function solvency() {

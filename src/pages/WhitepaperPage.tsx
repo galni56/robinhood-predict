@@ -178,9 +178,9 @@ export function WhitepaperPage() {
           <ol className="list-decimal space-y-2 pl-5">
             <li><strong>Room.</strong> Anyone opens a room for one coin and a match of 1, 5, 15 or 60 minutes. Up to 10 players join for free; an invite link brings friends straight in.</li>
             <li><strong>Ready.</strong> Once more than half of the room, and at least two players, are ready, the match begins for them.</li>
-            <li><strong>Aim, 30 seconds.</strong> Each player sets a crosshair on the chart where they expect the price to end, picks a stake from 0.005 to 1 SOL and locks the shot.</li>
+            <li><strong>Aim, 30 seconds.</strong> Each player sets a crosshair on the chart where they expect the price to end, picks a stake from 0.005 to 1 SOL and locks the shot: the price goes to the server as a signed message, the stake as one transfer, like a duel stake.</li>
             <li><strong>Live.</strong> All shots are revealed at once. Everyone watches the price, every shot and a provisional ranking until the final bell.</li>
-            <li><strong>Result.</strong> The final price is the signed pool price at the deadline; winnings land on the game balance at once.</li>
+            <li><strong>Result.</strong> The final price is the signed pool price at the deadline; winnings are paid to the winners&apos; wallets automatically.</li>
           </ol>
           <p>
             Shots travel as signed messages to the game server, not as public transactions, so nobody can copy a call
@@ -241,10 +241,6 @@ export function WhitepaperPage() {
             <li>
               <strong>A stake is one transfer.</strong> Joining a duel sends the stake in SOL to the game wallet with a
               short memo naming the game. Forms show both USD and SOL before signing, and check the balance first.
-            </li>
-            <li>
-              <strong>Game balance for Shot.</strong> Players top up once and lock shots instantly without signing a
-              transaction each time; winnings return to the balance, which can be withdrawn at any moment.
             </li>
             <li>
               <strong>Automatic payouts.</strong> Winnings, refunds and returned backings are sent by the game server as
