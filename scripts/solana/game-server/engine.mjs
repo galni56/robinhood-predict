@@ -47,7 +47,7 @@ import {
 } from './rules.mjs'
 import { fromBase58, isAddress } from './chain.mjs'
 import { DUEL, backDuel, createDuel, duelNeedsResolve, duelNeedsStart, duelSettlements, duelTimers, joinDuel, leaveDuel, payDuel, prepareDuel, readyDuel, resolveDuel, startDuel } from './duel.mjs'
-import { SHOT, aimShot, createShot, joinShot, leaveShot, lockShot, readyShot, resolveShot, shotNeedsResolve, shotSettlements, shotStartsAt, shotTimers } from './shot.mjs'
+import { SHOT, aimShot, allAimsLocked, createShot, joinShot, leaveShot, lockShot, readyShot, resolveShot, shotNeedsResolve, shotSettlements, shotStartsAt, shotTimers } from './shot.mjs'
 import { FINAL_STATUSES } from './db.mjs'
 import { createPayouts } from './payouts.mjs'
 import { createDeposits } from './deposits.mjs'
@@ -292,10 +292,14 @@ export function createEngine({ db, chain, prices, assets, cluster, coldWallet = 
 
   async function advanceShot(shot, t) {
     const { id } = shot
-    if (shot.status === 'aim' && t >= shotStartsAt(shot)) {
-      // Stakes confirmed within the lock window must all be in before deciding
-      // who plays; a stuck scan holds this back at most SHOT.startGrace.
-      if (!settledPast(shotStartsAt(shot), t) && t < shotStartsAt(shot) + SHOT.startGrace) return
+    if (shot.status === 'aim' && t >= shot.aimEndsAt) {
+      // Every aimed shot already has its stake: start now. Otherwise wait the
+      // confirming window, then until the scan has seen every stake from it
+      // (a stuck scan holds this back at most SHOT.startGrace).
+      if (!allAimsLocked(shot)) {
+        if (t < shotStartsAt(shot)) return
+        if (!settledPast(shotStartsAt(shot), t) && t < shotStartsAt(shot) + SHOT.startGrace) return
+      }
       mutate('shot', id, (s) => shotTimers(s, t))
       return
     }

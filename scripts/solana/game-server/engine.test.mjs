@@ -536,7 +536,7 @@ test('duel lobbies: spare empty lobbies are closed after a while, and empty ones
 test('price shot: aim by signed message, stake by transfer, hidden until live, winner paid', async () => {
   const t0 = 10_000
   const aimEnd = t0 + 100 + 30
-  const start = aimEnd + 15
+  const start = aimEnd + 6
   const { clock, chain, db, engine } = setup({ [start + 60]: { 'pool-SOL': 1_000n } }, { adoptWallet: true })
   await engine.init()
   const [alice, bob, carol] = [wallet(), wallet(), wallet()]
@@ -560,20 +560,22 @@ test('price shot: aim by signed message, stake by transfer, hidden until live, w
   const memo = `prophet:shot:${room.id}:0`
   chain.deposit(alice.address, SOL / 20n, memo, t0 + 110)
   chain.deposit(carol.address, SOL / 20n, memo, t0 + 112) // not in the match: refunded
-  chain.deposit(bob.address, SOL / 20n, memo, aimEnd + 4) // locked in the last second, confirmed in the grace: counts
-  chain.deposit(bob.address, SOL / 20n, memo, aimEnd + 5) // a second stake: refunded
-  clock.t = aimEnd + 6
+  clock.t = t0 + 115
   await engine.tick()
   const aiming = db.getGame('shot', room.id)
-  assert.equal(aiming.entries.length, 2)
+  assert.equal(aiming.entries.length, 1)
   assert.ok(gameView(db, aiming).entries.every((e) => e.prediction === '0'), 'locked shots stay hidden during aim')
+  clock.t = aimEnd + 2
+  await engine.tick()
+  assert.equal(db.getGame('shot', room.id).status, 'aim', "bob aimed: his stake may still confirm")
 
-  clock.t = start + 2
+  chain.deposit(bob.address, SOL / 20n, memo, aimEnd + 4) // locked in the last second, confirmed in the grace: counts
+  chain.deposit(bob.address, SOL / 20n, memo, aimEnd + 5) // a second stake: refunded
+
+  clock.t = start
   await engine.tick()
-  assert.equal(db.getGame('shot', room.id).status, 'aim', 'waits for stakes confirmed within the lock window')
-  clock.t = start + 7
-  await engine.tick()
-  assert.equal(db.getGame('shot', room.id).status, 'live')
+  assert.equal(db.getGame('shot', room.id).status, 'live', 'every aimed shot is locked: starts at once')
+  assert.equal(db.getGame('shot', room.id).deadline, start + 60, 'the full match length')
   assert.equal(gameView(db, db.getGame('shot', room.id)).entries[0].prediction, '1000', 'shots are public once live')
 
   clock.t = start + 60 + 3
