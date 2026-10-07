@@ -151,14 +151,20 @@ function cancelShot(shot, now, reason) {
 /** When the match starts: the aim plus the window for stakes to confirm. */
 export const shotStartsAt = (shot) => shot.aimEndsAt + SHOT.lockGrace
 
+/** Every player who sent a price in time has a confirmed stake: nothing left to wait for. */
+export const allAimsLocked = (shot) => Object.keys(shot.aims ?? {}).every((w) => shot.entries.some((e) => e.player === w))
+
 /** Aim end, idle rooms, missed resolution window. */
 export function shotTimers(shot, now) {
   if (shot.status === 'open' && shot.players.length === 0 && now - shot.lastJoinAt > SHOT.idleRoomSeconds) return cancelShot(shot, now, 'idleRoom')
-  if (shot.status === 'aim' && now >= shotStartsAt(shot)) {
+  // The match starts once the aim is over and either every aimed shot is
+  // locked or the confirming window has passed.
+  if (shot.status === 'aim' && now >= shot.aimEndsAt && (allAimsLocked(shot) || now >= shotStartsAt(shot))) {
     if (shot.entries.length < SHOT.minPlayers) return cancelShot(shot, now, 'notEnoughShots')
     shot.status = 'live'
-    // The match runs its full length from the end of the confirming window.
-    shot.deadline = shotStartsAt(shot) + shot.duration
+    // The full match length from the moment it really starts.
+    shot.startedAt = now
+    shot.deadline = now + shot.duration
     return shot.status
   }
   if (shot.status === 'live' && now > shot.deadline + SHOT.resolutionGrace) return cancelShot(shot, now, 'resolutionWindowExpired')

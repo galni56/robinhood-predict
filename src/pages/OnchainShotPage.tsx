@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { useWallet } from '@solana/wallet-adapter-react'
 import { useSignedAction } from '@/chain/gameServer'
-import { useLivePrices } from '@/chain/livePrices'
+import { useFastPrice, useLivePrices } from '@/chain/livePrices'
 import { useServerNowMs } from '@/chain/serverClock'
 import { quoteUsdCents } from '@/chain/stakeQuote'
 import { CANCEL_REASON, SHOT_RULES, provisionalOrder, shotConfirming, shotMemo, shotPhaseLabel, useShot, useShots, type Shot, type ShotEntry } from '@/chain/shots'
@@ -11,7 +11,7 @@ import { AddressLabel } from '@/components/AddressLabel'
 import { useStakeTransfer } from '@/solana/stake'
 import { useStakeBalance } from '@/solana/stakeTokens'
 import { stakeQuoteErrorMessage } from '@/chain/stakeQuote'
-import { ShotChart, formatChartValue, type ChartLine } from '@/components/ShotChart'
+import { ShotChart, aimStep, formatChartValue, type ChartLine } from '@/components/ShotChart'
 import { usePlatformLogin } from '@/components/WalletAccountModals'
 import { prophetWalletStore } from '@/solana/prophetWallet'
 import { assetIconUrl } from '@/lib/assetIcons'
@@ -82,7 +82,9 @@ export function OnchainShotPage() {
   }
 
   if (id == null) return <p style={{ padding: 48, fontFamily: PIXEL }}>INVALID ROOM</p>
-  const price = shot ? live.assets[shot.symbol] : undefined
+  // The game's price ticks every second; the shared feed stays for SOL/USD and supply.
+  const fast = useFastPrice(shot?.symbol, shot != null && shot.status !== 'resolved' && shot.status !== 'cancelled')
+  const price = shot ? fast ?? live.assets[shot.symbol] : undefined
   const livePrice = price ? Number(price.raw) / 10 ** price.decimals : null
   const supply = price?.supply ? Number(price.supply.raw) / 10 ** price.supply.decimals : null
   const unit = shot?.unit === 'cap' && supply ? 'cap' : 'price'
@@ -138,7 +140,7 @@ function Header({ shot, now, livePrice, unit, supply }: { shot: Shot; now: numbe
       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
         {shot.status === 'open' && <InviteButton path={`/onchain/shot/${shot.id}`} />}
         <span className="rx-plate" style={{ fontFamily: PIXEL, fontSize: 10, background: CREAM, color: INK, padding: '8px 10px' }}>{shotPhaseLabel(shot, now)}</span>
-        {timer != null && <span className="rx-plate" style={{ fontFamily: PIXEL, fontSize: 14, background: shot.status === 'aim' ? PINK : YELLOW, color: shot.status === 'aim' ? CREAM : INK, padding: '8px 10px', animation: shot.status === 'aim' && timer < 10 ? 'rx-blink 0.6s steps(1) infinite' : undefined }}>{clock(timer)}</span>}
+        {timer != null && <span className="rx-plate" style={{ fontFamily: PIXEL, fontSize: 14, background: shot.status === 'aim' ? PINK : YELLOW, color: shot.status === 'aim' ? CREAM : INK, padding: '8px 10px', animation: shot.status === 'aim' && timer < 10 && timer > 0 ? 'rx-blink 0.6s steps(1) infinite' : undefined }}>{timer <= 0 ? (shot.status === 'aim' ? 'STARTING…' : 'FINAL BELL…') : clock(timer)}</span>}
       </div>
       {asset?.launchedOnProphet && <div style={{ flexBasis: '100%' }}><LaunchpadWarning /></div>}
     </div>
@@ -185,12 +187,17 @@ function AimPanel({ shot, me, now, busy, livePrice, unit, supply, solUsd }: {
   const [aim, setAim] = useState<number | null>(null)
   const [text, setText] = useState('')
   const [cents, setCents] = useState(500n)
+  const step = livePrice != null ? aimStep(livePrice) : null
+  // The field shows the crosshair after a drag or a nudge; typing sets the
+  // crosshair without rewriting what is being typed.
+  const show = (value: number) => setText(unit === 'cap' && supply ? String(Math.round(value * supply)) : formatChartValue(value, 'price', null, step ?? undefined).slice(1))
+  const aimAt = (value: number) => {
+    setAim(value)
+    show(value)
+  }
   useEffect(() => {
-    if (aim == null && livePrice != null) setAim(Number(livePrice.toPrecision(6)))
+    if (aim == null && livePrice != null) aimAt(livePrice)
   }, [aim, livePrice])
-  useEffect(() => {
-    if (aim != null) setText(unit === 'cap' && supply ? String(Math.round(aim * supply)) : String(aim))
-  }, [aim, unit, supply])
 
   let lamports: bigint | null = null
   try {
@@ -227,7 +234,7 @@ function AimPanel({ shot, me, now, busy, livePrice, unit, supply, solUsd }: {
   const lines: ChartLine[] = own != null ? [{ price: own, label: 'YOUR SHOT', mine: true }] : []
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <ShotChart pool={shot.priceSource} live={livePrice} unit={unit} supply={supply} aim={inMatch && !locked ? { value: aim, onChange: setAim } : null} lines={lines} />
+      <ShotChart mode="aim" pool={shot.priceSource} live={livePrice} unit={unit} supply={supply} aim={inMatch && !locked && !confirming ? { value: aim, onChange: aimAt } : null} lines={lines} />
       <div className="rx-raised" style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: 20, background: CREAM, color: INK }}>
         {!inMatch ? (
           <p style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>The ready players are aiming now. Watch the match start in {Math.max(0, Math.ceil(shot.aimEndsAt + SHOT_RULES.lockGrace - now))} s.</p>
@@ -249,7 +256,14 @@ function AimPanel({ shot, me, now, busy, livePrice, unit, supply, solUsd }: {
                 className="rx-input"
                 style={{ flex: '1 1 160px', height: 44, padding: '0 10px', fontWeight: 700 }}
               />
+              {step != null && aim != null && (
+                <span style={{ display: 'flex', gap: 4 }}>
+                  <button type="button" aria-label="Aim lower" onClick={() => aimAt(Math.max(aim - step, step))} className="rx-btn rx-btn-white" style={{ padding: '8px 12px', fontWeight: 700 }}>▼</button>
+                  <button type="button" aria-label="Aim higher" onClick={() => aimAt(aim + step)} className="rx-btn rx-btn-white" style={{ padding: '8px 12px', fontWeight: 700 }}>▲</button>
+                </span>
+              )}
             </div>
+            {aim != null && livePrice != null && <span style={{ fontSize: 15, fontWeight: 600, opacity: 0.75 }}>{aim >= livePrice ? '+' : ''}{(((aim - livePrice) / livePrice) * 100).toFixed(2)}% from now</span>}
             <span style={label}>STAKE</span>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
               {STAKE_PRESETS.map((c) => <button key={String(c)} type="button" onClick={() => setCents(c)} className={`rx-btn ${cents === c ? 'rx-btn-yellow' : 'rx-btn-white'}`} style={{ padding: '8px 12px', fontWeight: 700 }}>{usd(c)}</button>)}
@@ -277,7 +291,7 @@ function MatchPanel({ shot, me, now, livePrice, unit, supply }: { shot: Shot; me
   const mine = me ? shot.entries.find((e) => e.player === me) : undefined
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      {!final && <ShotChart pool={shot.priceSource} live={livePrice} unit={unit} supply={supply} lines={lines} />}
+      {!final && <ShotChart mode="live" pool={shot.priceSource} live={livePrice} unit={unit} supply={supply} lines={lines} />}
       {final && <MatchSummary shot={shot} unit={unit} supply={supply} />}
       {final && mine && <ResultCard shot={shot} entry={mine} place={mine.rank || place(mine)} unit={unit} supply={supply} />}
       <div className="rx-raised" style={{ padding: 16, background: CREAM, color: INK }}>

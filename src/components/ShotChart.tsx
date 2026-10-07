@@ -2,10 +2,12 @@ import { useEffect, useMemo, useRef, useState, type PointerEvent } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { CREAM, INK, PINK, PIXEL, YELLOW } from '@/retro/scene'
 
-// Price chart of one pool with an optional draggable crosshair (Price Shot's
-// aim) and horizontal lines for the other players' shots. The last hour comes
-// from GeckoTerminal's public candles; live prices are appended as they come.
-// Display only: settlement uses the signed pool price.
+// Price Shot's game chart: a live line that slides in real time and eases
+// from tick to tick, a tight scale around the current price so every move
+// shows, a draggable crosshair for the aim, and the other shots as lines
+// (pinned to the edge with an arrow when they are off the scale). The recent
+// past comes from GeckoTerminal's 1-minute candles, then live prices every
+// second. Display only: settlement uses the signed pool price.
 
 export interface ChartLine {
   price: number
@@ -15,8 +17,13 @@ export interface ChartLine {
 }
 
 const W = 640
-const H = 300
-const PAD = { left: 8, right: 92, top: 14, bottom: 22 }
+const H = 320
+const PAD = { left: 8, right: 96, top: 16, bottom: 16 }
+const PLOT_W = W - PAD.left - PAD.right
+const PLOT_H = H - PAD.top - PAD.bottom
+/** Seconds of history on screen; the head sits a little left of the axis. */
+const WINDOW = { aim: 15 * 60, live: 3 * 60 }
+const HEAD_ROOM = 0.06
 
 function useCandles(pool: string) {
   return useQuery({
@@ -33,15 +40,22 @@ function useCandles(pool: string) {
   })
 }
 
-export const formatChartValue = (value: number, unit: 'price' | 'cap', supply: number | null) => {
+/** Decimals that resolve `step` (so a cent-sized move on $86 shows as 86.12 -> 86.13). */
+const decimalsFor = (step: number) => Math.min(10, Math.max(0, Math.ceil(-Math.log10(step))))
+
+export function formatChartValue(value: number, unit: 'price' | 'cap', supply: number | null, step?: number) {
   if (unit === 'cap' && supply) {
     const cap = value * supply
-    return cap >= 1e9 ? `$${(cap / 1e9).toPrecision(3)}B` : cap >= 1e6 ? `$${(cap / 1e6).toPrecision(3)}M` : cap >= 1e3 ? `$${(cap / 1e3).toPrecision(3)}K` : `$${cap.toPrecision(3)}`
+    const scaled = cap >= 1e9 ? [cap / 1e9, 'B'] : cap >= 1e6 ? [cap / 1e6, 'M'] : cap >= 1e3 ? [cap / 1e3, 'K'] : [cap, '']
+    const n = scaled[0] as number
+    const d = step ? decimalsFor((step * supply) / (cap / n)) : n >= 100 ? 1 : 2
+    return `$${n.toFixed(Math.min(d, 4))}${scaled[1]}`
   }
-  return `$${Number(value.toPrecision(5))}`
+  const d = step ? decimalsFor(step) : value >= 1000 ? 2 : value >= 1 ? 3 : Math.min(10, 2 + Math.ceil(-Math.log10(value)) + 2)
+  return `$${value.toFixed(d)}`
 }
 
-export function ShotChart({ pool, live, unit = 'price', supply = null, aim, lines = [] }: {
+export function ShotChart({ pool, live, unit = 'price', supply = null, aim, lines = [], mode = 'live' }: {
   pool: string
   /** Latest display price in USD. */
   live: number | null
@@ -50,55 +64,84 @@ export function ShotChart({ pool, live, unit = 'price', supply = null, aim, line
   /** The draggable crosshair: current value and setter (null = no crosshair). */
   aim?: { value: number | null; onChange: (value: number) => void } | null
   lines?: ChartLine[]
+  mode?: 'aim' | 'live'
 }) {
   const candles = useCandles(pool)
   const [ticks, setTicks] = useState<{ t: number; price: number }[]>([])
   const [zoom, setZoom] = useState(1)
+  const [frame, setFrame] = useState(() => ({ now: Date.now() / 1000, shown: live ?? 0 }))
+  const shownRef = useRef(live ?? 0)
   const dragging = useRef(false)
   const svg = useRef<SVGSVGElement>(null)
 
   useEffect(() => {
     if (live == null || !(live > 0)) return
-    setTicks((prev) => [...prev.slice(-600), { t: Date.now() / 1000, price: live }])
+    setTicks((prev) => (prev.length && prev[prev.length - 1].price === live ? prev : [...prev.slice(-1200), { t: Date.now() / 1000, price: live }]))
   }, [live])
 
+  // ~30 fps: time slides continuously and the head eases to the latest price.
+  useEffect(() => {
+    let raf = 0
+    let last = 0
+    const loop = (ms: number) => {
+      raf = requestAnimationFrame(loop)
+      if (ms - last < 33) return
+      last = ms
+      const target = live ?? shownRef.current
+      shownRef.current = shownRef.current > 0 ? shownRef.current + (target - shownRef.current) * 0.18 : target
+      setFrame({ now: Date.now() / 1000, shown: shownRef.current })
+    }
+    raf = requestAnimationFrame(loop)
+    return () => cancelAnimationFrame(raf)
+  }, [live])
+
+  const span = WINDOW[mode]
+  const now = frame.now
+  const t0 = now - span * (1 - HEAD_ROOM)
+  const t1 = now + span * HEAD_ROOM
+
+  // GeckoTerminal's candles and our pool price differ slightly: the history is
+  // scaled to meet the first live price, so the line has no step where they join.
   const points = useMemo(() => {
     const history = candles.data ?? []
-    const after = history.length ? history[history.length - 1].t : 0
-    return [...history, ...ticks.filter((p) => p.t > after)]
+    const after = ticks.length ? ticks[0].t : Infinity
+    const before = history.filter((p) => p.t < after)
+    const last = before[before.length - 1]
+    const k = last && ticks.length ? ticks[0].price / last.price : 1
+    return [...before.map((p) => ({ t: p.t, price: p.price * k })), ...ticks]
   }, [candles.data, ticks])
+  const visible = points.filter((p) => p.t >= t0 - 60)
+  const head = frame.shown > 0 ? frame.shown : visible[visible.length - 1]?.price ?? aim?.value ?? 0
 
-  const ref = live ?? points[points.length - 1]?.price ?? aim?.value ?? lines[0]?.price ?? 0
+  // Tight scale: the moves of the visible window plus a small floor, so a
+  // cent on a dollar coin is a visible step. Zoom widens or narrows it.
   const domain = useMemo(() => {
-    const values = [...points.map((p) => p.price), ...lines.map((l) => l.price)]
-    if (ref > 0) values.push(ref)
-    if (values.length === 0) return { lo: 0, hi: 1 }
-    let lo = Math.min(...values)
-    let hi = Math.max(...values)
-    const span = Math.max(hi - lo, ref * 0.01)
-    const mid = (hi + lo) / 2
-    const half = (span / 2) * 1.4 * zoom
-    lo = Math.max(mid - half, 0)
-    hi = mid + half
-    return { lo, hi }
-  }, [points, lines, ref, zoom])
+    if (!(head > 0)) return { lo: 0, hi: 1 }
+    const dev = visible.reduce((m, p) => Math.max(m, Math.abs(p.price - head)), 0)
+    const half = Math.max(dev * 1.25, head * 0.0005) * zoom
+    return { lo: head - half, hi: head + half }
+  }, [visible, head, zoom])
+  const step = (domain.hi - domain.lo) / 200
 
-  const y = (price: number) => PAD.top + (1 - (price - domain.lo) / (domain.hi - domain.lo || 1)) * (H - PAD.top - PAD.bottom)
-  const fromY = (py: number) => domain.lo + (1 - (py - PAD.top) / (H - PAD.top - PAD.bottom)) * (domain.hi - domain.lo)
-  const t0 = points[0]?.t ?? 0
-  const t1 = Math.max(points[points.length - 1]?.t ?? 1, t0 + 1)
-  const x = (t: number) => PAD.left + ((t - t0) / (t1 - t0)) * (W - PAD.left - PAD.right)
-  const path = points.map((p, i) => `${i ? 'L' : 'M'}${x(p.t).toFixed(1)},${y(p.price).toFixed(1)}`).join(' ')
+  const y = (price: number) => PAD.top + (1 - (price - domain.lo) / (domain.hi - domain.lo || 1)) * PLOT_H
+  const x = (t: number) => PAD.left + ((t - t0) / (t1 - t0)) * PLOT_W
+  const fromY = (py: number) => domain.lo + (1 - (py - PAD.top) / PLOT_H) * (domain.hi - domain.lo)
+  const clampY = (py: number) => Math.min(Math.max(py, PAD.top), H - PAD.bottom)
+  const headX = x(now)
+  const path = [...visible.map((p) => [x(p.t), y(p.price)] as const), [headX, y(head)] as const]
+    .filter(([px]) => px >= PAD.left - 20)
+    .map(([px, py], i) => `${i ? 'L' : 'M'}${px.toFixed(1)},${clampY(py).toFixed(1)}`)
+    .join(' ')
+  const area = path ? `${path} L${headX.toFixed(1)},${H - PAD.bottom} L${PAD.left},${H - PAD.bottom} Z` : ''
 
   const setFromPointer = (event: PointerEvent<SVGSVGElement>) => {
     if (!aim || !svg.current) return
     const box = svg.current.getBoundingClientRect()
-    const py = ((event.clientY - box.top) / box.height) * H
-    const value = fromY(Math.min(Math.max(py, PAD.top), H - PAD.bottom))
-    if (value > 0) aim.onChange(Number(value.toPrecision(6)))
+    const value = fromY(clampY(((event.clientY - box.top) / box.height) * H))
+    if (value > 0) aim.onChange(Math.round(value / step) * step)
   }
-
-  const label = (value: number) => formatChartValue(value, unit, supply)
+  const label = (value: number) => formatChartValue(value, unit, supply, step)
+  const grid = [0.2, 0.4, 0.6, 0.8].map((f) => domain.lo + f * (domain.hi - domain.lo))
 
   return (
     <div className="rx-raised" style={{ position: 'relative', background: INK, color: CREAM }}>
@@ -116,39 +159,64 @@ export function ShotChart({ pool, live, unit = 'price', supply = null, aim, line
         onPointerUp={() => { dragging.current = false }}
         onPointerCancel={() => { dragging.current = false }}
       >
-        {[0.25, 0.5, 0.75].map((f) => (
-          <line key={f} x1={PAD.left} x2={W - PAD.right} y1={PAD.top + f * (H - PAD.top - PAD.bottom)} y2={PAD.top + f * (H - PAD.top - PAD.bottom)} stroke="rgba(255,246,223,0.08)" strokeWidth={1} />
-        ))}
-        {path && <path d={path} fill="none" stroke={YELLOW} strokeWidth={2.5} strokeLinejoin="round" />}
-        {lines.map((l) => (
-          <g key={`${l.label}-${l.price}`}>
-            <line x1={PAD.left} x2={W - PAD.right} y1={y(l.price)} y2={y(l.price)} stroke={l.mine ? PINK : l.hit ? '#45BF5C' : 'rgba(255,246,223,0.45)'} strokeWidth={l.mine ? 2 : 1.5} strokeDasharray={l.mine ? undefined : '5 4'} />
-            <text x={W - PAD.right + 4} y={y(l.price) + 4} fill={l.mine ? PINK : CREAM} fontSize={11} fontFamily="'Pixelify Sans', monospace">{l.label}</text>
+        <defs>
+          <linearGradient id="shot-area" x1="0" x2="0" y1="0" y2="1">
+            <stop offset="0%" stopColor={YELLOW} stopOpacity="0.28" />
+            <stop offset="100%" stopColor={YELLOW} stopOpacity="0" />
+          </linearGradient>
+        </defs>
+        {grid.map((v) => (
+          <g key={v}>
+            <line x1={PAD.left} x2={W - PAD.right} y1={y(v)} y2={y(v)} stroke="rgba(255,246,223,0.07)" strokeWidth={1} />
+            <text x={W - PAD.right + 6} y={y(v) + 4} fill="rgba(255,246,223,0.45)" fontSize={11} fontFamily="'Pixelify Sans', monospace">{label(v)}</text>
           </g>
         ))}
-        {ref > 0 && (
+        {area && <path d={area} fill="url(#shot-area)" />}
+        {path && <path d={path} fill="none" stroke={YELLOW} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />}
+
+        {lines.map((l) => {
+          const off = l.price > domain.hi ? 'up' : l.price < domain.lo ? 'down' : null
+          const ly = off === 'up' ? PAD.top + 8 : off === 'down' ? H - PAD.bottom - 8 : y(l.price)
+          const color = l.mine ? PINK : l.hit ? '#45BF5C' : 'rgba(255,246,223,0.6)'
+          return (
+            <g key={`${l.label}-${l.price}`}>
+              {!off && <line x1={PAD.left} x2={W - PAD.right} y1={ly} y2={ly} stroke={color} strokeWidth={l.mine ? 2 : 1.5} strokeDasharray={l.mine ? undefined : '6 5'} />}
+              <rect x={W - PAD.right - 64} y={ly - 9} width={62} height={18} fill={l.mine ? PINK : INK} stroke={color} strokeWidth={1.5} />
+              <text x={W - PAD.right - 60} y={ly + 4} fill={l.mine ? CREAM : color} fontSize={10} fontFamily={PIXEL}>{off === 'up' ? '▲' : off === 'down' ? '▼' : ''}{l.label}</text>
+            </g>
+          )
+        })}
+
+        {head > 0 && (
           <g>
-            <circle cx={points.length ? x(points[points.length - 1].t) : W - PAD.right} cy={y(ref)} r={4} fill={YELLOW} />
-            <rect x={W - PAD.right + 2} y={y(ref) - 9} width={PAD.right - 4} height={18} fill={YELLOW} />
-            <text x={W - PAD.right + 6} y={y(ref) + 4} fill={INK} fontSize={11} fontFamily={PIXEL}>{label(ref)}</text>
+            <line x1={PAD.left} x2={W - PAD.right} y1={y(head)} y2={y(head)} stroke="rgba(255,210,63,0.35)" strokeWidth={1} strokeDasharray="2 4" />
+            <circle cx={headX} cy={y(head)} r={5} fill={YELLOW}>
+              <animate attributeName="r" values="5;8;5" dur="1s" repeatCount="indefinite" />
+            </circle>
+            <rect x={W - PAD.right + 2} y={y(head) - 10} width={PAD.right - 4} height={20} fill={YELLOW} />
+            <text x={W - PAD.right + 6} y={y(head) + 4} fill={INK} fontSize={11} fontFamily={PIXEL}>{label(head)}</text>
           </g>
         )}
+
         {aim?.value != null && aim.value > 0 && (
           <g pointerEvents="none">
-            <line x1={PAD.left} x2={W - PAD.right} y1={y(aim.value)} y2={y(aim.value)} stroke={PINK} strokeWidth={2.5} />
-            <circle cx={(W - PAD.right) / 2} cy={y(aim.value)} r={9} fill="none" stroke={PINK} strokeWidth={2.5} />
-            <line x1={(W - PAD.right) / 2 - 14} x2={(W - PAD.right) / 2 + 14} y1={y(aim.value)} y2={y(aim.value)} stroke={PINK} strokeWidth={2.5} />
-            <line x1={(W - PAD.right) / 2} x2={(W - PAD.right) / 2} y1={y(aim.value) - 14} y2={y(aim.value) + 14} stroke={PINK} strokeWidth={2.5} />
-            <rect x={W - PAD.right + 2} y={y(aim.value) - 9} width={PAD.right - 4} height={18} fill={PINK} />
-            <text x={W - PAD.right + 6} y={y(aim.value) + 4} fill={CREAM} fontSize={11} fontFamily={PIXEL}>{label(aim.value)}</text>
+            <line x1={PAD.left} x2={W - PAD.right} y1={clampY(y(aim.value))} y2={clampY(y(aim.value))} stroke={PINK} strokeWidth={2.5} />
+            <circle cx={PAD.left + PLOT_W / 2} cy={clampY(y(aim.value))} r={10} fill="none" stroke={PINK} strokeWidth={2.5} />
+            <line x1={PAD.left + PLOT_W / 2 - 16} x2={PAD.left + PLOT_W / 2 + 16} y1={clampY(y(aim.value))} y2={clampY(y(aim.value))} stroke={PINK} strokeWidth={2.5} />
+            <line x1={PAD.left + PLOT_W / 2} x2={PAD.left + PLOT_W / 2} y1={clampY(y(aim.value)) - 16} y2={clampY(y(aim.value)) + 16} stroke={PINK} strokeWidth={2.5} />
+            <rect x={W - PAD.right + 2} y={clampY(y(aim.value)) - 10} width={PAD.right - 4} height={20} fill={PINK} />
+            <text x={W - PAD.right + 6} y={clampY(y(aim.value)) + 4} fill={CREAM} fontSize={11} fontFamily={PIXEL}>{label(aim.value)}</text>
           </g>
         )}
-        {points.length === 0 && <text x={W / 2 - 60} y={H / 2} fill={CREAM} fontSize={14} fontFamily="'Pixelify Sans', monospace">{candles.isLoading ? 'Loading chart…' : 'Waiting for prices…'}</text>}
+        {!(head > 0) && <text x={W / 2 - 60} y={H / 2} fill={CREAM} fontSize={14} fontFamily="'Pixelify Sans', monospace">{candles.isLoading ? 'Loading chart…' : 'Waiting for prices…'}</text>}
       </svg>
       <div style={{ position: 'absolute', left: 10, top: 8, display: 'flex', gap: 4 }}>
-        <button type="button" onClick={() => setZoom((z) => Math.min(z * 1.6, 40))} className="rx-btn rx-btn-white" style={{ padding: '2px 8px', fontWeight: 700 }} aria-label="Zoom out">−</button>
-        <button type="button" onClick={() => setZoom((z) => Math.max(z / 1.6, 0.15))} className="rx-btn rx-btn-white" style={{ padding: '2px 8px', fontWeight: 700 }} aria-label="Zoom in">+</button>
+        <button type="button" onClick={() => setZoom((z) => Math.min(z * 1.6, 60))} className="rx-btn rx-btn-white" style={{ padding: '2px 8px', fontWeight: 700 }} aria-label="Zoom out">−</button>
+        <button type="button" onClick={() => setZoom((z) => Math.max(z / 1.6, 0.2))} className="rx-btn rx-btn-white" style={{ padding: '2px 8px', fontWeight: 700 }} aria-label="Zoom in">+</button>
       </div>
     </div>
   )
 }
+
+/** The crosshair's fine step at the chart's default scale, for nudge buttons. */
+export const aimStep = (price: number) => Math.max(price * 0.0001, Number.EPSILON)

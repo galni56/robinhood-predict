@@ -106,3 +106,21 @@ export function useLivePrices({ enabled = true }: { enabled?: boolean } = {}): L
   if (!enabled || query.isRefetchError) return DISCONNECTED
   return result
 }
+
+/**
+ * One coin's display price polled every second, for screens where the price
+ * is the game (Price Shot). Separate from the shared 3 s poll.
+ */
+export function useFastPrice(symbol: string | null | undefined, enabled = true) {
+  const query = useQuery({
+    queryKey: ['fast-price'],
+    queryFn: fetchPrices,
+    enabled: enabled && !!symbol,
+    refetchInterval: 1_000,
+    refetchIntervalInBackground: false,
+    retry: 1,
+  })
+  const data = query.data
+  if (!symbol || !data || data.serverAgeMs > LIVE_PRICE_STALE_MS) return undefined
+  return data.assets[symbol]
+}
