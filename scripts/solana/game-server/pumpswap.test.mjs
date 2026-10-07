@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { priceDecimalsFor, selectPumpSwapAssets } from './pumpswap.mjs'
+import { priceDecimalsFor, selectCurveAssets, selectPumpSwapAssets } from './pumpswap.mjs'
 
 const WSOL = 'So11111111111111111111111111111111111111112'
 const now = Date.parse('2026-10-04T12:00:00Z')
@@ -51,11 +51,11 @@ test('pumpswap filter: coins launched on Prophet join on top of the limit and ar
     pool('BIG', 'Bigpump', 90_000, 5),
     pool('MID', 'Midpump', 50_000, 5),
     pool('OURS', 'OurMintWithNoPumpSuffix', 12_000, 5), // launched here: ordinary mint, small pool
-    pool('OURNEW', 'OurFreshMint', 12_000, 0.5), // launched here but younger than an hour: waits
+    pool('OURNEW', 'OurFreshMint', 12_000, 0.5), // launched here and younger than an hour: plays at once (owner, 2026-10-07)
   ]
   const launched = new Set(['OurMintWithNoPumpSuffix', 'OurFreshMint'])
   const out = selectPumpSwapAssets(pools, { takenSymbols: new Set(), now, filter: { minLiquidityUsd: 10_000, minAgeHours: 1, limit: 1 }, launched })
-  assert.deepEqual(out.map((a) => a.symbol), ['OURS', 'BIG'])
+  assert.deepEqual(out.map((a) => a.symbol), ['OURS', 'OURNEW', 'BIG'])
   assert.equal(out.find((a) => a.symbol === 'OURS').launchedOnProphet, true)
   assert.equal(out.find((a) => a.symbol === 'BIG').launchedOnProphet, undefined)
 })
@@ -85,4 +85,54 @@ test('pumpswap list: a kept coin is not dropped for a young pool or another pair
   const previous = [{ symbol: 'KEEP', mint: 'Keeppump', pool: 'p', priceDecimals: 9, liquidityUsd: 40_000, lastSeenAt: new Date(now).toISOString() }]
   const pools = [pool('KEEP', 'Keeppump', 50_000, 0.2), pool('KEEP', 'Keeppump', 50_000, 5, { quote: 'OtherMint' })]
   assert.deepEqual(selectPumpSwapAssets(pools, { takenSymbols: new Set(), previous, now }).map((a) => a.symbol), ['KEEP'])
+})
+
+// A pump.fun curve account: discriminator, virtual token / SOL reserves, real reserves, supply, complete.
+const curveData = ({ tokens = 1_073_000_000_000_000n, sol = 30_000_000_000n, realSol = 8n, complete = 0 } = {}) => {
+  const d = Buffer.alloc(141)
+  Buffer.from([23, 183, 248, 55, 96, 216, 172, 96]).copy(d, 0)
+  d.writeBigUInt64LE(tokens, 8)
+  d.writeBigUInt64LE(sol, 16)
+  d.writeBigUInt64LE(realSol, 32)
+  d.writeBigUInt64LE(1_000_000_000_000_000n, 40)
+  d[48] = complete
+  return d
+}
+
+test('launched coins on their curve play at once: priced on the curve, marked, graduated and taken tickers skipped', () => {
+  const launches = [{ mint: 'M1', at: 1 }, { mint: 'M2', at: 2 }, { mint: 'M3', at: 3 }, { mint: 'M4', at: 4 }, { mint: 'M5', at: 5 }]
+  const curves = new Map([
+    ['M1', { address: 'C1', data: curveData() }],
+    ['M2', { address: 'C2', data: curveData({ complete: 1 }) }], // graduated
+    ['M3', { address: 'C3', data: curveData() }], // ticker taken by the catalog
+    ['M4', { address: 'C4', data: null }], // curve not found
+    ['M5', { address: 'C5', data: curveData() }], // already listed with its PumpSwap pool
+  ])
+  const metas = new Map(['M1', 'M2', 'M3', 'M4', 'M5'].map((m, i) => [m, { name: `Coin ${i}`, symbol: m === 'M3' ? 'WIF' : `C${i}`, image: null }]))
+  const out = selectCurveAssets(launches, { curves, metas, takenSymbols: new Set(['WIF']), listedMints: new Set(['M5']), solUsd: 200, now })
+  assert.deepEqual(out.map((a) => a.symbol), ['C0'])
+  assert.equal(out[0].pool, 'C1')
+  assert.equal(out[0].poolKind, 'pump curve')
+  assert.equal(out[0].launchedOnProphet, true)
+  assert.equal(out[0].onCurve, true)
+  assert.equal(out[0].source, 'pumpswap')
+  assert.equal(out[0].priceDecimals, 12)
+})
+
+test('a curve coin of a running game keeps its entry after graduating; the PumpSwap list drops curve entries', () => {
+  const old = { symbol: 'OLD', mint: 'M1', pool: 'C1', poolKind: 'pump curve', priceDecimals: 12, launchedOnProphet: true }
+  const curves = new Map([['M1', { address: 'C1', data: curveData({ complete: 1 }) }]])
+  const metas = new Map([['M1', { name: 'Old', symbol: 'OLD' }]])
+  const args = { curves, metas, takenSymbols: new Set(), previous: [old], now }
+  assert.deepEqual(selectCurveAssets([{ mint: 'M1', at: 1 }], { ...args, keepSymbols: new Set(['OLD']) }), [old])
+  assert.deepEqual(selectCurveAssets([{ mint: 'M1', at: 1 }], args), [])
+  assert.deepEqual(selectPumpSwapAssets([], { takenSymbols: new Set(), previous: [old], keepSymbols: new Set(['OLD']), now }), [])
+})
+
+test('a graduated launch joins with no liquidity or age floor, on its PumpSwap pool', () => {
+  const pools = [pool('OURS', 'Ours1', 3_000, 0.1)]
+  const out = selectPumpSwapAssets(pools, { takenSymbols: new Set(), launched: new Set(['Ours1']), now })
+  assert.equal(out.length, 1)
+  assert.equal(out[0].poolKind, 'pumpswap')
+  assert.equal(out[0].launchedOnProphet, true)
 })

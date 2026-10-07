@@ -39,6 +39,8 @@ export interface ApprovedRaceAsset {
   source?: 'catalog' | 'pumpswap'
   /** Launched from the HasteFun launchpad. */
   launchedOnProphet?: boolean
+  /** Still on its pump.fun curve (priced there, before PumpSwap). */
+  onCurve?: boolean
   /** Token mint, when known (PumpSwap coins). */
   mint?: string
 }

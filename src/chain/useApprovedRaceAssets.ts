@@ -20,6 +20,7 @@ function pumpSwapAsset(asset: ServerAsset): ApprovedRaceAsset {
     priceUrl: asset.priceUrl ?? undefined,
     source: 'pumpswap',
     launchedOnProphet: asset.launchedOnProphet === true,
+    onCurve: asset.onCurve === true,
     mint: asset.mint,
   }
 }

@@ -15,7 +15,8 @@ import { prophetWalletStore } from '@/solana/prophetWallet'
 import { assetIconUrl } from '@/lib/assetIcons'
 import { formatUnits, shortTxError } from '@/lib/format'
 import { CoinFighter } from '@/retro/landingFx'
-import { COIN_BODIES } from '@/components/GamePickers'
+import { COIN_BODIES, LaunchpadWarning } from '@/components/GamePickers'
+import { useApprovedRaceAssets } from '@/chain/useApprovedRaceAssets'
 import { CREAM, INK, PINK, PIXEL, YELLOW } from '@/retro/scene'
 import { InviteButton } from '@/components/InviteButton'
 
@@ -118,10 +119,11 @@ export function OnchainShotPage() {
 
 function Header({ shot, now, livePrice, unit, supply }: { shot: Shot; now: number; livePrice: number | null; unit: 'price' | 'cap'; supply: number | null }) {
   const timer = shot.status === 'aim' ? shot.aimEndsAt - now : shot.status === 'live' ? shot.deadline - now : null
+  const asset = useApprovedRaceAssets().assets.find((a) => a.symbol === shot.symbol)
   return (
     <div style={{ marginTop: 12, display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-        <CoinFighter body={COIN_BODIES[shot.id % COIN_BODIES.length]} logoUrl={assetIconUrl(shot.symbol)} symbol={shot.symbol} size={56} />
+        <CoinFighter body={COIN_BODIES[shot.id % COIN_BODIES.length]} logoUrl={assetIconUrl(shot.symbol) ?? asset?.logoUrl} symbol={shot.symbol} size={56} />
         <div>
           <h1 style={{ margin: 0, fontFamily: PIXEL, fontSize: 'clamp(16px, 2.2vw, 24px)', fontWeight: 400, lineHeight: 1.4, textShadow: `4px 4px 0 ${INK}` }}>{shot.title.toUpperCase()}</h1>
           <p style={{ margin: '4px 0 0', fontSize: 16, fontWeight: 700, opacity: 0.85 }}>
@@ -134,6 +136,7 @@ function Header({ shot, now, livePrice, unit, supply }: { shot: Shot; now: numbe
         <span className="rx-plate" style={{ fontFamily: PIXEL, fontSize: 10, background: CREAM, color: INK, padding: '8px 10px' }}>{shotPhaseLabel(shot)}</span>
         {timer != null && <span className="rx-plate" style={{ fontFamily: PIXEL, fontSize: 14, background: shot.status === 'aim' ? PINK : YELLOW, color: shot.status === 'aim' ? CREAM : INK, padding: '8px 10px', animation: shot.status === 'aim' && timer < 10 ? 'rx-blink 0.6s steps(1) infinite' : undefined }}>{clock(timer)}</span>}
       </div>
+      {asset?.launchedOnProphet && <div style={{ flexBasis: '100%' }}><LaunchpadWarning /></div>}
     </div>
   )
 }

@@ -54,11 +54,12 @@ import { createChain, isAddress } from './chain.mjs'
 import { catalogAssets, createEngine } from './engine.mjs'
 import { createPriceClient } from './prices.mjs'
 import { RuleError } from './rules.mjs'
-import { fetchPumpSwapPools, fetchTokenPools, pumpFunMints, selectPumpSwapAssets } from './pumpswap.mjs'
+import { MAX_CURVE_COINS, fetchPumpSwapPools, fetchTokenPools, pumpFunMints, selectCurveAssets, selectPumpSwapAssets } from './pumpswap.mjs'
 
 // Coins launched from the Prophet launchpad (src/chain/pumpLaunch.ts): their
-// create transaction carries this memo. Recorded mints join the PumpSwap
-// list ahead of the rest once they graduate, marked "made on Prophet".
+// create transaction carries this memo. Recorded mints play at once, priced on
+// their pump.fun curve, and join the PumpSwap list once they graduate; both
+// marked "made on HasteFun".
 const PUMP_PROGRAM = '6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P'
 const LAUNCH_MEMO = 'prophet:launch'
 const MAX_LAUNCHES_WATCHED = 40
@@ -293,6 +294,8 @@ const server = createServer(async (req, res) => {
         const record = { mint, wallet: tx.signers[0], signature, at: tx.blockTime ?? Math.floor(Date.now() / 1000) }
         db.setMeta('prophet_launches', JSON.stringify([record, ...launches()].slice(0, 500)))
         console.log(`launch recorded: ${mint} by ${record.wallet}`)
+        // Playable within a minute: the price service picks the curve up from the assets file.
+        void refreshCurves()
         return send(req, res, 200, record)
       }
       if (path === '/deposit') {
@@ -337,6 +340,74 @@ function launches() {
   }
 }
 
+// Name, ticker and picture of a launched coin: Token-2022 metadata inside the
+// mint, the picture from the JSON its uri points to. Cached; a coin keeps them.
+const coinMetas = new Map()
+const ipfsGateway = (url) => (typeof url === 'string' ? url.replace(/^ipfs:///, 'https://ipfs.io/ipfs/') : null)
+async function coinMeta(mint) {
+  if (coinMetas.has(mint)) return coinMetas.get(mint)
+  const info = await chain.connection.getParsedAccountInfo(new PublicKey(mint), 'confirmed')
+  const meta = info.value?.data?.parsed?.info?.extensions?.find((e) => e.extension === 'tokenMetadata')?.state
+  if (!meta) return null
+  let image = null
+  try {
+    const json = await fetch(ipfsGateway(meta.uri), { signal: AbortSignal.timeout(10_000) }).then((r) => r.json())
+    image = ipfsGateway(json.image)
+  } catch {
+    // no picture: the site shows the ticker's letter
+  }
+  const value = { name: meta.name, symbol: meta.symbol, image }
+  coinMetas.set(mint, value)
+  return value
+}
+
+/** Our launches still on their pump.fun curve, priced from the curve (selectCurveAssets). */
+async function curveAssets(pumpswapList, previous) {
+  const listedMints = new Set(pumpswapList.map((a) => a.mint))
+  const candidates = launches().filter((l) => !listedMints.has(l.mint)).slice(0, MAX_CURVE_COINS * 2)
+  if (candidates.length === 0) return []
+  const program = new PublicKey(PUMP_PROGRAM)
+  const addresses = candidates.map((l) => PublicKey.findProgramAddressSync([Buffer.from('bonding-curve'), new PublicKey(l.mint).toBuffer()], program)[0])
+  const infos = await chain.connection.getMultipleAccountsInfo(addresses, 'confirmed')
+  const curves = new Map(candidates.map((l, i) => [l.mint, { address: addresses[i].toBase58(), data: infos[i]?.owner.toBase58() === PUMP_PROGRAM ? infos[i].data : null }]))
+  const metas = new Map()
+  for (const l of candidates) {
+    const meta = await coinMeta(l.mint).catch(() => null)
+    if (meta) metas.set(l.mint, meta)
+  }
+  const solUsd = await fetch(`${PRICE_SERVICE_URL}/prices`, { signal: AbortSignal.timeout(5_000) }).then((r) => r.json()).then((b) => Number(b.prices?.SOL?.price) || 0).catch(() => 0)
+  const takenSymbols = new Set([...baseCatalog.assets, ...pumpswapList].map((a) => a.symbol.toUpperCase()))
+  return selectCurveAssets(candidates, { curves, metas, takenSymbols, listedMints, previous, keepSymbols: engine.liveSymbols(), solUsd })
+}
+
+function writeExtra(extra) {
+  mkdirSync(dirname(EXTRA_ASSETS), { recursive: true })
+  writeFileSync(`${EXTRA_ASSETS}.tmp`, JSON.stringify({ updatedAt: new Date().toISOString(), source: 'pumpswap', assets: extra }, null, 1))
+  renameSync(`${EXTRA_ASSETS}.tmp`, EXTRA_ASSETS)
+  engine.setAssets(allAssets(extra))
+  invalidate()
+}
+
+/** Quick pass after a launch: the PumpSwap list as it is, the curve coins rebuilt. */
+let curvesInFlight = null
+async function refreshCurves() {
+  if (curvesInFlight) return curvesInFlight
+  curvesInFlight = (async () => {
+    try {
+      const previous = readExtra()
+      const pumpswapList = previous.filter((a) => a.poolKind !== 'pump curve')
+      const curves = await curveAssets(pumpswapList, previous)
+      writeExtra([...pumpswapList, ...curves])
+      console.log(`curve coins: ${curves.length} (${curves.map((a) => a.symbol).join(', ')})`)
+    } catch (error) {
+      console.warn(`curve refresh: ${error.message}`)
+    } finally {
+      curvesInFlight = null
+    }
+  })()
+  return curvesInFlight
+}
+
 async function refreshPumpSwap() {
   try {
     const previous = readExtra()
@@ -349,13 +420,14 @@ async function refreshPumpSwap() {
     // Coins launched from our site have ordinary mint addresses: confirm them by their pump.fun curve.
     const others = [...new Set(pools.map((p) => p.mint).filter((m) => m && !m.endsWith('pump')))]
     const pumpMints = others.length ? await pumpFunMints(chain.connection, others, PublicKey).catch(() => new Set()) : new Set()
-    const extra = selectPumpSwapAssets(pools, { takenSymbols, previous, keepSymbols: engine.liveSymbols(), pumpMints, blocked: readBlocklist(), launched })
-    mkdirSync(dirname(EXTRA_ASSETS), { recursive: true })
-    writeFileSync(`${EXTRA_ASSETS}.tmp`, JSON.stringify({ updatedAt: new Date().toISOString(), source: 'pumpswap', assets: extra }, null, 1))
-    renameSync(`${EXTRA_ASSETS}.tmp`, EXTRA_ASSETS)
-    engine.setAssets(allAssets(extra))
-    invalidate()
-    console.log(`pumpswap: ${extra.length} coins (${extra.map((a) => a.symbol).join(', ')})`)
+    const swapped = selectPumpSwapAssets(pools, { takenSymbols, previous, keepSymbols: engine.liveSymbols(), pumpMints, blocked: readBlocklist(), launched })
+    const curves = await curveAssets(swapped, previous).catch((error) => {
+      console.warn(`curve coins: ${error.message}`)
+      return previous.filter((a) => a.poolKind === 'pump curve')
+    })
+    const extra = [...swapped, ...curves]
+    writeExtra(extra)
+    console.log(`pumpswap: ${swapped.length} coins (${swapped.map((a) => a.symbol).join(', ')}) · curve: ${curves.length} (${curves.map((a) => a.symbol).join(', ')})`)
   } catch (error) {
     console.warn(`pumpswap refresh: ${error.message}`)
   }

@@ -155,8 +155,10 @@ export interface ServerAsset {
   poolCreatedAt?: string
   /** When the game server added the coin to the list. */
   addedAt?: string
-  /** Launched from the HasteFun launchpad (and graduated to PumpSwap). */
+  /** Launched from the HasteFun launchpad. */
   launchedOnProphet?: boolean
+  /** A launch still on its pump.fun curve, priced there; not on PumpSwap yet. */
+  onCurve?: boolean
   /** Price kept in the bundled snapshot (shown while the server is off). */
   price?: { raw: string; decimals: number } | null
 }
@@ -325,7 +327,8 @@ interface PumpSwapSnapshot {
  * (LAST_DATA_URL/pumpswap.json), else the bundled snapshot - never empty. */
 export function usePumpSwapAssets() {
   const config = useGameServerConfig()
-  const live = (config.data?.assets ?? []).filter((a) => a.source === 'pumpswap')
+  // Launches still on their pump.fun curve play too, but are not PumpSwap coins.
+  const live = (config.data?.assets ?? []).filter((a) => a.source === 'pumpswap' && !a.onCurve)
   const needFallback = live.length === 0 && !config.isLoading
   const last = useQuery({
     queryKey: ['pumpswap-last'],

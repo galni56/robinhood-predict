@@ -10,7 +10,7 @@ import { marketCapUsd, useLivePrices } from '@/chain/livePrices'
 import { useApprovedRaceAssets } from '@/chain/useApprovedRaceAssets'
 import { calculateReturnWad, formatReturnAdaptive, type ApprovedRaceAsset } from '@/chain/assetRaces'
 import { AddressLabel } from '@/components/AddressLabel'
-import { CoinPicker, COIN_BODIES } from '@/components/GamePickers'
+import { CoinPicker, COIN_BODIES, LaunchpadWarning } from '@/components/GamePickers'
 import { CategoryBadge, CoinsToBring, DuelNumbers, GhostCoin, PracticeLap } from '@/components/DuelExtras'
 import { WalletOptionsList } from '@/components/WalletOptionsList'
 import { DepositModal } from '@/components/WalletAccountModals'
@@ -423,6 +423,7 @@ export function OnchainDuelPage() {
                 {duel.status === 'running' && <span className="rx-plate" style={{ fontFamily: PIXEL, fontSize: 12, background: PINK, padding: '8px 10px' }}>{clock(duel.endTime - now)}</span>}
                 {duel.status === 'starting' && <span className="rx-plate" style={{ fontFamily: PIXEL, fontSize: 10, background: PINK, padding: '8px 10px', animation: 'rx-blink 0.6s steps(1) infinite' }}>GO!</span>}
               </div>
+              {duel.category === 'prophet' && <div style={{ flexBasis: '100%' }}><LaunchpadWarning /></div>}
             </div>
             {duel.category && (
               <p style={{ margin: '8px 0 0', fontSize: 16, fontWeight: 700 }}>

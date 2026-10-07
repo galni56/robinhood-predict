@@ -17,6 +17,12 @@
 // without being seen. Over the limit the least liquid make room; Prophet
 // launches and coins of running games are never dropped. 40 coins x 3
 // accounts (pool + vaults) keeps the price service well under its 250 subscriptions.
+//
+// Coins launched on HasteFun play at once (owner, 2026-10-07): before they
+// graduate they are priced on their pump.fun curve (poolKind "pump curve",
+// selectCurveAssets below), in their own group with a warning in the UI.
+// After graduation they come back with their PumpSwap pool, with no
+// liquidity or age floor: players decide.
 
 const GECKO = 'https://api.geckoterminal.com/api/v2/networks/solana/dexes/pumpswap/pools'
 const WSOL = 'So11111111111111111111111111111111111111112'
@@ -140,14 +146,17 @@ export function selectPumpSwapAssets(pools, { takenSymbols, previous = [], keepS
     if (!realCoin(p) || (p.quote !== WSOL && p.quote !== USDC)) continue
     // Hand-picked honeypots and wash-traded coins (config/pumpswap-blocklist.json).
     if (blocked.mints.has(p.mint) || blocked.symbols.has(symbol.toUpperCase())) continue
-    if (!(p.liquidityUsd >= filter.minLiquidityUsd)) {
+    const ours = launched.has(p.mint)
+    if (!ours && !(p.liquidityUsd >= filter.minLiquidityUsd)) {
       lowLiquidity.add(p.mint)
       continue
     }
-    if ((now - Date.parse(p.createdAt)) / 3.6e6 < filter.minAgeHours) continue
+    if (!ours && (now - Date.parse(p.createdAt)) / 3.6e6 < filter.minAgeHours) continue
     const key = symbol.toUpperCase()
     if (!bySymbol.has(key) || bySymbol.get(key).liquidityUsd < p.liquidityUsd) bySymbol.set(key, { ...p, symbol })
   }
+  // Curve entries are rebuilt by selectCurveAssets; only PumpSwap ones carry over here.
+  previous = previous.filter((a) => a.poolKind !== 'pump curve')
   const prior = new Map(previous.map((a) => [a.symbol, a]))
   const asset = (p) => ({
     symbol: p.symbol,
@@ -189,4 +198,71 @@ export function selectPumpSwapAssets(pools, { takenSymbols, previous = [], keepS
   const all = [...fresh, ...kept]
   const others = all.filter((a) => !protectedCoin(a)).sort((a, b) => (b.liquidityUsd ?? 0) - (a.liquidityUsd ?? 0))
   return [...all.filter(protectedCoin), ...others.slice(0, filter.limit)]
+}
+
+/** Most launches priced on their curve at once: one subscription each in the price service. */
+export const MAX_CURVE_COINS = 20
+const PUMP_PRICE_DECIMALS = 12
+
+/**
+ * Coins launched on HasteFun that are still on their pump.fun curve, as
+ * registry-shaped assets priced from the curve account (poolKind "pump curve").
+ * `launches` newest first; `curves` maps mint -> { address, data } (data null
+ * when the curve was not found); `metas` maps mint -> { name, symbol, image }.
+ * Coins already listed with a PumpSwap pool, graduated (complete) curves and
+ * taken tickers are skipped; a coin of a running game whose curve completed
+ * keeps its previous entry so the game can still settle or refund.
+ */
+export function selectCurveAssets(launches, { curves, metas, takenSymbols, listedMints = new Set(), previous = [], keepSymbols = new Set(), solUsd = 0, now = Date.now(), limit = MAX_CURVE_COINS }) {
+  const prior = new Map(previous.filter((a) => a.poolKind === 'pump curve').map((a) => [a.mint, a]))
+  const out = []
+  const used = new Set()
+  for (const launch of launches) {
+    if (out.length >= limit) break
+    if (listedMints.has(launch.mint)) continue
+    const curve = curves.get(launch.mint)
+    const meta = metas.get(launch.mint)
+    const old = prior.get(launch.mint)
+    if (!curve?.data || !meta) {
+      if (old && keepSymbols.has(old.symbol)) out.push(old)
+      continue
+    }
+    const data = curve.data
+    if (data.length < 49 || data[48] !== 0) {
+      // Graduated: the PumpSwap pool takes over once listed; a running game keeps the old entry.
+      if (old && keepSymbols.has(old.symbol)) out.push(old)
+      continue
+    }
+    const symbol = String(meta.symbol ?? '').trim()
+    const key = symbol.toUpperCase()
+    if (!/^[A-Za-z0-9$._-]{1,16}$/.test(symbol) || takenSymbols.has(key) || used.has(key)) continue
+    used.add(key)
+    const virtualTokens = Number(data.readBigUInt64LE(8)) / 1e6
+    const virtualSol = Number(data.readBigUInt64LE(16)) / 1e9
+    const realSol = Number(data.readBigUInt64LE(32)) / 1e9
+    out.push({
+      symbol,
+      name: String(meta.name ?? symbol).trim() || symbol,
+      category: 'MEME',
+      mint: launch.mint,
+      tokenDecimals: 6,
+      // Fixed for the coin's life on the curve; 12 digits hold a new pump.fun price (~$0.000005) with 7 significant.
+      priceDecimals: old?.priceDecimals ?? PUMP_PRICE_DECIMALS,
+      pool: curve.address,
+      poolKind: 'pump curve',
+      quote: 'SOL',
+      icon: meta.image ?? null,
+      priceUrl: `https://pump.fun/coin/${launch.mint}`,
+      approved: true,
+      source: 'pumpswap',
+      launchedOnProphet: true,
+      onCurve: true,
+      liquidityUsd: Math.round(realSol * solUsd),
+      volume24hUsd: 0,
+      poolCreatedAt: new Date(launch.at * 1000).toISOString(),
+      addedAt: old?.addedAt ?? new Date(now).toISOString(),
+      lastSeenAt: new Date(now).toISOString(),
+    })
+  }
+  return out
 }

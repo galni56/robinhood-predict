@@ -18,6 +18,21 @@ export const COIN_BODIES: PxSpriteData[] = [coinOrangeGrin, coinPinkGrin, coinBl
 
 const shortPrice = (raw: bigint, decimals: number) => `$${Number(Number(formatUnits(raw, decimals)).toPrecision(4))}`
 
+/**
+ * The careful word on coins launched on HasteFun (owner, 2026-10-07: they play
+ * at once, players decide). Shown wherever such a coin can be picked or plays.
+ */
+export function LaunchpadWarning({ compact = false }: { compact?: boolean }) {
+  return (
+    <div role="note" style={{ display: 'flex', gap: 12, alignItems: 'flex-start', padding: compact ? '10px 12px' : '14px 16px', background: '#FFF4C2', color: INK, border: `3px solid ${INK}`, boxShadow: `0 3px 0 ${INK}` }}>
+      <span aria-hidden="true" style={{ flex: 'none', width: 26, height: 26, display: 'grid', placeItems: 'center', background: YELLOW, border: `2px solid ${INK}`, fontFamily: PIXEL, fontSize: 12 }}>!</span>
+      <div style={{ fontSize: compact ? 13 : 14, lineHeight: 1.45 }}>
+        <b>Made on HasteFun: players' own coins.</b> Anyone can launch one here, and it plays right away - most are still on the pump.fun curve with little money behind them. One big buy or sell, the creator's too, can swing the price within seconds, up to the last moment. We list them; we don't check or vouch for them. Play only with what you're fine losing.
+      </div>
+    </div>
+  )
+}
+
 /** Searchable grid of coins; `max` 1 is a single choice (arena). */
 /** Coin groups in the picker. Category codes: 1 meme, 2 crypto. */
 const COIN_FILTERS = [
@@ -70,6 +85,7 @@ export function CoinPicker({ assets, selected, onToggle, max, accent = YELLOW }:
           )
         })}
       </div>
+      {(filter === 'prophet' || priced.some((a) => a.launchedOnProphet && selected.includes(a.assetId))) && <div style={{ marginTop: 12 }}><LaunchpadWarning compact /></div>}
       <div style={{ marginTop: 12, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(112px, 1fr))', gap: 8, maxHeight: 360, overflowY: 'auto', padding: 4 }}>
         {shown.map((asset, index) => {
           const isSelected = selected.includes(asset.assetId)
@@ -92,6 +108,7 @@ export function CoinPicker({ assets, selected, onToggle, max, accent = YELLOW }:
               <CoinFighter body={COIN_BODIES[index % COIN_BODIES.length]} logoUrl={assetIconUrl(asset.symbol) ?? asset.logoUrl} symbol={asset.symbol} size={40} />
               <span style={{ fontWeight: 700, fontSize: 14, maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{asset.symbol}</span>
               <span style={{ fontFamily: PIXEL, fontSize: 8, opacity: 0.7 }}>{price ? shortPrice(price.raw, price.decimals) : ' '}</span>
+              {asset.onCurve && <span style={{ position: 'absolute', top: 4, left: 4, background: YELLOW, border: `2px solid ${INK}`, fontFamily: PIXEL, fontSize: 6, padding: '2px 3px' }}>CURVE</span>}
             </button>
           )
         })}

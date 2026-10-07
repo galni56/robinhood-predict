@@ -12,8 +12,8 @@ import { CREAM, INK, PINK, PIXEL } from '@/retro/scene'
 // Secondary pages live under "More" so the bar stays the mock trio.
 
 const LINKS = [
-  { to: '/onchain/races', label: 'Races' },
-  { to: '/onchain/shots', label: 'Arena' },
+  { to: '/onchain/races', label: 'Haste' },
+  { to: '/onchain/shots', label: 'Shot' },
   { to: '/onchain/pumpswap', label: 'PumpSwap' },
   { to: '/onchain/launch', label: 'Launch' },
   { to: '/?section=how', label: 'How to play' },

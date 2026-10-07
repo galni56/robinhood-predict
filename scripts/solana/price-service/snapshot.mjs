@@ -15,11 +15,12 @@ export async function buildPlan(connection, registry, { approvedOnly = true } = 
   const poolInfos = await connection.getMultipleAccountsInfo(pools.map((p) => new PublicKey(p)), 'confirmed')
 
   const kindByPool = new Map([...assets, solAsset].map((a) => [a.pool, a.poolKind]))
+  const mintByPool = new Map([...assets, solAsset].map((a) => [a.pool, a.mint]))
   const vaults = []
   const mints = new Set([USDC_MINT, WSOL_MINT])
   pools.forEach((pool, i) => {
     if (!poolInfos[i]) throw new Error(`pool ${pool} not found`)
-    const deps = poolDependencies(kindByPool.get(pool), poolInfos[i].data)
+    const deps = poolDependencies(kindByPool.get(pool), poolInfos[i].data, mintByPool.get(pool))
     deps.mints.forEach((m) => mints.add(m))
     vaults.push(...deps.vaults)
   })
@@ -54,8 +55,9 @@ export async function takeSnapshot(connection, plan, commitment = 'confirmed') {
 /** Accounts an asset's USD price depends on: its pool, AMM vaults, and the
  * SOL/USDC pool (plus its vaults) when the asset is quoted in SOL. */
 export function accountsFor(plan, asset, data) {
-  const own = [asset.pool, ...poolDependencies(asset.poolKind, data[asset.pool]).vaults]
-  const quotedInSol = poolDependencies(asset.poolKind, data[asset.pool]).mints.includes(WSOL_MINT) && asset.mint !== WSOL_MINT
+  const deps = poolDependencies(asset.poolKind, data[asset.pool], asset.mint)
+  const own = [asset.pool, ...deps.vaults]
+  const quotedInSol = deps.mints.includes(WSOL_MINT) && asset.mint !== WSOL_MINT
   if (!quotedInSol && asset.symbol !== 'SOL') return own
   const sol = plan.solAsset
   return [...new Set([...own, sol.pool, ...poolDependencies(sol.poolKind, data[sol.pool]).vaults])]

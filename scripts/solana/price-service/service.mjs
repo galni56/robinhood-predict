@@ -462,14 +462,16 @@ async function loadExtraAssets() {
   }
   if (mtime === extraMtime) return
   const list = JSON.parse(readFileSync(EXTRA_ASSETS, 'utf8')).assets ?? []
-  const fresh = list.filter((a) => !assetBySource.has(a.pool) && !plan.assets.some((x) => x.symbol === a.symbol))
+  // A coin launched on HasteFun is first priced on its pump.fun curve; once it
+  // graduates the same symbol comes back with its PumpSwap pool and replaces it.
+  const fresh = list.filter((a) => !assetBySource.has(a.pool) && !plan.assets.some((x) => x.symbol === a.symbol && !(x.poolKind === 'pump curve' && x.mint === a.mint)))
   const infos = fresh.length ? await connection.getMultipleAccountsInfo(fresh.map((a) => new PublicKey(a.pool)), 'confirmed') : []
   const added = []
   for (const [i, asset] of fresh.entries()) {
     if (!infos[i]) continue
     let deps
     try {
-      deps = poolDependencies(asset.poolKind, infos[i].data)
+      deps = poolDependencies(asset.poolKind, infos[i].data, asset.mint)
     } catch (error) {
       console.warn(`extra asset ${asset.symbol}: ${error.message}`)
       continue
@@ -492,11 +494,13 @@ async function loadExtraAssets() {
     const { context, value } = await connection.getMultipleAccountsInfoAndContext(accounts.map((a) => new PublicKey(a)), { commitment: 'confirmed' })
     accounts.forEach((a, k) => history.record(a, context.slot, value[k]?.data))
     plan.accounts.push(...accounts)
+    const replaced = plan.assets.findIndex((x) => x.symbol === asset.symbol)
+    if (replaced >= 0) plan.assets.splice(replaced, 1)
     plan.assets.push(asset)
     plan.kindByPool.set(asset.pool, asset.poolKind)
     assetBySource.set(asset.pool, asset)
     subscriptions.push(...accounts.map(subscribe))
-    memeMints.push({ symbol: asset.symbol, mint: new PublicKey(asset.mint) })
+    if (!memeMints.some((m) => m.symbol === asset.symbol)) memeMints.push({ symbol: asset.symbol, mint: new PublicKey(asset.mint) })
     added.push(asset.symbol)
   }
   extraMtime = mtime

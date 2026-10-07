@@ -14,6 +14,12 @@
 //   meteora DLMM      Meteora DLMM     (1 + bin_step / 10^4) ^ active_id
 //   pumpswap          PumpSwap AMM     reserves = the two pool vault balances
 //                     (base mint 43, quote mint 75, base vault 139, quote vault 171)
+//   pump curve        pump.fun bonding curve (coins launched on HasteFun, before
+//                     they graduate): virtual token reserves u64 at 8, virtual
+//                     SOL reserves u64 at 16, complete flag at 48. The account
+//                     holds no mint, so the asset's mint is passed in; the quote
+//                     is always SOL. A completed curve has moved to PumpSwap and
+//                     prices nothing (checked on a live curve, 2026-10-07).
 
 import { PublicKey } from '@solana/web3.js'
 
@@ -39,12 +45,21 @@ export const LAYOUTS = {
   'orca wp': { mint0: 101, mint1: 181, sqrtPrice: 65 },
   'meteora DLMM': { mint0: 88, mint1: 120, activeId: 76, binStep: 80 },
   pumpswap: { mint0: 43, mint1: 75, vault0: 139, vault1: 171 },
+  'pump curve': { virtualToken: 8, virtualSol: 16, complete: 48 },
 }
 
-/** Mints and extra accounts (vaults) a pool needs read in the same request. */
-export function poolDependencies(kind, data) {
+/** sha256("account:BondingCurve")[0..8]: the account really is a pump.fun curve. */
+const CURVE_DISCRIMINATOR = Buffer.from([23, 183, 248, 55, 96, 216, 172, 96])
+
+/** Mints and extra accounts (vaults) a pool needs read in the same request.
+ * `assetMint` is required for a pump curve, whose account names no mint. */
+export function poolDependencies(kind, data, assetMint) {
   const layout = LAYOUTS[kind]
   if (!layout) throw new Error(`unsupported pool kind: ${kind}`)
+  if (kind === 'pump curve') {
+    if (!assetMint) throw new Error('pump curve needs the asset mint')
+    return { mints: [assetMint, WSOL_MINT], vaults: [] }
+  }
   const mints = [key(data, layout.mint0), key(data, layout.mint1)]
   const vaults = layout.vault0 != null ? [key(data, layout.vault0), key(data, layout.vault1)] : []
   return { mints, vaults }
@@ -77,6 +92,15 @@ function token1PerToken0(kind, data, mints, decimals, vaultData) {
   const layout = LAYOUTS[kind]
   const [d0, d1] = [decimals[mints[0]], decimals[mints[1]]]
   if (d0 == null || d1 == null) throw new Error('missing mint decimals')
+
+  if (kind === 'pump curve') {
+    if (data.length < 49 || !data.subarray(0, 8).equals(CURVE_DISCRIMINATOR)) throw new Error('not a pump.fun curve')
+    if (data[layout.complete] !== 0) throw new Error('curve complete: the coin moved to PumpSwap')
+    const tokens = u64(data, layout.virtualToken)
+    const sol = u64(data, layout.virtualSol)
+    if (tokens <= 0n || sol <= 0n) throw new Error('empty reserves')
+    return { num: sol * pow10(d0), den: tokens * pow10(d1) }
+  }
 
   if (kind === 'raydium standard') {
     const vaults = poolDependencies(kind, data).vaults
@@ -120,7 +144,7 @@ function token1PerToken0(kind, data, mints, decimals, vaultData) {
  * the pool the asset sits on. Returns { num, den, quoteMint }.
  */
 export function assetPriceInQuote(kind, data, assetMint, decimals, vaultData) {
-  const { mints } = poolDependencies(kind, data)
+  const { mints } = poolDependencies(kind, data, assetMint)
   const p = token1PerToken0(kind, data, mints, decimals, vaultData)
   if (mints[0] === assetMint) return { ...p, quoteMint: mints[1] }
   if (mints[1] === assetMint) return { num: p.den, den: p.num, quoteMint: mints[0] }
