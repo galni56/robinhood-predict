@@ -162,7 +162,7 @@ export function OnchainShotsListPage() {
   }
 
   return (
-    <div style={{ minHeight: '100%', background: NIGHT, color: CREAM, fontFamily: "'Pixelify Sans', 'Courier New', monospace" }}>
+    <div style={{ minHeight: 'calc(100vh - 100px)', background: NIGHT, color: CREAM, fontFamily: "'HasteFun Digits', 'Pixelify Sans', 'Courier New', monospace" }}>
       <div className="mx-auto max-w-[1200px] px-4 py-8">
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16 }}>
           <div style={{ maxWidth: 640 }}>

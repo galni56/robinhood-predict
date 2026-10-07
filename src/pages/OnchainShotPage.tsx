@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { useWallet } from '@solana/wallet-adapter-react'
 import { useSignedAction } from '@/chain/gameServer'
 import { useLivePrices } from '@/chain/livePrices'
 import { useServerNowMs } from '@/chain/serverClock'
 import { quoteUsdCents } from '@/chain/stakeQuote'
-import { CANCEL_REASON, SHOT_RULES, provisionalOrder, shotConfirming, shotMemo, shotPhaseLabel, useShot, type Shot, type ShotEntry } from '@/chain/shots'
+import { CANCEL_REASON, SHOT_RULES, provisionalOrder, shotConfirming, shotMemo, shotPhaseLabel, useShot, useShots, type Shot, type ShotEntry } from '@/chain/shots'
 import { AddressLabel } from '@/components/AddressLabel'
 import { useStakeTransfer } from '@/solana/stake'
 import { useStakeBalance } from '@/solana/stakeTokens'
@@ -88,7 +88,7 @@ export function OnchainShotPage() {
   const unit = shot?.unit === 'cap' && supply ? 'cap' : 'price'
 
   return (
-    <div style={{ minHeight: '100%', background: NIGHT, color: CREAM, fontFamily: "'Pixelify Sans', 'Courier New', monospace" }}>
+    <div style={{ minHeight: 'calc(100vh - 100px)', background: NIGHT, color: CREAM, fontFamily: "'HasteFun Digits', 'Pixelify Sans', 'Courier New', monospace" }}>
       <div className="mx-auto max-w-[1200px] px-4 py-6">
         <Link to="/onchain/shots" style={{ fontSize: 16, fontWeight: 700, color: CREAM }}>← All rooms</Link>
         {isLoading || !shot ? <p className="rx-plate" style={{ display: 'inline-block', marginTop: 32, background: CREAM, color: INK, padding: '10px 14px', fontWeight: 700 }}>{isLoading ? 'Loading room…' : 'This room opens when the game server is back online.'}</p> : (
@@ -109,6 +109,7 @@ export function OnchainShotPage() {
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
                 <PlayersPanel shot={shot} me={me} />
+                {(shot.status === 'resolved' || shot.status === 'cancelled') && <PlayAgain shot={shot} onLogin={login.start} />}
               </div>
             </div>
           </>
@@ -277,13 +278,8 @@ function MatchPanel({ shot, me, now, livePrice, unit, supply }: { shot: Shot; me
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       {!final && <ShotChart pool={shot.priceSource} live={livePrice} unit={unit} supply={supply} lines={lines} />}
+      {final && <MatchSummary shot={shot} unit={unit} supply={supply} />}
       {final && mine && <ResultCard shot={shot} entry={mine} place={mine.rank || place(mine)} unit={unit} supply={supply} />}
-      {final && !mine && (
-        <div className="rx-raised" style={{ padding: 20, background: YELLOW, color: INK }}>
-          <span style={label}>MATCH OVER</span>
-          <span style={{ fontFamily: PIXEL, fontSize: 16 }}>Final {formatChartValue(valueOf(shot, shot.finalPrice), unit, supply)}</span>
-        </div>
-      )}
       <div className="rx-raised" style={{ padding: 16, background: CREAM, color: INK }}>
         <span style={label}>{final ? 'FINAL STANDINGS' : `PROVISIONAL PLACES · TOP ${winners} WIN`} {!final && reference != null ? `· ENDS IN ${clock(shot.deadline - now)}` : ''}</span>
         {order.map((e, i) => {
@@ -304,6 +300,74 @@ function MatchPanel({ shot, me, now, livePrice, unit, supply }: { shot: Shot; me
           )
         })}
       </div>
+    </div>
+  )
+}
+
+/** A finished match in numbers: the bank, the winners, the sharpest shot. */
+function MatchSummary({ shot, unit, supply }: { shot: Shot; unit: 'price' | 'cap'; supply: number | null }) {
+  const final = valueOf(shot, shot.finalPrice)
+  const off = shot.entries.map((e) => (Math.abs(valueOf(shot, e.prediction) - final) / final) * 100)
+  const best = off.length ? Math.min(...off) : null
+  const paid = shot.entries.reduce((sum, e) => sum + e.payout, 0n)
+  return (
+    <div className="rx-raised" style={{ padding: 16, background: CREAM, color: INK }}>
+      <span style={label}>THE MATCH IN NUMBERS</span>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 12, fontSize: 17 }}>
+        <Stat name="Final" value={formatChartValue(final, unit, supply)} />
+        <Stat name="Bank" value={sol(shot.totalPool)} />
+        <Stat name="Paid to winners" value={sol(paid)} />
+        <Stat name="Winners" value={`${shot.entries.filter((e) => e.payout > 0n).length} of ${shot.entries.length}`} />
+        <Stat name="Sharpest shot" value={best != null ? `off by ${best.toFixed(2)}%` : '-'} />
+        <Stat name="Length" value={durationLabel(shot.duration)} />
+      </div>
+    </div>
+  )
+}
+
+/** After the bell: a rematch on the same coin, and rooms open right now. */
+function PlayAgain({ shot, onLogin }: { shot: Shot; onLogin: () => void }) {
+  const { publicKey } = useWallet()
+  const act = useSignedAction()
+  const navigate = useNavigate()
+  const { shots } = useShots()
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const open = shots.filter((s) => s.status === 'open' && s.id !== shot.id).slice(0, 4)
+  async function rematch() {
+    if (!publicKey) return onLogin()
+    setError(null)
+    setBusy(true)
+    try {
+      const room = await act<{ id: number }>({ action: 'shot-create', asset: shot.symbol, duration: shot.duration, unit: shot.unit })
+      navigate(`/onchain/shot/${room.id}`)
+    } catch (cause) {
+      setError(shortTxError(cause, 'shot-create'))
+    } finally {
+      setBusy(false)
+    }
+  }
+  return (
+    <div className="rx-raised" style={{ padding: 16, background: CREAM, color: INK, display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <span style={label}>PLAY AGAIN</span>
+      <button type="button" disabled={busy} onClick={rematch} className="rx-btn rx-btn-pink" style={{ minHeight: 52, fontFamily: PIXEL, fontSize: 11, color: CREAM }}>
+        {busy ? 'SIGNING…' : `REMATCH: ${shot.symbol} · ${durationLabel(shot.duration).toUpperCase()}`}
+      </button>
+      <span style={{ fontSize: 14, opacity: 0.75 }}>Opens a fresh room on the same coin and length; send the link to the same crew.</span>
+      {error && <span style={{ fontWeight: 700, color: '#C2245A' }}>{error}</span>}
+      {open.length > 0 && (
+        <div>
+          <span style={{ ...label, marginTop: 4 }}>OPEN ROOMS NOW</span>
+          {open.map((s, i) => (
+            <Link key={s.id} to={`/onchain/shot/${s.id}`} className="rx-hop-host" style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderTop: i ? '2px solid rgba(27,19,64,0.1)' : 'none', color: INK, textDecoration: 'none' }}>
+              <CoinFighter body={COIN_BODIES[s.id % COIN_BODIES.length]} logoUrl={assetIconUrl(s.symbol)} symbol={s.symbol} size={30} />
+              <span style={{ flex: 1, fontWeight: 700 }}>{s.symbol} · {durationLabel(s.duration)}</span>
+              <span style={{ fontFamily: PIXEL, fontSize: 8, opacity: 0.7 }}>{s.players.length}/{SHOT_RULES.maxPlayers}</span>
+            </Link>
+          ))}
+        </div>
+      )}
+      <Link to="/onchain/shots" style={{ fontWeight: 700, color: INK, textDecoration: 'underline' }}>All rooms →</Link>
     </div>
   )
 }
