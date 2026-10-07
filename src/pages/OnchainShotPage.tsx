@@ -17,6 +17,7 @@ import { formatUnits, shortTxError } from '@/lib/format'
 import { CoinFighter } from '@/retro/landingFx'
 import { COIN_BODIES } from '@/components/GamePickers'
 import { CREAM, INK, PINK, PIXEL, YELLOW } from '@/retro/scene'
+import { InviteButton } from '@/components/InviteButton'
 
 // Price Shot room: Ready -> Aim (30 s, crosshair + stake, Lock Shot) -> Live
 // (everyone's shots, provisional places) -> Results. Stakes come from the game
@@ -129,6 +130,7 @@ function Header({ shot, now, livePrice, unit, supply }: { shot: Shot; now: numbe
         </div>
       </div>
       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        {shot.status === 'open' && <InviteButton path={`/onchain/shot/${shot.id}`} />}
         <span className="rx-plate" style={{ fontFamily: PIXEL, fontSize: 10, background: CREAM, color: INK, padding: '8px 10px' }}>{shotPhaseLabel(shot)}</span>
         {timer != null && <span className="rx-plate" style={{ fontFamily: PIXEL, fontSize: 14, background: shot.status === 'aim' ? PINK : YELLOW, color: shot.status === 'aim' ? CREAM : INK, padding: '8px 10px', animation: shot.status === 'aim' && timer < 10 ? 'rx-blink 0.6s steps(1) infinite' : undefined }}>{clock(timer)}</span>}
       </div>

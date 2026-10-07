@@ -25,6 +25,7 @@ import { CoinFighter } from '@/retro/landingFx'
 import { PxSprite } from '@/retro/Sprite'
 import { CREAM, INK, PINK, ROAD, SKY, YELLOW, PIXEL } from '@/retro/scene'
 import { crown } from '@/retro/spriteData'
+import { InviteButton } from '@/components/InviteButton'
 
 // Pixel fonts have no emoji; the cheer thumb uses the system emoji font.
 const EMOJI = "'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif"
@@ -417,6 +418,7 @@ export function OnchainDuelPage() {
               <CategoryBadge category={duel.category} size="large" />
               </div>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                {(duel.status === 'open' || duel.status === 'ready') && <InviteButton path={`/onchain/duel/${duel.id}`} />}
                 <span className="rx-plate" style={{ fontFamily: PIXEL, fontSize: 10, background: CREAM, padding: '8px 10px' }}>{duelPhaseLabel(duel)}</span>
                 {duel.status === 'running' && <span className="rx-plate" style={{ fontFamily: PIXEL, fontSize: 12, background: PINK, padding: '8px 10px' }}>{clock(duel.endTime - now)}</span>}
                 {duel.status === 'starting' && <span className="rx-plate" style={{ fontFamily: PIXEL, fontSize: 10, background: PINK, padding: '8px 10px', animation: 'rx-blink 0.6s steps(1) infinite' }}>GO!</span>}
