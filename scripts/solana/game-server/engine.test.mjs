@@ -535,7 +535,7 @@ test('duel lobbies: spare empty lobbies are closed after a while, and empty ones
 
 test('price shot: aim by signed message, stake by transfer, hidden until live, winner paid', async () => {
   const t0 = 10_000
-  const aimEnd = t0 + 100 + 30
+  const aimEnd = t0 + 100 + 15 + 30
   const start = aimEnd + 6
   const { clock, chain, db, engine } = setup({ [start + 60]: { 'pool-SOL': 1_000n } }, { adoptWallet: true })
   await engine.init()
@@ -547,7 +547,10 @@ test('price shot: aim by signed message, stake by transfer, hidden until live, w
   engine.act(alice.signed(clock, { action: 'shot-ready', shot: room.id }))
   assert.equal(db.getGame('shot', room.id).status, 'open', 'one of three ready is not more than half')
   engine.act(bob.signed(clock, { action: 'shot-ready', shot: room.id }))
-  assert.equal(db.getGame('shot', room.id).status, 'aim')
+  assert.equal(db.getGame('shot', room.id).status, 'open', 'two of three: carol gets the countdown')
+  clock.t = t0 + 115
+  await engine.tick()
+  assert.equal(db.getGame('shot', room.id).status, 'aim', 'carol missed it and sits out')
 
   assert.throws(() => engine.act(carol.signed(clock, { action: 'shot-aim', shot: room.id, prediction: '990' })), /NotInMatch/)
   engine.act(alice.signed(clock, { action: 'shot-aim', shot: room.id, prediction: '1000' }))

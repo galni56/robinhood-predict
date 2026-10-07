@@ -519,7 +519,7 @@ export function createEngine({ db, chain, prices, assets, cluster, coldWallet = 
           mutate('shot', Number(payload.shot), (g) => joinShot(g, wallet, t))
           return { kind: 'shot', id: Number(payload.shot) }
         case 'shot-leave':
-          mutate('shot', Number(payload.shot), (g) => leaveShot(g, wallet))
+          mutate('shot', Number(payload.shot), (g) => leaveShot(g, wallet, t))
           return { kind: 'shot', id: Number(payload.shot) }
         case 'shot-ready':
           mutate('shot', Number(payload.shot), (g) => readyShot(g, wallet, payload.ready !== false, t))
@@ -631,7 +631,7 @@ export function createEngine({ db, chain, prices, assets, cluster, coldWallet = 
       stake: { min: STAKE.min, max: STAKE.max },
       race: { minAssets: RACE.minAssets, maxAssets: RACE.maxAssets, communityDurations: COMMUNITY_RACE_DURATIONS, communityPolicy: COMMUNITY_POLICY },
       arena: { durations: ARENA.durations, lobbyDuration: ARENA.lobbyDuration, maxParticipants: ARENA.maxParticipants, feeBp: ARENA.feeBp },
-      shot: { minPlayers: SHOT.minPlayers, maxPlayers: SHOT.maxPlayers, aimSeconds: SHOT.aimSeconds, lockGrace: SHOT.lockGrace, durations: SHOT.durations, feeBp: SHOT.feeBp },
+      shot: { minPlayers: SHOT.minPlayers, maxPlayers: SHOT.maxPlayers, readyCountdown: SHOT.readyCountdown, aimSeconds: SHOT.aimSeconds, lockGrace: SHOT.lockGrace, durations: SHOT.durations, feeBp: SHOT.feeBp },
       duel: { minRacers: DUEL.minRacers, maxRacers: DUEL.maxRacers, durations: DUEL.durations, payWindow: DUEL.payWindow, readyWindow: DUEL.readyWindow, prepareExtra: DUEL.prepareExtra, backCap: duelBackCap(), racerShareBp: Number(DUEL.racerShareBp), feeBp: Number(DUEL.feeBp) },
       assets: currentAssets,
     }),
