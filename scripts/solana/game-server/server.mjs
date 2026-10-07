@@ -343,7 +343,7 @@ function launches() {
 // Name, ticker and picture of a launched coin: Token-2022 metadata inside the
 // mint, the picture from the JSON its uri points to. Cached; a coin keeps them.
 const coinMetas = new Map()
-const ipfsGateway = (url) => (typeof url === 'string' ? url.replace(/^ipfs:///, 'https://ipfs.io/ipfs/') : null)
+const ipfsGateway = (url) => (typeof url === 'string' ? (url.startsWith('ipfs://') ? `https://ipfs.io/ipfs/${url.slice('ipfs://'.length)}` : url) : null)
 async function coinMeta(mint) {
   if (coinMetas.has(mint)) return coinMetas.get(mint)
   const info = await chain.connection.getParsedAccountInfo(new PublicKey(mint), 'confirmed')
