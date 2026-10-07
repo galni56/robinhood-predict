@@ -536,7 +536,8 @@ test('duel lobbies: spare empty lobbies are closed after a while, and empty ones
 test('price shot: aim by signed message, stake by transfer, hidden until live, winner paid', async () => {
   const t0 = 10_000
   const aimEnd = t0 + 100 + 30
-  const { clock, chain, db, engine } = setup({ [aimEnd + 60]: { 'pool-SOL': 1_000n } }, { adoptWallet: true })
+  const start = aimEnd + 15
+  const { clock, chain, db, engine } = setup({ [start + 60]: { 'pool-SOL': 1_000n } }, { adoptWallet: true })
   await engine.init()
   const [alice, bob, carol] = [wallet(), wallet(), wallet()]
   const room = engine.act(alice.signed(clock, { action: 'shot-create', asset: 'SOL', duration: 60 }))
@@ -558,29 +559,29 @@ test('price shot: aim by signed message, stake by transfer, hidden until live, w
 
   const memo = `prophet:shot:${room.id}:0`
   chain.deposit(alice.address, SOL / 20n, memo, t0 + 110)
-  chain.deposit(bob.address, SOL / 20n, memo, t0 + 111)
   chain.deposit(carol.address, SOL / 20n, memo, t0 + 112) // not in the match: refunded
-  chain.deposit(bob.address, SOL / 20n, memo, aimEnd + 1) // second stake, late: refunded
-  clock.t = t0 + 115
+  chain.deposit(bob.address, SOL / 20n, memo, aimEnd + 4) // locked in the last second, confirmed in the grace: counts
+  chain.deposit(bob.address, SOL / 20n, memo, aimEnd + 5) // a second stake: refunded
+  clock.t = aimEnd + 6
   await engine.tick()
   const aiming = db.getGame('shot', room.id)
   assert.equal(aiming.entries.length, 2)
   assert.ok(gameView(db, aiming).entries.every((e) => e.prediction === '0'), 'locked shots stay hidden during aim')
 
-  clock.t = aimEnd + 2
+  clock.t = start + 2
   await engine.tick()
-  assert.equal(db.getGame('shot', room.id).status, 'aim', 'waits for stakes confirmed before the aim ended')
-  clock.t = aimEnd + 7
+  assert.equal(db.getGame('shot', room.id).status, 'aim', 'waits for stakes confirmed within the lock window')
+  clock.t = start + 7
   await engine.tick()
   assert.equal(db.getGame('shot', room.id).status, 'live')
   assert.equal(gameView(db, db.getGame('shot', room.id)).entries[0].prediction, '1000', 'shots are public once live')
 
-  clock.t = aimEnd + 60 + 3
+  clock.t = start + 60 + 3
   await engine.tick()
   await engine.tick()
   assert.equal(db.getGame('shot', room.id).status, 'resolved')
   assert.equal(paidTo(chain, alice.address), SOL / 20n + (SOL / 20n) * 98n / 100n, 'exact shot: stake back plus the loser’s stake minus 2%')
-  assert.equal(paidTo(chain, bob.address), SOL / 20n - 5_000n, 'only his late second stake comes back (minus the fee)')
+  assert.equal(paidTo(chain, bob.address), SOL / 20n - 5_000n, 'only his second stake comes back (minus the fee)')
   assert.equal(paidTo(chain, carol.address), SOL / 20n - 5_000n)
   assert.equal(db.creatorBalance(alice.address), (SOL / 20n) / 100n, 'the creator half waits until it is worth sending')
 })
@@ -599,7 +600,7 @@ test('price shot: too few stakes by the end of aim cancels and refunds them', as
   chain.deposit(alice.address, SOL / 20n, `prophet:shot:${room.id}:0`, t0 + 5)
   clock.t = t0 + 10
   await engine.tick()
-  clock.t = t0 + 30 + 7
+  clock.t = t0 + 30 + 15 + 7
   await engine.tick()
   await engine.tick()
   const shot = db.getGame('shot', room.id)

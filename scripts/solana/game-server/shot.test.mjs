@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { RuleError } from './rules.mjs'
-import { SHOT, aimShot, createShot, joinShot, leaveShot, lockShot, readyShot, resolveShot, shotSettlements, shotTimers } from './shot.mjs'
+import { SHOT, aimShot, createShot, joinShot, leaveShot, lockShot, readyShot, resolveShot, shotSettlements, shotStartsAt, shotTimers } from './shot.mjs'
 
 const SOL = 1_000_000_000n
 const ASSET = { symbol: 'WIF', priceSource: 'pool-WIF', priceDecimals: 6, category: 'meme' }
@@ -50,7 +50,10 @@ test('odd field: one more loser than winners; payouts weighted by accuracy', () 
   throwsCode(() => aimShot(shot, { wallet: 'a', prediction: 1n }, 114), 'AlreadyLocked')
   throwsCode(() => lockShot(shot, { wallet: 'a', amount: SOL / 10n, time: 114 }), 'AlreadyLocked')
   shotTimers(shot, shot.aimEndsAt)
+  assert.equal(shot.status, 'aim', 'stakes still confirming')
+  shotTimers(shot, shotStartsAt(shot))
   assert.equal(shot.status, 'live')
+  assert.equal(shot.deadline, shot.aimEndsAt + SHOT.lockGrace + 60, 'the match runs its full length')
   resolveShot(shot, { price: 1000n, prevSlot: 9, prevBlockTime: shot.deadline - 1 }, shot.deadline + 5)
   assert.equal(shot.winnerCount, 1)
   const [win, ...others] = shotSettlements(shot)
@@ -60,15 +63,17 @@ test('odd field: one more loser than winners; payouts weighted by accuracy', () 
   assert.equal(shot.creatorFee, ((2n * SOL) / 10n) / 100n, 'the creator half of the fee, paid like an arena creator')
 })
 
-test('aim closes on time; a stale deadline price cancels with refunds', () => {
+test('a shot locked in the last second still counts; its stake has the grace to confirm', () => {
   const shot = room(['a', 'b'])
   readyShot(shot, 'a', true, 110)
   readyShot(shot, 'b', true, 110)
   lock(shot, 'a', 5n, SOL / 100n, 120)
-  aimShot(shot, { wallet: 'b', prediction: 6n }, 121)
-  throwsCode(() => lockShot(shot, { wallet: 'b', amount: SOL / 100n, time: shot.aimEndsAt }), 'AimClosed')
-  lockShot(shot, { wallet: 'b', amount: SOL / 100n, time: shot.aimEndsAt - 1 })
-  shotTimers(shot, shot.aimEndsAt)
+  aimShot(shot, { wallet: 'b', prediction: 6n }, shot.aimEndsAt - 1)
+  throwsCode(() => aimShot(shot, { wallet: 'a', prediction: 7n }, shot.aimEndsAt), 'AimClosed')
+  throwsCode(() => lockShot(shot, { wallet: 'b', amount: SOL / 100n, time: shot.aimEndsAt + SHOT.lockGrace }), 'AimClosed')
+  lockShot(shot, { wallet: 'b', amount: SOL / 100n, time: shot.aimEndsAt + 3 })
+  assert.equal(shot.entries.length, 2)
+  shotTimers(shot, shotStartsAt(shot))
   resolveShot(shot, { price: 5n, prevSlot: 9, prevBlockTime: shot.deadline - SHOT.maxPriceStaleness - 1 }, shot.deadline + 5)
   assert.equal(shot.status, 'cancelled')
   assert.deepEqual(shotSettlements(shot).map((c) => [c.wallet, c.amount, c.reason]), [['a', SOL / 100n, 'refund'], ['b', SOL / 100n, 'refund']])

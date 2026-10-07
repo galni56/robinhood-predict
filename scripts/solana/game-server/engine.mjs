@@ -47,7 +47,7 @@ import {
 } from './rules.mjs'
 import { fromBase58, isAddress } from './chain.mjs'
 import { DUEL, backDuel, createDuel, duelNeedsResolve, duelNeedsStart, duelSettlements, duelTimers, joinDuel, leaveDuel, payDuel, prepareDuel, readyDuel, resolveDuel, startDuel } from './duel.mjs'
-import { SHOT, aimShot, createShot, joinShot, leaveShot, lockShot, readyShot, resolveShot, shotNeedsResolve, shotSettlements, shotTimers } from './shot.mjs'
+import { SHOT, aimShot, createShot, joinShot, leaveShot, lockShot, readyShot, resolveShot, shotNeedsResolve, shotSettlements, shotStartsAt, shotTimers } from './shot.mjs'
 import { FINAL_STATUSES } from './db.mjs'
 import { createPayouts } from './payouts.mjs'
 import { createDeposits } from './deposits.mjs'
@@ -292,10 +292,10 @@ export function createEngine({ db, chain, prices, assets, cluster, coldWallet = 
 
   async function advanceShot(shot, t) {
     const { id } = shot
-    if (shot.status === 'aim' && t >= shot.aimEndsAt) {
-      // Stakes confirmed before the aim ended must all be in before deciding
+    if (shot.status === 'aim' && t >= shotStartsAt(shot)) {
+      // Stakes confirmed within the lock window must all be in before deciding
       // who plays; a stuck scan holds this back at most SHOT.startGrace.
-      if (!settledPast(shot.aimEndsAt, t) && t < shot.aimEndsAt + SHOT.startGrace) return
+      if (!settledPast(shotStartsAt(shot), t) && t < shotStartsAt(shot) + SHOT.startGrace) return
       mutate('shot', id, (s) => shotTimers(s, t))
       return
     }
@@ -627,7 +627,7 @@ export function createEngine({ db, chain, prices, assets, cluster, coldWallet = 
       stake: { min: STAKE.min, max: STAKE.max },
       race: { minAssets: RACE.minAssets, maxAssets: RACE.maxAssets, communityDurations: COMMUNITY_RACE_DURATIONS, communityPolicy: COMMUNITY_POLICY },
       arena: { durations: ARENA.durations, lobbyDuration: ARENA.lobbyDuration, maxParticipants: ARENA.maxParticipants, feeBp: ARENA.feeBp },
-      shot: { minPlayers: SHOT.minPlayers, maxPlayers: SHOT.maxPlayers, aimSeconds: SHOT.aimSeconds, durations: SHOT.durations, feeBp: SHOT.feeBp },
+      shot: { minPlayers: SHOT.minPlayers, maxPlayers: SHOT.maxPlayers, aimSeconds: SHOT.aimSeconds, lockGrace: SHOT.lockGrace, durations: SHOT.durations, feeBp: SHOT.feeBp },
       duel: { minRacers: DUEL.minRacers, maxRacers: DUEL.maxRacers, durations: DUEL.durations, payWindow: DUEL.payWindow, readyWindow: DUEL.readyWindow, prepareExtra: DUEL.prepareExtra, backCap: duelBackCap(), racerShareBp: Number(DUEL.racerShareBp), feeBp: Number(DUEL.feeBp) },
       assets: currentAssets,
     }),

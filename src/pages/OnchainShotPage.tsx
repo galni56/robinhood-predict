@@ -6,7 +6,7 @@ import { useSignedAction } from '@/chain/gameServer'
 import { useLivePrices } from '@/chain/livePrices'
 import { useServerNowMs } from '@/chain/serverClock'
 import { quoteUsdCents } from '@/chain/stakeQuote'
-import { CANCEL_REASON, SHOT_RULES, provisionalOrder, shotMemo, shotPhaseLabel, useShot, type Shot, type ShotEntry } from '@/chain/shots'
+import { CANCEL_REASON, SHOT_RULES, provisionalOrder, shotConfirming, shotMemo, shotPhaseLabel, useShot, type Shot, type ShotEntry } from '@/chain/shots'
 import { AddressLabel } from '@/components/AddressLabel'
 import { useStakeTransfer } from '@/solana/stake'
 import { useStakeBalance } from '@/solana/stakeTokens'
@@ -120,7 +120,8 @@ export function OnchainShotPage() {
 }
 
 function Header({ shot, now, livePrice, unit, supply }: { shot: Shot; now: number; livePrice: number | null; unit: 'price' | 'cap'; supply: number | null }) {
-  const timer = shot.status === 'aim' ? shot.aimEndsAt - now : shot.status === 'live' ? shot.deadline - now : null
+  // Aim, then the window for locked stakes to confirm, then the match.
+  const timer = shot.status === 'aim' ? (shotConfirming(shot, now) ? shot.aimEndsAt + SHOT_RULES.lockGrace - now : shot.aimEndsAt - now) : shot.status === 'live' ? shot.deadline - now : null
   const asset = useApprovedRaceAssets().assets.find((a) => a.symbol === shot.symbol)
   return (
     <div style={{ marginTop: 12, display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
@@ -135,7 +136,7 @@ function Header({ shot, now, livePrice, unit, supply }: { shot: Shot; now: numbe
       </div>
       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
         {shot.status === 'open' && <InviteButton path={`/onchain/shot/${shot.id}`} />}
-        <span className="rx-plate" style={{ fontFamily: PIXEL, fontSize: 10, background: CREAM, color: INK, padding: '8px 10px' }}>{shotPhaseLabel(shot)}</span>
+        <span className="rx-plate" style={{ fontFamily: PIXEL, fontSize: 10, background: CREAM, color: INK, padding: '8px 10px' }}>{shotPhaseLabel(shot, now)}</span>
         {timer != null && <span className="rx-plate" style={{ fontFamily: PIXEL, fontSize: 14, background: shot.status === 'aim' ? PINK : YELLOW, color: shot.status === 'aim' ? CREAM : INK, padding: '8px 10px', animation: shot.status === 'aim' && timer < 10 ? 'rx-blink 0.6s steps(1) infinite' : undefined }}>{clock(timer)}</span>}
       </div>
       {asset?.launchedOnProphet && <div style={{ flexBasis: '100%' }}><LaunchpadWarning /></div>}
@@ -173,6 +174,7 @@ function AimPanel({ shot, me, now, busy, livePrice, unit, supply, solUsd }: {
   livePrice: number | null; unit: 'price' | 'cap'; supply: number | null; solUsd: Parameters<typeof quoteUsdCents>[1] | undefined
 }) {
   const inMatch = !!me && shot.players.some((p) => p.wallet === me)
+  const confirming = shotConfirming(shot, now)
   const locked = !!me && shot.entries.some((e) => e.player === me)
   const balance = useStakeBalance()
   const act = useSignedAction()
@@ -227,7 +229,7 @@ function AimPanel({ shot, me, now, busy, livePrice, unit, supply, solUsd }: {
       <ShotChart pool={shot.priceSource} live={livePrice} unit={unit} supply={supply} aim={inMatch && !locked ? { value: aim, onChange: setAim } : null} lines={lines} />
       <div className="rx-raised" style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: 20, background: CREAM, color: INK }}>
         {!inMatch ? (
-          <p style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>The ready players are aiming now. Watch the match start in {Math.max(0, Math.ceil(shot.aimEndsAt - now))} s.</p>
+          <p style={{ margin: 0, fontSize: 18, fontWeight: 600 }}>The ready players are aiming now. Watch the match start in {Math.max(0, Math.ceil(shot.aimEndsAt + SHOT_RULES.lockGrace - now))} s.</p>
         ) : locked ? (
           <p style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>Shot locked{own != null ? ` at ${formatChartValue(own, unit, supply)}` : ''}. Waiting for the others - their shots show when the match starts.</p>
         ) : (
@@ -252,7 +254,8 @@ function AimPanel({ shot, me, now, busy, livePrice, unit, supply, solUsd }: {
               {STAKE_PRESETS.map((c) => <button key={String(c)} type="button" onClick={() => setCents(c)} className={`rx-btn ${cents === c ? 'rx-btn-yellow' : 'rx-btn-white'}`} style={{ padding: '8px 12px', fontWeight: 700 }}>{usd(c)}</button>)}
             </div>
             <span style={{ fontSize: 15, opacity: 0.75 }}>{lamports != null ? `${sol(lamports)} from your account` : 'Waiting for the SOL price…'}{short ? ' - not enough SOL, top up first' : tooLow ? ' - below the minimum' : tooHigh ? ' - above the maximum' : ''}</span>
-            <button type="button" disabled={!!busy || !!locking || aim == null || lamports == null || short || tooLow || tooHigh} onClick={lock} className="rx-btn rx-btn-pink" style={{ minHeight: 60, fontFamily: PIXEL, fontSize: 15, color: CREAM }}>{locking ? locking.toUpperCase() : 'LOCK SHOT'}</button>
+            {confirming && !locking && <span style={{ fontWeight: 700 }}>Aim time is over - shots locked in time are confirming; the match starts in {Math.max(0, Math.ceil(shot.aimEndsAt + SHOT_RULES.lockGrace - now))} s.</span>}
+            <button type="button" disabled={!!busy || !!locking || confirming || aim == null || lamports == null || short || tooLow || tooHigh} onClick={lock} className="rx-btn rx-btn-pink" style={{ minHeight: 60, fontFamily: PIXEL, fontSize: 15, color: CREAM }}>{locking ? locking.toUpperCase() : 'LOCK SHOT'}</button>
             {lockError && <span style={{ fontWeight: 700, color: '#C2245A' }}>{lockError}</span>}
           </>
         )}

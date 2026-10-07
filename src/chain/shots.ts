@@ -70,7 +70,7 @@ export interface Shot {
   winnerCount: number
 }
 
-export const SHOT_RULES = { minPlayers: 2, maxPlayers: 10, aimSeconds: 30, durations: [60, 300, 900, 3600] }
+export const SHOT_RULES = { minPlayers: 2, maxPlayers: 10, aimSeconds: 30, lockGrace: 15, durations: [60, 300, 900, 3600] }
 /** A Price Shot stake: a transfer to the game wallet with this memo (the price was sent signed). */
 export const shotMemo = (id: number) => `prophet:shot:${id}:0`
 
@@ -132,9 +132,12 @@ export function provisionalOrder(entries: ShotEntry[], price: bigint) {
   })
 }
 
-export function shotPhaseLabel(shot: Shot) {
+/** True once the aim is over and locked shots' stakes are still confirming. */
+export const shotConfirming = (shot: Shot, nowSec: number) => shot.status === 'aim' && nowSec >= shot.aimEndsAt
+
+export function shotPhaseLabel(shot: Shot, nowSec = Date.now() / 1000) {
   if (shot.status === 'open') return `WAITING ${shot.players.length}/${SHOT_RULES.maxPlayers}`
-  if (shot.status === 'aim') return 'AIM'
+  if (shot.status === 'aim') return shotConfirming(shot, nowSec) ? 'CONFIRMING SHOTS' : 'AIM'
   if (shot.status === 'live') return 'LIVE'
   if (shot.status === 'resolved') return 'FINISHED'
   return 'CANCELLED'
