@@ -306,8 +306,7 @@ export function WhitepaperPage() {
             <li><strong>The HasteFun token</strong> on pump.fun, with buyback and burn through pump.fun and PumpSwap.</li>
           </ul>
           <p>
-            The full plan lives on the{' '}
-            <Link to="/roadmap" className="text-[#C2245A] hover:underline">roadmap</Link>; the exact rules of every game are in{' '}
+            The exact rules of every game are in{' '}
             <Link to="/terms" className="text-[#C2245A] hover:underline">Rules and Terms</Link>.
           </p>
         </Section>
