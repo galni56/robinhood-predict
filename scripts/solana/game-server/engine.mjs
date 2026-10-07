@@ -518,7 +518,7 @@ export function createEngine({ db, chain, prices, assets, cluster, coldWallet = 
         }
         case 'shot-create': {
           requireCreationRoom(wallet)
-          const shot = createShot(db.nextId('shot'), { title: payload.title, creator: wallet, duration: payload.duration, unit: payload.unit }, requireAsset(payload.asset), t)
+          const shot = createShot(db.nextId('shot'), { title: payload.title, creator: wallet, duration: payload.duration }, requireAsset(payload.asset), t)
           joinShot(shot, wallet, t)
           db.saveGame(shot)
           return { kind: 'shot', id: shot.id }
@@ -563,7 +563,7 @@ export function createEngine({ db, chain, prices, assets, cluster, coldWallet = 
         }
         case 'duel-join': {
           const stake = payload.stake != null && /^\d{1,20}$/.test(String(payload.stake)) ? BigInt(payload.stake) : undefined
-          mutate('duel', Number(payload.duel), (d) => joinDuel(d, { wallet, asset: requireAsset(payload.asset), stake, duration: payload.duration, unit: payload.unit, title: payload.title }, t))
+          mutate('duel', Number(payload.duel), (d) => joinDuel(d, { wallet, asset: requireAsset(payload.asset), stake, duration: payload.duration, title: payload.title }, t))
           return { kind: 'duel', id: Number(payload.duel) }
         }
         case 'duel-leave':

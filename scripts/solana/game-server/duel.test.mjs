@@ -10,7 +10,7 @@ const sum = (rows) => rows.reduce((s, r) => s + r.amount, 0n)
 
 function twoRacers(stake = SOL / 10n) {
   const duel = createDuel(0, 0)
-  joinDuel(duel, { wallet: 'vasya', asset: coin('BONK'), stake, duration: 60, unit: 'cap' }, 1)
+  joinDuel(duel, { wallet: 'vasya', asset: coin('BONK'), stake, duration: 60 }, 1)
   joinDuel(duel, { wallet: 'petya', asset: coin('WIF') }, 2)
   return duel
 }
@@ -19,7 +19,7 @@ test('duel: the first racer sets the lobby; others follow its category with a co
   const duel = twoRacers()
   assert.equal(duel.category, 'meme')
   assert.equal(duel.stake, SOL / 10n)
-  assert.equal(duel.unit, 'cap')
+  assert.equal(duel.unit, 'price', 'catalog memes race by price')
   throwsCode(() => joinDuel(duel, { wallet: 'x', asset: coin('BONK') }, 3), 'CoinTaken')
   throwsCode(() => joinDuel(duel, { wallet: 'x', asset: coin('SOL', 'crypto') }, 3), 'WrongCategory')
   throwsCode(() => joinDuel(duel, { wallet: 'vasya', asset: coin('PEPE') }, 3), 'AlreadyInDuel')
@@ -164,17 +164,19 @@ test('duel: crypto, catalog memes, PumpSwap coins and Prophet launches never mix
   const ours = (symbol) => ({ ...coin(symbol), source: 'pumpswap', launchedOnProphet: true })
   const lobby = (asset) => {
     const duel = createDuel(0, 0)
-    joinDuel(duel, { wallet: 'first', asset, stake: SOL / 10n, duration: 60, unit: 'cap' }, 1)
+    joinDuel(duel, { wallet: 'first', asset, stake: SOL / 10n, duration: 60, unit: 'price' }, 1)
     return duel
   }
   const fresh = lobby(pumpswap('CATE'))
   assert.equal(fresh.category, 'pumpswap')
-  assert.equal(fresh.unit, 'cap')
+  assert.equal(fresh.unit, 'cap', 'PumpSwap coins race by market cap, whatever the client asks')
   throwsCode(() => joinDuel(fresh, { wallet: 'b', asset: coin('WIF') }, 2), 'WrongCategory')
   throwsCode(() => joinDuel(fresh, { wallet: 'c', asset: ours('MINE') }, 2), 'WrongCategory')
   joinDuel(fresh, { wallet: 'd', asset: pumpswap('UDR') }, 2)
   const prophet = lobby(ours('MINE'))
   assert.equal(prophet.category, 'prophet')
+  assert.equal(prophet.unit, 'cap')
+  assert.equal(lobby(coin('SOL', 'crypto')).unit, 'price')
   throwsCode(() => joinDuel(prophet, { wallet: 'e', asset: pumpswap('UDR') }, 2), 'WrongCategory')
   throwsCode(() => joinDuel(lobby(coin('WIF')), { wallet: 'f', asset: pumpswap('UDR') }, 2), 'WrongCategory')
 })
