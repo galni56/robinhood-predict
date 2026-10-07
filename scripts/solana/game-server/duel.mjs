@@ -50,7 +50,7 @@ export function createDuel(id, now, creator = null) {
     id,
     status: 'open',
     creator,
-    title: `Duel #${id}`,
+    title: `Race #${id}`,
     createdAt: now,
     category: null,
     unit: 'price',

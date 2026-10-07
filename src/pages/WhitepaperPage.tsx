@@ -13,8 +13,8 @@ const SECTIONS = [
   { id: 'abstract', label: '1. Abstract' },
   { id: 'why', label: '2. Why HasteFun' },
   { id: 'product', label: '3. The product' },
-  { id: 'haste', label: '4. Haste: coin duels' },
-  { id: 'haste-math', label: '5. Duel payouts' },
+  { id: 'haste', label: '4. Haste: coin races' },
+  { id: 'haste-math', label: '5. Race payouts' },
   { id: 'shot', label: '6. Shot: price calls' },
   { id: 'shot-math', label: '7. Shot ranking' },
   { id: 'launchpad', label: '8. Launchpad' },
@@ -53,7 +53,7 @@ export function WhitepaperPage() {
             HasteFun: fast prediction games on Solana coins
           </h1>
           <p className="mt-4 max-w-3xl text-base leading-relaxed text-[#1B1340]/75">
-            Minute-long duels between coins, price calls with friends, and a launchpad whose coins can play the moment
+            Minute-long races between coins, price calls with friends, and a launchpad whose coins can play the moment
             they are born. Paid in SOL, settled on signed on-chain prices, paid out automatically.
           </p>
           <div className="mt-6 grid gap-3 sm:grid-cols-4">
@@ -88,7 +88,7 @@ export function WhitepaperPage() {
               and a winner.
             </li>
             <li>
-              <strong>Short, social rounds.</strong> A duel lasts one to thirty minutes. Friends join a lobby by link,
+              <strong>Short, social rounds.</strong> A race lasts one to thirty minutes. Friends join a lobby by link,
               spectators back a racer and cheer, and everyone sees the same live board.
             </li>
             <li>
@@ -120,7 +120,7 @@ export function WhitepaperPage() {
           </div>
         </Section>
 
-        <Section id="haste" title="4. Haste: coin duels">
+        <Section id="haste" title="4. Haste: coin races">
           <ol className="list-decimal space-y-2 pl-5">
             <li>
               <strong>Open a lobby.</strong> The first racer picks a coin group, the stake ($1–$50), the round length
@@ -153,7 +153,7 @@ export function WhitepaperPage() {
           <Formula>rᵢ = (P₁ − P₀) ÷ P₀;   winner = argmaxᵢ rᵢ   (a tie at the top refunds everyone)</Formula>
         </Section>
 
-        <Section id="haste-math" title="5. Duel payouts">
+        <Section id="haste-math" title="5. Race payouts">
           <p>With n racers, stake s, B_w backed on the winner, B_l on the losers and fee f = 2%:</p>
           <Formula>racer cut = B_l × 30%   (all of B_l if nobody backed the winner)</Formula>
           <Formula>winning racer payout = s + ((n − 1) × s + racer cut) × (1 − f)</Formula>
@@ -178,7 +178,7 @@ export function WhitepaperPage() {
           <ol className="list-decimal space-y-2 pl-5">
             <li><strong>Room.</strong> Anyone opens a room for one coin and a match of 1, 5, 15 or 60 minutes. Up to 10 players join for free; an invite link brings friends straight in.</li>
             <li><strong>Ready.</strong> Once more than half of the room, and at least two players, are ready, the match begins for them.</li>
-            <li><strong>Aim, 30 seconds.</strong> Each player sets a crosshair on the chart where they expect the price to end, picks a stake from 0.005 to 1 SOL and locks the shot: the price goes to the server as a signed message, the stake as one transfer, like a duel stake. A shot locked before the 30 seconds end counts: its stake then has 15 more seconds to confirm, and the match starts after that.</li>
+            <li><strong>Aim, 30 seconds.</strong> Each player sets a crosshair on the chart where they expect the price to end, picks a stake from 0.005 to 1 SOL and locks the shot: the price goes to the server as a signed message, the stake as one transfer, like a race stake. A shot locked before the 30 seconds end counts: its stake then has 15 more seconds to confirm, and the match starts after that.</li>
             <li><strong>Live.</strong> All shots are revealed at once. Everyone watches the price, every shot and a provisional ranking until the final bell.</li>
             <li><strong>Result.</strong> The final price is the signed pool price at the deadline; winnings are paid to the winners&apos; wallets automatically.</li>
           </ol>
@@ -239,7 +239,7 @@ export function WhitepaperPage() {
               device, and the player can back it up at any time. Phantom and Solflare work too.
             </li>
             <li>
-              <strong>A stake is one transfer.</strong> Joining a duel sends the stake in SOL to the game wallet with a
+              <strong>A stake is one transfer.</strong> Joining a race sends the stake in SOL to the game wallet with a
               short memo naming the game. Forms show both USD and SOL before signing, and check the balance first.
             </li>
             <li>
@@ -278,7 +278,7 @@ export function WhitepaperPage() {
 
         <Section id="economics" title="13. Business model">
           <ul className="list-disc space-y-2 pl-5">
-            <li><strong>2% of winnings</strong> in duels, and 2% of the losing stakes in Shot (half of it goes to the player who opened the room).</li>
+            <li><strong>2% of winnings</strong> in races, and 2% of the losing stakes in Shot (half of it goes to the player who opened the room).</li>
             <li><strong>Half of the ready-check tax</strong>; the other half rewards racers who stayed.</li>
             <li><strong>Nothing on launches.</strong> The launchpad is free and feeds new coins, and new players, into the games.</li>
           </ul>
@@ -300,7 +300,7 @@ export function WhitepaperPage() {
 
         <Section id="next" title="15. What comes next">
           <ul className="list-disc space-y-2 pl-5">
-            <li><strong>Bigger stakes.</strong> High-stakes lobbies above today&apos;s $50 duel stake and 1 SOL Shot stake, for players who want more on the line.</li>
+            <li><strong>Bigger stakes.</strong> High-stakes lobbies above today&apos;s $50 race stake and 1 SOL Shot stake, for players who want more on the line.</li>
             <li><strong>Launch races.</strong> Several coins launched in one lobby; the first to graduate to PumpSwap wins.</li>
             <li><strong>Graduation calls.</strong> &ldquo;Will it graduate in 24 hours?&rdquo; games on fresh launches.</li>
             <li><strong>The HasteFun token</strong> on pump.fun, with buyback and burn through pump.fun and PumpSwap.</li>

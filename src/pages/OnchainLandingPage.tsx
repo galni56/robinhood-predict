@@ -19,7 +19,7 @@ import { TokenCa } from '@/components/TokenCa'
 
 const STEPS = [
   ['Create an account', 'One click, no extension. Top it up with some SOL to stake.'],
-  ['Pick your coin', 'Bring a coin to a Haste duel, or call one coin\'s final price in a Shot room.'],
+  ['Pick your coin', 'Bring a coin to a Haste race, or call one coin\'s final price in a Shot room.'],
   ['Win lands in your account', 'Your call won? Your share of the bank is sent to your account automatically.'],
 ] as const
 
@@ -86,7 +86,7 @@ export function OnchainLandingPage() {
           ON SOLANA
         </span>
         <h1 style={{ position: 'relative', margin: 0, fontFamily: PIXEL, fontSize: 'clamp(20px, 3.4vw, 48px)', fontWeight: 400, lineHeight: 1.5 }}>
-          <span style={{ display: 'block', textShadow: `4px 4px 0 ${YELLOW}` }}>HASTE DUELS</span>
+          <span style={{ display: 'block', textShadow: `4px 4px 0 ${YELLOW}` }}>HASTE RACES</span>
           <span style={{ display: 'block', textShadow: `4px 4px 0 ${PINK}` }}>& PRICE SHOTS</span>
         </h1>
         <p style={{ position: 'relative', margin: 0, maxWidth: 640, fontSize: 'clamp(18px, 1.6vw, 22px)', lineHeight: 1.4, fontWeight: 500, textWrap: 'pretty' }}>

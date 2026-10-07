@@ -139,7 +139,7 @@ export function OnchainDuelsListPage() {
       <div className="mx-auto max-w-[1200px] px-4 py-8" style={{ position: 'relative', zIndex: 1 }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16 }}>
           <div>
-            <h1 style={{ margin: 0, fontFamily: PIXEL, fontSize: 'clamp(18px, 2.6vw, 32px)', fontWeight: 400, lineHeight: 1.4, textShadow: `4px 4px 0 ${YELLOW}` }}>COIN DUELS</h1>
+            <h1 style={{ margin: 0, fontFamily: PIXEL, fontSize: 'clamp(18px, 2.6vw, 32px)', fontWeight: 400, lineHeight: 1.4, textShadow: `4px 4px 0 ${YELLOW}` }}>HASTE · COIN RACES</h1>
             <p style={{ margin: '8px 0 0', maxWidth: 640, fontSize: 18, fontWeight: 600 }}>
               Bring your coin, match the stake, hit READY. The coin that grows the most wins the pot. Watching? Back a racer and cheer.
             </p>

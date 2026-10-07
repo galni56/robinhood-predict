@@ -129,7 +129,7 @@ export function OnchainPortfolioPage() {
     <div className="mx-auto max-w-[1100px] px-4 py-8">
       <ClusterBanner />
       <h1 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">Portfolio</h1>
-      <p className="mt-2 text-sm text-[#1B1340]/55">Your Haste duels and Shot calls, payouts on their way to your account, and your history.</p>
+      <p className="mt-2 text-sm text-[#1B1340]/55">Your Haste races and Shot calls, payouts on their way to your account, and your history.</p>
 
       {!connected || !publicKey ? (
         <div className="rx-raised mt-6 max-w-md bg-[#FFF6DF] p-5">
@@ -179,7 +179,7 @@ export function OnchainPortfolioPage() {
                 <p className="py-6 text-sm text-[#C2245A]">Could not read your positions.</p>
               ) : !isLoading && inPlay.length === 0 ? (
                 <p className="py-6 text-sm text-[#1B1340]/55">
-                  No open games. <Link to="/onchain/races" className="font-bold text-[#B8860B] hover:underline">Find a duel</Link> or <Link to="/onchain/shots" className="font-bold text-[#1F7FD1] hover:underline">join an arena</Link>.
+                  No open games. <Link to="/onchain/races" className="font-bold text-[#B8860B] hover:underline">Find a race</Link> or <Link to="/onchain/shots" className="font-bold text-[#1F7FD1] hover:underline">join an arena</Link>.
                 </p>
               ) : isLoading && inPlay.length === 0 ? (
                 <p className="py-6 text-sm text-[#1B1340]/55">Loading your games…</p>

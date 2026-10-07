@@ -135,7 +135,8 @@ export function duelFromServer(d: ServerDuel): Duel {
     id: d.id,
     status: d.status,
     creator: d.creator,
-    title: d.title,
+    // 2-6 coins race, so they are races on screen; older lobbies were saved as "Duel #n".
+    title: d.title.startsWith('Duel #') ? `Race #${d.title.slice('Duel #'.length)}` : d.title,
     category: d.category,
     unit: d.unit,
     stake: BigInt(d.stake),
@@ -168,7 +169,7 @@ export function durationLabel(seconds: number) {
 
 /** Four open lobbies to show while the game server is offline (never empty). */
 const OFFLINE_LOBBIES: Duel[] = Array.from({ length: 4 }, (_, i) => ({
-  id: i + 1, status: 'open', creator: null, title: `Duel #${i + 1}`, category: null, unit: 'price', stake: 0n, duration: 0,
+  id: i + 1, status: 'open', creator: null, title: `Race #${i + 1}`, category: null, unit: 'price', stake: 0n, duration: 0,
   racers: [], backers: [], startTime: 0, endTime: 0, winnerSeat: 0, cancelReason: null, payouts: [], pot: 0n,
 }))
 
