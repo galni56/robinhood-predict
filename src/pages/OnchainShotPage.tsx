@@ -22,7 +22,7 @@ import { useApprovedRaceAssets } from '@/chain/useApprovedRaceAssets'
 import { CREAM, INK, PINK, PIXEL, YELLOW } from '@/retro/scene'
 import { InviteButton } from '@/components/InviteButton'
 
-// Price Shot room: Ready -> Aim (30 s, crosshair + stake, Lock Shot) -> Live
+// Price Shot room: Ready -> Aim (60 s, crosshair + stake, Lock Shot) -> Live
 // (everyone's shots, provisional places) -> Results. The price goes to the
 // server signed (secret until the match starts), the stake is one transfer,
 // and winnings are paid to the wallet.

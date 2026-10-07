@@ -74,7 +74,7 @@ export interface Shot {
   winnerCount: number
 }
 
-export const SHOT_RULES = { minPlayers: 2, maxPlayers: 10, readyCountdown: 15, aimSeconds: 30, lockGrace: 15, durations: [60, 300, 900, 3600] }
+export const SHOT_RULES = { minPlayers: 2, maxPlayers: 10, readyCountdown: 15, aimSeconds: 60, lockGrace: 15, durations: [60, 300, 900, 3600] }
 /** A Price Shot stake: a transfer to the game wallet with this memo (the price was sent signed). */
 export const shotMemo = (id: number) => `prophet:shot:${id}:0`
 

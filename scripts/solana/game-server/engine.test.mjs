@@ -535,7 +535,7 @@ test('duel lobbies: spare empty lobbies are closed after a while, and empty ones
 
 test('price shot: aim by signed message, stake by transfer, hidden until live, winner paid', async () => {
   const t0 = 10_000
-  const aimEnd = t0 + 100 + 15 + 30
+  const aimEnd = t0 + 100 + 15 + 60
   const start = aimEnd + 6
   const { clock, chain, db, engine } = setup({ [start + 60]: { 'pool-SOL': 1_000n } }, { adoptWallet: true })
   await engine.init()
@@ -605,7 +605,7 @@ test('price shot: too few stakes by the end of aim cancels and refunds them', as
   chain.deposit(alice.address, SOL / 20n, `prophet:shot:${room.id}:0`, t0 + 5)
   clock.t = t0 + 10
   await engine.tick()
-  clock.t = t0 + 30 + 15 + 7
+  clock.t = t0 + 60 + 15 + 7
   await engine.tick()
   await engine.tick()
   const shot = db.getGame('shot', room.id)
