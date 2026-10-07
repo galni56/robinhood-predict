@@ -6,6 +6,7 @@ import { OnchainLayout } from '@/components/OnchainLayout'
 import { PageSkeleton } from '@/components/PageSkeleton'
 import { RealNavbar } from '@/components/RealNavbar'
 import { RouteErrorBoundary } from '@/components/RouteErrorBoundary'
+import { TokenStrip } from '@/components/TokenCa'
 
 // Every page is its own lazy chunk: the initial download carries only the
 // app shell (navbar, providers, this router) and the first visited page.
@@ -34,6 +35,7 @@ export default function App() {
     <div className="min-h-screen flex flex-col">
       <DisclaimerBanner />
       <RealNavbar />
+      <TokenStrip />
 
       <main className="flex-1">
         <RouteErrorBoundary key={location.pathname}>

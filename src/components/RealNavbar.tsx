@@ -4,7 +4,6 @@ import type { CSSProperties } from 'react'
 import { ConnectWalletButton } from '@/components/ConnectWalletButton'
 import { SoundToggle } from '@/components/SoundToggle'
 import { XLink } from '@/components/XLink'
-import { PROPHET_TOKEN_CA, TokenCa } from '@/components/TokenCa'
 import { PxSprite } from '@/retro/Sprite'
 import { logoCoin } from '@/retro/spriteData'
 import { CREAM, INK, PINK, PIXEL } from '@/retro/scene'
@@ -66,8 +65,6 @@ export function RealNavbar() {
           <PxSprite data={logoCoin} width={32} height={34} />
           <span>HASTEFUN</span>
         </NavLink>
-        {/* The placeholder only lives on the landing; in the header it pushed the account button to a second row. */}
-        {PROPHET_TOKEN_CA && <TokenCa compact />}
       </div>
 
       <nav className="rx-navbar-links" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '4px 32px', fontSize: 22, fontWeight: 600 }}>
