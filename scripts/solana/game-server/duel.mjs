@@ -30,7 +30,7 @@ export const DUEL = {
   /** One "preparing" press adds this much, once. */
   prepareExtra: 15,
   // Owner, 2026-10-06: memes up to 15 min, crypto up to 30 min.
-  durations: { meme: [60, 180, 300, 900], crypto: [300, 900, 1800] },
+  durations: { meme: [60, 180, 300, 900], crypto: [60, 300, 900, 1800] },
   feeBp: 200n,
   racerShareBp: 3_000n,
   tax: { baseBp: 1_000n, backedBp: 2_000n, repeatThreshold: 10, repeatMultiplier: 2n },

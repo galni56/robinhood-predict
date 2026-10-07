@@ -24,7 +24,7 @@ test('duel: the first racer sets the lobby; others follow its category with a co
   throwsCode(() => joinDuel(duel, { wallet: 'x', asset: coin('SOL', 'crypto') }, 3), 'WrongCategory')
   throwsCode(() => joinDuel(duel, { wallet: 'vasya', asset: coin('PEPE') }, 3), 'AlreadyInDuel')
   const crypto = createDuel(1, 0)
-  throwsCode(() => joinDuel(crypto, { wallet: 'a', asset: coin('SOL', 'crypto'), stake: SOL / 10n, duration: 60 }, 1), 'UnsupportedDuration')
+  throwsCode(() => joinDuel(crypto, { wallet: 'a', asset: coin('SOL', 'crypto'), stake: SOL / 10n, duration: 180 }, 1), 'UnsupportedDuration')
   leaveDuel(duel, 'petya')
   assert.equal(duel.racers.length, 1)
 })

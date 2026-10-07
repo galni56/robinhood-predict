@@ -138,7 +138,7 @@ export function WhitepaperPage() {
             </li>
             <li>
               <strong>Race.</strong> When every paid racer is ready, the race starts at the next boundary. Memes race
-              for 1, 3, 5 or 15 minutes; crypto for 5, 15 or 30 minutes.
+              for 1, 3, 5 or 15 minutes; crypto for 1, 5, 15 or 30 minutes.
             </li>
             <li>
               <strong>Win.</strong> The coin with the largest percentage change wins, even if every coin fell. The
