@@ -174,15 +174,20 @@ export function ShotChart({ pool, live, unit = 'price', supply = null, aim, line
         {area && <path d={area} fill="url(#shot-area)" />}
         {path && <path d={path} fill="none" stroke={YELLOW} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />}
 
-        {lines.map((l) => {
+        {placeLabels(lines.map((l) => {
           const off = l.price > domain.hi ? 'up' : l.price < domain.lo ? 'down' : null
-          const ly = off === 'up' ? PAD.top + 8 : off === 'down' ? H - PAD.bottom - 8 : y(l.price)
+          return { l, off, ly: off === 'up' ? PAD.top + 8 : off === 'down' ? H - PAD.bottom - 8 : y(l.price) }
+        })).map(({ l, off, ly, chipY }) => {
           const color = l.mine ? PINK : l.hit ? '#45BF5C' : 'rgba(255,246,223,0.6)'
+          // Chips sit at the left edge (clear of the live price on the right),
+          // right of the zoom buttons when near the top.
+          const cx = chipY < PAD.top + 30 ? PAD.left + 92 : PAD.left + 4
           return (
             <g key={`${l.label}-${l.price}`}>
               {!off && <line x1={PAD.left} x2={W - PAD.right} y1={ly} y2={ly} stroke={color} strokeWidth={l.mine ? 2 : 1.5} strokeDasharray={l.mine ? undefined : '6 5'} />}
-              <rect x={W - PAD.right - 64} y={ly - 9} width={62} height={18} fill={l.mine ? PINK : INK} stroke={color} strokeWidth={1.5} />
-              <text x={W - PAD.right - 60} y={ly + 4} fill={l.mine ? CREAM : color} fontSize={10} fontFamily={PIXEL}>{off === 'up' ? '▲' : off === 'down' ? '▼' : ''}{l.label}</text>
+              {Math.abs(chipY - ly) > 1 && <line x1={cx + 62} x2={cx + 72} y1={chipY} y2={ly} stroke={color} strokeWidth={1} />}
+              <rect x={cx} y={chipY - 9} width={62} height={18} fill={l.mine ? PINK : INK} stroke={color} strokeWidth={1.5} />
+              <text x={cx + 4} y={chipY + 4} fill={l.mine ? CREAM : color} fontSize={10} fontFamily={PIXEL}>{off === 'up' ? '▲' : off === 'down' ? '▼' : ''}{l.label}</text>
             </g>
           )
         })}
@@ -216,6 +221,19 @@ export function ShotChart({ pool, live, unit = 'price', supply = null, aim, line
       </div>
     </div>
   )
+}
+
+/** Spreads label chips so they never overlap: sorted by height, at least one chip apart, inside the plot. */
+function placeLabels<T extends { ly: number }>(items: T[]): (T & { chipY: number })[] {
+  const gap = 20
+  const sorted = [...items].sort((a, b) => a.ly - b.ly).map((it) => ({ ...it, chipY: it.ly }))
+  for (let i = 1; i < sorted.length; i++) sorted[i].chipY = Math.max(sorted[i].chipY, sorted[i - 1].chipY + gap)
+  const bottom = H - PAD.bottom - 9
+  if (sorted.length && sorted[sorted.length - 1].chipY > bottom) {
+    sorted[sorted.length - 1].chipY = bottom
+    for (let i = sorted.length - 2; i >= 0; i--) sorted[i].chipY = Math.min(sorted[i].chipY, sorted[i + 1].chipY - gap)
+  }
+  return sorted
 }
 
 /** The crosshair's fine step at the chart's default scale, for nudge buttons. */
