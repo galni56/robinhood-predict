@@ -10,7 +10,7 @@ import { AnimatedRace, ArenaCallsScene, DriftingCloud, PixelDivider, Podium, Sun
 import { assetRaceCatalog } from '@/chain/assetRaceRegistry'
 import pumpswapSnapshot from '@/chain/pumpswapSnapshot.json'
 import { formatCompactSol } from '@/lib/format'
-import { TokenCa } from '@/components/TokenCa'
+import { PROPHET_TOKEN_CA, TokenCa } from '@/components/TokenCa'
 
 // 1:1 port of the approved mock's landing (Main.dc.html), English copy,
 // wired to the app's routes. Every size, color and animation step comes
@@ -247,7 +247,7 @@ export function OnchainLandingPage() {
           </div>
           <div style={{ flex: '0 1 380px', display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 16 }}>
             <TokenCa />
-            <a href="https://pump.fun" target="_blank" rel="noreferrer" className="rx-btn rx-btn-pink" style={{ minHeight: 56, padding: '0 28px', fontFamily: PIXEL, fontSize: 14 }}>
+            <a href={PROPHET_TOKEN_CA ? `https://pump.fun/coin/${PROPHET_TOKEN_CA}` : 'https://pump.fun'} target="_blank" rel="noreferrer" className="rx-btn rx-btn-pink" style={{ minHeight: 56, padding: '0 28px', fontFamily: PIXEL, fontSize: 14 }}>
               BUY ON PUMP.FUN
             </a>
           </div>

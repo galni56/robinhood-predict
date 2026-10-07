@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { CREAM, INK, PIXEL, YELLOW } from '@/retro/scene'
 
-/** The $HASTE token mint on pump.fun. Empty until the token launches. */
-export const PROPHET_TOKEN_CA: string = ''
+/** The $HASTE token mint on pump.fun. */
+export const PROPHET_TOKEN_CA: string = '6t5UNKGbnCP5DdHZriSeuVnBVhbNmkPYhU9Mhrexpump'
 
 /** Contract address plate: shows the placeholder until launch, then copies on click. */
 export function TokenCa({ compact = false }: { compact?: boolean }) {
