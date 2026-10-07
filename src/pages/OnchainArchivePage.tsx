@@ -1,19 +1,12 @@
 import { Link, useSearchParams } from 'react-router-dom'
-import {
-  ASSET_RACE_STATUS,
-  assetRaceCategoryLabel,
-  assetRaceStatusLabel,
-  formatReturnWad,
-} from '@/chain/assetRaces'
-import { isPlayedCancellation } from '@/chain/gameVisibility'
-import { PRICE_ARENA_CATEGORY, PRICE_ARENA_STATUS, arenaDurationLabel } from '@/chain/priceArena'
-import { useAssetRaces } from '@/chain/useAssetRaces'
-import { usePriceArenas } from '@/chain/usePriceArenas'
-import { ClusterBanner } from '@/components/ClusterBanner'
+import { DUEL_GROUP_LABELS, durationLabel, useDuels, type Duel, type DuelRacer } from '@/chain/duels'
+import { useShots, type Shot } from '@/chain/shots'
+import { useApprovedRaceAssets } from '@/chain/useApprovedRaceAssets'
+import { COIN_BODIES } from '@/components/GamePickers'
 import { FilterChips } from '@/components/FilterChips'
-import { TokenLogo } from '@/components/TokenLogo'
-import { formatUnits, formatUsdPrice } from '@/lib/format'
-import { formatStakeAmount, useStakeTokenLookup } from '@/solana/stakeTokens'
+import { assetIconUrl } from '@/lib/assetIcons'
+import { formatUnits } from '@/lib/format'
+import { CoinFighter } from '@/retro/landingFx'
 
 type ArchiveMode = 'races' | 'arenas'
 
@@ -22,90 +15,103 @@ const MODE_OPTIONS = [
   { key: 'arenas', label: 'Shot', accent: 'arena' },
 ] as const
 
-function dateLabel(seconds: bigint) {
-  return seconds > 0n ? new Date(Number(seconds) * 1000).toLocaleString() : '—'
+const sol = (raw: bigint) => `${Number(Number(formatUnits(raw, 9)).toPrecision(4))} SOL`
+const dateLabel = (seconds: number) => (seconds > 0 ? new Date(seconds * 1000).toLocaleString() : '—')
+const price = (raw: bigint, decimals: number) => `$${Number(Number(formatUnits(raw, decimals)).toPrecision(5))}`
+
+function move(r: DuelRacer) {
+  if (r.startPrice <= 0n || r.endPrice <= 0n) return null
+  const pct = (Number(r.endPrice - r.startPrice) / Number(r.startPrice)) * 100
+  return `${pct >= 0 ? '+' : ''}${pct.toFixed(Math.abs(pct) < 0.1 ? 3 : 2)}%`
 }
 
-/** Finished games: settled ones, voided races, and cancellations that had
- * real stakes in them (empty cancelled lobbies are not history). */
+/** Finished games from the game server: resolved ones, and refunds that had real money in them. */
 export function OnchainArchivePage() {
   const [params, setParams] = useSearchParams()
   const mode: ArchiveMode = params.get('mode') === 'arenas' ? 'arenas' : 'races'
-  const races = useAssetRaces()
-  const arenas = usePriceArenas()
-  const tokenOf = useStakeTokenLookup()
+  const duels = useDuels()
+  const shots = useShots()
+  const { assets } = useApprovedRaceAssets()
+  const logoOf = (symbol: string) => assetIconUrl(symbol) ?? assets.find((a) => a.symbol === symbol)?.logoUrl
 
-  const finishedRaces = races.races.filter((race) => (
-    race.status === ASSET_RACE_STATUS.RESOLVED
-      || race.status === ASSET_RACE_STATUS.VOID
-      || isPlayedCancellation(race.status, ASSET_RACE_STATUS.CANCELLED, race.totalPool)
-  ))
-  const finishedArenas = arenas.arenas.filter((arena) => (
-    arena.status === PRICE_ARENA_STATUS.RESOLVED
-      || isPlayedCancellation(arena.status, PRICE_ARENA_STATUS.CANCELLED, arena.totalPool)
-  ))
-  const loading = mode === 'races' ? races.isLoading : arenas.isLoading
-  const loadError = mode === 'races' ? races.error : arenas.error
+  const finishedRaces = duels.offline ? [] : duels.duels.filter((d) => d.status === 'resolved' || ((d.status === 'void' || d.status === 'cancelled') && d.pot > 0n))
+  const finishedShots = shots.shots.filter((s) => s.status === 'resolved' || (s.status === 'cancelled' && s.totalPool > 0n))
+  const loading = mode === 'races' ? duels.isLoading : shots.isLoading
+  const offline = mode === 'races' ? duels.offline : shots.offline
 
   return (
     <div className="mx-auto max-w-[1100px] px-4 py-8">
-      <ClusterBanner />
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">Archive</h1>
-          <p className="mt-2 text-sm text-[#1B1340]/55">Every finished game with its final result. Results are read from the program accounts.</p>
+          <p className="mt-2 text-sm text-[#1B1340]/55">Every finished game with its final result, settled on signed on-chain prices.</p>
         </div>
         <FilterChips options={MODE_OPTIONS} value={mode} onChange={(next) => setParams(next === 'races' ? {} : { mode: next })} />
       </div>
 
       <div className="mt-6 space-y-2">
         {loading ? <p className="py-10 text-center text-sm text-[#1B1340]/55">Loading history…</p>
-          : loadError ? <p className="py-10 text-center text-sm text-[#C2245A]">Could not load finished games. Refresh to retry.</p>
+          : offline ? <p className="py-10 text-center text-sm text-[#1B1340]/55">The game server is taking a break - the archive is back shortly.</p>
           : mode === 'races' ? (
-            finishedRaces.length === 0 ? <p className="py-10 text-center text-sm text-[#1B1340]/55">No finished races yet.</p>
-              : finishedRaces.map((race) => {
-                const winner = race.status === ASSET_RACE_STATUS.RESOLVED ? race.assets[race.winningAssetIndex] : undefined
-                return (
-                  <Link key={race.address} to={`/onchain/races/${race.id}`} className="flex flex-wrap items-center gap-3 rounded-none border border-[#1B1340]/12 bg-[#FFF6DF] px-4 py-3 transition-colors hover:border-[#ffd23f]/40">
-                    <div className="flex shrink-0 -space-x-2">
-                      {race.assets.slice(0, 4).map((asset) => <TokenLogo key={asset.assetIndex} ticker={asset.symbol} className="h-8 w-8 rounded-none border-2 border-[#221c40]" />)}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate font-bold">{race.title || race.assets.map((asset) => asset.symbol).join(' vs ')}</div>
-                      <div className="truncate text-xs text-[#B8860B]">{assetRaceCategoryLabel(race.category)} race #{race.id.toString()} · {dateLabel(race.resolvedAt || race.raceEndTime)}</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-sm font-bold">{winner ? <>{winner.symbol} <span className="font-mono text-emerald-300">{formatReturnWad(winner.returnValue)}</span></> : assetRaceStatusLabel(race.status)}</div>
-                      <div className="font-mono text-xs text-[#1B1340]/55">{formatStakeAmount(race.totalPool, tokenOf(race.stakeMint))} pool</div>
-                    </div>
-                  </Link>
-                )
-              })
+            finishedRaces.length === 0 ? <Empty text="No finished races yet." to="/onchain/races" cta="Start a race" />
+              : finishedRaces.map((duel) => <RaceRow key={duel.id} duel={duel} logoOf={logoOf} />)
           ) : (
-            finishedArenas.length === 0 ? <p className="py-10 text-center text-sm text-[#1B1340]/55">No finished arenas yet.</p>
-              : finishedArenas.map((arena) => {
-                const resolved = arena.status === PRICE_ARENA_STATUS.RESOLVED
-                const category = arena.category === PRICE_ARENA_CATEGORY.MEME ? 'Meme' : arena.category === PRICE_ARENA_CATEGORY.CRYPTO ? 'Crypto' : 'Stock'
-                return (
-                  <Link key={arena.address} to={`/onchain/arenas/${arena.id}`} className="flex flex-wrap items-center gap-3 rounded-none border border-[#1B1340]/12 bg-[#FFF6DF] px-4 py-3 transition-colors hover:border-[#6bcbf4]/40">
-                    <TokenLogo ticker={arena.symbol} className="h-8 w-8 shrink-0 rounded-none" />
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate font-bold">{arena.title}</div>
-                      <div className="truncate text-xs text-[#1F7FD1]">{category} arena #{arena.id.toString()} · {arena.symbol} · {arenaDurationLabel(arena.duration)} · {dateLabel(arena.resolvedAt || arena.deadline)}</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-sm font-bold">
-                        {resolved
-                          ? <>Final <span className="font-mono">{formatUsdPrice(Number(formatUnits(arena.finalPrice, arena.priceDecimals)))}</span> · {arena.winnerCount} of {arena.participantCount} won</>
-                          : 'Cancelled · refunded'}
-                      </div>
-                      <div className="font-mono text-xs text-[#1B1340]/55">{formatStakeAmount(arena.totalPool, tokenOf(arena.stakeMint))} pool</div>
-                    </div>
-                  </Link>
-                )
-              })
+            finishedShots.length === 0 ? <Empty text="No finished Shot matches yet." to="/onchain/shots" cta="Open a room" />
+              : finishedShots.map((shot) => <ShotRow key={shot.id} shot={shot} logoOf={logoOf} />)
           )}
       </div>
     </div>
+  )
+}
+
+function Empty({ text, to, cta }: { text: string; to: string; cta: string }) {
+  return (
+    <div className="py-10 text-center text-sm text-[#1B1340]/55">
+      {text} <Link to={to} className="font-bold text-[#C2245A] hover:underline">{cta} →</Link>
+    </div>
+  )
+}
+
+function RaceRow({ duel, logoOf }: { duel: Duel; logoOf: (symbol: string) => string | undefined }) {
+  const winner = duel.status === 'resolved' ? duel.racers.find((r) => r.seat === duel.winnerSeat) : undefined
+  const winMove = winner ? move(winner) : null
+  return (
+    <Link to={`/onchain/duel/${duel.id}`} className="flex flex-wrap items-center gap-3 rounded-none border border-[#1B1340]/12 bg-[#FFF6DF] px-4 py-3 transition-colors hover:border-[#ED8F3A]/60">
+      <div className="flex shrink-0 -space-x-1">
+        {duel.racers.slice(0, 6).map((r, i) => <CoinFighter key={r.seat} body={COIN_BODIES[i % COIN_BODIES.length]} logoUrl={logoOf(r.symbol)} symbol={r.symbol} size={30} />)}
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="truncate font-bold">{duel.racers.map((r) => r.symbol).join(' vs ')}</div>
+        <div className="truncate text-xs text-[#B8560B]">
+          {duel.title}{duel.category ? ` · ${DUEL_GROUP_LABELS[duel.category]}` : ''} · {durationLabel(duel.duration)} · {dateLabel(duel.endTime || duel.startTime)}
+        </div>
+      </div>
+      <div className="text-right">
+        <div className="text-sm font-bold">
+          {winner ? <>🏁 {winner.symbol}{winMove && <span className="font-mono text-[#1E7A36]"> {winMove}</span>}</> : 'Refunded'}
+        </div>
+        <div className="font-mono text-xs text-[#1B1340]/55">{sol(duel.pot)} pot</div>
+      </div>
+    </Link>
+  )
+}
+
+function ShotRow({ shot, logoOf }: { shot: Shot; logoOf: (symbol: string) => string | undefined }) {
+  const resolved = shot.status === 'resolved'
+  const winners = shot.entries.filter((e) => e.payout > 0n).length
+  return (
+    <Link to={`/onchain/shot/${shot.id}`} className="flex flex-wrap items-center gap-3 rounded-none border border-[#1B1340]/12 bg-[#FFF6DF] px-4 py-3 transition-colors hover:border-[#7A9FF0]/60">
+      <CoinFighter body={COIN_BODIES[shot.id % COIN_BODIES.length]} logoUrl={logoOf(shot.symbol)} symbol={shot.symbol} size={30} />
+      <div className="min-w-0 flex-1">
+        <div className="truncate font-bold">{shot.title}</div>
+        <div className="truncate text-xs text-[#1F5FD1]">Room #{shot.id} · {shot.symbol} · {durationLabel(shot.duration)} · {dateLabel(shot.deadline || shot.createdAt)}</div>
+      </div>
+      <div className="text-right">
+        <div className="text-sm font-bold">
+          {resolved ? <>Final <span className="font-mono">{price(shot.finalPrice, shot.priceDecimals)}</span> · {winners} of {shot.entries.length} won</> : 'Cancelled · refunded'}
+        </div>
+        <div className="font-mono text-xs text-[#1B1340]/55">{sol(shot.totalPool)} bank</div>
+      </div>
+    </Link>
   )
 }
