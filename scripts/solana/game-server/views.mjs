@@ -58,7 +58,7 @@ export function gameView(db, game) {
 }
 
 function symbolsOf(game, wallet) {
-  if (game.kind === 'arena') return [game.symbol]
+  if (game.kind === 'arena' || game.kind === 'shot') return [game.symbol]
   if (game.kind === 'duel') {
     const own = game.racers.find((r) => r.wallet === wallet)
     const backed = game.backers.find((b) => b.wallet === wallet)
@@ -66,7 +66,7 @@ function symbolsOf(game, wallet) {
     const racer = game.racers.find((r) => r.seat === seat)
     return racer ? [racer.symbol] : []
   }
-  const position = game.positions.find((p) => p.owner === wallet)
+  const position = game.positions?.find((p) => p.owner === wallet)
   return position ? [game.assets[position.assetIndex].symbol] : []
 }
 
@@ -111,14 +111,16 @@ export function historyView(db, cluster, gameWallet, games) {
   activity.sort((a, b) => (b.time ?? 0) - (a.time ?? 0))
 
   const wallets = new Map()
-  const kinds = { race: new Map(), arena: new Map(), duel: new Map() }
+  const kinds = { race: new Map(), arena: new Map(), duel: new Map(), shot: new Map() }
+  // A game kind this view does not know yet still counts in the wallet totals.
+  const kindOf = (kind) => (kinds[kind] ??= new Map())
   const total = (map, wallet) => {
     if (!map.has(wallet)) map.set(wallet, { staked: 0n, claimed: 0n, refunded: 0n, games: new Set(), wins: 0, lastActive: 0, symbols: new Set() })
     return map.get(wallet)
   }
   for (const d of db.acceptedDeposits()) {
     const key = gameAddress(d.game_kind, d.game_id)
-    for (const w of [total(wallets, d.wallet), total(kinds[d.game_kind], d.wallet)]) {
+    for (const w of [total(wallets, d.wallet), total(kindOf(d.game_kind), d.wallet)]) {
       w.staked += BigInt(d.amount)
       w.games.add(key)
       const game = byKey.get(key)
@@ -127,7 +129,7 @@ export function historyView(db, cluster, gameWallet, games) {
   }
   for (const p of db.donePayouts()) {
     if (!p.game_kind || (p.kind !== 'win' && p.kind !== 'refund')) continue
-    for (const w of [total(wallets, p.wallet), total(kinds[p.game_kind], p.wallet)]) {
+    for (const w of [total(wallets, p.wallet), total(kindOf(p.game_kind), p.wallet)]) {
       if (p.kind === 'win') {
         w.claimed += BigInt(p.amount)
         w.wins++
@@ -162,7 +164,8 @@ export function historyView(db, cluster, gameWallet, games) {
     activity: activity.slice(0, 500),
     wallets: walletRows,
     leaderboard: Object.values(walletRows).sort(byNet).slice(0, 100),
-    leaderboards: { race: board(kinds.duel.size ? kinds.duel : kinds.race), arena: board(kinds.arena), duel: board(kinds.duel) },
+    // The site's two boards: Haste (duels; older platform races before) and Shot (older arenas before).
+    leaderboards: { race: board(kinds.duel.size ? kinds.duel : kinds.race), arena: board(kinds.shot.size ? kinds.shot : kinds.arena), duel: board(kinds.duel), shot: board(kinds.shot) },
   }
 }
 
