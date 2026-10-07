@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { useQueryClient } from '@tanstack/react-query'
-import { useWallet } from '@solana/wallet-adapter-react'
+import { useConnection, useWallet } from '@solana/wallet-adapter-react'
 import { PublicKey, SystemProgram } from '@solana/web3.js'
 import { MIN_PASSWORD_LENGTH, ProphetWalletName, prophetWalletStore } from '@/solana/prophetWallet'
 import { useStakeBalance } from '@/solana/stakeTokens'
@@ -16,8 +16,10 @@ import { PIXEL } from '@/retro/scene'
 
 const INK = '#1B1340'
 const CREAM = '#FFF6DF'
-// Leaves room for the withdrawal's own network fee.
-const FEE_RESERVE_LAMPORTS = 10_000n
+/** One signature, no priority fee: what a plain SOL transfer costs. */
+const TRANSFER_FEE_LAMPORTS = 5_000n
+/** The least a Solana account may keep (rent-exempt minimum), unless it goes to zero. */
+const RENT_MIN_LAMPORTS = 890_880n
 
 function Modal({ title, onClose, children, locked = false }: { title: string; onClose: () => void; children: ReactNode; locked?: boolean }) {
   return createPortal(
@@ -298,6 +300,7 @@ export function HistoryModal({ onClose }: { onClose: () => void }) {
 export function WithdrawModal({ onClose }: { onClose: () => void }) {
   const { publicKey } = useWallet()
   const balance = useStakeBalance()
+  const { connection } = useConnection()
   const send = useSendInstructions()
   const queryClient = useQueryClient()
   const [to, setTo] = useState('')
@@ -305,7 +308,9 @@ export function WithdrawModal({ onClose }: { onClose: () => void }) {
   const [status, setStatus] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  const maxLamports = balance.data != null && balance.data > FEE_RESERVE_LAMPORTS ? balance.data - FEE_RESERVE_LAMPORTS : 0n
+  // A plain transfer pays exactly one signature fee, so MAX empties the account
+  // to zero. Solana refuses a transfer that leaves 0 < balance < rent minimum.
+  const maxLamports = balance.data != null && balance.data > TRANSFER_FEE_LAMPORTS ? balance.data - TRANSFER_FEE_LAMPORTS : 0n
 
   async function submit() {
     setError(null)
@@ -322,6 +327,13 @@ export function WithdrawModal({ onClose }: { onClose: () => void }) {
       const lamports = BigInt(match[1]) * LAMPORTS_PER_SOL + BigInt((match[2] ?? '').padEnd(9, '0'))
       if (lamports <= 0n) throw new Error('Enter an amount above zero.')
       if (lamports > maxLamports) throw new Error('That is more than your balance minus the network fee.')
+      if (lamports !== maxLamports && maxLamports - lamports < RENT_MIN_LAMPORTS) {
+        throw new Error(`Solana needs an account to keep at least ${formatUnits(RENT_MIN_LAMPORTS, 9)} SOL or nothing: send at most ${formatUnits(maxLamports - RENT_MIN_LAMPORTS > 0n ? maxLamports - RENT_MIN_LAMPORTS : 0n, 9)} SOL, or everything with MAX.`)
+      }
+      // A new (empty) address must also receive at least the rent minimum.
+      if (lamports < RENT_MIN_LAMPORTS && (await connection.getBalance(destination, 'confirmed')) === 0) {
+        throw new Error(`That address is empty: Solana needs at least ${formatUnits(RENT_MIN_LAMPORTS, 9)} SOL sent to a new address.`)
+      }
       setStatus('Sending…')
       await send([SystemProgram.transfer({ fromPubkey: publicKey, toPubkey: destination, lamports })], {
         onPhase: (phase) => setStatus(phase === 'signing' ? 'Signing…' : 'Confirming…'),
@@ -330,7 +342,7 @@ export function WithdrawModal({ onClose }: { onClose: () => void }) {
       onClose()
     } catch (cause) {
       setStatus(null)
-      setError(cause instanceof Error && !('logs' in cause) && /valid|amount|balance/.test(cause.message) ? cause.message : shortTxError(cause, 'withdraw'))
+      setError(cause instanceof Error && !('logs' in cause) && /valid|amount|balance|Solana needs|address is empty/.test(cause.message) ? cause.message : shortTxError(cause, 'withdraw'))
     }
   }
 
