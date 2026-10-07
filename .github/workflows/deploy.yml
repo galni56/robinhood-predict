@@ -8,7 +8,7 @@ name: Deploy to GitHub Pages
 # - unset / not "true": a preview with the services off; the site shows the
 #   last known data the VPS keeps serving.
 # - "true": the real game on mainnet. Prices, the game server, RPC and
-#   websockets all go through the VPS (prophetmarkets.fun/api/solana/...).
+#   websockets all go through the VPS (hastefun.xyz/api/solana/...).
 #   The VPS game server must list this site's host in SIGNING_DOMAINS.
 # Re-run the workflow (Actions -> Deploy to GitHub Pages -> Run workflow)
 # after changing the variable.
@@ -31,11 +31,11 @@ jobs:
     runs-on: ubuntu-latest
     env:
       VITE_SOLANA_CLUSTER: ${{ vars.SOLANA_LIVE == 'true' && 'mainnet-beta' || 'devnet' }}
-      VITE_SOLANA_RPC_URL: ${{ vars.SOLANA_LIVE == 'true' && 'https://prophetmarkets.fun/api/solana/rpc' || '' }}
-      VITE_SOLANA_WS_URL: ${{ vars.SOLANA_LIVE == 'true' && 'wss://prophetmarkets.fun/api/solana/ws' || '' }}
-      VITE_PRICE_SERVICE_URL: ${{ vars.SOLANA_LIVE == 'true' && 'https://prophetmarkets.fun/api/solana/price-service' || 'off' }}
-      VITE_GAME_SERVER_URL: ${{ vars.SOLANA_LIVE == 'true' && 'https://prophetmarkets.fun/api/solana/game-server' || 'off' }}
-      VITE_LAST_DATA_URL: "https://prophetmarkets.fun/api/solana/last"
+      VITE_SOLANA_RPC_URL: ${{ vars.SOLANA_LIVE == 'true' && 'https://hastefun.xyz/api/solana/rpc' || '' }}
+      VITE_SOLANA_WS_URL: ${{ vars.SOLANA_LIVE == 'true' && 'wss://hastefun.xyz/api/solana/ws' || '' }}
+      VITE_PRICE_SERVICE_URL: ${{ vars.SOLANA_LIVE == 'true' && 'https://hastefun.xyz/api/solana/price-service' || 'off' }}
+      VITE_GAME_SERVER_URL: ${{ vars.SOLANA_LIVE == 'true' && 'https://hastefun.xyz/api/solana/game-server' || 'off' }}
+      VITE_LAST_DATA_URL: "https://hastefun.xyz/api/solana/last"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

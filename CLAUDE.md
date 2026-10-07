@@ -28,13 +28,14 @@ Players stake by sending SOL with a `prophet:` memo to the server's **game walle
 (`scripts/solana/game-server/`) runs the games and pays out automatically (custodial while a game runs).
 Prices are USD spot prices from reviewed Solana DEX pools, signed by the **price service**
 (`scripts/solana/price-service/`) and verified against the pinned oracle key. Fee: 2% of winnings. Players use
-the **Prophet wallet** — a keypair kept in their browser; we never see or store player keys (owner decision,
-2026-10-05). The site is on GitHub Pages; the VPS serves the APIs.
+the **HasteFun wallet** — a keypair kept in their browser; we never see or store player keys (owner decision,
+2026-10-05). The site is **https://hastefun.xyz**, served by the VPS together with the APIs
+(`scripts/solana/build-site.sh`); GitHub Pages still builds a copy from `main`.
 
 The Solana code lives on `main` (the `solana-migration` branch was merged on 2026-10-05). It **replaces** the
 earlier Robinhood Chain (EVM) product, which the owner abandoned: its keepers on the VPS are stopped and hold
-no user funds; prophetmarkets.fun still serves its old static build from `/opt/robinhood-predict` (do not run
-the old deploy there - it would build the Solana site without its settings). The earlier
+no user funds, and the owner switched its domain off (2026-10-07). Do not run the old deploy in
+`/opt/robinhood-predict`. The earlier
 Anchor programs of this branch were removed too (deploy cost); both remain in git history. Nothing from this
 branch has handled real money yet. No external security audit.
 
@@ -46,8 +47,8 @@ branch has handled real money yet. No external security audit.
 | Price service | Raydium AMM v4 / CPMM / CLMM, Orca, Meteora DLMM, PumpSwap decoders; signed attestations. 9 tests. |
 | Catalog | 11 crypto (BTC, SOL, ETH, HYPE, ZEC, PUMP, NEAR, DOGE, BNB, SUI, XRP; the last four below the $500k pool floor by owner decision), 10 memes, + PumpSwap. No stocks. |
 | Frontend | Duels, arenas, PumpSwap table, launchpad, portfolio/leaderboard/archive, Prophet wallet (password-encrypted key), hero race; phone layout. Pages builds mainnet when the repo variable `SOLANA_LIVE` is `true`. Never show "devnet" wording. |
-| VPS | Services installed at `/opt/prophet-solana` (price service 8793, game server 8792), **stopped and disabled** until the live test. |
-| Not done | Own domain (browser-held keys should not live on `github.io`), live $1 test, owner's first launch, moving prophetmarkets.fun to the Solana site. |
+| VPS | `/opt/prophet-solana`: price service 8793, game server 8792 (running on mainnet), the site in `/var/www/hastefun` (nginx `sites-enabled/hastefun`, HTTPS by certbot). |
+| Not done | Owner's first launch, price sanity threshold, an X account for the footer. |
 
 ### Product color system
 
@@ -77,8 +78,8 @@ semantic meaning; do not use them to redefine a product's identity color.
    stop and ask rather than finding a workaround. The game server pays real
    money automatically once it runs on mainnet: starting it is a mainnet action.
 4. **Work on `main`.** GitHub Pages deploys from it on every push, so a push
-   publishes the site. The EVM product is abandoned by the owner (2026-10-05);
-   moving prophetmarkets.fun to the Solana site is a separate, owner-approved step.
+   publishes the GitHub Pages copy; the live site on hastefun.xyz is rebuilt with
+   `bash /opt/prophet-solana/scripts/solana/build-site.sh` on the VPS.
 5. **VPS SSH uses a non-default port.** `ssh -i ~/.ssh/id_ed25519 -p 22022
    root@104.207.90.56` — port `22022`, not `22`. Solana services live in
    `/opt/prophet-solana` (see `docs/HANDOFF.md`); never touch the EVM side. The live EVM deploy command

@@ -35,7 +35,7 @@ Change log: [`docs/SOLANA_CHANGELOG.md`](./docs/SOLANA_CHANGELOG.md). Status and
 
 ## Before real volume (owner)
 
-- Point prophetmarkets.fun at the Solana site (the EVM product is abandoned; the code is on `main`).
+- An X account for HasteFun (the footer link stays hidden until it exists).
 - Decide on an external audit and the legal side of holding stakes during games.
 
 ## Later

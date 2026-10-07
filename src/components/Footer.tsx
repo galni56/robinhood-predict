@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { piu, setSfxEnabled, sfxEnabled } from '@/lib/sfx'
 import { CREAM, INK, PINK } from '@/retro/scene'
-import { PROPHET_X_URL } from '@/lib/social'
+import { X_URL } from '@/lib/social'
 
 // The mock's footer: ink band, 18+ square, responsibility line and the
 // underlined link row.
@@ -45,7 +45,7 @@ export function Footer() {
         </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 28px', fontSize: 20, fontWeight: 600 }}>
           <Link to="/terms" style={linkStyle}>Rules</Link>
-          <a href={PROPHET_X_URL} target="_blank" rel="noreferrer" style={linkStyle}>X / Twitter</a>
+          {X_URL && <a href={X_URL} target="_blank" rel="noreferrer" style={linkStyle}>X / Twitter</a>}
           <button
             type="button"
             onClick={() => {

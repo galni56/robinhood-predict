@@ -119,7 +119,7 @@ if (!ORACLE_PUBKEY) console.warn('ORACLE_PUBKEY unset: boundary prices are NOT s
 // Hosts (location.host) whose signed actions are accepted. Required on
 // mainnet so signatures phished on look-alike domains are rejected.
 const SIGNING_DOMAINS = process.env.SIGNING_DOMAINS ? process.env.SIGNING_DOMAINS.split(',').map((d) => d.trim()).filter(Boolean) : null
-if (!SIGNING_DOMAINS && CLUSTER === 'mainnet') throw new Error('SIGNING_DOMAINS is required on mainnet (e.g. prophetmarkets.fun)')
+if (!SIGNING_DOMAINS && CLUSTER === 'mainnet') throw new Error('SIGNING_DOMAINS is required on mainnet (e.g. hastefun.xyz)')
 const PRICE_SERVICE_URL = process.env.PRICE_SERVICE_URL ?? 'http://127.0.0.1:8790'
 const prices = createPriceClient(PRICE_SERVICE_URL, chain.address, ORACLE_PUBKEY)
 const baseCatalog = readJson(new URL('config/solana-assets.json', ROOT))

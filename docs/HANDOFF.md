@@ -29,9 +29,9 @@ mainnet DEX pools ──subscribe──> price service ──signed boundary pri
 
 ## Rules that protect real money
 
-- **`main` is the live EVM product with real user funds** (prophetmarkets.fun; the VPS builds that site and
-  runs its keepers from `main`). Do not merge `solana-migration` into `main` until the owner has wound the
-  EVM product down.
+- **The site is https://hastefun.xyz** (HasteFun, formerly Prophet). The VPS serves it from `/var/www/hastefun`
+  with the APIs on the same origin; rebuild it with `bash /opt/prophet-solana/scripts/solana/build-site.sh`.
+  The old EVM product and its domain are switched off.
 - Never handle or print private keys, seed phrases or API keys (see `CLAUDE.md`). Never commit them.
 - The WSL dev key `D5Svp…L4R` is **exposed**: localnet/devnet only.
 - Every mainnet transaction is owner-approved. The game server refuses mainnet without `ORACLE_PUBKEY`,
@@ -97,19 +97,17 @@ http://localhost:5173/robinhood-predict/ (HashRouter: routes after `#`). The dev
 
 ## Next steps, in order
 
-1. **Own domain for the site** (e.g. a subdomain of prophetmarkets.fun on the VPS). The Prophet wallet keeps
-   its (password-encrypted) key in `localStorage`; on `galni56.github.io` every Pages site of that account
-   shares the origin. Add the new host to `SIGNING_DOMAINS`.
+1. **Own domain: done** (hastefun.xyz, 2026-10-07; `SIGNING_DOMAINS` lists it).
 2. **Live test (owner present):**
    1. `systemctl start prophet-price-service prophet-game-server` on the VPS; check
-      `https://prophetmarkets.fun/api/solana/game-server/health`.
+      `https://hastefun.xyz/api/solana/game-server/health`.
    2. GitHub → Settings → Secrets and variables → Actions → Variables: `SOLANA_LIVE` = `true`, then
       Actions → Deploy to GitHub Pages → Run workflow. The build then uses mainnet and the VPS paths.
    3. One $1 duel between two wallets; the owner's first launchpad token.
    4. To go back to the preview: `SOLANA_LIVE` = `false`, re-run the workflow, stop the services.
 3. **Price sanity threshold (owner):** set `PRICE_MAX_DEVIATION_BP` in `/etc/prophet/prophet.env` (e.g. `500`
    = 5%) and restart the price service; until then the check is off.
-4. **prophetmarkets.fun → the Solana site** (owner decides when; the EVM product is abandoned).
+4. **An X account** for the footer link (`src/lib/social.ts`, empty until it exists).
 5. Ideas: launch races (pump.fun coins launched in a lobby, first to graduate to PumpSwap wins), "will it
    graduate in 24 h" bets.
 

@@ -261,7 +261,7 @@ function wallet() {
   return {
     address,
     signed(clock, fields) {
-      const message = `Prophet\n${JSON.stringify({ domain: 'prophetmarkets.fun', nonce: randomBytes(16).toString('hex'), ...fields, wallet: address, cluster: 'localnet', issuedAt: clock.t })}`
+      const message = `Prophet\n${JSON.stringify({ domain: 'hastefun.xyz', nonce: randomBytes(16).toString('hex'), ...fields, wallet: address, cluster: 'localnet', issuedAt: clock.t })}`
       return { message, signature: sign(null, Buffer.from(message), privateKey).toString('base64') }
     },
   }
@@ -459,7 +459,7 @@ test('refunds: many transfers in one transaction cost one refund, fee included',
 test('signed actions are bound to the allowed domain', async () => {
   const { chain, db } = setup({})
   const clock = { t: 10_000 }
-  const engine = createEngine({ db, chain, prices: fakePrices({}), assets: ASSETS, cluster: 'localnet', signingDomains: ['prophetmarkets.fun'], clock: () => clock.t, log: quiet })
+  const engine = createEngine({ db, chain, prices: fakePrices({}), assets: ASSETS, cluster: 'localnet', signingDomains: ['hastefun.xyz'], clock: () => clock.t, log: quiet })
   await engine.init()
   const w = wallet()
   engine.act(w.signed(clock, { action: 'set-nickname', nickname: 'ok' }))

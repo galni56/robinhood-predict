@@ -18,9 +18,8 @@ Players sign in with the **Prophet wallet** — a Solana keypair created and kep
 (non-custodial: the key never leaves the device and the server never sees it), with a forced key backup.
 Phantom/Solflare can be turned back on with `VITE_EXTERNAL_WALLETS=true`.
 
-> **Status:** branch `solana-migration`, not live with real money yet. No external security audit.
-> `main` is still the earlier Robinhood Chain (EVM) product, live at prophetmarkets.fun — do not merge
-> before it is wound down. New to the project: [`docs/HANDOFF.md`](./docs/HANDOFF.md). History (in Russian):
+> **Status:** live at **https://hastefun.xyz** (HasteFun, formerly Prophet), on `main`. No external security
+> audit. The earlier Robinhood Chain (EVM) product is abandoned. New to the project: [`docs/HANDOFF.md`](./docs/HANDOFF.md). History (in Russian):
 > [`docs/SOLANA_CHANGELOG.md`](./docs/SOLANA_CHANGELOG.md).
 
 ## Layout
