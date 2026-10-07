@@ -77,9 +77,10 @@ semantic meaning; do not use them to redefine a product's identity color.
    each broadcast as its own tool call; if one gets blocked twice in a row,
    stop and ask rather than finding a workaround. The game server pays real
    money automatically once it runs on mainnet: starting it is a mainnet action.
-4. **Work on `main`.** GitHub Pages deploys from it on every push, so a push
-   publishes the GitHub Pages copy; the live site on hastefun.xyz is rebuilt with
-   `bash /opt/prophet-solana/scripts/solana/build-site.sh` on the VPS.
+4. **Work on `main`.** A push publishes: GitHub Pages deploys from it, and the
+   VPS timer `hastefun-site.timer` rebuilds hastefun.xyz within about two minutes
+   (`scripts/solana/site-autodeploy.sh`). Only the site: the game server and price
+   service keep their code until restarted by hand (a mainnet action).
 5. **VPS SSH uses a non-default port.** `ssh -i ~/.ssh/id_ed25519 -p 22022
    root@104.207.90.56` — port `22022`, not `22`. Solana services live in
    `/opt/prophet-solana` (see `docs/HANDOFF.md`); never touch the EVM side. The live EVM deploy command

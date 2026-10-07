@@ -1,0 +1,8 @@
+[Unit]
+Description=HasteFun site: rebuild when main has a new commit
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash /opt/prophet-solana/scripts/solana/site-autodeploy.sh
+Nice=10

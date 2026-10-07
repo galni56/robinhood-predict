@@ -30,7 +30,7 @@ mainnet DEX pools ──subscribe──> price service ──signed boundary pri
 ## Rules that protect real money
 
 - **The site is https://hastefun.xyz** (HasteFun, formerly Prophet). The VPS serves it from `/var/www/hastefun`
-  with the APIs on the same origin; rebuild it with `bash /opt/prophet-solana/scripts/solana/build-site.sh`.
+  with the APIs on the same origin; it rebuilds itself within about two minutes of a push to `main` (`hastefun-site.timer` runs `scripts/solana/site-autodeploy.sh`; by hand: `bash /opt/prophet-solana/scripts/solana/build-site.sh`). Services are not restarted by it.
   The old EVM product and its domain are switched off.
 - Never handle or print private keys, seed phrases or API keys (see `CLAUDE.md`). Never commit them.
 - The WSL dev key `D5Svp…L4R` is **exposed**: localnet/devnet only.
