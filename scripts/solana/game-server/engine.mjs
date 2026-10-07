@@ -45,8 +45,9 @@ import {
   resolveRace,
   startRace,
 } from './rules.mjs'
-import { fromBase58, isAddress } from './chain.mjs'
+import { BASE_FEE, fromBase58, isAddress } from './chain.mjs'
 import { DUEL, backDuel, createDuel, duelNeedsResolve, duelNeedsStart, duelSettlements, duelTimers, joinDuel, leaveDuel, payDuel, prepareDuel, readyDuel, resolveDuel, startDuel } from './duel.mjs'
+import { SHOT, createShot, joinShot, leaveShot, lockShot, readyShot, resolveShot, shotCredits, shotNeedsResolve, shotTimers } from './shot.mjs'
 import { FINAL_STATUSES } from './db.mjs'
 import { createPayouts } from './payouts.mjs'
 import { createDeposits } from './deposits.mjs'
@@ -144,6 +145,10 @@ export function createEngine({ db, chain, prices, assets, cluster, coldWallet = 
 
   /** Applies a parsed stake memo to its game (throws RuleError to refuse). */
   function applyStake(memo, stake) {
+    if (memo.kind === 'balance') {
+      db.moveBalance({ ref: `deposit:${stake.signature}`, wallet: stake.wallet, kind: 'deposit', delta: stake.amount })
+      return
+    }
     const game = db.getGame(memo.kind, memo.id)
     if (!game) throw new RuleError('GameNotFound')
     if (memo.kind === 'race') placeBet(game, { ...stake, assetIndex: memo.assetIndex })
@@ -162,7 +167,10 @@ export function createEngine({ db, chain, prices, assets, cluster, coldWallet = 
       const wasFinal = FINAL_STATUSES.has(game.status)
       const result = fn(game)
       db.saveGame(game)
-      if (!wasFinal && FINAL_STATUSES.has(game.status)) queueSettlements(game)
+      if (!wasFinal && FINAL_STATUSES.has(game.status)) {
+        if (game.kind === 'shot') creditShot(game)
+        else queueSettlements(game)
+      }
       return result
     })
   }
@@ -172,6 +180,19 @@ export function createEngine({ db, chain, prices, assets, cluster, coldWallet = 
     transfers.forEach((tr, i) => {
       db.addPayout({ key: `duel:${duel.id}:${tag}:${i}:${tr.reason}:${tr.wallet}`, kind: tr.reason === 'tax-share' ? 'tax-share' : 'refund', wallet: tr.wallet, amount: tr.amount, gameKind: 'duel', gameId: duel.id })
     })
+  }
+
+  /** Price Shot settles into game balances, not on-chain transfers. */
+  function creditShot(shot) {
+    const merged = new Map()
+    for (const c of shotCredits(shot)) {
+      const key = `${c.reason}:${c.wallet}`
+      merged.set(key, { ...c, amount: (merged.get(key)?.amount ?? 0n) + c.amount })
+    }
+    for (const c of merged.values()) {
+      db.moveBalance({ ref: `shot:${shot.id}:${c.reason}:${c.wallet}`, wallet: c.wallet, kind: c.reason, delta: c.amount, gameKind: 'shot', gameId: shot.id })
+    }
+    log.log(`shot #${shot.id}: ${shot.status}${shot.cancelReason !== 'none' ? ` (${shot.cancelReason})` : ''}, ${merged.size} balance credit(s)`)
   }
 
   function queueSettlements(game) {
@@ -288,6 +309,22 @@ export function createEngine({ db, chain, prices, assets, cluster, coldWallet = 
     })
   }
 
+  async function advanceShot(shot, t) {
+    const { id } = shot
+    if (shot.status === 'open' || shot.status === 'aim' || (shot.status === 'live' && t > shot.deadline + SHOT.resolutionGrace)) {
+      mutate('shot', id, (s) => shotTimers(s, t))
+      return
+    }
+    if (shot.status !== 'live' || t < shot.deadline + 2 || !shotNeedsResolve(shot, t)) return
+    const asset = { symbol: shot.symbol, priceSource: shot.priceSource, priceDecimals: shot.priceDecimals }
+    const b = await boundaryPrices(shot.deadline, [asset])
+    mutate('shot', id, (s) => {
+      if (!shotNeedsResolve(s, t)) return null
+      s.finalAttestation = attestationRecord(b)
+      return resolveShot(s, { price: b.prices[s.priceSource], prevSlot: b.prevSlot, prevBlockTime: b.prevBlockTime }, t)
+    })
+  }
+
   // ------------------------------------------------------------- payouts
 
   const { processPayouts, liabilities, solvency, maybeSweep } = createPayouts({ db, chain, opts, log, now, coldWallet, lastScan: () => lastScan })
@@ -375,6 +412,7 @@ export function createEngine({ db, chain, prices, assets, cluster, coldWallet = 
         try {
           if (game.kind === 'race') await advanceRace(game, t)
           else if (game.kind === 'arena') await advanceArena(game, t)
+          else if (game.kind === 'shot') await advanceShot(game, t)
           else await advanceDuel(game, t)
         } catch (error) {
           log.warn(`${game.kind} #${game.id}: ${error.message}`)
@@ -393,7 +431,7 @@ export function createEngine({ db, chain, prices, assets, cluster, coldWallet = 
   // ------------------------------------------------------------- actions
 
   const openGamesBy = (wallet) => db.liveGames().filter((g) => g.creator === wallet)
-  const openCommunityGames = () => db.liveGames().filter((g) => g.kind === 'arena' || g.origin === 'community')
+  const openCommunityGames = () => db.liveGames().filter((g) => g.kind === 'arena' || g.kind === 'shot' || g.origin === 'community')
 
   function requireAsset(symbol) {
     const asset = assetBySymbol.get(symbol)
@@ -476,6 +514,44 @@ export function createEngine({ db, chain, prices, assets, cluster, coldWallet = 
           db.setNickname(wallet, nickname)
           return { nickname }
         }
+        case 'shot-create': {
+          requireCreationRoom(wallet)
+          const shot = createShot(db.nextId('shot'), { title: payload.title, creator: wallet, duration: payload.duration, unit: payload.unit }, requireAsset(payload.asset), t)
+          joinShot(shot, wallet, t)
+          db.saveGame(shot)
+          return { kind: 'shot', id: shot.id }
+        }
+        case 'shot-join':
+          mutate('shot', Number(payload.shot), (g) => joinShot(g, wallet, t))
+          return { kind: 'shot', id: Number(payload.shot) }
+        case 'shot-leave':
+          mutate('shot', Number(payload.shot), (g) => leaveShot(g, wallet))
+          return { kind: 'shot', id: Number(payload.shot) }
+        case 'shot-ready':
+          mutate('shot', Number(payload.shot), (g) => readyShot(g, wallet, payload.ready !== false, t))
+          return { kind: 'shot', id: Number(payload.shot) }
+        case 'shot-lock': {
+          // The stake leaves the balance in the same transaction that records
+          // the shot: a refused shot (aim over, already locked) takes nothing.
+          if (!/^\d{1,30}$/.test(String(payload.prediction)) || !/^\d{1,20}$/.test(String(payload.stake))) throw new RuleError('InvalidStake')
+          const id = Number(payload.shot)
+          const stake = BigInt(payload.stake)
+          mutate('shot', id, (g) => {
+            lockShot(g, { wallet, prediction: BigInt(payload.prediction), stake }, t)
+            debit({ ref: `shot:${id}:stake:${wallet}`, wallet, kind: 'stake', amount: stake, gameKind: 'shot', gameId: id })
+          })
+          return { kind: 'shot', id }
+        }
+        case 'balance-withdraw': {
+          if (!/^\d{1,20}$/.test(String(payload.amount))) throw new RuleError('InvalidAmount')
+          const amount = BigInt(payload.amount)
+          // The withdrawal's own network fee comes out of it, like refunds.
+          if (amount - BASE_FEE < opts.minRefund) throw new RuleError('WithdrawalTooSmall')
+          const ref = `withdraw:${createHash('sha256').update(message).digest('hex').slice(0, 32)}`
+          debit({ ref, wallet, kind: 'withdraw', amount })
+          db.addPayout({ key: ref, kind: 'withdraw', wallet, amount: amount - BASE_FEE })
+          return { balance: db.balance(wallet).toString() }
+        }
         case 'duel-create': {
           // Only lobbies someone is in count: an empty one a player opened and left is spare.
           if (openGamesBy(wallet).filter((g) => g.kind === 'duel' && (g.racers.length > 0 || g.backers.length > 0)).length >= opts.maxOpenGamesPerWallet) throw new RuleError('TooManyOpenGames')
@@ -501,6 +577,15 @@ export function createEngine({ db, chain, prices, assets, cluster, coldWallet = 
           throw new RuleError('UnknownAction')
       }
     })
+  }
+
+  function debit({ ref, wallet, kind, amount, gameKind = null, gameId = null }) {
+    try {
+      db.moveBalance({ ref, wallet, kind, delta: -amount, gameKind, gameId })
+    } catch (error) {
+      if (error.message === 'InsufficientBalance') throw new RuleError('InsufficientBalance')
+      throw error
+    }
   }
 
   /** A platform race (admin CLI or the schedule). */
@@ -576,6 +661,7 @@ export function createEngine({ db, chain, prices, assets, cluster, coldWallet = 
       stake: { min: STAKE.min, max: STAKE.max },
       race: { minAssets: RACE.minAssets, maxAssets: RACE.maxAssets, communityDurations: COMMUNITY_RACE_DURATIONS, communityPolicy: COMMUNITY_POLICY },
       arena: { durations: ARENA.durations, lobbyDuration: ARENA.lobbyDuration, maxParticipants: ARENA.maxParticipants, feeBp: ARENA.feeBp },
+      shot: { minPlayers: SHOT.minPlayers, maxPlayers: SHOT.maxPlayers, aimSeconds: SHOT.aimSeconds, durations: SHOT.durations, feeBp: SHOT.feeBp },
       duel: { minRacers: DUEL.minRacers, maxRacers: DUEL.maxRacers, durations: DUEL.durations, payWindow: DUEL.payWindow, readyWindow: DUEL.readyWindow, prepareExtra: DUEL.prepareExtra, backCap: duelBackCap(), racerShareBp: Number(DUEL.racerShareBp), feeBp: Number(DUEL.feeBp) },
       assets: currentAssets,
     }),

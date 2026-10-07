@@ -23,9 +23,19 @@ export function payoutStage(key) {
   return 'kicked-backer'
 }
 
+/**
+ * Price Shot predictions travel in signed messages, not public memos, so they
+ * really are secret until the match starts: before that, every entry shows
+ * only that its player has locked a shot (and the stake).
+ */
+function hidePredictions(game) {
+  if (game.kind !== 'shot' || (game.status !== 'open' && game.status !== 'aim')) return game
+  return { ...game, entries: game.entries.map((e) => ({ ...e, prediction: 0n })) }
+}
+
 /** A game as the frontend reads it, with the state of every payout it owes. */
 export function gameView(db, game) {
-  const { startAttestation, endAttestation, finalAttestation, ...state } = game
+  const { startAttestation, endAttestation, finalAttestation, ...state } = hidePredictions(game)
   const payouts = db.payoutsByGame(game.kind, game.id).map((p) => ({
     wallet: p.wallet,
     kind: p.kind,
@@ -158,6 +168,14 @@ export function walletView(db, wallet) {
   return {
     wallet,
     nickname: db.nickname(wallet),
+    /** Game balance (Price Shot) and its latest movements. */
+    balance: db.balance(wallet).toString(),
+    balanceEvents: db.balanceEvents(wallet, 100).map((e) => ({
+      kind: e.kind,
+      amount: e.amount,
+      time: e.at,
+      game: e.game_kind ? { kind: e.game_kind, id: e.game_id, address: gameAddress(e.game_kind, e.game_id) } : null,
+    })),
     deposits: db.depositsByWallet(wallet).map((d) => ({
       signature: d.signature,
       time: d.block_time,

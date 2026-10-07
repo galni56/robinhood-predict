@@ -74,7 +74,7 @@ export function validateTitle(title) {
   require(bytes.length > 0 && bytes.length <= MAX_TITLE_BYTES && bytes.some((b) => b > 0x20), 'InvalidTitle')
 }
 
-const mulDiv = (a, b, denominator) => {
+export const mulDiv = (a, b, denominator) => {
   require(denominator > 0n, 'MathOverflow')
   return (a * b) / denominator
 }
@@ -516,32 +516,7 @@ export function resolveArena(arena, { price, prevSlot, prevBlockTime }, now) {
   require(arenaNeedsResolve(arena, now), 'ArenaNotOpen')
   require(typeof price === 'bigint' && price > 0n, 'InvalidOraclePrice')
   if (arena.deadline - prevBlockTime > ARENA.maxPriceStaleness) return cancelArena(arena, now, 'staleDeadlinePrice')
-  const order = ranking(arena.entries, price)
-  const winnerCount = Math.floor(order.length / 2)
-  const losingPool = order.slice(winnerCount).reduce((sum, i) => sum + arena.entries[i].stake, 0n)
-  const statedFee = mulDiv(losingPool, BigInt(arena.feeBp), BP_DENOMINATOR)
-  const distributable = losingPool - statedFee
-  const cutoffError = absoluteError(arena.entries[order[winnerCount - 1]].prediction, price)
-  const scores = []
-  let scoreTotal = 0n
-  order.slice(0, winnerCount).forEach((i, position) => {
-    const entry = arena.entries[i]
-    const multiplier = accuracyMultiplierBp(absoluteError(entry.prediction, price), cutoffError)
-    const score = entry.stake * multiplier
-    entry.rank = position + 1
-    entry.accuracyMultiplierBp = Number(multiplier)
-    scores.push(score)
-    scoreTotal += score
-  })
-  let payoutTotal = 0n
-  order.slice(0, winnerCount).forEach((i, k) => {
-    const entry = arena.entries[i]
-    entry.payout = entry.stake + mulDiv(distributable, scores[k], scoreTotal)
-    payoutTotal += entry.payout
-  })
-  order.forEach((i, position) => {
-    if (position >= winnerCount) arena.entries[i].rank = position + 1
-  })
+  const { winnerCount, payoutTotal, statedFee } = settlePredictions(arena.entries, price, arena.feeBp)
   // The creator receives exactly half of the stated fee; Prophet keeps the
   // other half plus integer-division dust.
   const protocolTake = arena.totalPool - payoutTotal
@@ -556,6 +531,45 @@ export function resolveArena(arena, { price, prevSlot, prevBlockTime }, now) {
   arena.creatorFee = creatorFee
   arena.remainingLiability = payoutTotal
   return arena.status
+}
+
+/**
+ * The closest-half payout shared by Price Arena and Price Shot. The better
+ * half of the field (rounded down) shares the losing half's stakes minus the
+ * fee, weighted by stake x accuracy multiplier (1x-3x). Sets each entry's
+ * rank, accuracyMultiplierBp and payout; returns the totals.
+ */
+export function settlePredictions(entries, price, feeBp) {
+  const order = ranking(entries, price)
+  const winnerCount = Math.floor(order.length / 2)
+  const losingPool = order.slice(winnerCount).reduce((sum, i) => sum + entries[i].stake, 0n)
+  const statedFee = mulDiv(losingPool, BigInt(feeBp), BP_DENOMINATOR)
+  const distributable = losingPool - statedFee
+  const cutoffError = absoluteError(entries[order[winnerCount - 1]].prediction, price)
+  const scores = []
+  let scoreTotal = 0n
+  order.slice(0, winnerCount).forEach((i, position) => {
+    const entry = entries[i]
+    const multiplier = accuracyMultiplierBp(absoluteError(entry.prediction, price), cutoffError)
+    const score = entry.stake * multiplier
+    entry.rank = position + 1
+    entry.accuracyMultiplierBp = Number(multiplier)
+    scores.push(score)
+    scoreTotal += score
+  })
+  let payoutTotal = 0n
+  order.slice(0, winnerCount).forEach((i, k) => {
+    const entry = entries[i]
+    entry.payout = entry.stake + mulDiv(distributable, scores[k], scoreTotal)
+    payoutTotal += entry.payout
+  })
+  order.forEach((i, position) => {
+    if (position >= winnerCount) {
+      entries[i].rank = position + 1
+      entries[i].payout = 0n
+    }
+  })
+  return { winnerCount, payoutTotal, statedFee }
 }
 
 export function arenaSettlements(arena) {
@@ -587,10 +601,13 @@ export function parseStakeMemo(text) {
   if (kind === 'arena') return { kind, id: Number(id), prediction: BigInt(arg) }
   // Duels: 0 pays the racer's stake, a seat number backs that racer.
   if (kind === 'duel') return { kind, id: Number(id), seat: Number(arg) }
+  // Top-up of the player's game balance (Price Shot stakes come from it).
+  if (kind === 'balance') return { kind, id: 0 }
   return null
 }
 
 export const duelMemo = (duelId, seat = 0) => `${MEMO_PREFIX}:duel:${duelId}:${seat}`
+export const balanceMemo = () => `${MEMO_PREFIX}:balance:0:0`
 
 export const raceMemo = (raceId, assetIndex) => `${MEMO_PREFIX}:race:${raceId}:${assetIndex}`
 export const arenaMemo = (arenaId, prediction) => `${MEMO_PREFIX}:arena:${arenaId}:${prediction}`

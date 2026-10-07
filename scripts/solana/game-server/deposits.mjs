@@ -71,7 +71,7 @@ export function createDeposits({ db, chain, opts, log, now, funders, adoptWallet
     const [transfer] = tx.inbound
     const record = { ...base, wallet: transfer.from, amount: transfer.lamports, memo: stakeMemos[0], gameKind: memo.kind, gameId: memo.id }
     try {
-      applyStake(memo, { wallet: transfer.from, amount: transfer.lamports, time: tx.blockTime })
+      applyStake(memo, { wallet: transfer.from, amount: transfer.lamports, time: tx.blockTime, signature })
       db.putDeposit({ ...record, status: 'accepted' })
     } catch (error) {
       if (!(error instanceof RuleError)) throw error
