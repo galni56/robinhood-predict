@@ -25,7 +25,7 @@ const COIN_FILTERS = [
   { key: 'crypto', label: 'Crypto', test: (a: ApprovedRaceAsset) => a.category === 2 },
   { key: 'memes', label: 'Memes', test: (a: ApprovedRaceAsset) => a.category === 1 && a.source !== 'pumpswap' },
   { key: 'fresh', label: 'PumpSwap', test: (a: ApprovedRaceAsset) => a.source === 'pumpswap' && !a.launchedOnProphet },
-  { key: 'prophet', label: 'Made on Prophet', test: (a: ApprovedRaceAsset) => a.launchedOnProphet === true },
+  { key: 'prophet', label: 'Made on HasteFun', test: (a: ApprovedRaceAsset) => a.launchedOnProphet === true },
 ] as const
 
 export function CoinPicker({ assets, selected, onToggle, max, accent = YELLOW }: {
@@ -97,7 +97,7 @@ export function CoinPicker({ assets, selected, onToggle, max, accent = YELLOW }:
         })}
         {shown.length === 0 && (filter === 'prophet' && !query.trim() ? (
           <p style={{ gridColumn: '1 / -1', padding: 16, textAlign: 'center', fontWeight: 600 }}>
-            {waiting > 0 ? `${waiting} coin${waiting === 1 ? '' : 's'} launched on Prophet ${waiting === 1 ? 'is' : 'are'} still on the pump.fun curve. ` : 'No coin launched on Prophet has graduated yet. '}
+            {waiting > 0 ? `${waiting} coin${waiting === 1 ? '' : 's'} launched on HasteFun ${waiting === 1 ? 'is' : 'are'} still on the pump.fun curve. ` : 'No coin launched on HasteFun has graduated yet. '}
             A coin can race once it graduates to PumpSwap. <Link to="/onchain/launch" style={{ textDecoration: 'underline' }}>Launch one</Link>
           </p>
         ) : <p style={{ gridColumn: '1 / -1', padding: 16, textAlign: 'center', opacity: 0.6 }}>No coin matches “{query}”.</p>)}

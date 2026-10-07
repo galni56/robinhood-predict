@@ -185,7 +185,7 @@ export function OnchainRacePage() {
   const rankSuffix = (n: number) => (n === 1 ? 'st' : n === 2 ? 'nd' : n === 3 ? 'rd' : 'th')
 
   return (
-    <div style={{ minHeight: '100%', fontFamily: "'Prophet Digits', 'Pixelify Sans', 'Courier New', monospace", color: INK, background: SKY }}>
+    <div style={{ minHeight: '100%', fontFamily: "'HasteFun Digits', 'Pixelify Sans', 'Courier New', monospace", color: INK, background: SKY }}>
       <main style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', gap: 32, padding: '32px clamp(16px, 4vw, 64px) 48px' }}>
         <div style={{ flex: '999 1 640px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 24 }}>
           <ClusterBanner />

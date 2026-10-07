@@ -15,8 +15,8 @@ const bytes = (value: string) => new TextEncoder().encode(value).length
 type Step = 'idle' | 'uploading' | 'signing' | 'confirming'
 const STEP_LABEL: Record<Step, string> = { idle: '', uploading: 'Uploading image…', signing: 'Signing…', confirming: 'Launching on pump.fun…' }
 
-/** Launch a token on pump.fun from Prophet: the creator's wallet signs and
- * pays pump.fun's network costs; Prophet takes nothing. */
+/** Launch a token on pump.fun from HasteFun: the creator's wallet signs and
+ * pays pump.fun's network costs; HasteFun takes nothing. */
 export function OnchainLaunchPage() {
   const { publicKey, connected, sendTransaction } = useWallet()
   const connection = useMemo(() => new Connection(LAUNCH_RPC_URL, { commitment: 'confirmed', wsEndpoint: LAUNCH_WS_URL }), [])
@@ -25,7 +25,7 @@ export function OnchainLaunchPage() {
   const [description, setDescription] = useState('')
   const [twitter, setTwitter] = useState('')
   const [telegram, setTelegram] = useState('')
-  // Coins launched here link back to Prophet unless the creator sets another site.
+  // Coins launched here link back to HasteFun unless the creator sets another site.
   const [website, setWebsite] = useState(() => `${window.location.origin}${import.meta.env.BASE_URL}`)
   const [image, setImage] = useState<File | null>(null)
   const [step, setStep] = useState<Step>('idle')
@@ -54,7 +54,7 @@ export function OnchainLaunchPage() {
       // The new token's mint address: a fresh key made here, used once to sign.
       const mint = Keypair.generate()
       const latest = await connection.getLatestBlockhash('confirmed')
-      // The memo marks the launch as made on Prophet, so the coin is labeled in races once it graduates.
+      // The memo marks the launch as made on HasteFun, so the coin is labeled in races once it graduates.
       const tx = new Transaction({ feePayer: publicKey, ...latest }).add(...createTokenInstructions({ mint, user: publicKey, name: cleanName, symbol: cleanSymbol, uri }), launchMemoInstruction(publicKey))
       setStep('signing')
       const signature = await sendTransaction(tx, connection, { signers: [mint], preflightCommitment: 'confirmed' })
@@ -74,14 +74,14 @@ export function OnchainLaunchPage() {
   const busy = step !== 'idle'
 
   return (
-    <div style={{ position: 'relative', minHeight: '100%', background: SKY, color: INK, fontFamily: "'Prophet Digits', 'Pixelify Sans', 'Courier New', monospace", overflow: 'hidden' }}>
+    <div style={{ position: 'relative', minHeight: '100%', background: SKY, color: INK, fontFamily: "'HasteFun Digits', 'Pixelify Sans', 'Courier New', monospace", overflow: 'hidden' }}>
       <Sun size={72} style={{ top: 24, right: '5%' }} />
       <DriftingCloud width={120} top={60} duration={80} delay={10} />
       <DriftingCloud width={90} top={220} duration={65} delay={40} />
       <div className="mx-auto max-w-[1100px] px-4 py-8" style={{ position: 'relative' }}>
         <h1 style={{ margin: 0, fontFamily: PIXEL, fontSize: 'clamp(18px, 2.6vw, 32px)', fontWeight: 400, lineHeight: 1.4, textShadow: `4px 4px 0 ${YELLOW}` }}>LAUNCH YOUR COIN</h1>
         <p style={{ margin: '10px 0 0', maxWidth: 680, fontSize: 18, fontWeight: 600 }}>
-          Your coin goes live on pump.fun in one signature. When it graduates to PumpSwap it can join Prophet races and arenas.
+          Your coin goes live on pump.fun in one signature. When it graduates to PumpSwap it can join HasteFun races and arenas.
         </p>
 
         {launched ? (
@@ -125,7 +125,7 @@ export function OnchainLaunchPage() {
                 </button>
               )}
               <p style={{ margin: 0, fontSize: 14, opacity: 0.7 }}>
-                Costs about 0.02 SOL of Solana network fees and account rent, paid by your wallet to the network and pump.fun. Prophet takes nothing. You become the coin&apos;s creator and earn pump.fun&apos;s creator fees.
+                Costs about 0.02 SOL of Solana network fees and account rent, paid by your wallet to the network and pump.fun. HasteFun takes nothing. You become the coin&apos;s creator and earn pump.fun&apos;s creator fees.
               </p>
             </div>
 
@@ -139,7 +139,7 @@ export function OnchainLaunchPage() {
                 {[
                   ['1', 'Live on pump.fun', 'Anyone can buy it on the bonding curve right away.'],
                   ['2', 'Graduates to PumpSwap', 'When the curve fills up, pump.fun moves it to a PumpSwap pool.'],
-                  ['3', 'Joins Prophet', 'From then on it can race and fight here.'],
+                  ['3', 'Joins HasteFun', 'From then on it can race and fight here.'],
                 ].map(([n, t, b]) => (
                   <div key={n} style={{ display: 'flex', gap: 10 }}>
                     <span style={{ flex: 'none', width: 24, height: 24, background: n === '3' ? PINK : YELLOW, color: INK, fontFamily: PIXEL, fontSize: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{n}</span>

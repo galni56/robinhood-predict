@@ -117,7 +117,7 @@ export function OnchainArenasListPage() {
   ))
 
   return (
-    <div style={{ minHeight: '100%', background: '#4B37B0', color: '#FFF6DF', fontFamily: "'Prophet Digits', 'Pixelify Sans', 'Courier New', monospace" }}>
+    <div style={{ minHeight: '100%', background: '#4B37B0', color: '#FFF6DF', fontFamily: "'HasteFun Digits', 'Pixelify Sans', 'Courier New', monospace" }}>
     <div className="mx-auto max-w-[1500px] px-4 py-8">
       <ClusterBanner />
       <div className="flex flex-wrap items-end justify-between gap-6">

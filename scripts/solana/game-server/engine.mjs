@@ -450,10 +450,12 @@ export function createEngine({ db, chain, prices, assets, cluster, coldWallet = 
    * the wallet's signMessage over it (base64).
    */
   function act({ message, signature }) {
-    if (typeof message !== 'string' || !message.startsWith('Prophet\n')) throw new RuleError('BadMessage')
+    // The brand line the site signs: 'HasteFun' since the rename (2026-10-07), 'Prophet' before.
+    const prefix = typeof message === 'string' ? ['HasteFun\n', 'Prophet\n'].find((p) => message.startsWith(p)) : undefined
+    if (!prefix) throw new RuleError('BadMessage')
     let payload
     try {
-      payload = JSON.parse(message.slice('Prophet\n'.length))
+      payload = JSON.parse(message.slice(prefix.length))
     } catch {
       throw new RuleError('BadMessage')
     }

@@ -610,3 +610,17 @@ test('price shot: too few shots by the end of aim cancels and refunds into balan
   assert.equal(db.balance(alice.address), SOL / 10n, 'credited once')
   assert.equal(db.unsweptFees(), 0n)
 })
+
+test('signed actions: the HasteFun brand line is accepted like the old Prophet one', async () => {
+  const clock = { t: 10_000 }
+  const db = openDatabase(':memory:')
+  const engine = createEngine({ db, chain: fakeChain(), prices: fakePrices({}), assets: ASSETS, cluster: 'localnet', clock: () => clock.t, log: quiet })
+  await engine.init()
+  const player = wallet()
+  assert.ok(engine.act(player.signed(clock, { action: 'duel-create' })).id >= 0)
+  const { publicKey, privateKey } = generateKeyPairSync('ed25519')
+  const address = base58(publicKey.export({ format: 'der', type: 'spki' }).subarray(-32))
+  const message = `HasteFun\n${JSON.stringify({ domain: 'hastefun.xyz', nonce: randomBytes(16).toString('hex'), action: 'duel-create', wallet: address, cluster: 'localnet', issuedAt: clock.t })}`
+  assert.ok(engine.act({ message, signature: sign(null, Buffer.from(message), privateKey).toString('base64') }).id >= 0)
+  assert.throws(() => engine.act({ message: message.replace('HasteFun\n', 'Other\n'), signature: 'x' }), /BadMessage/)
+})

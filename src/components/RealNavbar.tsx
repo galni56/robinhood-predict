@@ -55,13 +55,13 @@ export function RealNavbar() {
         background: CREAM,
         color: INK,
         borderBottom: `4px solid ${INK}`,
-        fontFamily: "'Prophet Digits', 'Pixelify Sans', 'Courier New', monospace",
+        fontFamily: "'HasteFun Digits', 'Pixelify Sans', 'Courier New', monospace",
       }}
     >
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '8px 16px' }}>
         <NavLink to="/" style={{ display: 'inline-flex', alignItems: 'center', gap: 12, minHeight: 44, fontFamily: PIXEL, fontSize: 14, color: INK, textDecoration: 'none' }}>
           <PxSprite data={logoCoin} width={32} height={34} />
-          <span>PROPHET</span>
+          <span>HASTEFUN</span>
         </NavLink>
         {/* The placeholder only lives on the landing; in the header it pushed the account button to a second row. */}
         {PROPHET_TOKEN_CA && <TokenCa compact />}

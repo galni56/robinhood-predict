@@ -80,7 +80,7 @@ function LobbyCard({ duel }: { duel: Duel }) {
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '4px 14px', fontSize: 14, fontWeight: 700 }}>
         {empty ? (
           <>
-            <span style={{ opacity: 0.7 }}>Crypto, memes, PumpSwap or Prophet coins · $1-$50</span>
+            <span style={{ opacity: 0.7 }}>Crypto, memes, PumpSwap or HasteFun coins · $1-$50</span>
             <span style={{ marginLeft: 'auto', fontFamily: PIXEL, fontSize: 9 }}>JOIN &gt;</span>
           </>
         ) : (
@@ -134,7 +134,7 @@ export function OnchainDuelsListPage() {
   const grid = { display: 'grid', gap: 18, gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))' } as const
   const h2 = { margin: '36px 0 16px', fontFamily: PIXEL, fontSize: 14, fontWeight: 400 } as const
   return (
-    <div style={{ position: 'relative', minHeight: '100%', background: SKY, color: INK, fontFamily: "'Prophet Digits', 'Pixelify Sans', 'Courier New', monospace", overflow: 'hidden' }}>
+    <div style={{ position: 'relative', minHeight: '100%', background: SKY, color: INK, fontFamily: "'HasteFun Digits', 'Pixelify Sans', 'Courier New', monospace", overflow: 'hidden' }}>
       <DriftingCloud width={120} top={50} duration={80} delay={15} />
       <div className="mx-auto max-w-[1200px] px-4 py-8" style={{ position: 'relative', zIndex: 1 }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16 }}>
@@ -155,7 +155,7 @@ export function OnchainDuelsListPage() {
         {isLoading && duels.length === 0 ? <p style={{ marginTop: 32 }}>Loading lobbies…</p> : (
           <>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 24 }}>
-              {([['all', 'All'], ['crypto', 'Crypto'], ['meme', 'Memes'], ['pumpswap', 'PumpSwap'], ['prophet', 'Made on Prophet']] as const).map(([k, text]) => (
+              {([['all', 'All'], ['crypto', 'Crypto'], ['meme', 'Memes'], ['pumpswap', 'PumpSwap'], ['prophet', 'Made on HasteFun']] as const).map(([k, text]) => (
                 <button key={k} type="button" onClick={() => setKind(k)} className={`rx-btn ${kind === k ? 'rx-btn-yellow' : 'rx-btn-white'}`} style={{ padding: '8px 14px', fontSize: 14, fontWeight: 700 }}>{text}</button>
               ))}
             </div>

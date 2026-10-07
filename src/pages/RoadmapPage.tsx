@@ -22,7 +22,7 @@ const roadmapPhases: readonly RoadmapPhase[] = [
     eyebrow: 'Expand & insight',
     title: 'More assets. Better data.',
     tagline: 'More opportunities - without lowering the quality bar.',
-    description: 'Prophet expands its reviewed universe while bringing the exact price context behind every game directly into the product.',
+    description: 'HasteFun expands its reviewed universe while bringing the exact price context behind every game directly into the product.',
     tone: 'purple',
     symbol: '+',
     items: [
@@ -40,12 +40,12 @@ const roadmapPhases: readonly RoadmapPhase[] = [
     eyebrow: 'Liquidity engine',
     title: 'Beyond pure P2P predictions.',
     tagline: 'A new liquidity-backed format alongside the games already live.',
-    description: 'A transparent Prophet Liquidity Vault can support selected future markets, making it easier to enter without waiting entirely on an opposing player.',
+    description: 'A transparent HasteFun Liquidity Vault can support selected future markets, making it easier to enter without waiting entirely on an opposing player.',
     tone: 'orange',
     symbol: '≈',
     items: [
       'Protocol-funded Liquidity Vault',
-      'P2P and Prophet-supported formats',
+      'P2P and HasteFun-supported formats',
       'Deeper two-sided participation',
       'Dynamic market pricing',
       'Public risk limits and liquidity dashboard',
@@ -55,16 +55,16 @@ const roadmapPhases: readonly RoadmapPhase[] = [
   {
     number: '03',
     status: 'PLANNED',
-    eyebrow: 'Prophet flywheel',
+    eyebrow: 'HasteFun flywheel',
     title: 'Activity powers token utility.',
-    tagline: 'Real usage becomes the engine of the $PROPHET ecosystem.',
+    tagline: 'Real usage becomes the engine of the $HASTE ecosystem.',
     description: 'After the fee and liquidity infrastructure is validated, protocol revenue can fund transparent token utility and continued ecosystem growth.',
     tone: 'token',
     symbol: 'P',
     items: [
-      'Revenue-funded $PROPHET buybacks',
+      'Revenue-funded $HASTE buybacks',
       'Public onchain treasury reporting',
-      'Fee benefits for locked $PROPHET',
+      'Fee benefits for locked $HASTE',
       'Seasonal ecosystem incentives',
       'Governance over incentives and reviewed expansion',
     ],
@@ -76,7 +76,7 @@ const roadmapPhases: readonly RoadmapPhase[] = [
     eyebrow: 'Create, grow & earn',
     title: 'Turn creators into distributors.',
     tagline: 'Creation is live. Attribution and creator economics come next.',
-    description: 'Trackable distribution tools will let creators build audiences around their games and earn from genuine activity they bring to Prophet.',
+    description: 'Trackable distribution tools will let creators build audiences around their games and earn from genuine activity they bring to HasteFun.',
     tone: 'creator',
     symbol: '↗',
     items: [
@@ -91,14 +91,14 @@ const roadmapPhases: readonly RoadmapPhase[] = [
   {
     number: '05',
     status: 'VISION',
-    eyebrow: 'Prophet everywhere',
+    eyebrow: 'HasteFun everywhere',
     title: 'Predictions beyond the website.',
     tagline: 'Bring every game into the communities already discussing it.',
-    description: 'Prophet becomes a portable prediction layer that communities, creators and partners can discover and integrate anywhere.',
+    description: 'HasteFun becomes a portable prediction layer that communities, creators and partners can discover and integrate anywhere.',
     tone: 'blue',
     symbol: '⌁',
     items: [
-      'Telegram Mini App and Prophet Bot',
+      'Telegram Mini App and HasteFun Bot',
       'Game, result, claim and refund alerts',
       'Live previews and wallet-aware links',
       'Embeddable market widgets',
@@ -179,7 +179,7 @@ const liveFoundation = [
 
 const feeDestinations = [
   { label: 'Liquidity', detail: 'Deeper selected markets', color: 'bg-[#ffd23f]', width: 'w-[88%]' },
-  { label: '$PROPHET', detail: 'Utility and buybacks', color: 'bg-[#ff4f8b]', width: 'w-[72%]' },
+  { label: '$HASTE', detail: 'Utility and buybacks', color: 'bg-[#ff4f8b]', width: 'w-[72%]' },
   { label: 'Creators', detail: 'Referrals and seasons', color: 'bg-[#E88BC7]', width: 'w-[60%]' },
   { label: 'Protocol', detail: 'Security, data and keepers', color: 'bg-[#6bcbf4]', width: 'w-[48%]' },
 ] as const
@@ -195,14 +195,14 @@ export function RoadmapPage() {
         <div className="relative z-10 max-w-3xl">
           <div className="inline-flex items-center gap-2 rounded-full border border-[#1B1340]/15 bg-white/[0.06] px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.18em] text-[#1B1340]/70">
             <span className="h-1.5 w-1.5 rounded-full bg-[#ff4f8b] shadow-[0_0_12px_#ff4f8b]" />
-            Prophet roadmap
+            HasteFun roadmap
           </div>
           <h1 className="mt-6 max-w-4xl font-display text-5xl font-black leading-[0.95] tracking-[-0.045em] text-[#1B1340] sm:text-7xl lg:text-[84px]">
             From three games<br />to one <span className="roadmap-gradient-text">ecosystem.</span>
           </h1>
           <p className="mt-7 max-w-2xl text-base leading-relaxed text-[#1B1340]/60 sm:text-lg">
-            Prophet begins with working onchain games. The next chapter adds deeper market insight, protocol liquidity,
-            creator economics and a real utility layer for <strong className="text-white/85">$PROPHET</strong>.
+            HasteFun begins with working onchain games. The next chapter adds deeper market insight, protocol liquidity,
+            creator economics and a real utility layer for <strong className="text-white/85">$HASTE</strong>.
           </p>
         </div>
 
@@ -213,7 +213,7 @@ export function RoadmapPage() {
           <div className="roadmap-orbit-glow" />
           <div className="roadmap-orbit-core">
             <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#1B1340]/55">Utility layer</span>
-            <strong className="font-display text-3xl text-white">$PROPHET</strong>
+            <strong className="font-display text-3xl text-white">$HASTE</strong>
             <span className="text-[10px] font-bold text-[#C2245A]">powered by activity</span>
           </div>
           <div className="roadmap-orbit-node roadmap-orbit-node--race"><span>FASTEST</span><b>Races</b></div>
@@ -298,7 +298,7 @@ export function RoadmapPage() {
           <p className="text-xs font-black uppercase tracking-[0.2em] text-[#B8860B]">The proposed fee flywheel</p>
           <h2 className="mt-4 max-w-xl font-display text-4xl font-black leading-tight sm:text-5xl">Usage compounds into a stronger product.</h2>
           <p className="mt-5 max-w-xl text-sm leading-relaxed text-[#1B1340]/60 sm:text-base">
-            Prophet fees remain in SOL and move through transparent, purpose-built vaults. Allocation rules and token
+            HasteFun fees remain in SOL and move through transparent, purpose-built vaults. Allocation rules and token
             mechanics activate only after technical, governance and legal review.
           </p>
 
@@ -354,7 +354,7 @@ export function RoadmapPage() {
             </h2>
             <p className="mt-6 max-w-3xl text-sm font-medium leading-relaxed text-[#554b62] sm:text-base">
               Users create. Communities distribute. Liquidity improves participation. Transparent protocol activity
-              strengthens the entire Prophet ecosystem.
+              strengthens the entire HasteFun ecosystem.
             </p>
           </div>
           <div className="flex flex-wrap gap-3 lg:max-w-[220px] lg:flex-col">

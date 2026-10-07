@@ -1,11 +1,11 @@
 @import 'tailwindcss';
 
 @theme {
-  --font-sans: 'Prophet Digits', 'Pixelify Sans', 'Nunito', system-ui, sans-serif;
+  --font-sans: 'HasteFun Digits', 'Pixelify Sans', 'Nunito', system-ui, sans-serif;
   --font-display: 'Press Start 2P', 'Courier New', monospace;
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Consolas, monospace;
 
-  /* Prophet brand */
+  /* HasteFun brand */
   --color-plum-950: #17111f;
   --color-plum-900: #1e1728;
   --color-plum-800: #2a2135;
@@ -595,11 +595,11 @@ h3,
 @media (prefers-reduced-motion: reduce) { .rx-fx-confetti-pop { animation: none !important; opacity: 0; } }
 
 /* Pixelify Sans draws 5 (and 8) like S (and B), so "$25" read as "$2S".
-   'Prophet Digits' is VT323 (self-hosted, OFL) limited to 0-9 and listed
+   'HasteFun Digits' is VT323 (self-hosted, OFL) limited to 0-9 and listed
    before Pixelify in every body-font stack: digits come from it, every other
    character falls through to Pixelify. Headings (Press Start 2P) are fine. */
 @font-face {
-  font-family: 'Prophet Digits';
+  font-family: 'HasteFun Digits';
   src: url('/fonts/vt323-latin.woff2') format('woff2');
   /* One weight only, so the browser emboldens it to match bold body text. */
   font-weight: 400;

@@ -9,8 +9,10 @@ owner reads it) and [`ROADMAP.md`](./ROADMAP.md). `docs/SOLANA_MIGRATION.md` des
 on-chain-program plan and is history now. Read the operating rules below before running anything, especially
 anything that touches mainnet.
 
-**Naming note:** the product is branded **Prophet** everywhere a user sees it.
-The repo and npm package still say `robinhood-predict`.
+**Naming note:** the product is branded **HasteFun** (domain hastefun.xyz) everywhere a user sees it since
+2026-10-07; it was Prophet before. Internal names keep `prophet` (memos `prophet:`, the `Prophet
+` signed line the
+server still accepts, code identifiers). The repo and npm package still say `robinhood-predict`.
 
 ## What this is
 

@@ -63,7 +63,7 @@ export function OnchainLandingPage() {
     if (params.get('section') === 'how') document.getElementById('how')?.scrollIntoView({ behavior: 'smooth' })
   }, [params])
   return (
-    <div style={{ fontFamily: "'Prophet Digits', 'Pixelify Sans', 'Courier New', monospace", color: INK, background: SKY, overflow: 'hidden' }}>
+    <div style={{ fontFamily: "'HasteFun Digits', 'Pixelify Sans', 'Courier New', monospace", color: INK, background: SKY, overflow: 'hidden' }}>
       {/* ------------------------------------------------------- hero */}
       <header
         style={{
@@ -239,7 +239,7 @@ export function OnchainLandingPage() {
               <PxSprite data={logoCoin} width={96} height={102} />
             </div>
             <div style={{ flex: '1 1 280px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <h2 style={{ margin: 0, fontFamily: PIXEL, fontSize: 'clamp(18px, 2.2vw, 28px)', fontWeight: 400, lineHeight: 1.4 }}>TOKEN $PROPHET</h2>
+              <h2 style={{ margin: 0, fontFamily: PIXEL, fontSize: 'clamp(18px, 2.2vw, 28px)', fontWeight: 400, lineHeight: 1.4 }}>TOKEN $HASTE</h2>
               <p style={{ margin: 0, maxWidth: 520, fontSize: 20, lineHeight: 1.4, fontWeight: 500, textWrap: 'pretty' }}>
                 Launching on pump.fun. Buyback and burn run through pump.fun and PumpSwap.
               </p>

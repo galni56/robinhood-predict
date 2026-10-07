@@ -37,7 +37,7 @@ export interface ApprovedRaceAsset {
   priceUrl?: string
   /** 'catalog' (owner-reviewed) or 'pumpswap' (added automatically). */
   source?: 'catalog' | 'pumpswap'
-  /** Launched from the Prophet launchpad. */
+  /** Launched from the HasteFun launchpad. */
   launchedOnProphet?: boolean
   /** Token mint, when known (PumpSwap coins). */
   mint?: string

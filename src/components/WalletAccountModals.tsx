@@ -29,7 +29,7 @@ function Modal({ title, onClose, children, locked = false }: { title: string; on
       <div className="flex min-h-full items-center justify-center px-4 py-8">
         <div
           className="rx-raised w-full max-w-md"
-          style={{ background: CREAM, color: INK, padding: 24, fontFamily: "'Prophet Digits', 'Pixelify Sans', 'Courier New', monospace" }}
+          style={{ background: CREAM, color: INK, padding: 24, fontFamily: "'HasteFun Digits', 'Pixelify Sans', 'Courier New', monospace" }}
           onClick={(event) => event.stopPropagation()}
         >
           <div className="flex items-start justify-between gap-4">
@@ -92,7 +92,7 @@ export function BackupModal({ onClose, forced = false }: { onClose: () => void; 
     <Modal title={forced ? 'SAVE YOUR KEY' : 'BACK UP KEY'} onClose={onClose} locked={forced}>
       <p style={{ margin: 0 }}>
         Your account lives in this browser. This secret key is the only way to recover it - if you clear the browser or switch
-        devices without it, the SOL inside is gone. Prophet cannot restore it.
+        devices without it, the SOL inside is gone. HasteFun cannot restore it.
       </p>
       <CopyField label="SECRET KEY" value={secret} secret />
       <p style={{ margin: 0, fontSize: 15, opacity: 0.7 }}>
@@ -168,7 +168,7 @@ export function CreateAccountModal({ onClose, onDone }: { onClose: () => void; o
   return (
     <Modal title="CREATE ACCOUNT" onClose={onClose}>
       <p style={{ margin: 0 }}>
-        Pick a password. It locks your account on this device - nobody, Prophet included, can open it without the password.
+        Pick a password. It locks your account on this device - nobody, HasteFun included, can open it without the password.
       </p>
       <p style={{ margin: 0, fontSize: 15, opacity: 0.7 }}>
         We cannot reset it. If you forget it, restore the account with the secret key you save in the next step.

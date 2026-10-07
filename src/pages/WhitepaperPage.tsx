@@ -44,10 +44,10 @@ export function WhitepaperPage() {
         <div>
           <p className="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-[#C2245A]/80">Whitepaper</p>
           <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">
-            Prophet: coin duels and price arenas on Solana
+            HasteFun: coin duels and price arenas on Solana
           </h1>
           <p className="mt-3 text-sm text-[#1B1340]/55">
-            Draft · Solana. Prophet has not received an external security audit. This document is not legal,
+            Draft · Solana. HasteFun has not received an external security audit. This document is not legal,
             financial or investment advice. See the{' '}
             <Link to="/terms" className="text-[#C2245A] hover:underline">
               Terms of Service
@@ -58,7 +58,7 @@ export function WhitepaperPage() {
 
         <Section id="overview" title="1. Overview">
           <p>
-            Prophet runs two parimutuel games on Solana around the prices of meme coins and crypto assets.
+            HasteFun runs two parimutuel games on Solana around the prices of meme coins and crypto assets.
             <strong> Coin Duels</strong> race 2–6 coins against each other: every racer brings one coin and the same
             stake, and the coin with the largest percentage gain takes the pot. <strong>Price Arena</strong> asks up to
             ten players to call one coin&apos;s final price (or market cap); the closest half split the rest.
@@ -72,7 +72,7 @@ export function WhitepaperPage() {
             </ModeCard>
           </div>
           <p>
-            Nobody plays against the house. Every payout comes from stakes already paid into that game; Prophet&apos;s
+            Nobody plays against the house. Every payout comes from stakes already paid into that game; HasteFun&apos;s
             only income is a 2% fee taken from winnings (Duels) or from the losing pool (Arena).
           </p>
         </Section>
@@ -85,7 +85,7 @@ export function WhitepaperPage() {
               <code> prophet:arena:12:&lt;prediction&gt;</code>. The game server applies it; anything it cannot apply (late, over a limit, no memo) is refunded minus the network fee.
             </li>
             <li>
-              <strong>Accounts:</strong> a Prophet account is a Solana key generated in the browser and encrypted with the player&apos;s password (PBKDF2-SHA256, 600,000 iterations, AES-256-GCM). The key never leaves the device. External wallets (Phantom, Solflare) work the same way.
+              <strong>Accounts:</strong> a HasteFun account is a Solana key generated in the browser and encrypted with the player&apos;s password (PBKDF2-SHA256, 600,000 iterations, AES-256-GCM). The key never leaves the device. External wallets (Phantom, Solflare) work the same way.
             </li>
             <li>
               <strong>Assets:</strong> reviewed crypto and meme pools, plus PumpSwap coins selected automatically: a real pump.fun coin paired with SOL or USDC, at least $10,000 of liquidity, a pool older than one hour; the list keeps up to 40 coins (the most liquid make room), drops a coin whose liquidity falls under $10,000 or that has not been seen for 7 days, minus a hand-kept blocklist of honeypots and wash-traded coins.
@@ -103,7 +103,7 @@ export function WhitepaperPage() {
                 <tr><td>s</td><td className="font-sans">duel stake, equal for every racer</td></tr>
                 <tr><td>n</td><td className="font-sans">racers (duel) or players (arena)</td></tr>
                 <tr><td>B_w, B_l</td><td className="font-sans">spectator stakes on the winning racer / on all losing racers</td></tr>
-                <tr><td>f</td><td className="font-sans">Prophet fee, 2% (200 basis points)</td></tr>
+                <tr><td>f</td><td className="font-sans">HasteFun fee, 2% (200 basis points)</td></tr>
                 <tr><td>eⱼ</td><td className="font-sans">arena error of player j: |prediction − final price|</td></tr>
                 <tr><td>k</td><td className="font-sans">arena winners: ⌊n ÷ 2⌋</td></tr>
               </tbody>
@@ -135,7 +135,7 @@ export function WhitepaperPage() {
           <p>The fee is taken only from gains, never from a returned stake. Losing racers and their spectators receive nothing.</p>
           <p><strong>Missed ready check.</strong> A removed racer gets the stake back minus a tax; his spectators get everything back:</p>
           <Formula>tax = s × 10%   (20% if spectators backed him; doubled after 10 removals in 7 days)</Formula>
-          <Formula>each remaining racer += tax × 50% ÷ racers still in;   Prophet keeps the other 50%</Formula>
+          <Formula>each remaining racer += tax × 50% ÷ racers still in;   HasteFun keeps the other 50%</Formula>
           <p><strong>Void.</strong> A top tie, or no valid start price within 5 minutes (end price within 10 minutes), refunds every racer and spectator in full.</p>
         </Section>
 
@@ -162,14 +162,14 @@ export function WhitepaperPage() {
           <Formula>L = Σ losing stakes;   payoutⱼ = stakeⱼ + (σⱼ ÷ Σσ) × L × (1 − f)</Formula>
           <p>
             An exact hit earns 3× the weight of the least accurate winner. The fee comes only out of the losing pool and
-            is split equally between the arena&apos;s creator and Prophet. Fewer than two players, a final price older than
+            is split equally between the arena&apos;s creator and HasteFun. Fewer than two players, a final price older than
             60 seconds, or no result within an hour after the deadline cancels the arena with full refunds.
           </p>
         </Section>
 
         <Section id="prices" title="8. Prices and settlement">
           <p>
-            Prophet&apos;s price service follows every pool block by block and, for a boundary time T, signs one Ed25519
+            HasteFun&apos;s price service follows every pool block by block and, for a boundary time T, signs one Ed25519
             message (domain <code>PRPHPOOL</code>) holding each pool&apos;s price at the last block strictly before T, that
             block and its direct child. The game server accepts it only if it is signed by the pinned oracle key, is
             bound to this game wallet and to T, and covers exactly the coins of the game.
@@ -188,11 +188,11 @@ export function WhitepaperPage() {
 
         <Section id="trust" title="9. Custody and trust">
           <p>
-            Stakes sit in one game wallet run by Prophet&apos;s game server until a game ends, so players trust the
+            Stakes sit in one game wallet run by HasteFun&apos;s game server until a game ends, so players trust the
             operator to run the published rules. The wallet&apos;s balance and what it owes are public at
             <code> /health</code>; the server refuses to start on an unknown wallet history, and only fees it has
             recorded as earned can be moved to the owner&apos;s cold wallet. Actions such as creating a game are signed
-            messages bound to Prophet&apos;s domain with a one-time nonce, so they cannot be replayed elsewhere.
+            messages bound to HasteFun&apos;s domain with a one-time nonce, so they cannot be replayed elsewhere.
           </p>
           <p>
             There is no external audit. Thin pools near a boundary remain a manipulation risk that liquidity floors and

@@ -16,7 +16,7 @@ export function TermsPage() {
         <h1 className="text-3xl font-extrabold tracking-tight">Terms of Service</h1>
         <p className="text-[#1B1340]/55 text-sm mt-3">
           Last updated {new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}.
-          Prophet runs Asset Races and Price Arena on Solana with real wallet transactions. Stakes, payouts and
+          HasteFun runs Asset Races and Price Arena on Solana with real wallet transactions. Stakes, payouts and
           refunds use SOL or another stake currency the game was created with. See §9 for launch and legal-review
           status.
         </p>
@@ -32,18 +32,18 @@ export function TermsPage() {
 
       <Section title="1. Acceptance of these terms">
         <p>
-          By accessing or using Prophet (the "Service"), you agree to these Terms of Service. If you don't agree,
+          By accessing or using HasteFun (the "Service"), you agree to these Terms of Service. If you don't agree,
           don't use the Service.
         </p>
       </Section>
 
       <Section title="2. What the Service is">
         <p>
-          Prophet offers two parimutuel prediction games on Solana: Asset Races and Price Arena. Connecting a Solana
+          HasteFun offers two parimutuel prediction games on Solana: Asset Races and Price Arena. Connecting a Solana
           wallet lets you interact with live onchain programs and money you can genuinely gain or lose. USD stake
           fields are a conversion convenience; the wallet sends the exact displayed SOL (or token) amount. Nothing
-          here constitutes a regulated financial product, exchange, or brokerage, and using it doesn't make Prophet
-          one. Tokenized stocks are issued by third parties; Prophet only reads their market prices.
+          here constitutes a regulated financial product, exchange, or brokerage, and using it doesn't make HasteFun
+          one. Tokenized stocks are issued by third parties; HasteFun only reads their market prices.
         </p>
       </Section>
 
@@ -51,7 +51,7 @@ export function TermsPage() {
         <p>
           You must be able to form a binding contract to use the Service, and you're responsible for complying with
           any laws that apply to you wherever you access it from - including local rules about prediction markets,
-          derivatives, or gambling, which vary widely and are your responsibility to check, not Prophet's. Losing
+          derivatives, or gambling, which vary widely and are your responsibility to check, not HasteFun's. Losing
           positions can lose the full amount staked. Network fees and small refundable account deposits apply to
           Solana transactions.
         </p>
@@ -59,7 +59,7 @@ export function TermsPage() {
 
       <Section title="4. Accounts and wallets">
         <p>
-          The Service has no accounts of its own - your wallet address is your identity, and Prophet never receives
+          The Service has no accounts of its own - your wallet address is your identity, and HasteFun never receives
           or stores your private key or seed phrase; every transaction is signed in your own wallet. Nicknames (if
           you set one) are stored onchain in a separate, public registry program - anyone can see it, and it's tied
           to your address, not verified as your real name.
@@ -79,14 +79,14 @@ export function TermsPage() {
       <Section title="6. No warranty">
         <p>
           The Service is provided "as is." Prices and game data can be wrong, delayed, or unavailable without notice.
-          Prophet makes no warranty that the Service, or the network/RPC infrastructure it depends on, will be
+          HasteFun makes no warranty that the Service, or the network/RPC infrastructure it depends on, will be
           uninterrupted, error-free, or fit for any particular purpose.
         </p>
       </Section>
 
       <Section title="7. Limitation of liability">
         <p>
-          To the fullest extent permitted by law, Prophet and its contributors aren't liable for any loss arising
+          To the fullest extent permitted by law, HasteFun and its contributors aren't liable for any loss arising
           from your use of the Service - including loss of funds, data, or availability, whether from a bug, an
           exploit, a network/RPC outage, or otherwise.
         </p>

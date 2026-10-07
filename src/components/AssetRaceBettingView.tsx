@@ -115,7 +115,7 @@ export function AssetRaceBettingView({
                 >
                   <div className="flex items-center justify-between">
                     <span className="flex items-center gap-3" style={{ fontFamily: PIXEL, fontSize: 14 }}><PxSprite data={coinSkin(asset.symbol, asset.assetIndex).sprite} width={40} height={43} />{asset.symbol}</span>
-                    {selectedNow && <span style={{ fontFamily: "'Prophet Digits', 'Pixelify Sans', monospace", fontSize: 16, fontWeight: 700, color: '#FFD23F', background: INK, padding: '4px 8px' }}>picked</span>}
+                    {selectedNow && <span style={{ fontFamily: "'HasteFun Digits', 'Pixelify Sans', monospace", fontSize: 16, fontWeight: 700, color: '#FFD23F', background: INK, padding: '4px 8px' }}>picked</span>}
                   </div>
                   <div className="mt-3 flex items-end justify-between gap-3">
                     <div>

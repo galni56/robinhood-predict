@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 
 type ShareGameKind = 'market' | 'race' | 'arena'
 
-const SHARE_ORIGIN = 'https://prophetmarkets.fun'
+const SHARE_ORIGIN = 'https://hastefun.xyz'
 
 function copyWithTextarea(value: string) {
   const textarea = document.createElement('textarea')

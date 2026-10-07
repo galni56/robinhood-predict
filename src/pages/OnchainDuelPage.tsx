@@ -113,7 +113,7 @@ function LeaveRules({ phase }: { phase: 'before' | 'paid' }) {
           <div style={{ fontFamily: PIXEL, fontSize: 9, marginBottom: 6 }}>BEFORE YOU JOIN</div>
           <div>· Leaving is free until anyone presses READY: you get the full stake back.</div>
           <div>· After the first READY you cannot leave. Miss READY within a minute and you are kicked: your stake comes back minus 10% (20% if spectators backed you).</div>
-          <div>· Win and you take the racers' pot; Prophet keeps 2% of the winnings only.</div>
+          <div>· Win and you take the racers' pot; HasteFun keeps 2% of the winnings only.</div>
         </>
       ) : (
         <div>You can still leave with the full stake - until anyone presses READY. After that, only READY or a kick with a 10-20% penalty.</div>
@@ -407,7 +407,7 @@ export function OnchainDuelPage() {
   }
 
   return (
-    <div style={{ minHeight: '100%', background: SKY, color: INK, fontFamily: "'Prophet Digits', 'Pixelify Sans', 'Courier New', monospace" }}>
+    <div style={{ minHeight: '100%', background: SKY, color: INK, fontFamily: "'HasteFun Digits', 'Pixelify Sans', 'Courier New', monospace" }}>
       <div className="mx-auto max-w-[1200px] px-4 py-6">
         <Link to="/onchain/races" style={{ fontSize: 16, fontWeight: 700 }}>← All lobbies</Link>
         {isLoading || !duel ? <p className="rx-plate" style={{ display: 'inline-block', marginTop: 32, background: CREAM, padding: '10px 14px', fontWeight: 700 }}>{isLoading ? 'Loading lobby…' : 'This lobby opens when the game server is back online.'}</p> : (

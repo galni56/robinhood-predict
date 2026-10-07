@@ -17,10 +17,10 @@ const ATA_PROGRAM = new PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL'
 const CREATE_V2 = Buffer.from([214, 144, 76, 236, 95, 139, 49, 180])
 
 /** Metadata upload, forwarded by our VPS to pump.fun's IPFS endpoint. */
-export const LAUNCH_IPFS_URL = (import.meta.env.VITE_LAUNCH_IPFS_URL?.trim() || 'https://prophetmarkets.fun/api/solana/ipfs')
+export const LAUNCH_IPFS_URL = (import.meta.env.VITE_LAUNCH_IPFS_URL?.trim() || 'https://hastefun.xyz/api/solana/ipfs')
 /** Launches always happen on mainnet, whatever cluster the games use. */
-export const LAUNCH_RPC_URL = (import.meta.env.VITE_LAUNCH_RPC_URL?.trim() || 'https://prophetmarkets.fun/api/solana/rpc')
-export const LAUNCH_WS_URL = (import.meta.env.VITE_LAUNCH_WS_URL?.trim() || 'wss://prophetmarkets.fun/api/solana/ws')
+export const LAUNCH_RPC_URL = (import.meta.env.VITE_LAUNCH_RPC_URL?.trim() || 'https://hastefun.xyz/api/solana/rpc')
+export const LAUNCH_WS_URL = (import.meta.env.VITE_LAUNCH_WS_URL?.trim() || 'wss://hastefun.xyz/api/solana/ws')
 
 export const LAUNCH_LIMITS = { name: 32, symbol: 10, description: 500, imageBytes: 4_500_000 }
 
@@ -64,7 +64,7 @@ export async function uploadLaunchMetadata(meta: LaunchMetadata): Promise<string
   return body.metadataUri
 }
 
-/** The memo that marks a create transaction as made on Prophet (the game server checks it). */
+/** The memo that marks a create transaction as made on HasteFun (the game server checks it). */
 export const LAUNCH_MEMO = 'prophet:launch'
 const MEMO_PROGRAM = new PublicKey('MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr')
 

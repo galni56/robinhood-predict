@@ -155,7 +155,7 @@ export interface ServerAsset {
   poolCreatedAt?: string
   /** When the game server added the coin to the list. */
   addedAt?: string
-  /** Launched from the Prophet launchpad (and graduated to PumpSwap). */
+  /** Launched from the HasteFun launchpad (and graduated to PumpSwap). */
   launchedOnProphet?: boolean
   /** Price kept in the bundled snapshot (shown while the server is off). */
   price?: { raw: string; decimals: number } | null
@@ -271,7 +271,7 @@ export async function recordLaunch(mint: string, signature: string) {
   }
 }
 
-/** Coins launched on Prophet (newest first), graduated or not. */
+/** Coins launched on HasteFun (newest first), graduated or not. */
 export function useProphetLaunches() {
   return useQuery({
     queryKey: ['prophet-launches'],
@@ -376,7 +376,7 @@ export async function reportDeposit(signature: string): Promise<DepositResult> {
   return last
 }
 
-/** Signs `fields` as a Prophet action with the connected wallet and sends it. */
+/** Signs `fields` as a HasteFun action with the connected wallet and sends it. */
 export function useSignedAction() {
   const { publicKey, signMessage } = useWallet()
   const config = useGameServerConfig()
@@ -388,7 +388,7 @@ export function useSignedAction() {
       // domain: binds the signature to this site (the server rejects other
       // hosts); nonce: makes every signed message unique.
       const nonce = Array.from(crypto.getRandomValues(new Uint8Array(16)), (b) => b.toString(16).padStart(2, '0')).join('')
-      const message = `Prophet\n${JSON.stringify({ ...fields, wallet: publicKey.toBase58(), cluster, domain: window.location.host, nonce, issuedAt: Math.floor(Date.now() / 1000) })}`
+      const message = `HasteFun\n${JSON.stringify({ ...fields, wallet: publicKey.toBase58(), cluster, domain: window.location.host, nonce, issuedAt: Math.floor(Date.now() / 1000) })}`
       const signature = await signMessage(new TextEncoder().encode(message))
       let binary = ''
       signature.forEach((b) => { binary += String.fromCharCode(b) })
@@ -401,7 +401,7 @@ export function useSignedAction() {
 
 // Rule codes the UI can explain in plain words.
 const FRIENDLY: Record<string, string> = {
-  WrongDomain: 'This action was signed for another website. Make sure you are on prophetmarkets.fun.',
+  WrongDomain: 'This action was signed for another website. Make sure you are on hastefun.xyz.',
   BettingNotOpen: 'Betting is not open for this race.',
   StakeBelowMinimum: 'The stake is below the minimum.',
   StakeExceedsMaximum: 'That would exceed the per-wallet maximum.',
@@ -427,7 +427,7 @@ const FRIENDLY: Record<string, string> = {
   MessageExpired: 'Your device clock looks off; check the time and retry.',
   MessageReused: 'That request was already sent.',
   BadSignature: 'The wallet signature did not check out. Try again.',
-  WalletCannotSignMessages: 'This wallet cannot sign messages. Log in with your Prophet account.',
+  WalletCannotSignMessages: 'This wallet cannot sign messages. Log in with your HasteFun account.',
   InvalidNickname: 'Nicknames are 1–24 bytes, no control characters.',
   NicknameTaken: 'That nickname is taken.',
   TooManyRequests: 'Too many requests; wait a minute.',

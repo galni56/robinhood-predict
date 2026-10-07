@@ -91,7 +91,7 @@ export interface Duel {
 /**
  * A lobby's coin group (server duel.mjs duelGroup): groups never mix in one
  * race. 'meme' is the reviewed catalog's memes; PumpSwap coins and coins
- * launched on Prophet are groups of their own.
+ * launched on HasteFun are groups of their own.
  */
 export type DuelGroup = 'crypto' | 'meme' | 'pumpswap' | 'prophet'
 
@@ -101,7 +101,7 @@ export function duelGroupOf(asset: ApprovedRaceAsset): DuelGroup {
   return asset.category === 2 ? 'crypto' : 'meme'
 }
 
-export const DUEL_GROUP_LABELS: Record<DuelGroup, string> = { crypto: 'Crypto', meme: 'Memes', pumpswap: 'PumpSwap', prophet: 'Made on Prophet' }
+export const DUEL_GROUP_LABELS: Record<DuelGroup, string> = { crypto: 'Crypto', meme: 'Memes', pumpswap: 'PumpSwap', prophet: 'Made on HasteFun' }
 
 export const DUEL_RULES = {
   minRacers: 2,

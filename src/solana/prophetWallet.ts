@@ -26,7 +26,7 @@ import { Keypair, type TransactionVersion } from '@solana/web3.js'
 // for the password again. It does not stop code running inside our own page
 // (XSS), which could read the password as it is typed.
 
-export const ProphetWalletName = 'Prophet Wallet' as WalletName<'Prophet Wallet'>
+export const ProphetWalletName = 'HasteFun Wallet' as WalletName<'HasteFun Wallet'>
 
 /** Legacy: the base58 secret key in clear (accounts created before passwords). */
 const STORAGE_KEY = 'prophet_wallet_v1'
@@ -244,7 +244,7 @@ export const prophetWalletStore = {
 
 export class ProphetWalletAdapter extends BaseMessageSignerWalletAdapter {
   name = ProphetWalletName
-  url = 'https://prophetmarkets.fun'
+  url = 'https://hastefun.xyz'
   icon =
     'data:image/svg+xml;base64,' +
     btoa(

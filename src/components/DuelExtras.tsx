@@ -23,7 +23,7 @@ const GROUP_STYLE: Record<DuelGroup, { bg: string; text: string; icon?: string }
   crypto: { bg: '#8FD3FF', text: 'CRYPTO', icon: 'BTC' },
   meme: { bg: '#FF9FC4', text: 'MEMES', icon: 'WIF' },
   pumpswap: { bg: '#8BE89A', text: 'PUMPSWAP' },
-  prophet: { bg: YELLOW, text: 'MADE ON PROPHET' },
+  prophet: { bg: YELLOW, text: 'MADE ON HASTEFUN' },
 }
 
 export function CategoryBadge({ category, size = 'small' }: { category: DuelGroup | null; size?: 'small' | 'large' }) {

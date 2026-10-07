@@ -77,9 +77,9 @@ export function withSamplePlayers(snapshot: HistorySnapshot | undefined): Histor
   const arena = PLAYERS.map((p, i) => standing(p, i, 0.4))
   return {
     ...base,
-    activity: [...base.activity, ...activity()].sort((a, b) => (b.time ?? 0) - (a.time ?? 0)),
+    activity: [...(base.activity ?? []), ...activity()].sort((a, b) => (b.time ?? 0) - (a.time ?? 0)),
     wallets: { ...Object.fromEntries(rows.map((r) => [r.wallet, r])), ...base.wallets },
-    leaderboard: [...base.leaderboard, ...rows].sort(byNet),
+    leaderboard: [...(base.leaderboard ?? []), ...rows].sort(byNet),
     leaderboards: {
       race: [...(base.leaderboards?.race ?? []), ...race].sort(byNet),
       arena: [...(base.leaderboards?.arena ?? []), ...arena].sort(byNet),
