@@ -590,6 +590,7 @@ export function arenaSettlements(arena) {
 //   prophet:arena:<arenaId>:<prediction>   (prediction 0 = keep, top-up only)
 //   prophet:duel:<duelId>:0                (a racer pays the stake)
 //   prophet:duel:<duelId>:<seat>           (a spectator backs that racer)
+//   prophet:shot:<shotId>:0                (a Price Shot stake; the price was aimed by signed message)
 export const MEMO_PREFIX = 'prophet'
 
 export function parseStakeMemo(text) {
@@ -601,13 +602,13 @@ export function parseStakeMemo(text) {
   if (kind === 'arena') return { kind, id: Number(id), prediction: BigInt(arg) }
   // Duels: 0 pays the racer's stake, a seat number backs that racer.
   if (kind === 'duel') return { kind, id: Number(id), seat: Number(arg) }
-  // Top-up of the player's game balance (Price Shot stakes come from it).
-  if (kind === 'balance') return { kind, id: 0 }
+  // Price Shot: the stake of the shot this wallet aimed (the price is not public).
+  if (kind === 'shot' && arg === '0') return { kind, id: Number(id) }
   return null
 }
 
 export const duelMemo = (duelId, seat = 0) => `${MEMO_PREFIX}:duel:${duelId}:${seat}`
-export const balanceMemo = () => `${MEMO_PREFIX}:balance:0:0`
+export const shotMemo = (shotId) => `${MEMO_PREFIX}:shot:${shotId}:0`
 
 export const raceMemo = (raceId, assetIndex) => `${MEMO_PREFIX}:race:${raceId}:${assetIndex}`
 export const arenaMemo = (arenaId, prediction) => `${MEMO_PREFIX}:arena:${arenaId}:${prediction}`

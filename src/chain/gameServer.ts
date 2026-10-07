@@ -434,7 +434,6 @@ const FRIENDLY: Record<string, string> = {
   InvalidNickname: 'Nicknames are 1–24 bytes, no control characters.',
   NicknameTaken: 'That nickname is taken.',
   TooManyRequests: 'Too many requests; wait a minute.',
-  InsufficientBalance: 'Not enough on your game balance. Add SOL to it first.',
   AimClosed: 'Aim time is over - this shot was not locked.',
   NotInMatch: 'You are not in this match (only ready players are).',
   AlreadyLocked: 'Your shot is already locked.',
@@ -442,8 +441,7 @@ const FRIENDLY: Record<string, string> = {
   RoomFull: 'This room is full.',
   AlreadyInRoom: 'You are already in this room.',
   NotInRoom: 'Join the room first.',
-  WithdrawalTooSmall: 'The amount is too small to withdraw.',
-  InvalidAmount: 'Enter a valid amount.',
+  NoAimedPrice: 'Your price did not reach the server before the stake - the stake comes back.',
   InvalidDuration: 'Pick one of the listed durations.',
 }
 

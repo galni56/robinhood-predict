@@ -9,9 +9,6 @@
 //   expiry, so a crash can never pay twice (see engine.mjs, processPayouts).
 // - nicknames, used_messages (signed-message replay guard), creator_balances
 //   (creator fees too small to send yet).
-// - balances + balance_events: players' game balances (Price Shot stakes
-//   come from them, payouts go back to them). Every change is an event with
-//   a unique ref, so a retried step never credits or debits twice.
 
 import { DatabaseSync } from 'node:sqlite'
 
@@ -50,14 +47,6 @@ CREATE TABLE IF NOT EXISTS used_messages (signature TEXT PRIMARY KEY, wallet TEX
 CREATE TABLE IF NOT EXISTS creator_balances (wallet TEXT PRIMARY KEY, amount TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS duel_kicks (wallet TEXT NOT NULL, at INTEGER NOT NULL);
 CREATE INDEX IF NOT EXISTS duel_kicks_wallet ON duel_kicks (wallet, at);
-CREATE TABLE IF NOT EXISTS balances (wallet TEXT PRIMARY KEY, amount TEXT NOT NULL);
-CREATE TABLE IF NOT EXISTS balance_events (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  ref TEXT NOT NULL UNIQUE,
-  wallet TEXT NOT NULL, kind TEXT NOT NULL, amount TEXT NOT NULL,
-  game_kind TEXT, game_id INTEGER, at INTEGER NOT NULL
-);
-CREATE INDEX IF NOT EXISTS balance_events_wallet ON balance_events (wallet, id);
 `
 
 // Game-state fields that hold BigInt values (amounts and prices).
@@ -125,16 +114,6 @@ export function openDatabase(path) {
       WHERE p.kind NOT IN ('creator', 'sweep') AND g.status IN (${FINAL_SQL})`),
     keptDeposits: q("SELECT amount FROM deposits WHERE status = 'kept' AND amount IS NOT NULL"),
     creatorAndSweepPayouts: q("SELECT amount FROM payouts WHERE kind IN ('creator', 'sweep')"),
-    // Balance games (Price Shot) keep stakes minus what they credited back.
-    finalBalanceStakes: q(`SELECT e.amount FROM balance_events e JOIN games g ON g.kind = e.game_kind AND g.id = e.game_id
-      WHERE e.kind = 'stake' AND g.status IN (${FINAL_SQL})`),
-    finalBalanceCredits: q(`SELECT e.amount FROM balance_events e JOIN games g ON g.kind = e.game_kind AND g.id = e.game_id
-      WHERE e.kind IN ('win', 'refund', 'creator') AND g.status IN (${FINAL_SQL})`),
-    getBalance: q('SELECT amount FROM balances WHERE wallet = ?'),
-    putBalance: q('INSERT INTO balances (wallet, amount) VALUES (?, ?) ON CONFLICT (wallet) DO UPDATE SET amount = excluded.amount'),
-    allBalances: q('SELECT amount FROM balances'),
-    addBalanceEvent: q('INSERT INTO balance_events (ref, wallet, kind, amount, game_kind, game_id, at) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT (ref) DO NOTHING'),
-    balanceEventsByWallet: q('SELECT * FROM balance_events WHERE wallet = ? ORDER BY id DESC LIMIT ?'),
     getCreator: q('SELECT amount FROM creator_balances WHERE wallet = ?'),
     putCreator: q('INSERT INTO creator_balances (wallet, amount) VALUES (?, ?) ON CONFLICT (wallet) DO UPDATE SET amount = excluded.amount'),
     allCreators: q('SELECT wallet, amount FROM creator_balances'),
@@ -234,30 +213,7 @@ export function openDatabase(path) {
       const total = (rows) => rows.reduce((sum, r) => sum + BigInt(r.amount), 0n)
       return total(s.finalStakesIn.all()) - total(s.finalPaidOut.all()) + total(s.keptDeposits.all())
         - total(s.creatorAndSweepPayouts.all()) - total(s.allCreators.all())
-        + total(s.finalBalanceStakes.all()) - total(s.finalBalanceCredits.all())
     },
-
-    /** A player's game balance in lamports. */
-    balance: (wallet) => BigInt(s.getBalance.get(wallet)?.amount ?? 0),
-    balancesTotal: () => s.allBalances.all().reduce((sum, r) => sum + BigInt(r.amount), 0n),
-    /**
-     * Moves a game balance by `delta` (negative = debit) and records it.
-     * Idempotent on `ref`: a second call with the same ref changes nothing and
-     * returns false. Throws (and changes nothing) when a debit exceeds the
-     * balance.
-     */
-    moveBalance({ ref, wallet, kind, delta, gameKind = null, gameId = null }) {
-      if (delta === 0n) return false
-      return transaction(() => {
-        if (s.addBalanceEvent.run(ref, wallet, kind, (delta < 0n ? -delta : delta).toString(), gameKind, gameId, now()).changes === 0) return false
-        const next = BigInt(s.getBalance.get(wallet)?.amount ?? 0) + delta
-        // Throwing rolls the event back with the rest of the transaction.
-        if (next < 0n) throw new Error('InsufficientBalance')
-        s.putBalance.run(wallet, next.toString())
-        return true
-      })
-    },
-    balanceEvents: (wallet, limit = 100) => s.balanceEventsByWallet.all(wallet, limit),
 
     nickname: (wallet) => s.getNickname.get(wallet)?.nickname ?? null,
     nicknameOwner: (lower) => s.nicknameOwner.get(lower)?.wallet ?? null,

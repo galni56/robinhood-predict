@@ -71,8 +71,8 @@ export interface Shot {
 }
 
 export const SHOT_RULES = { minPlayers: 2, maxPlayers: 10, aimSeconds: 30, durations: [60, 300, 900, 3600] }
-/** Top-ups of the game balance: a transfer to the game wallet with this memo. */
-export const BALANCE_MEMO = 'prophet:balance:0:0'
+/** A Price Shot stake: a transfer to the game wallet with this memo (the price was sent signed). */
+export const shotMemo = (id: number) => `prophet:shot:${id}:0`
 
 export function shotFromServer(s: ServerShot): Shot {
   return {
@@ -120,26 +120,6 @@ export function useShot(id: number | null) {
     },
   })
   return { shot: query.data, isLoading: query.isLoading, error: query.error, refetch: query.refetch }
-}
-
-export interface BalanceEvent {
-  kind: 'deposit' | 'withdraw' | 'stake' | 'win' | 'refund' | 'creator' | string
-  amount: string
-  time: number
-  game: { kind: string; id: number; address: string } | null
-}
-
-/** The player's game balance (lamports) and its latest movements. */
-export function useGameBalance(wallet?: string | null) {
-  return useQuery({
-    queryKey: ['game-balance', wallet],
-    queryFn: async () => {
-      const body = await getJson<{ balance?: string; balanceEvents?: BalanceEvent[] }>(`/wallet/${wallet}`)
-      return { balance: BigInt(body.balance ?? '0'), events: body.balanceEvents ?? [] }
-    },
-    enabled: !!wallet && GAME_SERVER_URL != null,
-    refetchInterval: 4_000,
-  })
 }
 
 /** Rank of every locked shot against a price (closest first, earlier lock wins ties). */
