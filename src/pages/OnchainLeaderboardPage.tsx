@@ -17,8 +17,8 @@ type Board = 'all' | 'races' | 'arenas'
 
 const BOARD_OPTIONS = [
   { key: 'all', label: 'All games' },
-  { key: 'races', label: 'Asset Races', accent: 'race' },
-  { key: 'arenas', label: 'Price Arena', accent: 'arena' },
+  { key: 'races', label: 'Haste', accent: 'race' },
+  { key: 'arenas', label: 'Shot', accent: 'arena' },
 ] as const
 
 interface Row {

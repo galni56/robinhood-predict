@@ -17,7 +17,7 @@ import { shortHash } from '@/lib/hash'
 
 const ACTIVITY_LABEL: Record<string, string> = {
   bet: 'Bet',
-  entry: 'Arena entry',
+  entry: 'Shot entry',
   claim: 'Paid out',
   refund: 'Refunded',
 }
@@ -129,7 +129,7 @@ export function OnchainPortfolioPage() {
     <div className="mx-auto max-w-[1100px] px-4 py-8">
       <ClusterBanner />
       <h1 className="font-display text-3xl font-bold tracking-tight sm:text-4xl">Portfolio</h1>
-      <p className="mt-2 text-sm text-[#1B1340]/55">Your Asset Race positions and Price Arena entries, payouts on their way to your account, and your history.</p>
+      <p className="mt-2 text-sm text-[#1B1340]/55">Your Haste duels and Shot calls, payouts on their way to your account, and your history.</p>
 
       {!connected || !publicKey ? (
         <div className="rx-raised mt-6 max-w-md bg-[#FFF6DF] p-5">
@@ -179,7 +179,7 @@ export function OnchainPortfolioPage() {
                 <p className="py-6 text-sm text-[#C2245A]">Could not read your positions.</p>
               ) : !isLoading && inPlay.length === 0 ? (
                 <p className="py-6 text-sm text-[#1B1340]/55">
-                  No open games. <Link to="/onchain/races" className="font-bold text-[#B8860B] hover:underline">Find a race</Link> or <Link to="/onchain/shots" className="font-bold text-[#1F7FD1] hover:underline">join an arena</Link>.
+                  No open games. <Link to="/onchain/races" className="font-bold text-[#B8860B] hover:underline">Find a duel</Link> or <Link to="/onchain/shots" className="font-bold text-[#1F7FD1] hover:underline">join an arena</Link>.
                 </p>
               ) : isLoading && inPlay.length === 0 ? (
                 <p className="py-6 text-sm text-[#1B1340]/55">Loading your games…</p>
@@ -209,7 +209,7 @@ export function OnchainPortfolioPage() {
                 <div key={`${item.signature}:${item.type}`} className="grid grid-cols-[1fr_auto] items-center gap-3 border-t border-[#1B1340]/12 bg-[#FFF6DF] px-4 py-2.5 text-sm first:border-t-0 sm:grid-cols-[8rem_1fr_auto_auto]">
                   <span className="font-bold">{ACTIVITY_LABEL[item.type] ?? item.type}</span>
                   <Link to={`/onchain/${item.game === 'race' ? 'races' : 'arenas'}/${item.gameId ?? ''}`} className="hidden truncate text-[#1B1340]/60 hover:text-[#1B1340] sm:block">
-                    {item.game === 'race' ? 'Race' : 'Arena'} #{item.gameId ?? '?'}{item.symbol ? ` · ${item.symbol}` : ''}
+                    {item.game === 'race' ? 'Haste' : 'Shot'} #{item.gameId ?? '?'}{item.symbol ? ` · ${item.symbol}` : ''}
                   </Link>
                   <span className="text-right font-mono tabular-nums">{item.amount ? formatStakeAmount(BigInt(item.amount), item.stakeMint ? tokenOf(item.stakeMint) : SOL_STAKE_TOKEN) : ''}</span>
                   <a href={explorerUrl('tx', item.signature)} target="_blank" rel="noreferrer" className="hidden text-right font-mono text-xs text-[#1B1340]/55 hover:text-[#1B1340] sm:block">

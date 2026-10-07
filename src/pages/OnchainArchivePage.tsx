@@ -18,8 +18,8 @@ import { formatStakeAmount, useStakeTokenLookup } from '@/solana/stakeTokens'
 type ArchiveMode = 'races' | 'arenas'
 
 const MODE_OPTIONS = [
-  { key: 'races', label: 'Asset Races', accent: 'race' },
-  { key: 'arenas', label: 'Price Arena', accent: 'arena' },
+  { key: 'races', label: 'Haste', accent: 'race' },
+  { key: 'arenas', label: 'Shot', accent: 'arena' },
 ] as const
 
 function dateLabel(seconds: bigint) {

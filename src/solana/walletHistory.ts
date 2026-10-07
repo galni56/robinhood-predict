@@ -21,7 +21,7 @@ export interface WalletHistoryRow {
 }
 
 const LIMIT = 40
-const GAME_LABEL: Record<string, string> = { duel: 'Duel', arena: 'Arena', race: 'Race' }
+const GAME_LABEL: Record<string, string> = { duel: 'Haste', arena: 'Shot', race: 'Haste', shot: 'Shot' }
 
 type Ix = ParsedInstruction | PartiallyDecodedInstruction
 const transfers = (tx: ParsedTransactionWithMeta) => {

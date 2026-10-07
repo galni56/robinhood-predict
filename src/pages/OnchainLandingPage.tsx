@@ -19,7 +19,7 @@ import { TokenCa } from '@/components/TokenCa'
 
 const STEPS = [
   ['Create an account', 'One click, no extension. Top it up with some SOL to stake.'],
-  ['Pick your coin', 'Back the favorite in a race, or call one coin\'s final price in the arena.'],
+  ['Pick your coin', 'Bring a coin to a Haste duel, or call one coin\'s final price in a Shot room.'],
   ['Win lands in your account', 'Your call won? Your share of the bank is sent to your account automatically.'],
 ] as const
 
@@ -86,8 +86,8 @@ export function OnchainLandingPage() {
           ON SOLANA
         </span>
         <h1 style={{ position: 'relative', margin: 0, fontFamily: PIXEL, fontSize: 'clamp(20px, 3.4vw, 48px)', fontWeight: 400, lineHeight: 1.5 }}>
-          <span style={{ display: 'block', textShadow: `4px 4px 0 ${YELLOW}` }}>COIN RACES</span>
-          <span style={{ display: 'block', textShadow: `4px 4px 0 ${PINK}` }}>& ARENA FIGHTS</span>
+          <span style={{ display: 'block', textShadow: `4px 4px 0 ${YELLOW}` }}>HASTE DUELS</span>
+          <span style={{ display: 'block', textShadow: `4px 4px 0 ${PINK}` }}>& PRICE SHOTS</span>
         </h1>
         <p style={{ position: 'relative', margin: 0, maxWidth: 640, fontSize: 'clamp(18px, 1.6vw, 22px)', lineHeight: 1.4, fontWeight: 500, textWrap: 'pretty' }}>
           Pick a coin, bet on it and watch it tear toward the finish. Whoever grows the most in price wins.
@@ -123,7 +123,7 @@ export function OnchainLandingPage() {
             TWO MODES
           </h2>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(420px, 100%), 1fr))', gap: 40 }}>
-            {/* Races card */}
+            {/* Haste card */}
             <article className="rx-raised" style={{ display: 'flex', flexDirection: 'column', background: CREAM }}>
               <div aria-hidden="true" style={{ position: 'relative', height: 220, background: SKY, overflow: 'hidden', borderBottom: `4px solid ${INK}` }}>
                 <Cloud width={84} duration="8s" style={{ top: 22, left: '10%' }} />
@@ -144,7 +144,7 @@ export function OnchainLandingPage() {
                 </div>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 14, padding: 28 }}>
-                <h3 style={{ margin: 0, fontFamily: PIXEL, fontSize: 24, fontWeight: 400, lineHeight: 1.3 }}>RACES</h3>
+                <h3 style={{ margin: 0, fontFamily: PIXEL, fontSize: 24, fontWeight: 400, lineHeight: 1.3 }}>HASTE</h3>
                 <p style={{ margin: 0, fontSize: 20, lineHeight: 1.4, fontWeight: 500, textWrap: 'pretty' }}>
                   Bring your coin, match the stake and hit READY. The coin that grows the most takes the pot - spectators back racers and cheer.
                 </p>
@@ -154,7 +154,7 @@ export function OnchainLandingPage() {
               </div>
             </article>
 
-            {/* Arena card */}
+            {/* Shot card */}
             <article className="rx-raised" style={{ display: 'flex', flexDirection: 'column', background: CREAM }}>
               <div aria-hidden="true" style={{ position: 'relative', height: 220, background: NIGHT, overflow: 'hidden', borderBottom: `4px solid ${INK}` }}>
                 <Stars
@@ -183,12 +183,12 @@ export function OnchainLandingPage() {
                 />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 14, padding: 28 }}>
-                <h3 style={{ margin: 0, fontFamily: PIXEL, fontSize: 24, fontWeight: 400, lineHeight: 1.3 }}>ARENA</h3>
+                <h3 style={{ margin: 0, fontFamily: PIXEL, fontSize: 24, fontWeight: 400, lineHeight: 1.3 }}>SHOT</h3>
                 <p style={{ margin: 0, fontSize: 20, lineHeight: 1.4, fontWeight: 500, textWrap: 'pretty' }}>
                   One coin, one round. Every player calls its final price - the closest calls take the bank.
                 </p>
                 <Link to="/onchain/shots" className="rx-btn rx-btn-pink" style={{ minHeight: 56, padding: '0 28px', fontFamily: PIXEL, fontSize: 16 }}>
-                  INTO THE FIGHT
+                  TAKE A SHOT
                 </Link>
               </div>
             </article>
